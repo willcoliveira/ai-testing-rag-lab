@@ -2,4 +2,4 @@
 # Enable with: git config core.hooksPath .githooks
 # A commit message is public once pushed: check it like any tracked file, and keep it semantic.
 node scripts/check-forbidden.mjs --file "$1" || { echo "commit-msg: forbidden strings in the commit message"; exit 1; }
-uv run --quiet python scripts/check_conventions.py --message-file "$1" || { echo "commit-msg: use Conventional Commits, e.g. \"feat(retrieval): add BM25\""; exit 1; }
+uv run --quiet --locked python scripts/check_conventions.py --message-file "$1" || { echo "commit-msg: use Conventional Commits, e.g. \"feat(retrieval): add BM25\""; exit 1; }

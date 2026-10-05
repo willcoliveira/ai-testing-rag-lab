@@ -18,6 +18,8 @@ conv = load_script("check_conventions")
         "ci(deps): bump actions/checkout",
         'Revert "feat(api): add /ask"',
         "Merge branch 'main' into feat/s2-retrieval",
+        "Merge pull request #12 from willcoliveira/feat/s2-retrieval",
+        "fixup! feat(api): add /ask",
     ],
 )
 def test_good_headers_pass(header):
@@ -34,10 +36,28 @@ def test_good_headers_pass(header):
         "feature(api): unknown type",
         "feat(api): " + "x" * 100,
         "",
+        # the S0 judge's bypasses: Git-generated prefixes carrying free text
+        "Merge branch whatever i like",
+        'Revert "anything',
+        'Revert "update stuff"',
+        "fixup! update stuff",
     ],
 )
 def test_bad_headers_fail(header):
     assert conv.check_header(header) is not None
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Merge branch 'main' into feat/s2-retrieval",
+        'Revert "feat(api): add /ask"',
+        "fixup! feat: x",
+    ],
+)
+def test_pr_titles_must_be_conventional_commits(title):
+    assert conv.check_header(title, git_generated=False) is not None
+    assert conv.main(["--title", title]) == 1
 
 
 def test_message_uses_first_non_comment_line():

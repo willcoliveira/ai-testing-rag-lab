@@ -28,15 +28,32 @@ TYPES = (
 MAX_HEADER = 100
 HEADER = re.compile(rf"^(?:{'|'.join(TYPES)})(?:\([a-z0-9][a-z0-9._/-]*\))?!?: \S")
 BRANCH = re.compile(rf"^(?:{'|'.join(TYPES)})/(?:s\d+[a-z]?-)?[a-z0-9]+(?:-[a-z0-9]+)*$")
-# messages Git writes itself
-GIT_GENERATED = re.compile(
-    r'^(?:Merge (?:branch|pull request|remote-tracking branch|tag) |Revert ")'
+# messages Git writes itself, matched in full so they cannot carry free text
+GIT_MERGE = re.compile(
+    r"^Merge (?:branch '[^']+'(?: of \S+)?(?: into \S+)?"
+    r"|remote-tracking branch '[^']+'(?: into \S+)?"
+    r"|tag '[^']+'(?: into \S+)?"
+    r"|pull request #\d+ from \S+)$"
 )
+GIT_REVERT = re.compile(r'^Revert "(.+)"$')
+# `git commit --fixup/--squash`: allowed in commits (squashed away before merge), not in PR titles
+AUTOSQUASH = re.compile(r"^(?:fixup|squash|amend)! (.+)$")
 
 
-def check_header(header: str) -> str | None:
-    if GIT_GENERATED.match(header):
-        return None
+def check_header(header: str, *, git_generated: bool = True) -> str | None:
+    """None if the header follows the convention, else the reason.
+
+    git_generated allows the merge and revert subjects Git writes itself (commit messages only;
+    a PR title must be a Conventional Commit)."""
+    if git_generated:
+        if GIT_MERGE.match(header):
+            return None
+        reverted = GIT_REVERT.match(header)
+        if reverted:
+            return check_header(reverted.group(1), git_generated=True)
+        squashed = AUTOSQUASH.match(header)
+        if squashed:
+            return check_header(squashed.group(1), git_generated=False)
     if not HEADER.match(header):
         return f'"{header}" is not "type(scope): subject" with type one of {", ".join(TYPES)}'
     if len(header) > MAX_HEADER:
@@ -75,7 +92,7 @@ def main(argv: list[str]) -> int:
     if args.message_file:
         problem = check_message(args.message_file.read_text(encoding="utf-8"))
     elif args.title is not None:
-        problem = check_header(args.title)
+        problem = check_header(args.title, git_generated=False)
     else:
         problem = check_branch(args.branch)
     if problem:
