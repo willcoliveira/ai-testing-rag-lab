@@ -20,6 +20,10 @@ conv = load_script("check_conventions")
         "Merge branch 'main' into feat/s2-retrieval",
         "Merge pull request #12 from willcoliveira/feat/s2-retrieval",
         "fixup! feat(api): add /ask",
+        # judge round 2: what Git writes when a bare commit id is merged
+        "Merge commit '" + "0123abcd" * 5 + "'",
+        "Merge commit '" + "0123abcd" * 5 + "' into feat/s2-retrieval",
+        "Merge commit '0123abc' into feat/s2-retrieval",
     ],
 )
 def test_good_headers_pass(header):
@@ -41,6 +45,9 @@ def test_good_headers_pass(header):
         'Revert "anything',
         'Revert "update stuff"',
         "fixup! update stuff",
+        "Merge commit 'anything i like'",
+        "Merge commit 'HEAD' into main and more",
+        "Merge commit '0123abc' into feat/x extra words",
     ],
 )
 def test_bad_headers_fail(header):
@@ -53,6 +60,7 @@ def test_bad_headers_fail(header):
         "Merge branch 'main' into feat/s2-retrieval",
         'Revert "feat(api): add /ask"',
         "fixup! feat: x",
+        "Merge commit '0123abc' into feat/s2-retrieval",
     ],
 )
 def test_pr_titles_must_be_conventional_commits(title):
@@ -62,6 +70,8 @@ def test_pr_titles_must_be_conventional_commits(title):
 
 def test_message_uses_first_non_comment_line():
     assert conv.check_message("# a comment\n\nchore(repo): add skeleton\n\nbody text\n") is None
+    merge = "Merge commit '" + "0123abcd" * 5 + "' into feat/s2-retrieval\n\n# Conflicts:\n"
+    assert conv.check_message(merge) is None
     assert conv.check_message("# only comments\n") == "empty commit message"
     assert conv.check_message("WIP\n") is not None
 

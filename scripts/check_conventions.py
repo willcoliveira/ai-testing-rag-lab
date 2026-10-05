@@ -33,6 +33,8 @@ GIT_MERGE = re.compile(
     r"^Merge (?:branch '[^']+'(?: of \S+)?(?: into \S+)?"
     r"|remote-tracking branch '[^']+'(?: into \S+)?"
     r"|tag '[^']+'(?: into \S+)?"
+    # `git merge <commit id>`: a hex id only, so the quotes cannot carry free text
+    r"|commit '[0-9a-f]{4,64}'(?: of \S+)?(?: into \S+)?"
     r"|pull request #\d+ from \S+)$"
 )
 GIT_REVERT = re.compile(r'^Revert "(.+)"$')
