@@ -269,3 +269,32 @@ def test_commit_from_a_linked_worktree_leaves_the_main_repo_intact(tmp_path):
     assert "leak.md:1" in blocked.stderr  # git shows hook output on stderr
     assert g(wt, "rev-parse", "HEAD").stdout == head
     assert g(main, "config", "--get", "core.bare").stdout.strip() != "true"
+
+
+# Found while replaying N1: a linked worktree has no copy of the gitignored real list, so the hooks
+# and `make privacy` there ran with the example list only. They now use the main worktree's list.
+def test_linked_worktree_uses_the_main_worktree_list(repo, tmp_path_factory):
+    (repo / "privacy" / "forbidden-strings.txt").write_text("/\\bzqxfake\\b/i\n", encoding="utf-8")
+    env = clean_env(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+    wt = tmp_path_factory.mktemp("wt")  # outside the main worktree, as `git worktree add` is used
+    for args in (
+        ("config", "user.name", "Test"),
+        ("config", "user.email", "test@example.com"),
+        ("commit", "-q", "--no-verify", "-m", "chore: initial commit"),
+        ("worktree", "add", "-q", "-b", "docs/wt", str(wt)),
+    ):
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, env=env)
+    assert not (wt / "privacy" / "forbidden-strings.txt").exists()
+
+    (wt / "MSG").write_text("docs: mention zqxfake\n", encoding="utf-8")
+    assert run(wt, "--file", "MSG").returncode == 1  # the commit-msg hook
+    (wt / "MSG").unlink()
+    (wt / "leak.md").write_text("about zqxfake\n", encoding="utf-8")
+    full = run(wt)  # make privacy
+    assert full.returncode == 1
+    assert "leak.md:1" in full.stdout
+    git(wt, "add", "leak.md")
+    in_index = staged(wt, ci=False)  # the pre-commit hook
+    assert in_index.returncode == 1
+    assert "leak.md:1" in in_index.stdout
+    assert run(wt, ci=True).returncode == 0  # CI uses the example list only

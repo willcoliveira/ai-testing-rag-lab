@@ -23,9 +23,17 @@ trap 'rm -rf "$tmp"' EXIT
 git ls-files -z --cached >"$tmp/files"
 git checkout-index -a --ignore-skip-worktree-bits --prefix="$tmp/tree/"
 mkdir -p "$tmp/tree/privacy"
-# the real list is gitignored, so it is not in the index; bring the local copy along if there is one
-if [ -f "$repo/privacy/forbidden-strings.txt" ]; then
-  cp "$repo/privacy/forbidden-strings.txt" "$tmp/tree/privacy/"
+# the real list is gitignored, so it is not in the index; bring the local copy along if there is
+# one. A linked worktree has none of its own: take the main worktree's (beside the common .git).
+list="$repo/privacy/forbidden-strings.txt"
+if [ ! -f "$list" ]; then
+  common=$(git rev-parse --path-format=absolute --git-common-dir)
+  if [ "$(basename "$common")" = ".git" ]; then
+    list="$(dirname "$common")/privacy/forbidden-strings.txt"
+  fi
+fi
+if [ -f "$list" ]; then
+  cp "$list" "$tmp/tree/privacy/forbidden-strings.txt"
 fi
 
 # From here on no git command can reach the real repo: the variables git exports to hooks

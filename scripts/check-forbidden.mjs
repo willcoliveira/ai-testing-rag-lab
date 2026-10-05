@@ -7,6 +7,7 @@
 //   scanned (S0 judge round 2)
 // - CRLF and CR made LF before the paragraph split of the line-break view (S0 judge round 2)
 // - only the two list files exempt by path, not every privacy/forbidden-strings* name
+// - in a linked worktree, the main worktree's real list
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
 // directory instead. --file <path> one file (a commit message or PR body). --files-from <path> the
 // files named in <path> (NUL-separated, relative to the working directory), e.g. every entry of an
@@ -15,10 +16,25 @@
 // unless CI=1. Exits 1 on any hit. Refuses to run if the real list is tracked by git.
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { execSync } from "node:child_process";
-import { join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 
 const root = process.cwd();
-const REAL = join(root, "privacy/forbidden-strings.txt");
+// A linked worktree has no copy of the gitignored real list: use the main worktree's (the
+// directory that holds the common .git), so its hooks and checks do not fall back to the example
+// list alone.
+function realList() {
+  const own = join(root, "privacy/forbidden-strings.txt");
+  if (existsSync(own) || process.env.CI) return own;
+  try {
+    const common = execSync("git rev-parse --path-format=absolute --git-common-dir", {
+      cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const main = join(dirname(common), "privacy/forbidden-strings.txt");
+    if (basename(common) === ".git" && existsSync(main)) return main;
+  } catch { /* not in a repo */ }
+  return own;
+}
+const REAL = realList();
 const EXAMPLE = join(root, "privacy/forbidden-strings.example.txt");
 
 function tracked() {
