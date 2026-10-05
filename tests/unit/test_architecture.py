@@ -99,6 +99,25 @@ def test_core_importing_another_raglab_layer_is_reported(tmp_path, source):
         "import importlib\nim = getattr(importlib, 'import_module')\nsdk = im('openai')\n",
         "import importlib\nsdk = importlib.import_module(name='openai')\n",
         "import importlib\ndef load():\n    return importlib.import_module(*['openai'])\n",
+        # judge round 3 (D6): pkgutil, importlib.util, runpy and sys.modules routes
+        "import pkgutil\nsdk = pkgutil.resolve_name('openai')\n",
+        "import pkgutil\ncls = pkgutil.resolve_name('openai:OpenAI')\n",
+        "from pkgutil import resolve_name\ncls = resolve_name('anthropic.types:Message')\n",
+        "import importlib.util\nspec = importlib.util.find_spec('openai')\n"
+        "sdk = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(sdk)\n",
+        "from importlib.util import find_spec\nspec = find_spec('boto3')\n",
+        "import runpy\nrunpy.run_module('openai')\n",
+        "import importlib\nsdk = importlib.import_module('.types', package='openai')\n",
+        "import sys\nsdk = sys.modules['openai']\n",
+        "import sys\nsdk = sys.modules.get('openai')\n",
+        "from sys import modules\nsdk = modules['openai']\n",
+        "from sys import modules as m\nsdk = m.setdefault('openai', None)\n",
+        "s = __import__('sys')\nsdk = s.modules['openai']\n",
+        "import sys\nmods, x = sys.modules, 1\nsdk = mods['openai']\n",
+        "import pkgutil\ndef load(name):\n    return pkgutil.resolve_name(name)\n",
+        "import importlib.util\ndef load(name):\n    return importlib.util.find_spec(name)\n",
+        "import sys\ndef get(name):\n    return sys.modules[name]\n",
+        "import sys\ndef get(name):\n    return sys.modules.get(name)\n",
     ],
 )
 def test_vendor_sdk_outside_adapters_is_reported(tmp_path, source):
@@ -138,6 +157,34 @@ def test_any_import_module_attribute_call_is_an_importer(tmp_path, source):
     found = messages(package)
     assert len(found) == 1
     assert "dynamic import with a computed name" in found[0]
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        # judge round 3 (D6): a provider name is data in config and later stages
+        "provider = 'openai'\nCONFIG = {'provider': 'openai'}\nchoice = CONFIG['provider']\n",
+        "modules = {'openai': 1}\nvalue = modules['openai']\n",
+        "class Registry:\n    modules = {}\n\n    def get(self):\n"
+        "        return self.modules['openai']\n",
+        "import sys\nthis = sys.modules[__name__]\n",
+        "from importlib import import_module\nthis = import_module(__package__)\n",
+        "def find_spec(name):\n    return name\n\nvalue = find_spec(input())\n",
+        "import importlib.util\nspec = importlib.util.find_spec('json')\n",
+    ],
+)
+def test_data_and_this_module_are_not_imports(tmp_path, source):
+    package = make_package(tmp_path, {"generate/pipeline.py": source})
+    assert messages(package) == []
+
+
+def test_run_time_import_in_core_must_name_the_stdlib(tmp_path):
+    source = "import importlib.util\nspec = importlib.util.find_spec('requests')\n"
+    package = make_package(tmp_path, {"core/ports.py": source})
+    found = messages(package)
+    assert len(found) == 1
+    assert "core/ports.py:2" in found[0]
+    assert "not requests" in found[0]
 
 
 def test_relative_import_above_the_package_names_the_import(tmp_path):

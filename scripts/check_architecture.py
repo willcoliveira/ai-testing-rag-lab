@@ -7,14 +7,21 @@
 A run-time import is found by the call, not by tracking what importlib is bound to (S0 judge round
 3: `importlib = __import__('importlib')`, `il, x = importlib, 1` or `sys.modules['importlib']`
 bound it out of sight of a binding tracker):
-- any call of an attribute named `import_module` or `__import__`, or of
-  `getattr(<anything>, 'import_module')`;
-- a bare call of `__import__`, of `import_module` unless the file defines a function of that name
-  (a local helper of that name is not an importer), or of a name an import or an assignment (simple,
-  tuple or `:=`) binds to one of those.
-The module name is the first argument (or `name=`): a string literal names the module, anything
-else is a computed name, reported outside `raglab.adapters`. A method of that name, called outside
-adapters with a computed name, is reported too; rename it.
+- any call of an attribute named `import_module`, `__import__`, `find_spec` (importlib.util, whose
+  spec `module_from_spec` and `exec_module` then load), `resolve_name` (pkgutil) or `run_module`
+  (runpy), or of `getattr(<anything>, '<one of those>')`;
+- a bare call of `__import__`, of one of the other names unless the file defines a function of
+  that name (a local helper of that name is not an importer), or of a name an import or an
+  assignment (simple, tuple or `:=`) binds to one of those;
+- `sys.modules[...]` and `sys.modules.get/pop/setdefault(...)`, with sys bound by an import, an
+  assignment or a run-time import of 'sys' (S0 judge round 3, D6).
+The module name is the first argument (or `name=`, `mod_name=`, `fullname=`; the part before `:`
+for `pkg.mod:obj`; a relative name is resolved against a literal `package`): a string literal names
+the module, `__name__` and `__package__` name this module, anything else is a computed name,
+reported outside `raglab.adapters`. A method of one of those names, called outside adapters with a
+computed name, is reported too; rename it. A string that is only data (provider = "openai") is
+never an import. Out of reach: loading by file path (spec_from_file_location, SourceFileLoader),
+exec and eval (bandit flags those), and names reached through vars() or __dict__.
 
 Usage: python scripts/check_architecture.py [package_dir]   (default: src/raglab)
 Prints one line per violation and exits 1 if there are any.
@@ -68,8 +75,18 @@ def _resolve_relative(
 
 
 COMPUTED = "<computed name>"
-IMPORTERS = frozenset({"import_module", "__import__"})
-NAME_KEYWORDS = frozenset({"name"})
+IMPORTERS = frozenset({"import_module", "__import__", "find_spec", "resolve_name", "run_module"})
+NAME_KEYWORDS = frozenset({"name", "mod_name", "fullname"})
+SYS_MODULES_METHODS = frozenset({"get", "pop", "setdefault"})
+# names that hold this module's own name, not a vendor's
+SELF_NAMES = frozenset({"__name__", "__package__"})
+
+
+@dataclass(frozen=True)
+class _Bindings:
+    importers: frozenset[str]  # bare names that call an importer
+    sys_names: frozenset[str]  # names bound to the sys module
+    sys_modules: frozenset[str]  # names bound to sys.modules
 
 
 def _pairs(target: ast.expr, value: ast.expr) -> list[tuple[str, ast.expr]]:
@@ -150,21 +167,105 @@ def _calls_an_importer(func: ast.expr, names: frozenset[str]) -> bool:
     return _is_getattr_importer(func)
 
 
-def _module_argument(call: ast.Call) -> str:
-    """The module a run-time import names: its first argument (or name=) when that is a string
-    literal, else COMPUTED."""
+def _module_name(node: ast.expr | None) -> str | None:
+    """A string literal names the module; __name__ and __package__ this module (None, not
+    reported); anything else is COMPUTED."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name) and node.id in SELF_NAMES:
+        return None
+    return COMPUTED
+
+
+def _module_argument(call: ast.Call) -> str | None:
+    """The module a run-time import names: its first argument, or name=, mod_name=, fullname=."""
     arg = (
         call.args[0]
         if call.args
         else next((k.value for k in call.keywords if k.arg in NAME_KEYWORDS), None)
     )
-    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-        return arg.value
-    return COMPUTED
+    name = _module_name(None if isinstance(arg, ast.Starred) else arg)
+    if name is None or name == COMPUTED:
+        return name
+    name = name.split(":")[0]  # pkgutil.resolve_name("pkg.mod:obj")
+    if name.startswith("."):  # import_module(".types", package="openai")
+        package = (
+            call.args[1]
+            if len(call.args) > 1
+            else next((k.value for k in call.keywords if k.arg == "package"), None)
+        )
+        if package is not None:
+            base = _module_name(package)
+            return base + name if base and base != COMPUTED else COMPUTED
+    return name
+
+
+def _is_sys(node: ast.expr, sys_names: frozenset[str], importers: frozenset[str]) -> bool:
+    """sys, a name bound to it, or a run-time import of 'sys'."""
+    if isinstance(node, ast.Name):
+        return node.id in sys_names
+    return (
+        isinstance(node, ast.Call)
+        and _calls_an_importer(node.func, importers)
+        and _module_argument(node) == "sys"
+    )
+
+
+def _is_sys_modules(node: ast.expr, bindings: _Bindings) -> bool:
+    if isinstance(node, ast.Name):
+        return node.id in bindings.sys_modules
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == "modules"
+        and _is_sys(node.value, bindings.sys_names, bindings.importers)
+    )
+
+
+def _bindings(tree: ast.Module) -> _Bindings:
+    importers = _importer_names(tree)
+    sys_names: set[str] = set()
+    sys_modules: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            sys_names.update(a.asname or a.name for a in node.names if a.name == "sys")
+        elif isinstance(node, ast.ImportFrom) and node.module == "sys" and not node.level:
+            sys_modules.update(a.asname or a.name for a in node.names if a.name == "modules")
+    # s = sys; s = __import__("sys"); m = sys.modules; m, x = s.modules, 1
+    assignments = _assignments(tree)
+    changed = True
+    while changed:
+        changed = False
+        for name, value in assignments:
+            if name not in sys_names and _is_sys(value, frozenset(sys_names), importers):
+                sys_names.add(name)
+                changed = True
+            elif name not in sys_modules and _is_sys_modules(
+                value, _Bindings(importers, frozenset(sys_names), frozenset(sys_modules))
+            ):
+                sys_modules.add(name)
+                changed = True
+    return _Bindings(importers, frozenset(sys_names), frozenset(sys_modules))
+
+
+def _run_time_imports(node: ast.expr, bindings: _Bindings) -> str | None:
+    """The module a run-time import in this node names (None when it is not one, or names this
+    module itself)."""
+    if isinstance(node, ast.Call) and _calls_an_importer(node.func, bindings.importers):
+        return _module_argument(node)
+    if isinstance(node, ast.Subscript) and _is_sys_modules(node.value, bindings):
+        return _module_name(node.slice)
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in SYS_MODULES_METHODS
+        and _is_sys_modules(node.func.value, bindings)
+    ):
+        return _module_name(node.args[0] if node.args else None)
+    return None
 
 
 def _imported_modules(tree: ast.Module, module_parts: list[str], is_package: bool):
-    importers = _importer_names(tree)
+    bindings = _bindings(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -184,8 +285,8 @@ def _imported_modules(tree: ast.Module, module_parts: list[str], is_package: boo
                 )
             elif node.module:
                 yield node.lineno, node.module
-        elif isinstance(node, ast.Call) and _calls_an_importer(node.func, importers):
-            yield node.lineno, _module_argument(node)
+        elif isinstance(node, ast.expr) and (module := _run_time_imports(node, bindings)):
+            yield node.lineno, module
 
 
 def check(package_dir: Path) -> list[Violation]:
