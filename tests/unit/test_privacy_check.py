@@ -286,6 +286,68 @@ def test_staged_check_survives_symlinks(repo):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+# Judge round 3 (D2): the example list, the checker and uv.lock were exempt by path, so a real name
+# pasted into one of them was committed unscanned. They are now checked with the real list's rules,
+# and the example list may hold only comments, <placeholders> (at least one) and /regex/ lines.
+EXAMPLE = "privacy/forbidden-strings.example.txt"
+
+
+def append(repo: Path, rel: str, text: str) -> None:
+    path = repo / rel
+    path.write_text(path.read_text(encoding="utf-8") + text, encoding="utf-8")
+
+
+@pytest.mark.parametrize("ci", [False, True], ids=["local", "ci"])
+def test_a_plain_line_in_the_example_list_fails_in_every_mode(repo, ci):
+    append(repo, EXAMPLE, "Acme Corp\n")
+    result = run(repo, ci=ci)
+    assert result.returncode == 1
+    assert f"{EXAMPLE}:" in result.stdout
+    assert "a plain-text line" in result.stdout
+    assert "Acme" not in result.stdout  # the line itself is not echoed to a CI log
+    git(repo, "add", EXAMPLE)
+    assert staged(repo, ci=ci).returncode == 1
+
+
+@pytest.mark.parametrize("ci", [False, True], ids=["local", "ci"])
+def test_the_copy_step_run_backwards_is_caught(repo, ci):
+    """`cp privacy/forbidden-strings.txt privacy/forbidden-strings.example.txt`: the real list
+    replaces the template, so no placeholder is left (the fixture's real list is regexes only)."""
+    real = (repo / "privacy" / "forbidden-strings.txt").read_text(encoding="utf-8")
+    (repo / EXAMPLE).write_text(real, encoding="utf-8")
+    result = run(repo, ci=ci)
+    assert result.returncode == 1
+    assert "no <placeholder> line left" in result.stdout
+    if not ci:
+        assert f"{EXAMPLE}:1: a line of the real list" in result.stdout
+
+
+@pytest.mark.parametrize("line", ["/\\bacmeclient\\b/i", "/\\bAcmeClient\\b/"])
+def test_a_real_name_written_as_a_regex_in_the_example_list_is_found(repo, line):
+    append(repo, EXAMPLE, line + "\n")
+    result = run(repo)
+    assert result.returncode == 1
+    assert f"{EXAMPLE}:" in result.stdout
+
+
+@pytest.mark.parametrize("rel", ["scripts/check-forbidden.mjs", "uv.lock"])
+def test_the_checker_and_the_lock_file_are_checked_with_the_real_list(repo, rel):
+    if not (repo / rel).exists():
+        (repo / rel).write_text("version = 1\n", encoding="utf-8")
+    append(repo, rel, "\n// written for acmeclient\n")
+    git(repo, "add", rel)
+    result = run(repo)
+    assert result.returncode == 1
+    assert f"{rel}:" in result.stdout
+    assert staged(repo, ci=False).returncode == 1
+
+
+def test_the_example_shapes_still_do_not_trip_the_files_that_state_them(repo):
+    # the example list and the checker hold the generic shapes on purpose
+    assert run(repo, ci=True).returncode == 0
+    assert run(repo).returncode == 0
+
+
 # Judge round 3 (D7): git commits a symlink as its link text (mode 120000). The checker followed
 # links instead: a link whose text held a forbidden string was committed unscanned (a dangling one
 # was skipped), and a link to a file outside the repo blocked a commit for content it did not carry.

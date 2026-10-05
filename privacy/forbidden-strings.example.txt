@@ -2,6 +2,8 @@
 # Lines wrapped in /.../ are regular expressions, case-sensitive; add a trailing i (/.../i) for case-insensitive.
 # Copy this file to privacy/forbidden-strings.txt (gitignored) and replace the
 # placeholders with the real names. CI runs with this example file only.
+# This file holds only comments, <placeholders> and /regex/ lines, and keeps at least one
+# placeholder: the privacy check fails on a plain-text line here, in CI too.
 <client-name-1>
 <client-name-2>
 <agency-name>

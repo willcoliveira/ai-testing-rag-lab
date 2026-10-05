@@ -6,7 +6,10 @@
 // - files listed NUL-separated (`ls-files -z`), so a name git C-quotes ("caf\303\251.md") is
 //   scanned (S0 judge round 2)
 // - CRLF and CR made LF before the paragraph split of the line-break view (S0 judge round 2)
-// - only the two list files exempt by path, not every privacy/forbidden-strings* name
+// - only the two list files exempt by path, not every privacy/forbidden-strings* name; since S0
+//   judge round 3 only the real list is never scanned: the example list, this script and uv.lock
+//   are exempt from the example shapes only and checked with the real list's rules, and the
+//   example list may hold only comments, <placeholders> (at least one) and /regex/ lines
 // - in a linked worktree, the main worktree's real list
 // - a real list in the index (any privacy/forbidden-strings* name but the example list, in any
 //   case) is refused in every mode, CI included (S0 judge round 3)
@@ -64,22 +67,32 @@ function walk(dir, out = []) {
   }
   return out;
 }
+// a line of a list (trimmed): a comment or blank, a <placeholder>, a /regex/flags line, or plain text
+function lineKind(l) {
+  if (!l || l.startsWith("#")) return "comment";
+  if (l.startsWith("/") && l.lastIndexOf("/") > 0) return "regex";
+  if (l.startsWith("<") && l.endsWith(">")) return "placeholder";
+  return "plain";
+}
 function loadList(path) {
   if (!existsSync(path)) return [];
   return readFileSync(path, "utf8").split("\n").map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("#"))
     .map((l) => {
-      if (l.startsWith("/") && l.lastIndexOf("/") > 0) {
+      const kind = lineKind(l);
+      if (kind === "regex") {
         const last = l.lastIndexOf("/");
         const flags = l.slice(last + 1).replace(/[^i]/g, "");
         return { re: new RegExp(l.slice(1, last), flags), global: new RegExp(l.slice(1, last), flags + "g"), src: l };
       }
-      if (l.startsWith("<") && l.endsWith(">")) return null; // placeholder, ignored
+      if (kind !== "plain") return null; // comment or placeholder, ignored
       const esc = l.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       return { re: new RegExp(esc, "i"), global: new RegExp(esc, "gi"), src: l };
     }).filter(Boolean);
 }
-const rules = [...loadList(EXAMPLE), ...(process.env.CI ? [] : loadList(REAL))];
+const realRules = process.env.CI ? [] : loadList(REAL);
+const rules = [...loadList(EXAMPLE), ...realRules];
+// the real list's lines, to find one copied into the example list
+const realLines = new Set(realRules.map((r) => r.src.toLowerCase()));
 const ALLOW_TOKENS = new Set(existsSync(join(root, "privacy/allowlist.txt"))
   ? readFileSync(join(root, "privacy/allowlist.txt"), "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))
   : []);
@@ -120,14 +133,41 @@ if (committedLists.length) {
   process.exit(2);
 }
 const files = new Map((scanFile ? [resolve(root, scanFile)] : scanDir ? walk(resolve(root, scanDir)) : (listFile ? listed() : tracked()).map((f) => join(root, f))).map((abs) => [label(abs), abs]));
-// files never scanned (by path only). The noreply address is removed from a line before matching,
-// so it cannot hide anything else on that line (security review 2026-10-04).
-// the two list files by exact name: a backup of the real list (forbidden-strings.txt~) is scanned
-const ALLOW_PATHS = [/^privacy\/forbidden-strings(?:\.example)?\.txt$/, /^scripts\/check-forbidden\.mjs$/, /^uv\.lock$/];
-// only the whole address: `alice.noreply@anthropic.com` is not exempt
+// Only the real list is never scanned (it is refused above when it is in the index; a backup of it,
+// forbidden-strings.txt~, is scanned). These files state the generic example shapes on purpose (the
+// example list itself, this script's comments, the hashes and ids in uv.lock), so they are exempt
+// from the example list's rules only: the real list's rules still run on them, so a real name pasted
+// into one is found (S0 judge round 3).
+const REAL_LABEL = "privacy/forbidden-strings.txt";
+const REAL_RULES_ONLY = new Set([EXAMPLE_LABEL, "scripts/check-forbidden.mjs", "uv.lock"]);
+const rulesFor = (f) => (REAL_RULES_ONLY.has(f) ? realRules : rules);
+// The example list holds only comments, <placeholders> and /regex/ lines, and keeps at least one
+// placeholder. A plain-text line there is a name, in every mode (CI included); a list with no
+// placeholder left is most likely the real list copied over it (the copy step with its arguments
+// reversed). Locally, a line the real list also has is reported too (S0 judge round 3). The line's
+// text is not printed, so a name does not reach a CI log.
+function exampleListProblems(text) {
+  const problems = [];
+  let placeholders = 0;
+  text.split(/\r?\n|\r/).forEach((raw, i) => {
+    const l = raw.trim();
+    const kind = lineKind(l);
+    if (kind === "placeholder") placeholders++;
+    else if (kind === "plain") problems.push(`${i + 1}: a plain-text line; the example list holds only comments, <placeholders> and /regex/ lines`);
+    else if (kind === "regex" && realLines.has(l.toLowerCase())) problems.push(`${i + 1}: a line of the real list`);
+  });
+  if (!placeholders) problems.push(" no <placeholder> line left; is it the real list copied over the example?");
+  return problems;
+}
+// a /regex/ line read as the text it matches, so the real list's rules find a name written as
+// /\bname\b/i: the class escapes (\b, \d, \s, \w) as a space, any other escape as its character
+const regexText = (line) => line.replace(/\\[bBdDsSwW]/g, " ").replace(/\\(.)/g, "$1");
+// The noreply address is removed from a line before matching, so it cannot hide anything else on
+// that line (security review 2026-10-04); only the whole address: `alice.noreply@anthropic.com`
+// is not exempt.
 const ALLOW_SUBSTRINGS = [/(?<![\w.+-])noreply@anthropic\.com/gi];
-// the whole token around a match, so an allowlisted id (BUG-123) is compared in full, not by the
-// prefix a rule happened to match (BUG-1)
+// the whole token around a match, so an allowlisted token is compared in full, not by the part of
+// it a rule happened to match
 const DELIM = /[\s`'"()[\]<>{},;|*]/;
 function tokenAt(line, start, end) {
   let a = start, b = end;
@@ -185,18 +225,23 @@ function readEntry(p) {
 // (a minified `.local` class is not a hostname)
 const cssVisible = (text) => [...text.matchAll(/\/\*[\s\S]*?\*\/|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g)].map((m) => m[0]).join("\n");
 let hits = 0, scanned = 0;
-for (const [f, p] of files) {
-  if (ALLOW_PATHS.some((a) => a.test(f))) continue;
-  const read = readEntry(p);
-  if (!read || read.binary) continue;
-  const text = scanDir && /\.css$/i.test(f) ? cssVisible(read.text) : read.text;
-  scanned++;
+function report(message) {
+  hits++;
+  console.log(message);
+}
+// Every rule of ruleSet on each line (raw, as a reader sees it, and for the example list as the
+// text its regexes match), then on the whole text with whitespace runs as one space and, for prose,
+// with the lines of a paragraph joined. lineNo(i) is the number shown for line i.
+function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = false }) {
+  if (!ruleSet.length) return;
   const reported = new Set();
   text.split(/\r?\n|\r/).forEach((raw, i) => {
     const line = ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), raw);
     const seen = new Set();
-    for (const view of [line, projection(line)]) {
-      for (const r of rules) {
+    const lineViews = [line, projection(line)];
+    if (regexView) lineViews.push(regexText(line));
+    for (const view of lineViews) {
+      for (const r of ruleSet) {
         // every match, not just the first: one allowlisted token must not mask a later hit
         // (built page chunks are a single line each)
         for (const m of view.matchAll(r.global)) {
@@ -206,7 +251,7 @@ for (const [f, p] of files) {
           if (seen.has(key)) continue;
           seen.add(key);
           reported.add(key.toLowerCase());
-          hits++; console.log(`${f}:${i + 1}: matches ${r.src} (${m[0]})`);
+          report(`${f}:${lineNo(i)}: matches ${r.src} (${m[0]})`);
         }
       }
     }
@@ -220,7 +265,7 @@ for (const [f, p] of files) {
   // CRLF and CR become LF first: a split on two (\r?\n|\r) in a row read one CRLF as a blank
   // line, so a token wrapped at a CRLF was never joined (S0 judge round 2)
   // --file input is a commit message or a PR body: prose whatever its name (S0 judge round 3)
-  const joined = scanFile || (PROSE.test(f) && !f.startsWith("privacy/"))
+  const joined = prose
     ? ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), text)
         .replace(/\r\n?/g, "\n")
         .split(/\n[ \t]*\n/)
@@ -230,17 +275,35 @@ for (const [f, p] of files) {
   const views = [flat, projection(flat).replace(/\s+/g, " ")];
   if (joined) views.push(joined, projection(joined));
   for (const view of views) {
-    for (const r of rules) {
+    for (const r of ruleSet) {
       for (const m of view.matchAll(r.global)) {
         if (!m[0]) continue;
         if (ALLOW_TOKENS.has(m[0]) || ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length))) continue;
         const key = `${r.src}\u0000${m[0]}`.toLowerCase();
         if (reported.has(key)) continue;
         reported.add(key);
-        hits++; console.log(`${f}: matches ${r.src} across lines (${m[0]})`);
+        report(`${f}: matches ${r.src} across lines (${m[0]})`);
       }
     }
   }
+}
+// one file of the tree (or the commit message given with --file)
+function checkFile(f, text) {
+  if (f === EXAMPLE_LABEL) {
+    for (const problem of exampleListProblems(text)) report(`${f}:${problem}`);
+  }
+  scanText(f, text, {
+    ruleSet: rulesFor(f),
+    prose: Boolean(scanFile) || (PROSE.test(f) && !f.startsWith("privacy/")),
+    regexView: f === EXAMPLE_LABEL,
+  });
+}
+for (const [f, p] of files) {
+  if (f === REAL_LABEL) continue;
+  const read = readEntry(p);
+  if (!read || read.binary) continue;
+  scanned++;
+  checkFile(f, scanDir && /\.css$/i.test(f) ? cssVisible(read.text) : read.text);
 }
 console.log(`${hits} hits across ${scanned} files (${rules.length} rules${process.env.CI ? ", CI example list only" : ""})`);
 process.exit(hits ? 1 : 0);
