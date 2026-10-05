@@ -24,6 +24,14 @@ conv = load_script("check_conventions")
         "Merge commit '" + "0123abcd" * 5 + "'",
         "Merge commit '" + "0123abcd" * 5 + "' into feat/s2-retrieval",
         "Merge commit '0123abc' into feat/s2-retrieval",
+        # judge round 3: what Git writes for a revert of a revert and for an octopus merge
+        'Reapply "feat(api): add /ask"',
+        'Revert "Reapply "feat(api): add /ask""',
+        "Merge branches 'a', 'b' and 'c'",
+        "Merge branches 'feat/a' and 'fix/b' into main",
+        "Merge branches 'd' and 'f', tag 't2' into work",
+        "Merge remote-tracking branches 'origin/a' and 'origin/b'",
+        "Merge branch 'a'; branch 'b' of github.com:org/repo into main",
     ],
 )
 def test_good_headers_pass(header):
@@ -48,6 +56,13 @@ def test_good_headers_pass(header):
         "Merge commit 'anything i like'",
         "Merge commit 'HEAD' into main and more",
         "Merge commit '0123abc' into feat/x extra words",
+        # judge round 3: the new forms carry no free text either
+        'Reapply "update stuff"',
+        'Reapply "anything',
+        "Merge branches 'a', 'b'",
+        "Merge branches 'a' and anything i like",
+        "Merge branch 'anything i like'",
+        "Merge tags 'v1' and 'v2' and more",
     ],
 )
 def test_bad_headers_fail(header):
@@ -61,6 +76,8 @@ def test_bad_headers_fail(header):
         'Revert "feat(api): add /ask"',
         "fixup! feat: x",
         "Merge commit '0123abc' into feat/s2-retrieval",
+        'Reapply "feat(api): add /ask"',
+        "Merge branches 'a', 'b' and 'c'",
     ],
 )
 def test_pr_titles_must_be_conventional_commits(title):

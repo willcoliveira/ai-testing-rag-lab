@@ -28,16 +28,33 @@ TYPES = (
 MAX_HEADER = 100
 HEADER = re.compile(rf"^(?:{'|'.join(TYPES)})(?:\([a-z0-9][a-z0-9._/-]*\))?!?: \S")
 BRANCH = re.compile(rf"^(?:{'|'.join(TYPES)})/(?:s\d+[a-z]?-)?[a-z0-9]+(?:-[a-z0-9]+)*$")
-# messages Git writes itself, matched in full so they cannot carry free text
-GIT_MERGE = re.compile(
-    r"^Merge (?:branch '[^']+'(?: of \S+)?(?: into \S+)?"
-    r"|remote-tracking branch '[^']+'(?: into \S+)?"
-    r"|tag '[^']+'(?: into \S+)?"
-    # `git merge <commit id>`: a hex id only, so the quotes cannot carry free text
-    r"|commit '[0-9a-f]{4,64}'(?: of \S+)?(?: into \S+)?"
-    r"|pull request #\d+ from \S+)$"
+# Messages Git writes itself, matched in full so they cannot carry free text. A merge subject
+# follows git's fmt-merge-msg: "Merge " then, per source repository, groups of branches,
+# remote-tracking branches, tags and commits ("branch 'a'", "branches 'a', 'b' and 'c'"), joined
+# by ", ", then " of <repo>" for a remote one; sources joined by "; "; then " into <branch>".
+# A ref name holds no whitespace or quote; a commit is a hex id only.
+_NAME = r"'[^'\s]+'"
+_HEX = r"'[0-9a-f]{4,64}'"
+
+
+def _group(singular: str, plural: str, item: str) -> str:
+    return rf"(?:{singular} {item}|{plural} {item}(?:, {item})* and {item})"
+
+
+_GROUP = "|".join(
+    (
+        _group("branch", "branches", _NAME),
+        _group("remote-tracking branch", "remote-tracking branches", _NAME),
+        _group("tag", "tags", _NAME),
+        _group("commit", "commits", _HEX),
+    )
 )
-GIT_REVERT = re.compile(r'^Revert "(.+)"$')
+_SOURCE = rf"(?:HEAD|{_GROUP})(?:, (?:{_GROUP}))*(?: of \S+)?"
+GIT_MERGE = re.compile(
+    rf"^Merge (?:{_SOURCE}(?:; {_SOURCE})*(?: into \S+)?|pull request #\d+ from \S+)$"
+)
+# `git revert`, and `git revert` of a revert (Git 2.43+ writes Reapply "<subject>")
+GIT_REVERT = re.compile(r'^(?:Revert|Reapply) "(.+)"$')
 # `git commit --fixup/--squash`: allowed in commits (squashed away before merge), not in PR titles
 AUTOSQUASH = re.compile(r"^(?:fixup|squash|amend)! (.+)$")
 
@@ -45,8 +62,8 @@ AUTOSQUASH = re.compile(r"^(?:fixup|squash|amend)! (.+)$")
 def check_header(header: str, *, git_generated: bool = True) -> str | None:
     """None if the header follows the convention, else the reason.
 
-    git_generated allows the merge and revert subjects Git writes itself (commit messages only;
-    a PR title must be a Conventional Commit)."""
+    git_generated allows the merge, revert and reapply subjects Git writes itself (commit messages
+    only; a PR title must be a Conventional Commit)."""
     if git_generated:
         if GIT_MERGE.match(header):
             return None
