@@ -14,7 +14,10 @@ These apply to every session and every account working here.
   with" lines.
 - **Isolation rule.** Patterns from earlier production work are re-implemented, never ported. Never
   open, read or copy any other codebase into this one, and never name past clients or employers.
-  `make privacy` and the commit-msg hook enforce the names on a maintainer's machine.
+  `make privacy` and the hooks enforce the names on a maintainer's machine; `make hooks` is
+  required in every clone, and hooks are never skipped with `--no-verify`.
+- **Label lab practice as lab.** Where a practice is the lab version of what production would do,
+  the docs say so.
 - **Honest numbers.** A result is published only from a real run with its provenance (fake, local,
   hosted). Never write a number that a run did not produce.
 - **Keys** live in a local `.env` (gitignored) or GitHub Environment secrets. Never in the repo.

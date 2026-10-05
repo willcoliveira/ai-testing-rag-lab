@@ -31,3 +31,20 @@ def test_go_public_scans_the_whole_history_with_the_real_list():
     assert "make privacy-history RANGE=--all` with the maintainer's real list" in text(
         "docs/GO-PUBLIC.md"
     )
+
+
+# AC15: CLAUDE.md carries the rules the plan lists, so a second account follows them too. Judge
+# round 3 (D10): "label lab practice as lab" was missing.
+@pytest.mark.parametrize(
+    "rule",
+    [
+        "No AI attribution",
+        "Pull requests only",
+        "Stage loop",
+        "Isolation rule",
+        "make hooks is required in every clone",
+        "Label lab practice as lab",
+    ],
+)
+def test_claude_md_carries_the_planned_rules(rule):
+    assert rule in text("CLAUDE.md").replace("`", "").replace("*", "")
