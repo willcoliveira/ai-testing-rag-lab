@@ -2,6 +2,12 @@
 .venv/
 __pycache__/
 *.py[cod]
+.ruff_cache/
+.pytest_cache/
+dist/
+runs/tmp/
 .env*
 !.env.example
 privacy/forbidden-strings.txt
+.claude/settings.local.json
+.mcp.json
