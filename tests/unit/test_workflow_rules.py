@@ -132,6 +132,24 @@ def test_job_may_narrow_permissions_below_contents_read(permissions):
     check_workflow({**base, "jobs": jobs}, text)
 
 
+def test_pr_fast_checks_the_commits_of_a_pr():
+    """Judge round 3 (D3): the history check runs on the PR's commits (base..head), with the full
+    history fetched, and the SHAs reach the shell through env only."""
+    wf = load(WORKFLOW_DIR / "pr-fast.yml")
+    steps = wf["jobs"]["check"]["steps"]
+    history = [step for step in steps if "make privacy-history" in step.get("run", "")]
+    assert len(history) == 1
+    step = history[0]
+    assert step["if"] == "github.event_name == 'pull_request'"
+    assert step["env"] == {
+        "BASE_SHA": "${{ github.event.pull_request.base.sha }}",
+        "HEAD_SHA": "${{ github.event.pull_request.head.sha }}",
+    }
+    assert step["run"] == 'make privacy-history RANGE="$BASE_SHA..$HEAD_SHA"'
+    checkout = next(s for s in steps if s.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["with"]["fetch-depth"] == 0
+
+
 def test_dependabot_covers_every_ecosystem_monthly():
     config = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
     ecosystems = {u["package-ecosystem"]: u for u in config["updates"]}

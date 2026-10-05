@@ -64,6 +64,14 @@ jobs:
         run: make secrets
       - name: Privacy (example list only in CI)
         run: make privacy
+      # every message and added line of the PR's commits, so a string committed without the hooks
+      # and removed in a later commit is caught; SHAs reach the shell through env only
+      - name: Privacy of the PR's commits (example list only in CI)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: make privacy-history RANGE="$BASE_SHA..$HEAD_SHA"
       - name: Architecture rules
         run: make architecture
       - name: Tests (offline)
