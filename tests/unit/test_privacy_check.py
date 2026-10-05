@@ -154,6 +154,22 @@ def test_staged_check_scans_force_added_ignored_files(repo):
     assert ".env:1" in result.stdout
 
 
+# Judge round 2 (N4): git C-quotes these names ("caf\303\251.md"), which no file is called.
+@pytest.mark.parametrize("name", ["caf\u00e9.md", 'q"uote.md'])
+def test_files_with_quoted_names_are_scanned(repo, name):
+    (repo / name).write_text(arn(), encoding="utf-8")
+    untracked = run(repo, ci=True)
+    assert untracked.returncode == 1
+    assert f"{name}:1" in untracked.stdout
+    git(repo, "add", name)
+    tracked = run(repo, ci=True)
+    assert tracked.returncode == 1
+    assert f"{name}:1" in tracked.stdout
+    in_index = staged(repo)
+    assert in_index.returncode == 1
+    assert f"{name}:1" in in_index.stdout
+
+
 def test_staged_check_survives_symlinks(repo):
     """A staged symlink (dangling, or to a directory) neither crashes the check nor walks out of
     the copy of the index."""

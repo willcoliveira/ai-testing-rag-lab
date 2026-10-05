@@ -3,6 +3,8 @@
 // - no digests/ folder; uv.lock instead of package.json in the path allowlist
 // - a view with line breaks removed, so a token split at a newline is found (S0 judge, 2026-10-05)
 // - --files-from, for the pre-commit copy of the index (S0 judge round 2)
+// - files listed NUL-separated (`ls-files -z`), so a name git C-quotes ("caf\303\251.md") is
+//   scanned (S0 judge round 2)
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
 // directory instead. --file <path> one file (a commit message or PR body). --files-from <path> the
 // files named in <path> (NUL-separated, relative to the working directory), e.g. every entry of an
@@ -19,7 +21,11 @@ const EXAMPLE = join(root, "privacy/forbidden-strings.example.txt");
 
 function tracked() {
   try {
-    return execSync("git ls-files --cached --others --exclude-standard", { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
+    // -z: names verbatim, NUL-separated (without it git C-quotes "caf\303\251.md" and the file is
+    // never found); stderr silent so a directory outside a repo walks without git's "fatal" line
+    return execSync("git -c core.quotePath=false ls-files -z --cached --others --exclude-standard", {
+      cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 256 * 1024 * 1024,
+    }).split("\0").filter(Boolean);
   } catch {
     return walk(root).map((p) => relative(root, p));
   }
