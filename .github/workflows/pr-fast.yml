@@ -21,6 +21,7 @@ env:
 
 jobs:
   check:
+    name: check
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -69,6 +70,7 @@ jobs:
         run: make test
 
   conventions:
+    name: conventions
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
