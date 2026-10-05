@@ -189,6 +189,18 @@ def test_line_join_view_handles_crlf(repo, content, hit):
     assert ("x.md: matches" in result.stdout) is hit
 
 
+# Found while fixing round 2: the path rule exempted every file whose name starts with
+# privacy/forbidden-strings, so an editor backup of the real list was never scanned.
+@pytest.mark.parametrize("name", ["forbidden-strings.txt~", "forbidden-strings.txt.bak"])
+def test_only_the_two_list_files_are_exempt(repo, name):
+    (repo / "privacy" / name).write_text("acmeclient\n", encoding="utf-8")
+    result = run(repo)
+    assert result.returncode == 1
+    assert f"privacy/{name}:1" in result.stdout
+    git(repo, "add", f"privacy/{name}")
+    assert staged(repo, ci=False).returncode == 1
+
+
 def test_staged_check_survives_symlinks(repo):
     """A staged symlink (dangling, or to a directory) neither crashes the check nor walks out of
     the copy of the index."""

@@ -6,6 +6,7 @@
 // - files listed NUL-separated (`ls-files -z`), so a name git C-quotes ("caf\303\251.md") is
 //   scanned (S0 judge round 2)
 // - CRLF and CR made LF before the paragraph split of the line-break view (S0 judge round 2)
+// - only the two list files exempt by path, not every privacy/forbidden-strings* name
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
 // directory instead. --file <path> one file (a commit message or PR body). --files-from <path> the
 // files named in <path> (NUL-separated, relative to the working directory), e.g. every entry of an
@@ -83,7 +84,8 @@ const listed = () => readFileSync(listFile, "utf8").split("\0").filter(Boolean);
 const files = new Map((scanFile ? [resolve(root, scanFile)] : scanDir ? walk(resolve(root, scanDir)) : (listFile ? listed() : tracked()).map((f) => join(root, f))).map((abs) => [label(abs), abs]));
 // files never scanned (by path only). The noreply address is removed from a line before matching,
 // so it cannot hide anything else on that line (security review 2026-10-04).
-const ALLOW_PATHS = [/^privacy\/forbidden-strings/, /^scripts\/check-forbidden\.mjs$/, /^uv\.lock$/];
+// the two list files by exact name: a backup of the real list (forbidden-strings.txt~) is scanned
+const ALLOW_PATHS = [/^privacy\/forbidden-strings(?:\.example)?\.txt$/, /^scripts\/check-forbidden\.mjs$/, /^uv\.lock$/];
 // only the whole address: `alice.noreply@anthropic.com` is not exempt
 const ALLOW_SUBSTRINGS = [/(?<![\w.+-])noreply@anthropic\.com/gi];
 // the whole token around a match, so an allowlisted id (BUG-123) is compared in full, not by the
