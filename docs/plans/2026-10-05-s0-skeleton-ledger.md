@@ -149,3 +149,111 @@ Follow-ups, not part of this repo's S0:
   a symlink is read through to its target, not checked as the link text git commits. Also
   `getattr`/`exec` stay out of reach of the static architecture check, and the `uvx` tool
   environments are unlocked (both recorded in round 1).
+
+## Judge round 3 and fix round 3
+
+Judge round 3 (Fable 5.1, 2026-10-05) confirmed ten defects at `ee3546a`, each reproduced
+independently. The plan allows two fix rounds; the user approved a third. Their answer, verbatim:
+"Full round 3" (fix all ten, full three-judge panel). Fix round 3: Opus 5.5, 2026-10-05. Below,
+D1 to D10 are this round's findings (not the developer extras of round 2).
+
+| # | Severity | Finding | Fix or limit | Test | Commit |
+|---|---|---|---|---|---|
+| D1 | medium | in CI the checker never refused or scanned a committed real list (refusal skipped when CI was set, the path exempt, gitleaks allowlisting it), so a list committed with `--no-verify` or from a clone without hooks passed pr-fast | fixed: the checker refuses (exit 2) whenever the real list, or any other `privacy/forbidden-strings*` name but the example list, in any case, is in the index, in every mode, CI included. The staged check passes its index entries to the checker, which applies the same rule. gitleaks keeps its path allowlist, for the untracked local list `gitleaks dir` reads | `test_privacy_check.py::test_a_committed_real_list_is_refused_in_every_mode` (exact name, a `.bak` copy, an upper-case name; local and `CI=1`; tree, `--file` and staged modes); `::test_only_the_two_list_files_are_exempt` now expects a staged backup to be refused | `ecf61e3` |
+| D2 | medium | the example list, the checker and `uv.lock` were exempt by path, so real names pasted into them (the copy step run backwards, say) were committed unscanned | fixed: only the real list is skipped. The three files are exempt from the example shapes only and checked with the real list's rules; the example list is also read as the text its regexes match. The example list may hold only comments, `<placeholders>` (at least one) and `/regex/` lines, in every mode; locally, a line it shares with the real list fails. The offending line is not echoed. Two example ids in the checker's comments that a real rule matched were reworded | `::test_a_plain_line_in_the_example_list_fails_in_every_mode`, `::test_the_copy_step_run_backwards_is_caught` (local and CI), `::test_a_real_name_written_as_a_regex_in_the_example_list_is_found`, `::test_the_checker_and_the_lock_file_are_checked_with_the_real_list`; expected pass: `::test_the_example_shapes_still_do_not_trip_the_files_that_state_them` | `69712ce` |
+| D3 | medium | the go-public scan covered HEAD's files and commit messages only; hooks are opt-in per clone and there was no pre-push hook, so a string committed without hooks and removed later survived in history unseen | fixed: `check-forbidden.mjs --history <revisions>` checks every commit message (as prose) and every added line per file (a merge counts only lines new to every parent; a committed copy of the real list is reported without its lines). `make privacy-history RANGE=...` (default `--all`); `.githooks/pre-push` runs it on the commits being pushed; pr-fast on `base..head` of a PR with the example list; GO-PUBLIC step 1 over `--all` with the real list. README, CONTRIBUTING and CLAUDE.md say `make hooks` is required in every clone. Reviewed false positives go in `privacy/history-exceptions.txt` | `::test_history_finds_a_string_committed_and_removed_later`, `::test_history_checks_commit_messages_as_prose`, `::test_history_uses_the_real_list_locally`, `::test_history_reports_a_real_list_committed_and_removed`, `::test_a_history_exception_covers_one_line_of_one_commit`, `::test_history_accepts_revisions_only`, `::test_pre_push_hook_blocks_a_leak_removed_before_the_push` (the real hook, a local bare remote); `test_workflow_rules.py::test_pr_fast_checks_the_commits_of_a_pr`; `test_repo_docs.py` (hooks required, pre-push installed, GO-PUBLIC step 1) | `6c684a4`, `d4c19d0`, `ff2ea02`, `f877306` |
+| D4 | low | the commit-msg hook rejected two subjects Git writes itself: `Reapply "<subject>"` and the octopus merge `Merge branches 'a', 'b' and 'c'` | fixed: merge subjects follow git's fmt-merge-msg grammar in full (groups of branches, remote-tracking branches, tags and commits; sources joined by `; `; `of`, `into`); `Reapply` is handled like `Revert`, so its inner subject must conform; PR titles reject both. A ref name in a merge subject may no longer hold whitespace, so `Merge branch 'anything i like'` now fails | `test_conventions.py::test_good_headers_pass`, `::test_bad_headers_fail`, `::test_pr_titles_must_be_conventional_commits`; the accepted forms were checked against subjects Git 2.54 wrote in a scratch repo (octopus, branches and a tag, revert, reapply) | `209fd31` |
+| D5 | low | importlib bound by `__import__('importlib')`, by tuple unpacking or through `sys.modules['importlib']` was no longer an importer | fixed: a run-time import is found by the call: any attribute call named `import_module` or `__import__`, `getattr(<x>, 'import_module')`, and a bare `import_module` unless the file defines a function of that name; aliases follow simple, tuple and `:=` assignments. Cost: a method of that name called with a computed name outside adapters is reported (two round-2 test cases moved to a test that records this) | `test_architecture.py::test_vendor_sdk_outside_adapters_is_reported` (eight new cases), `::test_any_import_module_attribute_call_is_an_importer`; the round-2 fix holds: `::test_a_local_function_named_import_module_is_not_an_importer` | `fcf13a4` |
+| D6 | low | `pkgutil.resolve_name`, `importlib.util.find_spec` (then `module_from_spec`, `exec_module`) and `sys.modules['openai']` passed the vendor rule | fixed: `find_spec`, `resolve_name` and `run_module` are importers, with `pkg.mod:obj` names and relative names against a literal `package` resolved; `sys.modules[...]` and its `get`/`pop`/`setdefault` count when sys is bound by an import, an assignment or a run-time import. A computed name through any of them is reported outside adapters; `__name__` and `__package__` are this module. A plain string (`provider = "openai"`, a config dict) is never reported | `::test_vendor_sdk_outside_adapters_is_reported` (17 new cases), `::test_run_time_import_in_core_must_name_the_stdlib`; expected pass: `::test_data_and_this_module_are_not_imports` | `3a3525c` |
+| D7 | low | a symlink whose link text held a forbidden string was committed unscanned (a dangling one was skipped), and a link to an outside file was read through | fixed: tree entries are read with lstat, and a symlink is checked as its link text (what git stores for mode 120000); `--dir` walks no longer follow links; `--file` still follows (`/dev/stdin`) | `::test_a_symlink_is_checked_as_its_link_text` (untracked, tracked, staged), `::test_a_symlink_to_an_outside_file_is_not_read_through`, `::test_dir_mode_does_not_follow_a_symlink_loop` | `fa86c30` |
+| D8 | low | `--file` input had no line-join view, so a token wrapped at a line break in a commit message was missed | fixed: `--file` input is prose. None of the repo's 26 commit messages at the time tripped it | `::test_a_token_wrapped_in_a_commit_message_is_found` (an example shape in CI mode, a real-list name locally) | `74d8086` |
+| D9 | low | only leading and trailing whitespace was normalised, so an internal extra space in an existing CHANGELOG line counted as a new entry | fixed: added and removed lines compared with whitespace runs collapsed | `test_changelog_check.py::test_whitespace_inside_an_existing_line_does_not_count` (double space, tab, after the dash; trailing whitespace is the expected pass that already worked) | `5d98ecc` |
+| D10 | low | CLAUDE.md lacked the planned rule "label lab practice as lab" (AC15) | fixed: the bullet is in, and the privacy rule says `make hooks` is required in every clone | `test_repo_docs.py::test_claude_md_carries_the_planned_rules` (every rule the plan lists) | `0db94ec` |
+
+Evidence:
+
+- **Fails without the fix:** this round's test files copied into a scratch clone at `ee3546a`
+  give 75 failures out of 215 tests; the 140 that pass are the earlier tests and the expected
+  passes. Per item: D1 7, D2 8, D3 16, D4 8, D5 8, D6 19, D7 3, D8 2, D9 3, D10 1. Every item
+  has at least one failing test.
+- **With the fixes:** `make check` exits 0 with 215 tests; zizmor reports no findings; `make
+  privacy` with the real list gives 0 hits across 50 files.
+- **This branch's history:** `make privacy-history` over `--all` with the real list gives 0 hits
+  in 37 commits, with the two reviewed exceptions below. The range the pre-push hook checks on this
+  branch's first push (`HEAD --not --remotes=origin`) and the PR range in CI mode both give 0 hits.
+- **Hand replays** with the real `.githooks/` (pre-commit, commit-msg, pre-push), in a throwaway
+  repo under the scratchpad built from `git archive HEAD`, with a fake local list and a local bare
+  remote:
+  - D1: `git add -f` of the list, then commit: blocked with `REFUSING`. Committed with
+    `--no-verify`: the `CI=1` checker exits 2, the push is blocked by pre-push and the remote is
+    unchanged. Untracked again in a later commit: the CI-mode tree scan passes and the CI-mode
+    history scan of the range reports the committed copy.
+  - D2: the copy step run backwards, then commit: blocked (a line of the real list, no
+    placeholder left, the name itself). Committed with `--no-verify`: the CI-mode check fails (no
+    placeholder left). A fake name in the checker's comments, then in `uv.lock`: each commit
+    blocked.
+  - D3: a fake name committed and removed without hooks: the tree scan gives 0 hits,
+    `make privacy-history` 1, the push is blocked and the remote is unchanged. An ARN shape
+    committed and removed: the CI-mode history scan of the PR range finds it.
+  - D7: a symlink whose link text holds an ARN shape: commit blocked, and found by the CI-mode
+    tree scan. A symlink to an outside file holding a fake name: commit and push allowed.
+- The main repo's `core.bare` stayed `false`; every commit of the round went through the hooks.
+
+Design choices:
+
+- D1 goes beyond the brief: any `privacy/forbidden-strings*` name but the example list, in any
+  case, is refused while in the index. A backup or a case variant of the real list is just as
+  private, and in CI it would otherwise be scanned with the example list only.
+- D2: a rule against plain lines cannot catch a reversed copy of a real list written as regex
+  lines, so the example list must also keep at least one `<placeholder>` (it is the template for
+  the real list). Locally, a line shared with the real list and the regex-as-text view catch a
+  real name written as a regex.
+- D3: the history scan is a mode of the checker, so it shares the file scan's rules, views and
+  per-path policy. It takes git log revisions; only revisions and the ref-selecting options
+  (`--all`, `--not`, `--branches`, `--tags`, `--remotes`) are accepted, so no other git option
+  reaches git log.
+- **History exceptions.** Over `--all` with the real list, the new scan found 2 hits in this
+  branch: the vendoring commit `3f29c73` put two made-up example ids in a checker comment, of a
+  shape a rule of the real list forbids (the comment was reworded under D2). Rewriting 28 unpushed
+  commits, and with them every commit id this ledger cites, is the user's decision, so the two
+  lines are listed in `privacy/history-exceptions.txt` with the reason. An entry is a full commit
+  id, a path and a line; a commit cannot change without changing its id, so an entry covers one
+  line of one commit. **User decision before the first push:** keep the two exceptions, or rewrite
+  the branch and empty the file.
+
+Remaining known limits, with the reason:
+
+- CI has only the example list, so a real name anywhere (a regex line of the example list, the
+  checker, `uv.lock`, any file or commit) passes CI and is caught only where the hooks or
+  `make check` run with the real list. Inherent: the real list never leaves the maintainer's
+  machine.
+- Hooks can be skipped (`--no-verify`, a clone without `make hooks`); CI then re-checks the PR's
+  files and commits with the example list only. Deliberate evasion by the owner is out of scope.
+- The history scan does not cover annotated tag messages, notes, ref names or file names (file
+  names were already a gap); GO-PUBLIC step 1 says to check tag messages with `--file`. CI checks
+  a PR's commits, not a direct push to `main` (branch protection, GO-PUBLIC step 7).
+- A PR can weaken the example list, the allowlist or the history exceptions in the same change;
+  only a reviewer reading the diff sees it. Out of reach of a static check.
+- Architecture: names reached through `vars()`, `__dict__` or a non-literal `getattr`, loading by
+  file path (`spec_from_file_location`, `SourceFileLoader`), `zipimport`, and `exec` or `eval`
+  (bandit flags those two) stay out of reach of a static check, and bindings are not told apart by
+  scope. A method named `import_module`, `find_spec`, `resolve_name` or `run_module` called with
+  a computed name outside adapters is reported by design.
+- An example-shape hit prints the matched text, so in CI it lands in the job log, which is public
+  once the repo is. Pre-existing; follow-up candidate: print only the location in CI.
+- Unchanged from round 1: the `uvx` tool environments are unlocked and semgrep's `p/python` rules
+  come from the registry.
+- Closed from round 2's known gaps: a symlink is no longer read through to its target (D7).
+
+Handbook follow-ups (`willcoliveira/ai-testing-handbook`, `scripts/check-forbidden.mjs` as
+vendored at `dfff1aa`). The handbook was not opened; each item is inferred from the vendored copy
+and its list of local changes:
+
+- From round 2: N4 (C-quoted names), #8 with N5 (no line-break view; CRLF), the round-2 extra D1
+  (prefix exemption), and the round-2 extra D2 if the handbook is worked on from linked worktrees.
+- From round 3: D1 (the refusal is skipped when CI is set); D2 (the checker and the package file
+  exempt by path; the checker's comment holds the two example ids that a rule of this repo's real
+  list matches, and that list was built from the handbook's, so the handbook's own checker likely
+  carries a hit its path exemption hides); D7 (symlinks read through); D8 (`--file` input not read
+  as prose, once the line-break view is ported); D3 if the handbook has no history scan or pre-push
+  hook.
