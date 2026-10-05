@@ -78,6 +78,18 @@ def test_core_importing_another_raglab_layer_is_reported(tmp_path, source):
         "import importlib\nsdk = importlib.import_module('ope' + 'nai')\n",
         "import openai.types\n",
         "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import openai\n",
+        # the importer reached through other names (judge round 2 narrowed what counts)
+        "import importlib as il\nsdk = il.import_module('openai')\n",
+        "import importlib.util\nsdk = importlib.import_module('openai')\n",
+        "import importlib\nloader = importlib\nsdk = loader.import_module('openai')\n",
+        "import importlib\nim = importlib.import_module\nsdk = im('openai')\n",
+        "from importlib import import_module\nim = import_module\nsdk = im('openai')\n",
+        "from importlib import *\nsdk = import_module('openai')\n",
+        "sdk = __import__('importlib').import_module('openai')\n",
+        "import importlib as il\nif (im := il.import_module):\n    sdk = im('openai')\n",
+        "import builtins\nsdk = builtins.__import__('openai')\n",
+        "def load(name):\n    return __import__(name)\n",
+        "from importlib import import_module\ndef load(name):\n    return import_module(name)\n",
     ],
 )
 def test_vendor_sdk_outside_adapters_is_reported(tmp_path, source):
@@ -85,6 +97,21 @@ def test_vendor_sdk_outside_adapters_is_reported(tmp_path, source):
     found = messages(package)
     assert found, source
     assert all("generate/pipeline.py" in f and "raglab.adapters" in f for f in found)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        # judge round 2: a function of this file that happens to be called import_module
+        "def import_module(name):\n    return name.upper()\n\nvalue = import_module(input())\n",
+        "class Loader:\n    def import_module(self, name):\n        return name\n\n"
+        "value = Loader().import_module(input())\n",
+        "from mylib import plugins\nvalue = plugins.import_module(input())\n",
+    ],
+)
+def test_a_local_function_named_import_module_is_not_an_importer(tmp_path, source):
+    package = make_package(tmp_path, {"generate/pipeline.py": source})
+    assert messages(package) == []
 
 
 def test_relative_import_above_the_package_names_the_import(tmp_path):
