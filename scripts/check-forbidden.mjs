@@ -1,8 +1,12 @@
-// Vendored from willcoliveira/ai-testing-handbook scripts/check-forbidden.mjs at dfff1aa (2026-10-05);
-// local changes: no digests/ folder, uv.lock instead of package.json in the path allowlist, and a
-// view with line breaks removed so a token split at a newline is found (S0 judge, 2026-10-05).
+// Vendored from willcoliveira/ai-testing-handbook scripts/check-forbidden.mjs at dfff1aa (2026-10-05).
+// Local changes:
+// - no digests/ folder; uv.lock instead of package.json in the path allowlist
+// - a view with line breaks removed, so a token split at a newline is found (S0 judge, 2026-10-05)
+// - --files-from, for the pre-commit copy of the index (S0 judge round 2)
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
-// directory instead. --file <path> one file (a commit message or PR body)
+// directory instead. --file <path> one file (a commit message or PR body). --files-from <path> the
+// files named in <path> (NUL-separated, relative to the working directory), e.g. every entry of an
+// exported index (scripts/check-staged-privacy.sh)
 // Reads privacy/forbidden-strings.example.txt always, and privacy/forbidden-strings.txt
 // unless CI=1. Exits 1 on any hit. Refuses to run if the real list is tracked by git.
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
@@ -64,7 +68,12 @@ const label = (abs) => relative(root, abs).split("\\").join("/");
 const fileArg = process.argv.indexOf("--file");
 const scanFile = fileArg > 0 ? process.argv[fileArg + 1] : null;
 if (fileArg > 0 && (!scanFile || !existsSync(scanFile) || statSync(scanFile).isDirectory())) { console.error(`--file: no such file ${scanFile || ""}`); process.exit(2); }
-const files = new Map((scanFile ? [resolve(root, scanFile)] : scanDir ? walk(resolve(root, scanDir)) : tracked().map((f) => join(root, f))).map((abs) => [label(abs), abs]));
+// --files-from <path>: the files named there (NUL-separated, relative to the working directory)
+const listArg = process.argv.indexOf("--files-from");
+const listFile = listArg > 0 ? process.argv[listArg + 1] : null;
+if (listArg > 0 && (!listFile || !existsSync(listFile) || statSync(listFile).isDirectory())) { console.error(`--files-from: no such file ${listFile || ""}`); process.exit(2); }
+const listed = () => readFileSync(listFile, "utf8").split("\0").filter(Boolean);
+const files = new Map((scanFile ? [resolve(root, scanFile)] : scanDir ? walk(resolve(root, scanDir)) : (listFile ? listed() : tracked()).map((f) => join(root, f))).map((abs) => [label(abs), abs]));
 // files never scanned (by path only). The noreply address is removed from a line before matching,
 // so it cannot hide anything else on that line (security review 2026-10-04).
 const ALLOW_PATHS = [/^privacy\/forbidden-strings/, /^scripts\/check-forbidden\.mjs$/, /^uv\.lock$/];

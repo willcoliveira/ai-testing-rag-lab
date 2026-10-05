@@ -2,18 +2,38 @@
 # The privacy check on what is staged (the index), not on the working tree: a string that was
 # staged and then cleaned up on disk would otherwise reach the commit unseen.
 # Used by .githooks/pre-commit. Exit codes as check-forbidden.mjs.
+#
+# Read-only on the real repo: it copies the index to a temp directory and checks the copy, and it
+# never runs a git command that writes (S0 judge round 2: `git init` under the absolute GIT_DIR git
+# exports to hooks in a linked worktree rewrote the shared .git/config with core.bare=true).
 set -eu
 repo=$(git rev-parse --show-toplevel)
+cd "$repo"
+
+# the copy below never has the real list tracked, so refuse here, in CI mode too
+if git ls-files --error-unmatch -- privacy/forbidden-strings.txt >/dev/null 2>&1; then
+  echo "REFUSING: privacy/forbidden-strings.txt is staged. Unstage it: git rm --cached privacy/forbidden-strings.txt" >&2
+  exit 2
+fi
+
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-git checkout-index -a --prefix="$tmp/"
+# every index entry, force-added ignored files included, NUL-separated so no name is C-quoted.
+# Both commands read GIT_INDEX_FILE, so `git commit -a` and `git commit <path>` are covered too.
+git ls-files -z --cached >"$tmp/files"
+git checkout-index -a --ignore-skip-worktree-bits --prefix="$tmp/tree/"
+mkdir -p "$tmp/tree/privacy"
 # the real list is gitignored, so it is not in the index; bring the local copy along if there is one
 if [ -f "$repo/privacy/forbidden-strings.txt" ]; then
-  mkdir -p "$tmp/privacy"
-  cp "$repo/privacy/forbidden-strings.txt" "$tmp/privacy/"
+  cp "$repo/privacy/forbidden-strings.txt" "$tmp/tree/privacy/"
 fi
-cd "$tmp"
-# a throwaway repo, so the script lists files with git (as in the real checkout) instead of
-# printing "not a git repository" and walking the tree; nothing is committed in it
-git init -q
-node scripts/check-forbidden.mjs
+
+# From here on no git command can reach the real repo: the variables git exports to hooks
+# (GIT_DIR, GIT_INDEX_FILE and the rest of --local-env-vars) are cleared, and repository discovery
+# stops at the temp directory. The checker reads the list of index entries, not git.
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars) GIT_PREFIX
+GIT_CEILING_DIRECTORIES=$tmp
+export GIT_CEILING_DIRECTORIES
+cd "$tmp/tree"
+node "$repo/scripts/check-forbidden.mjs" --files-from "$tmp/files"

@@ -13,8 +13,18 @@ pytestmark = pytest.mark.unit
 NODE = shutil.which("node")
 
 
+def clean_env(*, ci: bool = False, **extra: str) -> dict[str, str]:
+    """The environment without CI and without any GIT_* variable, so a git command in a test can
+    only reach the throwaway repo it runs in (never the checkout the tests run from, even when
+    pytest itself runs inside a git hook)."""
+    env = {k: v for k, v in os.environ.items() if k != "CI" and not k.startswith("GIT_")}
+    if ci:
+        env["CI"] = "1"
+    return {**env, **extra}
+
+
 def git(cwd: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, env=clean_env())
 
 
 @pytest.fixture
@@ -24,28 +34,52 @@ def repo(tmp_path):
     (tmp_path / "scripts").mkdir()
     (tmp_path / "privacy").mkdir()
     shutil.copy(ROOT / "scripts" / "check-forbidden.mjs", tmp_path / "scripts")
+    shutil.copy(ROOT / "scripts" / "check-staged-privacy.sh", tmp_path / "scripts")
     shutil.copy(ROOT / "privacy" / "forbidden-strings.example.txt", tmp_path / "privacy")
+    shutil.copy(ROOT / "privacy" / "allowlist.txt", tmp_path / "privacy")
+    shutil.copy(ROOT / ".gitignore", tmp_path)
     (tmp_path / "privacy" / "forbidden-strings.txt").write_text(
         "/\\bacmeclient\\b/i\n", encoding="utf-8"
     )
     (tmp_path / "notes.md").write_text("trustworthy text\n", encoding="utf-8")
     git(tmp_path, "init", "-q")
-    git(tmp_path, "add", "scripts", "privacy/forbidden-strings.example.txt", "notes.md")
+    git(
+        tmp_path,
+        "add",
+        ".gitignore",
+        "scripts",
+        "privacy/forbidden-strings.example.txt",
+        "privacy/allowlist.txt",
+        "notes.md",
+    )
     return tmp_path
 
 
 def run(cwd: Path, *args: str, ci: bool = False) -> subprocess.CompletedProcess[str]:
     assert NODE is not None
-    env = {k: v for k, v in os.environ.items() if k != "CI"}
-    if ci:
-        env["CI"] = "1"
     return subprocess.run(
         [NODE, "scripts/check-forbidden.mjs", *args],
         cwd=cwd,
         capture_output=True,
         text=True,
-        env=env,
+        env=clean_env(ci=ci),
     )
+
+
+def staged(cwd: Path, *, ci: bool = True) -> subprocess.CompletedProcess[str]:
+    """The pre-commit privacy check, run by hand on the repo's index."""
+    return subprocess.run(
+        ["sh", "scripts/check-staged-privacy.sh"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        env=clean_env(ci=ci),
+    )
+
+
+def arn() -> str:
+    # built at runtime so this file does not itself contain the pattern
+    return "ref arn" + ":aws:iam::x\n"
 
 
 def test_clean_repo_passes(repo):
@@ -90,21 +124,101 @@ def test_token_split_at_a_line_break_is_found(repo):
 
 def test_staged_check_reads_the_index_not_the_working_tree(repo):
     """The S0 judge's bypass: stage a forbidden string, clean the file on disk, commit."""
-    shutil.copy(ROOT / "scripts" / "check-staged-privacy.sh", repo / "scripts")
-    git(repo, "add", "scripts/check-staged-privacy.sh")
     note = repo / "note.md"
-    # built at runtime so this file does not itself contain the pattern
-    note.write_text("ref arn" + ":aws:iam::x\n", encoding="utf-8")
+    note.write_text(arn(), encoding="utf-8")
     git(repo, "add", "note.md")
     note.write_text("clean text\n", encoding="utf-8")
-    env = {**os.environ, "CI": "1"}
-    staged = subprocess.run(
-        ["sh", "scripts/check-staged-privacy.sh"], cwd=repo, capture_output=True, text=True, env=env
-    )
-    assert staged.returncode == 1
-    assert "note.md" in staged.stdout
+    result = staged(repo)
+    assert result.returncode == 1
+    assert "note.md" in result.stdout
     git(repo, "add", "note.md")
-    clean = subprocess.run(
-        ["sh", "scripts/check-staged-privacy.sh"], cwd=repo, capture_output=True, text=True, env=env
-    )
-    assert clean.returncode == 0
+    assert staged(repo).returncode == 0
+
+
+# Judge round 2 (N2): the throwaway copy of the index never has the real list tracked, so the
+# staged check must refuse a staged real list itself, in CI mode too.
+@pytest.mark.parametrize("ci", [False, True])
+def test_staged_check_refuses_a_staged_real_list(repo, ci):
+    git(repo, "add", "-f", "privacy/forbidden-strings.txt")
+    result = staged(repo, ci=ci)
+    assert result.returncode == 2
+    assert "REFUSING" in result.stderr
+
+
+# Judge round 2 (N3): a force-added file that .gitignore matches is in the commit, so it is checked.
+def test_staged_check_scans_force_added_ignored_files(repo):
+    (repo / ".env").write_text("KEY=" + arn(), encoding="utf-8")
+    git(repo, "add", "-f", ".env")
+    result = staged(repo)
+    assert result.returncode == 1
+    assert ".env:1" in result.stdout
+
+
+def test_staged_check_survives_symlinks(repo):
+    """A staged symlink (dangling, or to a directory) neither crashes the check nor walks out of
+    the copy of the index."""
+    (repo / "dangling.md").symlink_to("missing.md")
+    (repo / "up").symlink_to("..")
+    git(repo, "add", "dangling.md", "up")
+    result = staged(repo)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def pre_commit_privacy_line() -> str:
+    """The line of the real pre-commit hook that runs the staged privacy check."""
+    text = (ROOT / ".githooks" / "pre-commit").read_text(encoding="utf-8")
+    return next(line for line in text.splitlines() if "check-staged-privacy.sh" in line)
+
+
+# Judge round 2 (N1): git exports an absolute GIT_DIR (.git/worktrees/<name>) to hooks; the round-1
+# script ran `git init` under it and wrote core.bare=true to the shared .git/config. Reproduced only
+# in a throwaway repo under tmp_path.
+def test_commit_from_a_linked_worktree_leaves_the_main_repo_intact(tmp_path):
+    main = tmp_path / "main"
+    for sub in ("scripts", "privacy", ".githooks"):
+        (main / sub).mkdir(parents=True)
+    shutil.copy(ROOT / "scripts" / "check-forbidden.mjs", main / "scripts")
+    shutil.copy(ROOT / "scripts" / "check-staged-privacy.sh", main / "scripts")
+    shutil.copy(ROOT / "privacy" / "forbidden-strings.example.txt", main / "privacy")
+    hook = main / ".githooks" / "pre-commit"
+    hook.write_text(f"#!/bin/sh\n{pre_commit_privacy_line()}\n", encoding="utf-8")
+    hook.chmod(0o755)
+    (tmp_path / "gitconfig").write_text("", encoding="utf-8")
+    env = clean_env(ci=True, GIT_CONFIG_GLOBAL=str(tmp_path / "gitconfig"), GIT_CONFIG_NOSYSTEM="1")
+
+    def g(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, env=env)
+
+    assert g(main, "init", "-q", "-b", "main").returncode == 0
+    for key, value in (
+        ("user.name", "Test"),
+        ("user.email", "test@example.com"),
+        ("commit.gpgsign", "false"),
+        ("core.hooksPath", ".githooks"),
+    ):
+        assert g(main, "config", key, value).returncode == 0
+    assert g(main, "add", "-A").returncode == 0
+    first = g(main, "commit", "-q", "-m", "chore: initial commit")  # through the hook
+    assert first.returncode == 0, first.stdout + first.stderr
+    assert g(main, "worktree", "add", "-q", "-b", "docs/note", str(tmp_path / "wt")).returncode == 0
+    wt = tmp_path / "wt"
+
+    (wt / "note.md").write_text("clean text\n", encoding="utf-8")
+    assert g(wt, "add", "note.md").returncode == 0
+    commit = g(wt, "commit", "-q", "-m", "docs: add a note")
+    assert commit.returncode == 0, commit.stdout + commit.stderr
+
+    assert g(main, "config", "--get", "core.bare").stdout.strip() != "true"
+    assert g(main, "status", "--porcelain").returncode == 0
+    assert g(main, "rev-parse", "--is-bare-repository").stdout.strip() == "false"
+    assert g(wt, "status", "--porcelain").returncode == 0
+
+    # and the hook still blocks a forbidden string staged in the linked worktree
+    head = g(wt, "rev-parse", "HEAD").stdout
+    (wt / "leak.md").write_text(arn(), encoding="utf-8")
+    assert g(wt, "add", "leak.md").returncode == 0
+    blocked = g(wt, "commit", "-q", "-m", "docs: add a leak")
+    assert blocked.returncode != 0
+    assert "leak.md:1" in blocked.stderr  # git shows hook output on stderr
+    assert g(wt, "rev-parse", "HEAD").stdout == head
+    assert g(main, "config", "--get", "core.bare").stdout.strip() != "true"
