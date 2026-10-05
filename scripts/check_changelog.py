@@ -18,10 +18,18 @@ def added_lines(base: str, head: str) -> list[str]:
         capture_output=True,
         text=True,
     ).stdout
+    lines = diff.splitlines()
+    removed = {
+        line[1:].strip() for line in lines if line.startswith("-") and not line.startswith("---")
+    }
+    # an existing line re-added with only whitespace changed is not a new entry
     return [
         line[1:]
-        for line in diff.splitlines()
-        if line.startswith("+") and not line.startswith("+++") and line[1:].strip()
+        for line in lines
+        if line.startswith("+")
+        and not line.startswith("+++")
+        and line[1:].strip()
+        and line[1:].strip() not in removed
     ]
 
 

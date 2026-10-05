@@ -58,6 +58,16 @@ def test_blank_line_does_not_count(repo):
     assert changelog.main(["--base", base, "--head", head, "--author", "willcoliveira"]) == 1
 
 
+def test_whitespace_change_to_an_existing_line_does_not_count(repo):
+    commit(repo, "CHANGELOG.md", "- S0: skeleton\n")
+    base = git(repo, "rev-parse", "HEAD")
+    path = repo / "CHANGELOG.md"
+    path.write_text(path.read_text(encoding="utf-8").replace("- S0: skeleton", "- S0: skeleton   "))
+    git(repo, "commit", "-q", "-am", "chore: whitespace")
+    head = git(repo, "rev-parse", "HEAD")
+    assert changelog.main(["--base", base, "--head", head, "--author", "willcoliveira"]) == 1
+
+
 def test_bot_is_exempt(repo):
     base = git(repo, "rev-parse", "HEAD")
     head = commit(repo, "uv.lock", "bump\n")
