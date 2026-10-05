@@ -272,6 +272,41 @@ def test_staged_check_survives_symlinks(repo):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+# Judge round 3 (D7): git commits a symlink as its link text (mode 120000). The checker followed
+# links instead: a link whose text held a forbidden string was committed unscanned (a dangling one
+# was skipped), and a link to a file outside the repo blocked a commit for content it did not carry.
+def test_a_symlink_is_checked_as_its_link_text(repo):
+    (repo / "link.md").symlink_to(arn().strip())  # dangling: only its text is committed
+    untracked = run(repo, ci=True)
+    assert untracked.returncode == 1
+    assert "link.md:1" in untracked.stdout
+    git(repo, "add", "link.md")
+    tracked = run(repo, ci=True)
+    assert tracked.returncode == 1
+    assert "link.md:1" in tracked.stdout
+    in_index = staged(repo)
+    assert in_index.returncode == 1
+    assert "link.md:1" in in_index.stdout
+
+
+def test_a_symlink_to_an_outside_file_is_not_read_through(repo, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("outside") / "secret.md"
+    outside.write_text(arn(), encoding="utf-8")
+    (repo / "out.md").symlink_to(outside)
+    assert run(repo, ci=True).returncode == 0
+    git(repo, "add", "out.md")
+    assert run(repo, ci=True).returncode == 0
+    assert staged(repo).returncode == 0
+
+
+def test_dir_mode_does_not_follow_a_symlink_loop(repo):
+    (repo / "site").mkdir()
+    (repo / "site" / "page.html").write_text("<p>clean</p>\n", encoding="utf-8")
+    (repo / "site" / "up").symlink_to("..")
+    result = run(repo, "--dir", "site", ci=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def pre_commit_privacy_line() -> str:
     """The line of the real pre-commit hook that runs the staged privacy check."""
     text = (ROOT / ".githooks" / "pre-commit").read_text(encoding="utf-8")

@@ -10,6 +10,8 @@
 // - in a linked worktree, the main worktree's real list
 // - a real list in the index (any privacy/forbidden-strings* name but the example list, in any
 //   case) is refused in every mode, CI included (S0 judge round 3)
+// - a symlink is checked as its link text (what git commits for mode 120000), never read through
+//   to its target; --dir walks do not follow links either (S0 judge round 3)
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
 // directory instead. --file <path> one file (a commit message or PR body). --files-from <path> the
 // files named in <path> (NUL-separated, relative to the working directory), e.g. every entry of an
@@ -17,7 +19,7 @@
 // Reads privacy/forbidden-strings.example.txt always, and privacy/forbidden-strings.txt
 // unless CI=1. Exits 1 on any hit. Refuses to run (exit 2) if the real list, or any copy of it in
 // privacy/, is in the git index, CI included.
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync, lstatSync, readlinkSync } from "node:fs";
 import { execFileSync, execSync } from "node:child_process";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
@@ -55,7 +57,8 @@ function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
     if (name === "node_modules" || name === ".git") continue;
     const p = join(dir, name);
-    statSync(p).isDirectory() ? walk(p, out) : out.push(p);
+    // lstat: a symlink is an entry of its own (its link text is checked), never followed
+    lstatSync(p).isDirectory() ? walk(p, out) : out.push(p);
   }
   return out;
 }
@@ -162,15 +165,28 @@ function readText(p) {
   if (buf.subarray(0, 8192).includes(0)) return BINARY_EXT.test(p) ? { binary: true } : { text: buf.toString("utf8").replace(/\0/g, "") };
   return { text: buf.toString("utf8") };
 }
+// A tree entry as git stores it: a symlink is its link text (mode 120000), so the text a commit
+// carries is checked and a link to a file outside the repo is not read through (S0 judge round 3).
+// --file follows links: a commit message can come from /dev/stdin, itself a symlink.
+function readEntry(p) {
+  let st;
+  try {
+    st = scanFile ? statSync(p) : lstatSync(p);
+  } catch {
+    return null; // gone since it was listed
+  }
+  if (st.isDirectory()) return null;
+  if (st.isSymbolicLink()) return { text: readlinkSync(p, { encoding: "buffer" }).toString("utf8") };
+  return readText(p);
+}
 // in a built site, a CSS file is checked for what it can show: strings and comments, not selectors
 // (a minified `.local` class is not a hostname)
 const cssVisible = (text) => [...text.matchAll(/\/\*[\s\S]*?\*\/|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g)].map((m) => m[0]).join("\n");
 let hits = 0, scanned = 0;
 for (const [f, p] of files) {
   if (ALLOW_PATHS.some((a) => a.test(f))) continue;
-  if (!existsSync(p) || statSync(p).isDirectory()) continue;
-  const read = readText(p);
-  if (read.binary) continue;
+  const read = readEntry(p);
+  if (!read || read.binary) continue;
   const text = scanDir && /\.css$/i.test(f) ? cssVisible(read.text) : read.text;
   scanned++;
   const reported = new Set();
