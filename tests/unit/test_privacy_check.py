@@ -348,6 +348,100 @@ def test_the_example_shapes_still_do_not_trip_the_files_that_state_them(repo):
     assert run(repo).returncode == 0
 
 
+# Judge round 3 (D3): the scans covered HEAD's files and messages only, so a string committed
+# without the hooks and removed in a later commit stayed in the history unseen. --history checks
+# every commit message and every added line of a range (make privacy-history, pre-push, pr-fast).
+def rev(cwd: Path, name: str = "HEAD") -> str:
+    return subprocess.run(
+        ["git", "rev-parse", name],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=clean_env(),
+    ).stdout.strip()
+
+
+def commit_file(repo: Path, rel: str, text: str | None, message: str) -> str:
+    path = repo / rel
+    if text is None:
+        git(repo, "rm", "-q", "--cached", rel)
+        path.unlink()
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        git(repo, "add", "-f", rel)
+    commit(repo, message)
+    return rev(repo)
+
+
+def test_history_finds_a_string_committed_and_removed_later(repo):
+    commit(repo, "chore: base")
+    base = rev(repo)
+    added = commit_file(repo, "leak.md", "clean\n" + arn(), "docs: add a note")
+    commit_file(repo, "leak.md", None, "docs: remove the note")
+    assert run(repo, ci=True).returncode == 0  # the tree no longer has it
+    result = run(repo, "--history", f"{base}..HEAD", ci=True)
+    assert result.returncode == 1
+    assert f"{added[:12]}:leak.md:2: matches" in result.stdout
+    assert run(repo, "--history", "HEAD~1..HEAD", ci=True).returncode == 0
+
+
+def test_history_checks_commit_messages_as_prose(repo):
+    commit(repo, "chore: base")
+    base = rev(repo)
+    commit(repo, "docs: wrapped\n\nsee arn:\naws:iam::x\n")
+    result = run(repo, "--history", f"{base}..HEAD", ci=True)
+    assert result.returncode == 1
+    assert f"{rev(repo)[:12]} message" in result.stdout
+
+
+def test_history_uses_the_real_list_locally(repo):
+    commit(repo, "chore: base")
+    commit_file(repo, "notes/old.md", "worked for AcmeClient\n", "docs: add")
+    commit_file(repo, "notes/old.md", None, "docs: remove")
+    assert run(repo, "--history", "--all", ci=True).returncode == 0
+    local = run(repo, "--history", "--all")
+    assert local.returncode == 1
+    assert ":notes/old.md:1: matches" in local.stdout
+
+
+def test_history_reports_a_real_list_committed_and_removed(repo):
+    commit(repo, "chore: base")
+    added = commit_file(
+        repo, "privacy/forbidden-strings.txt", "/\\bacmeclient\\b/i\n", "chore: oops"
+    )
+    commit_file(repo, "privacy/forbidden-strings.txt", None, "chore: untrack the list")
+    (repo / "privacy" / "forbidden-strings.txt").write_text(
+        "/\\bacmeclient\\b/i\n", encoding="utf-8"
+    )
+    result = run(repo, "--history", "--all", ci=True)
+    assert result.returncode == 1
+    assert f"{added[:12]}:privacy/forbidden-strings.txt: a copy of the real list" in result.stdout
+    assert "acmeclient" not in result.stdout
+
+
+def test_a_history_exception_covers_one_line_of_one_commit(repo):
+    commit(repo, "chore: base")
+    base = rev(repo)
+    added = commit_file(repo, "leak.md", arn() + "clean\n" + arn(), "docs: add")
+    (repo / "privacy" / "history-exceptions.txt").write_text(
+        f"# reviewed\n{added}:leak.md:1\n", encoding="utf-8"
+    )
+    result = run(repo, "--history", f"{base}..HEAD", ci=True)
+    assert result.returncode == 1
+    assert "leak.md:1:" not in result.stdout
+    assert f"{added[:12]}:leak.md:3: matches" in result.stdout
+
+
+@pytest.mark.parametrize("args", [(), ("--output=x",), ("-p",), ("HEAD", "--format=%s")])
+def test_history_accepts_revisions_only(repo, args):
+    commit(repo, "chore: base")
+    result = run(repo, "--history", *args)
+    assert result.returncode == 2
+    assert "--history" in result.stderr
+
+
 # Judge round 3 (D7): git commits a symlink as its link text (mode 120000). The checker followed
 # links instead: a link whose text held a forbidden string was committed unscanned (a dangling one
 # was skipped), and a link to a file outside the repo blocked a commit for content it did not carry.

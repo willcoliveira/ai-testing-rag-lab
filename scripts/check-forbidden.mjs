@@ -17,10 +17,15 @@
 //   to its target; --dir walks do not follow links either (S0 judge round 3)
 // - --file input (a commit message, a PR body) is prose, so it gets the line-break view
 //   (S0 judge round 3)
+// - --history <revisions>: every commit message and every line the commits added, so a string
+//   committed without the hooks and removed later is still found (S0 judge round 3); reviewed
+//   false positives in the history are listed in privacy/history-exceptions.txt by commit and line
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
 // directory instead. --file <path> one file (a commit message or PR body). --files-from <path> the
 // files named in <path> (NUL-separated, relative to the working directory), e.g. every entry of an
-// exported index (scripts/check-staged-privacy.sh)
+// exported index (scripts/check-staged-privacy.sh). --history <revisions> every commit message
+// and every added line of the commits git log lists for them: `--all`, `base..head`, or
+// `<sha> --not --remotes=origin` (make privacy-history, the pre-push hook, pr-fast for a PR).
 // Reads privacy/forbidden-strings.example.txt always, and privacy/forbidden-strings.txt
 // unless CI=1. Exits 1 on any hit. Refuses to run (exit 2) if the real list, or any copy of it in
 // privacy/, is in the git index, CI included.
@@ -96,19 +101,29 @@ const realLines = new Set(realRules.map((r) => r.src.toLowerCase()));
 const ALLOW_TOKENS = new Set(existsSync(join(root, "privacy/allowlist.txt"))
   ? readFileSync(join(root, "privacy/allowlist.txt"), "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))
   : []);
-const dirArg = process.argv.indexOf("--dir");
-const scanDir = dirArg > 0 ? process.argv[dirArg + 1] : null;
+// --history takes every argument after it; the other options come before it
+const histArg = process.argv.indexOf("--history");
+const historyRevs = histArg > 0 ? process.argv.slice(histArg + 1) : null;
+const opts = histArg > 0 ? process.argv.slice(0, histArg) : process.argv;
+// revisions and the ref-selecting options only, so no other option (--output=<file>) reaches git
+const REV_OPTION = /^--(?:all|not|branches|tags|remotes)(?:=\S+)?$/;
+if (historyRevs && (!historyRevs.length || historyRevs.some((a) => !a || (a.startsWith("-") && !REV_OPTION.test(a))))) {
+  console.error("--history: give revisions only, e.g. --all, base..head, or <sha> --not --remotes=origin");
+  process.exit(2);
+}
+const dirArg = opts.indexOf("--dir");
+const scanDir = dirArg > 0 ? opts[dirArg + 1] : null;
 if (dirArg > 0 && (!scanDir || !existsSync(scanDir))) { console.error(`--dir: no such directory ${scanDir || ""}`); process.exit(2); }
 // label (forward slashes, for rules and output) -> absolute path. Absolute paths are kept because
 // relative() across Windows drives (repo on D:, temp dir on C:) returns a path join() cannot rebuild.
 const label = (abs) => relative(root, abs).split("\\").join("/");
 // --file <path>: one file only, e.g. a commit message or a PR body before it is published
-const fileArg = process.argv.indexOf("--file");
-const scanFile = fileArg > 0 ? process.argv[fileArg + 1] : null;
+const fileArg = opts.indexOf("--file");
+const scanFile = fileArg > 0 ? opts[fileArg + 1] : null;
 if (fileArg > 0 && (!scanFile || !existsSync(scanFile) || statSync(scanFile).isDirectory())) { console.error(`--file: no such file ${scanFile || ""}`); process.exit(2); }
 // --files-from <path>: the files named there (NUL-separated, relative to the working directory)
-const listArg = process.argv.indexOf("--files-from");
-const listFile = listArg > 0 ? process.argv[listArg + 1] : null;
+const listArg = opts.indexOf("--files-from");
+const listFile = listArg > 0 ? opts[listArg + 1] : null;
 if (listArg > 0 && (!listFile || !existsSync(listFile) || statSync(listFile).isDirectory())) { console.error(`--files-from: no such file ${listFile || ""}`); process.exit(2); }
 const listed = () => readFileSync(listFile, "utf8").split("\0").filter(Boolean);
 // The real list, or a copy of it (a backup, another case), must never be committed: refuse when one
@@ -132,7 +147,7 @@ if (committedLists.length) {
   console.error(`REFUSING: ${committedLists.join(", ")} is in the git index (tracked or staged). Untrack it: git rm --cached -- <path>`);
   process.exit(2);
 }
-const files = new Map((scanFile ? [resolve(root, scanFile)] : scanDir ? walk(resolve(root, scanDir)) : (listFile ? listed() : tracked()).map((f) => join(root, f))).map((abs) => [label(abs), abs]));
+const files = historyRevs ? new Map() : new Map((scanFile ? [resolve(root, scanFile)] : scanDir ? walk(resolve(root, scanDir)) : (listFile ? listed() : tracked()).map((f) => join(root, f))).map((abs) => [label(abs), abs]));
 // Only the real list is never scanned (it is refused above when it is in the index; a backup of it,
 // forbidden-strings.txt~, is scanned). These files state the generic example shapes on purpose (the
 // example list itself, this script's comments, the hashes and ids in uv.lock), so they are exempt
@@ -232,7 +247,8 @@ function report(message) {
 // Every rule of ruleSet on each line (raw, as a reader sees it, and for the example list as the
 // text its regexes match), then on the whole text with whitespace runs as one space and, for prose,
 // with the lines of a paragraph joined. lineNo(i) is the number shown for line i.
-function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = false }) {
+// exempt(n) is true for a reviewed false positive on line n (history mode only).
+function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = false, exempt = () => false }) {
   if (!ruleSet.length) return;
   const reported = new Set();
   text.split(/\r?\n|\r/).forEach((raw, i) => {
@@ -251,6 +267,7 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
           if (seen.has(key)) continue;
           seen.add(key);
           reported.add(key.toLowerCase());
+          if (exempt(lineNo(i))) continue;
           report(`${f}:${lineNo(i)}: matches ${r.src} (${m[0]})`);
         }
       }
@@ -297,6 +314,118 @@ function checkFile(f, text) {
     prose: Boolean(scanFile) || (PROSE.test(f) && !f.startsWith("privacy/")),
     regexView: f === EXAMPLE_LABEL,
   });
+}
+// git log for the --history revisions; read-only, and blind to the user's diff and log settings
+function gitLog(args) {
+  try {
+    return execFileSync("git", ["-c", "core.quotePath=false", "log", "--no-show-signature", ...args, ...historyRevs, "--"], {
+      cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 1024 * 1024 * 1024,
+    });
+  } catch (e) {
+    console.error(`--history: git log failed: ${String(e.stderr || e.message).trim()}`);
+    process.exit(2);
+  }
+}
+// a path from a `+++ b/<path>` line: C-quoted when it holds a quote, a backslash or a control
+// character, followed by a tab when it holds a space; /dev/null for a deleted file
+const C_ESCAPES = { a: 7, b: 8, t: 9, n: 10, v: 11, f: 12, r: 13 };
+function diffPath(s) {
+  let p = s.replace(/\t$/, "");
+  if (p === "/dev/null") return null;
+  if (p.startsWith('"') && p.endsWith('"')) {
+    const bytes = [];
+    for (const m of p.slice(1, -1).matchAll(/\\([0-7]{3}|.)|([^\\]+)/gsu)) {
+      if (m[2] !== undefined) bytes.push(...Buffer.from(m[2], "utf8"));
+      else if (/^[0-7]{3}$/.test(m[1])) bytes.push(parseInt(m[1], 8));
+      else bytes.push(C_ESCAPES[m[1]] ?? m[1].charCodeAt(0));
+    }
+    p = Buffer.from(bytes).toString("utf8");
+  }
+  return p.startsWith("b/") ? p.slice(2) : p;
+}
+// Reviewed false positives in the history, one `<full commit id>:<path>:<line>` per line. A commit
+// cannot change without changing its id, so an entry covers that one line of that commit only.
+const EXCEPTIONS_FILE = join(root, "privacy/history-exceptions.txt");
+const historyExceptions = new Set(existsSync(EXCEPTIONS_FILE)
+  ? readFileSync(EXCEPTIONS_FILE, "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))
+  : []);
+function scanHistory() {
+  let commits = 0;
+  // commit messages, as prose
+  for (const entry of gitLog(["-z", "--format=%H%n%B"]).split("\0")) {
+    if (!entry.trim()) continue;
+    const nl = entry.indexOf("\n");
+    const sha = (nl < 0 ? entry : entry.slice(0, nl)).trim();
+    commits++;
+    scanText(`${sha.slice(0, 12)} message`, nl < 0 ? "" : entry.slice(nl + 1), { ruleSet: rules, prose: true });
+  }
+  // the lines each commit added, per file. A merge shows its combined diff (--cc): only lines new
+  // to every parent count, so a branch merged in is not scanned twice.
+  const blocks = new Map();
+  const exampleAt = new Set();
+  let sha = "", path = null, width = 0, next = 0;
+  const diff = gitLog(["-p", "--cc", "--root", "--no-color", "--no-ext-diff", "--no-textconv", "--text",
+    "--no-renames", "--unified=0", "--src-prefix=a/", "--dst-prefix=b/", "--format=%x00%H"]);
+  for (const raw of diff.split("\n")) {
+    if (raw.startsWith("\0")) { sha = raw.slice(1); path = null; width = 0; continue; }
+    if (raw.startsWith("diff ")) { path = null; width = 0; continue; }
+    // @@ -a,b +c,d @@ (one @ per parent, plus one): the added side starts at line c
+    const hunk = /^(@{2,}) (?:-\S+ )+\+(\d+)(?:,\d+)? \1/.exec(raw);
+    if (hunk) { width = hunk[1].length - 1; next = Number(hunk[2]); continue; }
+    if (!width) {
+      if (raw.startsWith("+++ ")) {
+        path = diffPath(raw.slice(4));
+        if (path === EXAMPLE_LABEL) exampleAt.add(sha);
+      }
+      continue;
+    }
+    if (raw.startsWith("\\") || raw.length < width) continue; // \ No newline at end of file
+    const prefix = raw.slice(0, width);
+    if (prefix.includes("-")) continue; // not in the commit's version of the file
+    const lineNo = next++;
+    if (path === null || prefix !== "+".repeat(width)) continue;
+    const key = `${sha}\0${path}`;
+    if (!blocks.has(key)) blocks.set(key, { sha, path, lines: [], nums: [] });
+    const block = blocks.get(key);
+    // a blank line between hunks, so lines that are not next to each other are not joined
+    if (block.nums.length && block.nums[block.nums.length - 1] !== lineNo - 1) {
+      block.lines.push("");
+      block.nums.push(null);
+    }
+    block.lines.push(raw.slice(width).replace(/\r$/, ""));
+    block.nums.push(lineNo);
+  }
+  for (const { sha: at, path: f, lines, nums } of blocks.values()) {
+    const where = `${at.slice(0, 12)}:${f}`;
+    if (f === REAL_LABEL || isRealListName(f)) {
+      report(`${where}: a copy of the real list is committed (its lines are not shown)`);
+      continue;
+    }
+    if (BINARY_EXT.test(f)) continue;
+    scanText(where, lines.join("\n"), {
+      ruleSet: rulesFor(f),
+      prose: PROSE.test(f) && !f.startsWith("privacy/"),
+      lineNo: (i) => nums[i],
+      regexView: f === EXAMPLE_LABEL,
+      exempt: (n) => historyExceptions.has(`${at}:${f}:${n}`),
+    });
+  }
+  // the example list's format, as each commit that changed it left the whole file
+  for (const at of exampleAt) {
+    let text;
+    try {
+      text = execFileSync("git", ["show", `${at}:${EXAMPLE_LABEL}`], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    } catch {
+      continue;
+    }
+    for (const problem of exampleListProblems(text)) report(`${at.slice(0, 12)}:${EXAMPLE_LABEL}:${problem}`);
+  }
+  return commits;
+}
+if (historyRevs) {
+  const commits = scanHistory();
+  console.log(`${hits} hits in ${commits} commits (${rules.length} rules${process.env.CI ? ", CI example list only" : ""})`);
+  process.exit(hits ? 1 : 0);
 }
 for (const [f, p] of files) {
   if (f === REAL_LABEL) continue;
