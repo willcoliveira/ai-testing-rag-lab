@@ -8,14 +8,17 @@
 // - CRLF and CR made LF before the paragraph split of the line-break view (S0 judge round 2)
 // - only the two list files exempt by path, not every privacy/forbidden-strings* name
 // - in a linked worktree, the main worktree's real list
+// - a real list in the index (any privacy/forbidden-strings* name but the example list, in any
+//   case) is refused in every mode, CI included (S0 judge round 3)
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
 // directory instead. --file <path> one file (a commit message or PR body). --files-from <path> the
 // files named in <path> (NUL-separated, relative to the working directory), e.g. every entry of an
 // exported index (scripts/check-staged-privacy.sh)
 // Reads privacy/forbidden-strings.example.txt always, and privacy/forbidden-strings.txt
-// unless CI=1. Exits 1 on any hit. Refuses to run if the real list is tracked by git.
+// unless CI=1. Exits 1 on any hit. Refuses to run (exit 2) if the real list, or any copy of it in
+// privacy/, is in the git index, CI included.
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
 const root = process.cwd();
@@ -56,13 +59,6 @@ function walk(dir, out = []) {
   }
   return out;
 }
-if (!process.env.CI && existsSync(REAL)) {
-  try {
-    execSync("git ls-files --error-unmatch privacy/forbidden-strings.txt", { cwd: root, stdio: "ignore" });
-    console.error("REFUSING: privacy/forbidden-strings.txt is tracked by git. Untrack it first.");
-    process.exit(2);
-  } catch { /* not tracked, good */ }
-}
 function loadList(path) {
   if (!existsSync(path)) return [];
   return readFileSync(path, "utf8").split("\n").map((l) => l.trim())
@@ -97,6 +93,27 @@ const listArg = process.argv.indexOf("--files-from");
 const listFile = listArg > 0 ? process.argv[listArg + 1] : null;
 if (listArg > 0 && (!listFile || !existsSync(listFile) || statSync(listFile).isDirectory())) { console.error(`--files-from: no such file ${listFile || ""}`); process.exit(2); }
 const listed = () => readFileSync(listFile, "utf8").split("\0").filter(Boolean);
+// The real list, or a copy of it (a backup, another case), must never be committed: refuse when one
+// is in the index, in every mode and in CI too, where a list committed without the hooks would
+// otherwise pass (S0 judge round 3). With --files-from the listed names are the index entries (the
+// pre-commit copy has no git); otherwise git is asked.
+const EXAMPLE_LABEL = "privacy/forbidden-strings.example.txt";
+const isRealListName = (f) => /^privacy\/forbidden-strings/i.test(f) && f !== EXAMPLE_LABEL;
+function indexEntries() {
+  if (listFile) return listed();
+  try {
+    return execFileSync("git", ["-c", "core.quotePath=false", "ls-files", "-z", "--cached"], {
+      cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 256 * 1024 * 1024,
+    }).split("\0").filter(Boolean);
+  } catch {
+    return []; // not in a repo
+  }
+}
+const committedLists = indexEntries().filter(isRealListName);
+if (committedLists.length) {
+  console.error(`REFUSING: ${committedLists.join(", ")} is in the git index (tracked or staged). Untrack it: git rm --cached -- <path>`);
+  process.exit(2);
+}
 const files = new Map((scanFile ? [resolve(root, scanFile)] : scanDir ? walk(resolve(root, scanDir)) : (listFile ? listed() : tracked()).map((f) => join(root, f))).map((abs) => [label(abs), abs]));
 // files never scanned (by path only). The noreply address is removed from a line before matching,
 // so it cannot hide anything else on that line (security review 2026-10-04).

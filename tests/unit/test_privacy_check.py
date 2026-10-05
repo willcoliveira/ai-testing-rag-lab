@@ -27,6 +27,25 @@ def git(cwd: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, env=clean_env())
 
 
+def commit(cwd: Path, message: str) -> None:
+    """A commit made without the hooks, as a clone that never ran `make hooks` would."""
+    git(
+        cwd,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "-q",
+        "--no-verify",
+        "--allow-empty",
+        "-m",
+        message,
+    )
+
+
 @pytest.fixture
 def repo(tmp_path):
     if NODE is None:
@@ -190,7 +209,8 @@ def test_line_join_view_handles_crlf(repo, content, hit):
 
 
 # Found while fixing round 2: the path rule exempted every file whose name starts with
-# privacy/forbidden-strings, so an editor backup of the real list was never scanned.
+# privacy/forbidden-strings, so an editor backup of the real list was never scanned. Untracked it is
+# scanned; staged it is refused like the real list (judge round 3).
 @pytest.mark.parametrize("name", ["forbidden-strings.txt~", "forbidden-strings.txt.bak"])
 def test_only_the_two_list_files_are_exempt(repo, name):
     (repo / "privacy" / name).write_text("acmeclient\n", encoding="utf-8")
@@ -198,7 +218,48 @@ def test_only_the_two_list_files_are_exempt(repo, name):
     assert result.returncode == 1
     assert f"privacy/{name}:1" in result.stdout
     git(repo, "add", f"privacy/{name}")
-    assert staged(repo, ci=False).returncode == 1
+    in_index = staged(repo, ci=False)
+    assert in_index.returncode == 2
+    assert "REFUSING" in in_index.stderr
+
+
+# Judge round 3 (D1): the refusal was skipped in CI, the list path was exempt and gitleaks
+# allowlists it, so a real list committed without the hooks passed pr-fast. Now any copy of the
+# real list in the index is refused in every mode, CI included.
+@pytest.mark.parametrize("ci", [False, True], ids=["local", "ci"])
+@pytest.mark.parametrize(
+    "name", ["forbidden-strings.txt", "forbidden-strings.txt.bak", "FORBIDDEN-STRINGS.TXT"]
+)
+def test_a_committed_real_list_is_refused_in_every_mode(repo, ci, name):
+    if name == name.lower():
+        (repo / "privacy" / name).write_text("/\\bacmeclient\\b/i\n", encoding="utf-8")
+        git(repo, "add", "-f", f"privacy/{name}")
+    else:
+        # a case-insensitive file system (macOS) cannot hold both names, and `git add` there skips
+        # the variant, so the entry goes into the index as a Linux checkout would have it
+        blob = subprocess.run(
+            ["git", "hash-object", "-w", "privacy/forbidden-strings.txt"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+            text=True,
+            env=clean_env(),
+        ).stdout.strip()
+        git(repo, "update-index", "--add", "--cacheinfo", f"100644,{blob},privacy/{name}")
+    commit(repo, "chore: add the list by mistake")
+    (repo / "MSG").write_text("chore: a clean message\n", encoding="utf-8")
+    for args in ((), ("--file", "MSG")):
+        result = run(repo, *args, ci=ci)
+        assert result.returncode == 2, (args, result.stdout)
+        assert "REFUSING" in result.stderr
+    in_index = staged(repo, ci=ci)
+    assert in_index.returncode == 2
+    assert "REFUSING" in in_index.stderr
+
+
+def test_the_example_list_is_not_refused(repo):
+    commit(repo, "chore: add the example list")
+    assert run(repo, ci=True).returncode == 0
 
 
 def test_staged_check_survives_symlinks(repo):

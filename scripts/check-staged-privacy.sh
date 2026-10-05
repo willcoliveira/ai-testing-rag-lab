@@ -10,16 +10,11 @@ set -eu
 repo=$(git rev-parse --show-toplevel)
 cd "$repo"
 
-# the copy below never has the real list tracked, so refuse here, in CI mode too
-if git ls-files --error-unmatch -- privacy/forbidden-strings.txt >/dev/null 2>&1; then
-  echo "REFUSING: privacy/forbidden-strings.txt is staged. Unstage it: git rm --cached privacy/forbidden-strings.txt" >&2
-  exit 2
-fi
-
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 # every index entry, force-added ignored files included, NUL-separated so no name is C-quoted.
 # Both commands read GIT_INDEX_FILE, so `git commit -a` and `git commit <path>` are covered too.
+# The checker refuses (exit 2) when this list names the real list or a copy of it, in CI mode too.
 git ls-files -z --cached >"$tmp/files"
 git checkout-index -a --ignore-skip-worktree-bits --prefix="$tmp/tree/"
 mkdir -p "$tmp/tree/privacy"
