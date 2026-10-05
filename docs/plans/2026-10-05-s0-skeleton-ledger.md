@@ -58,3 +58,30 @@ Other findings while building:
 - bandit flagged the `git` subprocess in `check_changelog.py` (low severity); it is marked
   `# nosec` with the reason on the line above (bandit reads any words after `nosec` as test ids).
 - zizmor reports 2 suppressed findings at its default persona; the judge should look at what they are.
+
+## Judge round 1 (Fable 5.1, 2026-10-05)
+
+Verdict: 16 of 19 met, 3 need CI (AC10, AC11 on the real PR, AC12), none not met. Bypasses found,
+all fixed in fix round 1, each with a test that reproduces the judge's case:
+
+| # | Severity | Finding | Fix |
+|---|---|---|---|
+| 1 | medium | pre-commit checked the working tree, so a string staged then cleaned on disk was committed | `scripts/check-staged-privacy.sh` exports the index and checks that; replayed against the real hook: commit blocked, HEAD unchanged |
+| 2 | medium | a third-party reusable workflow (job-level `uses`) passed every gate | job-level `uses` must be local (`./`) |
+| 3 | low-medium | `.yaml` workflows escaped the rule test | both extensions globbed |
+| 4 | low | job-level `permissions: write-all` passed the test (zizmor caught it) | job permissions may only be `contents: read`; exceptions must be added to the test by review |
+| 5 | low | whitespace added to an existing CHANGELOG line satisfied the check | added lines that match a removed line once stripped do not count |
+| 6 | low | `Merge branch whatever` / `Revert "anything` passed as prefixes | Git subjects matched in full, a revert's inner subject must itself conform; PR titles may not use them; `fixup!`/`squash!`/`amend!` allowed in commits only, around a valid subject |
+| 7 | low | aliased `import_module`, computed module names | aliases tracked; any dynamic import with a computed name outside adapters is a violation; `from ... import x` now names `...x` (getattr/exec stay out of reach of a static check, bandit flags exec/eval) |
+| 8 | low | a token split at a line break was missed | prose files (md, txt, rst, html, outside `privacy/`) get a view with line breaks removed inside a paragraph; code files are left out because joining them glued decorators into email-shaped strings (seen and fixed during the round) |
+| 9 | info | missing `concurrency` raised KeyError; jobs had no names (zizmor's 2 suppressed `anonymous-definition`) | `.get()`; jobs named `check` and `conventions` (ids unchanged for branch protection) |
+
+Also from the security review: hooks now use `uv run --locked`. Not changed, recorded as known
+gaps: `uvx` runs semgrep and zizmor at pinned versions but resolves their dependencies unlocked on
+each run, and semgrep's `p/python` rules come from the registry (network). Follow-up candidate:
+locked tool environments.
+
+Developer slip during the round, recorded: a first replay of finding 1 used `git stash`, which
+also stashed the new hook, so it ran against the old hook and a local probe commit (a fake test
+string) landed on the branch. It was removed with `git reset --soft HEAD~1` before anything was
+pushed; the replay was then redone with the fixes committed and was blocked.
