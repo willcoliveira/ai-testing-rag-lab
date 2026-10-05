@@ -141,6 +141,20 @@ def test_token_split_at_a_line_break_is_found(repo):
     assert "split.md" in result.stdout
 
 
+# Judge round 3 (D8): --file input (COMMIT_EDITMSG, a PR body) had no line-break view, so a token
+# wrapped at a line break in a commit message passed the commit-msg hook.
+@pytest.mark.parametrize(
+    ("body", "ci"),
+    [("see arn:\naws:iam::x for details\n", True), ("worked for Acme\nClient last year\n", False)],
+    ids=["example-shape", "real-list-name"],
+)
+def test_a_token_wrapped_in_a_commit_message_is_found(repo, body, ci):
+    (repo / "COMMIT_EDITMSG").write_text("docs(notes): add a note\n\n" + body, encoding="utf-8")
+    result = run(repo, "--file", "COMMIT_EDITMSG", ci=ci)
+    assert result.returncode == 1, result.stdout
+    assert "across lines" in result.stdout
+
+
 def test_staged_check_reads_the_index_not_the_working_tree(repo):
     """The S0 judge's bypass: stage a forbidden string, clean the file on disk, commit."""
     note = repo / "note.md"

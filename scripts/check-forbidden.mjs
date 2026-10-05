@@ -12,6 +12,8 @@
 //   case) is refused in every mode, CI included (S0 judge round 3)
 // - a symlink is checked as its link text (what git commits for mode 120000), never read through
 //   to its target; --dir walks do not follow links either (S0 judge round 3)
+// - --file input (a commit message, a PR body) is prose, so it gets the line-break view
+//   (S0 judge round 3)
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
 // directory instead. --file <path> one file (a commit message or PR body). --files-from <path> the
 // files named in <path> (NUL-separated, relative to the working directory), e.g. every entry of an
@@ -217,7 +219,8 @@ for (const [f, p] of files) {
   // previous line and reads as an email address.
   // CRLF and CR become LF first: a split on two (\r?\n|\r) in a row read one CRLF as a blank
   // line, so a token wrapped at a CRLF was never joined (S0 judge round 2)
-  const joined = PROSE.test(f) && !f.startsWith("privacy/")
+  // --file input is a commit message or a PR body: prose whatever its name (S0 judge round 3)
+  const joined = scanFile || (PROSE.test(f) && !f.startsWith("privacy/"))
     ? ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), text)
         .replace(/\r\n?/g, "\n")
         .split(/\n[ \t]*\n/)
