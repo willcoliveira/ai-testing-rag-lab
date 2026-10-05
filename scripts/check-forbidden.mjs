@@ -1,5 +1,6 @@
 // Vendored from willcoliveira/ai-testing-handbook scripts/check-forbidden.mjs at dfff1aa (2026-10-05);
-// local changes: no digests/ folder, uv.lock instead of package.json in the path allowlist.
+// local changes: no digests/ folder, uv.lock instead of package.json in the path allowlist, and a
+// view with line breaks removed so a token split at a newline is found (S0 judge, 2026-10-05).
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
 // directory instead. --file <path> one file (a commit message or PR body)
 // Reads privacy/forbidden-strings.example.txt always, and privacy/forbidden-strings.txt
@@ -101,6 +102,7 @@ function projection(line) {
 // binary by content, not by name: a NUL byte in the first 8 KB (UTF-16 text is decoded instead)
 // A NUL byte makes a file binary only for real binary formats; any other file with a NUL is read as
 // text with the NULs removed (round four: a NUL hid a whole text file)
+const PROSE = /\.(md|markdown|txt|rst|html?)$/i;
 const BINARY_EXT = /\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|woff2?|ttf|otf)$/i;
 function readText(p) {
   const buf = readFileSync(p);
@@ -143,7 +145,18 @@ for (const [f, p] of files) {
   // a name wrapped across lines or with extra spaces: the whole file with all whitespace runs as one
   // space, in both views (round four); hits already reported on a single line are not repeated
   const flat = ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), text).replace(/\s+/g, " ");
-  for (const view of [flat, projection(flat).replace(/\s+/g, " ")]) {
+  // prose only (the one-token-per-line lists in privacy/ are not prose): a token wrapped at a line break inside a paragraph (`arn:` / `aws:`), lines joined
+  // with nothing between them. Code files are left out: joining them glues a decorator to the
+  // previous line and reads as an email address.
+  const joined = PROSE.test(f) && !f.startsWith("privacy/")
+    ? ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), text)
+        .split(/(?:\r?\n|\r)[ \t]*(?:\r?\n|\r)/)
+        .map((para) => para.replace(/[ \t]*(?:\r?\n|\r)[ \t]*/g, ""))
+        .join("\n")
+    : "";
+  const views = [flat, projection(flat).replace(/\s+/g, " ")];
+  if (joined) views.push(joined, projection(joined));
+  for (const view of views) {
     for (const r of rules) {
       for (const m of view.matchAll(r.global)) {
         if (!m[0]) continue;

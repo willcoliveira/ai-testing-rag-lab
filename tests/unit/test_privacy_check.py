@@ -79,3 +79,32 @@ def test_file_mode_checks_one_commit_message(repo):
     assert run(repo, "--file", "MSG").returncode == 1
     msg.write_text("chore(repo): add skeleton\n", encoding="utf-8")
     assert run(repo, "--file", "MSG").returncode == 0
+
+
+def test_token_split_at_a_line_break_is_found(repo):
+    (repo / "split.md").write_text("see arn:\naws:iam for details\n", encoding="utf-8")
+    result = run(repo, ci=True)
+    assert result.returncode == 1
+    assert "split.md" in result.stdout
+
+
+def test_staged_check_reads_the_index_not_the_working_tree(repo):
+    """The S0 judge's bypass: stage a forbidden string, clean the file on disk, commit."""
+    shutil.copy(ROOT / "scripts" / "check-staged-privacy.sh", repo / "scripts")
+    git(repo, "add", "scripts/check-staged-privacy.sh")
+    note = repo / "note.md"
+    # built at runtime so this file does not itself contain the pattern
+    note.write_text("ref arn" + ":aws:iam::x\n", encoding="utf-8")
+    git(repo, "add", "note.md")
+    note.write_text("clean text\n", encoding="utf-8")
+    env = {**os.environ, "CI": "1"}
+    staged = subprocess.run(
+        ["sh", "scripts/check-staged-privacy.sh"], cwd=repo, capture_output=True, text=True, env=env
+    )
+    assert staged.returncode == 1
+    assert "note.md" in staged.stdout
+    git(repo, "add", "note.md")
+    clean = subprocess.run(
+        ["sh", "scripts/check-staged-privacy.sh"], cwd=repo, capture_output=True, text=True, env=env
+    )
+    assert clean.returncode == 0
