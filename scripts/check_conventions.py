@@ -1,0 +1,88 @@
+"""Conventional Commits 1.0 for commit messages and PR titles, `<type>/<slug>` for branches.
+
+Usage:
+  python scripts/check_conventions.py --message-file PATH   # the commit-msg hook
+  python scripts/check_conventions.py --title "feat(api): add /healthz"
+  python scripts/check_conventions.py --branch chore/s0-repo-skeleton
+Exits 1 with the reason when a value does not follow the convention.
+"""
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+TYPES = (
+    "feat",
+    "fix",
+    "docs",
+    "test",
+    "ci",
+    "build",
+    "chore",
+    "refactor",
+    "perf",
+    "style",
+    "revert",
+)
+MAX_HEADER = 100
+HEADER = re.compile(rf"^(?:{'|'.join(TYPES)})(?:\([a-z0-9][a-z0-9._/-]*\))?!?: \S")
+BRANCH = re.compile(rf"^(?:{'|'.join(TYPES)})/(?:s\d+[a-z]?-)?[a-z0-9]+(?:-[a-z0-9]+)*$")
+# messages Git writes itself
+GIT_GENERATED = re.compile(
+    r'^(?:Merge (?:branch|pull request|remote-tracking branch|tag) |Revert ")'
+)
+
+
+def check_header(header: str) -> str | None:
+    if GIT_GENERATED.match(header):
+        return None
+    if not HEADER.match(header):
+        return f'"{header}" is not "type(scope): subject" with type one of {", ".join(TYPES)}'
+    if len(header) > MAX_HEADER:
+        return f"header is {len(header)} characters, the limit is {MAX_HEADER}"
+    return None
+
+
+def check_message(text: str) -> str | None:
+    lines = [line for line in text.splitlines() if not line.startswith("#")]
+    header = next((line for line in lines if line.strip()), "")
+    if not header:
+        return "empty commit message"
+    return check_header(header.rstrip())
+
+
+def check_branch(name: str) -> str | None:
+    if name == "main" or name.startswith("dependabot/"):
+        return None
+    if not BRANCH.match(name):
+        return (
+            f'branch "{name}" is not "<type>/<slug>" or "<type>/sN-<slug>"'
+            f" with type one of {', '.join(TYPES)}"
+        )
+    return None
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--message-file", type=Path)
+    group.add_argument("--title")
+    group.add_argument("--branch")
+    args = parser.parse_args(argv)
+    if args.message_file:
+        problem = check_message(args.message_file.read_text(encoding="utf-8"))
+    elif args.title is not None:
+        problem = check_header(args.title)
+    else:
+        problem = check_branch(args.branch)
+    if problem:
+        print(f"conventions: {problem}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

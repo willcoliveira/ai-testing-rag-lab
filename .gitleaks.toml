@@ -1,0 +1,13 @@
+# Default rules, plus paths that are local environments and caches and never committed.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "local environments and caches (gitignored)"
+paths = [
+  '''(^|/)\.venv/''',
+  '''(^|/)\.git/''',
+  '''(^|/)__pycache__/''',
+  '''(^|/)\.(ruff|pytest)_cache/''',
+  '''(^|/)privacy/forbidden-strings\.txt$''',
+]

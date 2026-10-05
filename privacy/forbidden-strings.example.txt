@@ -1,0 +1,16 @@
+# One entry per line. Plain lines match case-insensitively as substrings.
+# Lines wrapped in /.../ are regular expressions, case-sensitive; add a trailing i (/.../i) for case-insensitive.
+# Copy this file to privacy/forbidden-strings.txt (gitignored) and replace the
+# placeholders with the real names. CI runs with this example file only.
+<client-name-1>
+<client-name-2>
+<agency-name>
+<internal-product-name-1>
+<internal-product-name-2>
+<voice-platform-vendor-under-evaluation>
+<member-platform-name>
+/\b[A-Z]{2,6}-\d{3,5}\b/
+/\b\d{12}\b/
+/arn:aws:/
+/\.(internal|corp|local)\b/
+/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}/

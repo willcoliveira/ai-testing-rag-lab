@@ -1,0 +1,5 @@
+#!/bin/sh
+# Enable with: git config core.hooksPath .githooks
+node scripts/check-forbidden.mjs || { echo "pre-commit: forbidden strings found"; exit 1; }
+gitleaks git --pre-commit --staged --redact --no-banner || { echo "pre-commit: gitleaks found a secret in the staged changes"; exit 1; }
+uv run --quiet ruff format --check || { echo "pre-commit: run 'uv run ruff format'"; exit 1; }
