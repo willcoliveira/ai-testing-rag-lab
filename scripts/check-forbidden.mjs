@@ -5,6 +5,7 @@
 // - --files-from, for the pre-commit copy of the index (S0 judge round 2)
 // - files listed NUL-separated (`ls-files -z`), so a name git C-quotes ("caf\303\251.md") is
 //   scanned (S0 judge round 2)
+// - CRLF and CR made LF before the paragraph split of the line-break view (S0 judge round 2)
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
 // directory instead. --file <path> one file (a commit message or PR body). --files-from <path> the
 // files named in <path> (NUL-separated, relative to the working directory), e.g. every entry of an
@@ -163,10 +164,13 @@ for (const [f, p] of files) {
   // prose only (the one-token-per-line lists in privacy/ are not prose): a token wrapped at a line break inside a paragraph (`arn:` / `aws:`), lines joined
   // with nothing between them. Code files are left out: joining them glues a decorator to the
   // previous line and reads as an email address.
+  // CRLF and CR become LF first: a split on two (\r?\n|\r) in a row read one CRLF as a blank
+  // line, so a token wrapped at a CRLF was never joined (S0 judge round 2)
   const joined = PROSE.test(f) && !f.startsWith("privacy/")
     ? ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), text)
-        .split(/(?:\r?\n|\r)[ \t]*(?:\r?\n|\r)/)
-        .map((para) => para.replace(/[ \t]*(?:\r?\n|\r)[ \t]*/g, ""))
+        .replace(/\r\n?/g, "\n")
+        .split(/\n[ \t]*\n/)
+        .map((para) => para.replace(/[ \t]*\n[ \t]*/g, ""))
         .join("\n")
     : "";
   const views = [flat, projection(flat).replace(/\s+/g, " ")];

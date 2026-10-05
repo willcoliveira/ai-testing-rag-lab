@@ -170,6 +170,25 @@ def test_files_with_quoted_names_are_scanned(repo, name):
     assert f"{name}:1" in in_index.stdout
 
 
+# Judge round 2 (N5): a single CRLF inside a paragraph read as a blank line, so the token wrapped
+# at it was not joined. A blank CRLF line still separates paragraphs.
+@pytest.mark.parametrize(
+    ("content", "hit"),
+    [
+        (b"Acme\r\nClient\r\n", True),
+        (b"Acme\rClient\r", True),
+        (b"Acme\nClient\n", True),
+        (b"Acme\r\n\r\nClient\r\n", False),
+        (b"Acme\r\n \t\r\nClient\r\n", False),
+    ],
+)
+def test_line_join_view_handles_crlf(repo, content, hit):
+    (repo / "x.md").write_bytes(content)
+    result = run(repo)
+    assert result.returncode == (1 if hit else 0), result.stdout
+    assert ("x.md: matches" in result.stdout) is hit
+
+
 def test_staged_check_survives_symlinks(repo):
     """A staged symlink (dangling, or to a directory) neither crashes the check nor walks out of
     the copy of the index."""
