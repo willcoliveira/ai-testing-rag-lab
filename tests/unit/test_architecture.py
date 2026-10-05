@@ -90,6 +90,15 @@ def test_core_importing_another_raglab_layer_is_reported(tmp_path, source):
         "import builtins\nsdk = builtins.__import__('openai')\n",
         "def load(name):\n    return __import__(name)\n",
         "from importlib import import_module\ndef load(name):\n    return import_module(name)\n",
+        # judge round 3 (D5): importlib bound by a call, by tuple unpacking or through sys.modules
+        "importlib = __import__('importlib')\nsdk = importlib.import_module('openai')\n",
+        "import importlib\nil, x = importlib, 1\nsdk = il.import_module('openai')\n",
+        "import sys\nsdk = sys.modules['importlib'].import_module('openai')\n",
+        "import importlib\nim, x = importlib.import_module, 1\nsdk = im('openai')\n",
+        "import importlib\nsdk = getattr(importlib, 'import_module')('openai')\n",
+        "import importlib\nim = getattr(importlib, 'import_module')\nsdk = im('openai')\n",
+        "import importlib\nsdk = importlib.import_module(name='openai')\n",
+        "import importlib\ndef load():\n    return importlib.import_module(*['openai'])\n",
     ],
 )
 def test_vendor_sdk_outside_adapters_is_reported(tmp_path, source):
@@ -104,14 +113,31 @@ def test_vendor_sdk_outside_adapters_is_reported(tmp_path, source):
     [
         # judge round 2: a function of this file that happens to be called import_module
         "def import_module(name):\n    return name.upper()\n\nvalue = import_module(input())\n",
-        "class Loader:\n    def import_module(self, name):\n        return name\n\n"
-        "value = Loader().import_module(input())\n",
-        "from mylib import plugins\nvalue = plugins.import_module(input())\n",
+        "def outer():\n    def import_module(name):\n        return name\n"
+        "    return import_module(input())\n",
     ],
 )
 def test_a_local_function_named_import_module_is_not_an_importer(tmp_path, source):
     package = make_package(tmp_path, {"generate/pipeline.py": source})
     assert messages(package) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "class Loader:\n    def import_module(self, name):\n        return name\n\n"
+        "value = Loader().import_module(input())\n",
+        "from mylib import plugins\nvalue = plugins.import_module(input())\n",
+    ],
+)
+def test_any_import_module_attribute_call_is_an_importer(tmp_path, source):
+    """Judge round 3 (D5): an attribute call named import_module counts whatever its receiver,
+    since importlib can be bound where no tracker sees it. The cost: a method of that name called
+    with a computed name outside adapters is reported, and must be renamed."""
+    package = make_package(tmp_path, {"generate/pipeline.py": source})
+    found = messages(package)
+    assert len(found) == 1
+    assert "dynamic import with a computed name" in found[0]
 
 
 def test_relative_import_above_the_package_names_the_import(tmp_path):

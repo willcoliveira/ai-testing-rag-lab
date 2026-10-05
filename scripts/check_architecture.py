@@ -1,10 +1,20 @@
 """Architecture rules, checked on the source tree with the ast module.
 
 1. `raglab.core` imports the standard library and `raglab.core` only.
-2. Vendor SDKs are imported only inside `raglab.adapters`, statically or through importlib.
-   `__import__` is always an importer; `import_module` only when it is importlib's (imported from
-   importlib, or called on a name bound to the importlib module), so a function of the file that
-   happens to share the name is not one.
+2. Vendor SDKs are imported only inside `raglab.adapters`, statically or by a module name given
+   at run time.
+
+A run-time import is found by the call, not by tracking what importlib is bound to (S0 judge round
+3: `importlib = __import__('importlib')`, `il, x = importlib, 1` or `sys.modules['importlib']`
+bound it out of sight of a binding tracker):
+- any call of an attribute named `import_module` or `__import__`, or of
+  `getattr(<anything>, 'import_module')`;
+- a bare call of `__import__`, of `import_module` unless the file defines a function of that name
+  (a local helper of that name is not an importer), or of a name an import or an assignment (simple,
+  tuple or `:=`) binds to one of those.
+The module name is the first argument (or `name=`): a string literal names the module, anything
+else is a computed name, reported outside `raglab.adapters`. A method of that name, called outside
+adapters with a computed name, is reported too; rename it.
 
 Usage: python scripts/check_architecture.py [package_dir]   (default: src/raglab)
 Prints one line per violation and exits 1 if there are any.
@@ -27,7 +37,6 @@ VENDORS = frozenset(
         "qdrant_client",
     }
 )
-IMPORTLIB = "importlib"
 
 
 @dataclass(frozen=True)
@@ -59,86 +68,103 @@ def _resolve_relative(
 
 
 COMPUTED = "<computed name>"
+IMPORTERS = frozenset({"import_module", "__import__"})
+NAME_KEYWORDS = frozenset({"name"})
 
 
-@dataclass(frozen=True)
-class _Importers:
-    functions: frozenset[str]  # names bound to __import__ or importlib.import_module
-    modules: frozenset[str]  # names bound to the importlib module
+def _pairs(target: ast.expr, value: ast.expr) -> list[tuple[str, ast.expr]]:
+    """`name = value` pairs of one binding, tuple and list unpacking included."""
+    if isinstance(target, ast.Name):
+        return [(target.id, value)]
+    if (
+        isinstance(target, ast.Tuple | ast.List)
+        and isinstance(value, ast.Tuple | ast.List)
+        and len(target.elts) == len(value.elts)
+    ):
+        return [p for t, v in zip(target.elts, value.elts, strict=True) for p in _pairs(t, v)]
+    return []
 
 
 def _assignments(tree: ast.Module) -> list[tuple[str, ast.expr]]:
-    """`name = value` bindings anywhere in the file (scopes are not told apart)."""
+    """Bindings by assignment anywhere in the file (scopes are not told apart)."""
     pairs: list[tuple[str, ast.expr]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
-            pairs.extend((t.id, node.value) for t in node.targets if isinstance(t, ast.Name))
-        elif (
-            isinstance(node, ast.AnnAssign | ast.NamedExpr)
-            and node.value is not None
-            and isinstance(node.target, ast.Name)
-        ):
-            pairs.append((node.target.id, node.value))
+            for target in node.targets:
+                pairs.extend(_pairs(target, node.value))
+        elif isinstance(node, ast.AnnAssign | ast.NamedExpr) and node.value is not None:
+            pairs.extend(_pairs(node.target, node.value))
     return pairs
 
 
-def _importers(tree: ast.Module) -> _Importers:
-    """The names in this file that import a module by a runtime name: __import__ always,
-    importlib.import_module through any import or simple assignment that binds it."""
-    functions = {"__import__"}
-    modules: set[str] = set()
+def _local_functions(tree: ast.Module) -> frozenset[str]:
+    """Functions the file defines outside a class body (a method is called as an attribute)."""
+    methods = {
+        id(item) for node in ast.walk(tree) if isinstance(node, ast.ClassDef) for item in node.body
+    }
+    return frozenset(
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and id(node) not in methods
+    )
+
+
+def _is_getattr_importer(node: ast.expr) -> bool:
+    """getattr(<anything>, 'import_module')"""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "getattr"
+        and len(node.args) >= 2
+        and isinstance(node.args[1], ast.Constant)
+        and node.args[1].value in IMPORTERS
+    )
+
+
+def _importer_names(tree: ast.Module) -> frozenset[str]:
+    """The bare names that call an importer in this file."""
+    local = _local_functions(tree)
+    names = {"__import__", *(name for name in IMPORTERS if name not in local)}
     for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name == IMPORTLIB:
-                    modules.add(alias.asname or IMPORTLIB)
-                elif alias.name.startswith(f"{IMPORTLIB}.") and not alias.asname:
-                    modules.add(IMPORTLIB)  # `import importlib.util` binds importlib
-        elif isinstance(node, ast.ImportFrom) and node.module == IMPORTLIB and not node.level:
-            for alias in node.names:
-                if alias.name in ("import_module", "*"):
-                    functions.add(alias.asname or "import_module")
-    # loader = importlib; im = importlib.import_module; im2 = im
+        if isinstance(node, ast.ImportFrom):
+            names.update(
+                alias.asname or alias.name for alias in node.names if alias.name in IMPORTERS
+            )
+    # im = importlib.import_module; im2 = im; im3, x = im2, 1
     assignments = _assignments(tree)
     changed = True
     while changed:
         changed = False
         for name, value in assignments:
-            if isinstance(value, ast.Name) and value.id in modules:
-                target = modules
-            elif (isinstance(value, ast.Name) and value.id in functions) or (
-                isinstance(value, ast.Attribute)
-                and value.attr == "import_module"
-                and isinstance(value.value, ast.Name)
-                and value.value.id in modules
-            ):
-                target = functions
-            else:
-                continue
-            if name not in target:
-                target.add(name)
+            if name not in names and _calls_an_importer(value, frozenset(names)):
+                names.add(name)
                 changed = True
-    return _Importers(frozenset(functions), frozenset(modules))
+    return frozenset(names)
 
 
-def _is_importer_call(func: ast.expr, importers: _Importers) -> bool:
+def _calls_an_importer(func: ast.expr, names: frozenset[str]) -> bool:
     if isinstance(func, ast.Name):
-        return func.id in importers.functions
-    if not isinstance(func, ast.Attribute):
-        return False
-    if func.attr == "__import__":  # builtins.__import__
-        return True
-    if func.attr != "import_module":
-        return False
-    receiver = func.value
-    if isinstance(receiver, ast.Name):
-        return receiver.id in importers.modules
-    # __import__("importlib").import_module(...)
-    return isinstance(receiver, ast.Call) and _is_importer_call(receiver.func, importers)
+        return func.id in names
+    if isinstance(func, ast.Attribute):
+        return func.attr in IMPORTERS
+    return _is_getattr_importer(func)
+
+
+def _module_argument(call: ast.Call) -> str:
+    """The module a run-time import names: its first argument (or name=) when that is a string
+    literal, else COMPUTED."""
+    arg = (
+        call.args[0]
+        if call.args
+        else next((k.value for k in call.keywords if k.arg in NAME_KEYWORDS), None)
+    )
+    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+        return arg.value
+    return COMPUTED
 
 
 def _imported_modules(tree: ast.Module, module_parts: list[str], is_package: bool):
-    importers = _importers(tree)
+    importers = _importer_names(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -158,14 +184,8 @@ def _imported_modules(tree: ast.Module, module_parts: list[str], is_package: boo
                 )
             elif node.module:
                 yield node.lineno, node.module
-        elif isinstance(node, ast.Call):
-            if not _is_importer_call(node.func, importers):
-                continue
-            arg = node.args[0] if node.args else None
-            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                yield node.lineno, arg.value
-            else:
-                yield node.lineno, COMPUTED
+        elif isinstance(node, ast.Call) and _calls_an_importer(node.func, importers):
+            yield node.lineno, _module_argument(node)
 
 
 def check(package_dir: Path) -> list[Violation]:
