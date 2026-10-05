@@ -49,17 +49,39 @@ def _resolve_relative(
     module_parts: list[str], is_package: bool, level: int, name: str | None
 ) -> str:
     package = module_parts if is_package else module_parts[:-1]
+    if level - 1 >= len(package):
+        return "." * level + (name or "")  # above the top package: shown as written
     base = package[: len(package) - (level - 1)] if level > 1 else package
     return ".".join([*base, *([name] if name else [])])
 
 
+COMPUTED = "<computed name>"
+
+
+def _importer_names(tree: ast.Module) -> set[str]:
+    """import_module and __import__, plus any alias bound to them in this file."""
+    names = set(DYNAMIC_IMPORTERS)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "importlib":
+            names.update(a.asname for a in node.names if a.name == "import_module" and a.asname)
+    return names
+
+
 def _imported_modules(tree: ast.Module, module_parts: list[str], is_package: bool):
+    importers = _importer_names(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 yield node.lineno, alias.name
         elif isinstance(node, ast.ImportFrom):
-            if node.level:
+            if node.level and node.module is None:
+                # `from .. import x`: each name is a module
+                for alias in node.names:
+                    yield (
+                        node.lineno,
+                        _resolve_relative(module_parts, is_package, node.level, alias.name),
+                    )
+            elif node.level:
                 yield (
                     node.lineno,
                     _resolve_relative(module_parts, is_package, node.level, node.module),
@@ -69,13 +91,13 @@ def _imported_modules(tree: ast.Module, module_parts: list[str], is_package: boo
         elif isinstance(node, ast.Call):
             func = node.func
             name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+            if name not in importers:
+                continue
             arg = node.args[0] if node.args else None
-            if (
-                name in DYNAMIC_IMPORTERS
-                and isinstance(arg, ast.Constant)
-                and isinstance(arg.value, str)
-            ):
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                 yield node.lineno, arg.value
+            else:
+                yield node.lineno, COMPUTED
 
 
 def check(package_dir: Path) -> list[Violation]:
@@ -86,6 +108,17 @@ def check(package_dir: Path) -> list[Violation]:
         layer = parts[1] if len(parts) > 1 else ""
         tree = ast.parse(file.read_text(encoding="utf-8"), filename=str(file))
         for line, module in _imported_modules(tree, parts, file.name == "__init__.py"):
+            if module == COMPUTED:
+                if layer != "adapters":
+                    violations.append(
+                        Violation(
+                            file,
+                            line,
+                            f"dynamic import with a computed name outside {root_name}.adapters;"
+                            " use a static import",
+                        )
+                    )
+                continue
             top = module.split(".")[0]
             if layer == "core":
                 inside_core = module == f"{root_name}.core" or module.startswith(

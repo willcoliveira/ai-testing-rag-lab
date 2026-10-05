@@ -72,13 +72,26 @@ def test_core_importing_another_raglab_layer_is_reported(tmp_path, source):
         "import anthropic\nclient = anthropic.Anthropic()\n",
         "import importlib\nsdk = importlib.import_module('qdrant_client')\n",
         "boto3 = __import__('boto3')\n",
+        # the S0 judge's bypasses
+        "from importlib import import_module as im\nsdk = im('openai')\n",
+        "import importlib\nname = 'openai'\nsdk = importlib.import_module(name)\n",
+        "import importlib\nsdk = importlib.import_module('ope' + 'nai')\n",
+        "import openai.types\n",
+        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import openai\n",
     ],
 )
 def test_vendor_sdk_outside_adapters_is_reported(tmp_path, source):
     package = make_package(tmp_path, {"generate/pipeline.py": source})
     found = messages(package)
     assert found, source
-    assert all("generate/pipeline.py" in f and "outside raglab.adapters" in f for f in found)
+    assert all("generate/pipeline.py" in f and "raglab.adapters" in f for f in found)
+
+
+def test_relative_import_above_the_package_names_the_import(tmp_path):
+    package = make_package(tmp_path, {"core/ports.py": "from ... import x\n"})
+    found = messages(package)
+    assert len(found) == 1
+    assert "not ...x" in found[0]
 
 
 def test_vendor_sdk_inside_adapters_passes(tmp_path):
