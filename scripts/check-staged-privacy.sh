@@ -13,4 +13,7 @@ if [ -f "$repo/privacy/forbidden-strings.txt" ]; then
   cp "$repo/privacy/forbidden-strings.txt" "$tmp/privacy/"
 fi
 cd "$tmp"
+# a throwaway repo, so the script lists files with git (as in the real checkout) instead of
+# printing "not a git repository" and walking the tree; nothing is committed in it
+git init -q
 node scripts/check-forbidden.mjs
