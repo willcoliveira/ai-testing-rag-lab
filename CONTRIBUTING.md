@@ -4,9 +4,15 @@
 
 ```bash
 uv sync
-make hooks
+make hooks   # required in every clone
 make check
 ```
+
+`make hooks` is required in every clone. It points Git at `.githooks/`: commit-msg checks the
+message (privacy and Conventional Commits), pre-commit checks what is staged (privacy, gitleaks,
+formatting), and pre-push checks every message and added line of the commits being pushed. Hooks
+can be skipped (`--no-verify`); CI then still checks the pull request's files and commits, but with
+the example list only, so a maintainer's real names are enforced only where the hooks run.
 
 ## How work lands
 
@@ -35,8 +41,13 @@ make check
 
 ## Privacy
 
-`node scripts/check-forbidden.mjs` checks every tracked file and every commit message.
-`privacy/forbidden-strings.example.txt` holds the generic patterns and is the only list CI uses;
-a maintainer's real list is `privacy/forbidden-strings.txt`, which is gitignored and must never be
-committed (the script refuses to run if it is tracked). Public tokens that a pattern would flag go
-in `privacy/allowlist.txt`.
+`node scripts/check-forbidden.mjs` (`make privacy`) checks every tracked and untracked file, and
+with `--file` a commit message. `make privacy-history` checks every commit message and every line
+added in a range of commits (`RANGE`, default `--all`): the pre-push hook runs it on the commits
+being pushed and CI on a pull request's commits.
+`privacy/forbidden-strings.example.txt` holds the generic patterns and is the only list CI uses; it
+may contain only comments, `<placeholders>` and `/regex/` lines. A maintainer's real list is
+`privacy/forbidden-strings.txt`, which is gitignored and must never be committed: the check refuses
+to run, in CI too, while it or any copy of it is in the index. Public tokens that a pattern would
+flag go in `privacy/allowlist.txt`; a reviewed false positive in the history goes in
+`privacy/history-exceptions.txt` (full commit id, path and line) with its reason.

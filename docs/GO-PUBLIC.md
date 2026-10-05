@@ -3,10 +3,12 @@
 The repo starts private. These steps happen before it is made public, in this order, and some
 settings only exist (or are only free) on a public repository.
 
-1. **History scans.** `gitleaks git . --redact` over the full history, and the privacy check with
-   the maintainer's real list over every file and every commit message:
-   `git log --format=%B | node scripts/check-forbidden.mjs --file /dev/stdin` style, or each
-   message to a file.
+1. **History scans.** `gitleaks git . --redact` over the full history, and
+   `make privacy-history RANGE=--all` with the maintainer's real list: every commit message and
+   every line any commit added, on every branch and tag, so a string committed and removed later is
+   found. Review each entry of `privacy/history-exceptions.txt`; a history rewrite before going
+   public can remove the need for them. Annotated tag messages and notes are not in that scan:
+   check them with `--file` (`git for-each-ref refs/tags --format='%(contents)'` into a file).
 2. **A final `git grep -i`** for private names and for any path outside this repo.
 3. **Make the repo public** (`gh repo edit --visibility public --accept-visibility-change-consequences`).
 4. **Secret scanning and push protection** on (free for public repositories).

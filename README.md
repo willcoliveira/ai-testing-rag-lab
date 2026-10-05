@@ -50,10 +50,14 @@ Needs [uv](https://docs.astral.sh/uv/), Node 22 and [gitleaks](https://github.co
 
 ```bash
 uv sync
-make hooks     # once per clone: commit-msg and pre-commit hooks
+make hooks     # required in every clone: commit-msg, pre-commit and pre-push hooks
 make check     # every gate that needs no model and no key
 uv run raglab --version
 ```
+
+`make hooks` is required in every clone, not optional: the hooks check each commit message, each
+staged change and each push for secrets and private names. CI checks a pull request's files and
+commits again, but only with the generic example list.
 
 `make check` runs formatting, lint, types, dependency and dead-code checks, a vulnerability audit,
 SAST, workflow security, secret scanning, the privacy check, the architecture rules and the
