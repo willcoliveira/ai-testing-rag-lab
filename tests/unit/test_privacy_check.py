@@ -442,6 +442,58 @@ def test_history_accepts_revisions_only(repo, args):
     assert "--history" in result.stderr
 
 
+def test_pre_push_hook_blocks_a_leak_removed_before_the_push(repo, tmp_path_factory):
+    """The real .githooks/pre-push, on a push to a local bare remote."""
+    hooks = repo / ".githooks"
+    hooks.mkdir()
+    shutil.copy(ROOT / ".githooks" / "pre-push", hooks / "pre-push")
+    remote = tmp_path_factory.mktemp("remote") / "origin.git"
+    config = tmp_path_factory.mktemp("config") / "gitconfig"
+    config.write_text("", encoding="utf-8")
+    env = clean_env(GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM="1")
+
+    def g(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, env=env)
+
+    assert g("init", "-q", "--bare", str(remote)).returncode == 0
+    for key, value in (
+        ("user.name", "Test"),
+        ("user.email", "test@example.com"),
+        ("commit.gpgsign", "false"),
+        ("core.hooksPath", ".githooks"),
+    ):
+        assert g("config", key, value).returncode == 0
+    assert g("remote", "add", "origin", str(remote)).returncode == 0
+    assert g("add", ".githooks").returncode == 0
+    assert g("commit", "-q", "-m", "chore: base").returncode == 0
+    first = g("push", "-q", "origin", "HEAD:refs/heads/main")
+    assert first.returncode == 0, first.stdout + first.stderr
+    pushed = g("rev-parse", "origin/main").stdout or rev(repo)
+
+    (repo / "leak.md").write_text("worked for AcmeClient\n", encoding="utf-8")
+    assert g("add", "leak.md").returncode == 0
+    assert g("commit", "-q", "--no-verify", "-m", "docs: add a note").returncode == 0
+    assert g("rm", "-q", "leak.md").returncode == 0
+    assert g("commit", "-q", "--no-verify", "-m", "docs: remove the note").returncode == 0
+    blocked = g("push", "origin", "HEAD:refs/heads/main")
+    assert blocked.returncode != 0
+    assert "leak.md:1: matches" in blocked.stdout + blocked.stderr
+    remote_main = subprocess.run(
+        ["git", "rev-parse", "main"], cwd=remote, capture_output=True, text=True, env=env
+    ).stdout
+    assert remote_main.strip() == pushed.strip()
+
+    # a new branch is checked from where the remote's branches stop
+    new_branch = g("push", "origin", "HEAD:refs/heads/docs/note")
+    assert new_branch.returncode != 0
+    assert g("reset", "-q", "--hard", pushed.strip()).returncode == 0
+    (repo / "ok.md").write_text("clean\n", encoding="utf-8")
+    assert g("add", "ok.md").returncode == 0
+    assert g("commit", "-q", "-m", "docs: add a clean note").returncode == 0
+    clean = g("push", "origin", "HEAD:refs/heads/docs/note")
+    assert clean.returncode == 0, clean.stdout + clean.stderr
+
+
 # Judge round 3 (D7): git commits a symlink as its link text (mode 120000). The checker followed
 # links instead: a link whose text held a forbidden string was committed unscanned (a dangling one
 # was skipped), and a link to a file outside the repo blocked a commit for content it did not carry.
