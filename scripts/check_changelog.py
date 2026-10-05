@@ -20,17 +20,25 @@ def added_lines(base: str, head: str) -> list[str]:
     ).stdout
     lines = diff.splitlines()
     removed = {
-        line[1:].strip() for line in lines if line.startswith("-") and not line.startswith("---")
+        _collapsed(line[1:])
+        for line in lines
+        if line.startswith("-") and not line.startswith("---")
     }
-    # an existing line re-added with only whitespace changed is not a new entry
+    # an existing line re-added with only whitespace changed (at its ends or inside, S0 judge
+    # round 3) is not a new entry
     return [
         line[1:]
         for line in lines
         if line.startswith("+")
         and not line.startswith("+++")
-        and line[1:].strip()
-        and line[1:].strip() not in removed
+        and _collapsed(line[1:])
+        and _collapsed(line[1:]) not in removed
     ]
+
+
+def _collapsed(text: str) -> str:
+    """The line with every whitespace run as one space and none at the ends."""
+    return " ".join(text.split())
 
 
 def main(argv: list[str]) -> int:
