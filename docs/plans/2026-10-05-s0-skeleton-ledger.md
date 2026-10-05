@@ -30,6 +30,31 @@ approach not just the name". AC19 (semantic commits and branches) was added to t
   scope. Dependabot does not update those two pins; they are bumped by hand.
 - `tests/unit/test_readme.py` added: the README status diagram must equal diagram 4.
 
-## Developer evidence
+## Developer evidence (Opus 5.5, 2026-10-05)
 
-(filled in below as each criterion is run)
+| # | Result | Evidence |
+|---|---|---|
+| AC1 | met | clean clone of `chore/s0-repo-skeleton`, `uv sync && make check` exit 0; the clone has only the example list (5 rules), so the real list is not committed |
+| AC2 | met | `uv run python -m raglab --version` prints `raglab 0.0.1`; `test_version.py` passes |
+| AC3 | met | **break:** `import requests` appended to `core/__init__.py`, `make architecture` exits 2 with `core/__init__.py:2: core may import only the standard library and raglab.core, not requests`; restored |
+| AC4 | met | **break:** `import openai` in `__main__.py`, `make architecture` exits 2 with `__main__.py:19: vendor SDK openai is imported outside raglab.adapters`; `test_architecture.py` covers `from anthropic import Anthropic`, `anthropic.Anthropic()`, `importlib.import_module('qdrant_client')`, `__import__('boto3')`, and the same imports inside adapters passing |
+| AC5 | met | `test_privacy_check.py::test_refuses_when_real_list_is_tracked` exits 2 with "REFUSING" |
+| AC6 | met | **break:** a file with a 12-digit account-id shape, `make privacy` exits 2 (make wraps exit 1); a semantic commit message holding the same shape is rejected by the commit-msg hook |
+| AC7 | met | **break:** a generated GitHub-token-shaped string in an untracked file, `make secrets` fails; staged, the pre-commit hook blocks the commit; removed |
+| AC8 | met | **break:** a copy of pr-fast.yml with `pull_request_target` and `actions/checkout@v4`, zizmor exits 14 reporting `dangerous-triggers` and `unpinned-uses` |
+| AC9 | met | **break:** one `timeout-minutes` removed, `test_workflow_rules.py` fails with `job conventions has no timeout-minutes`; restored (first attempt used a GNU-only sed form that BSD sed ignored, so it changed nothing; redone with Python) |
+| AC10 | needs CI | — |
+| AC11 | unit met; real PR needs CI | `test_changelog_check.py`: no line fails, a line passes, a blank line does not count, `dependabot[bot]` exempt |
+| AC12 | file met; GitHub acceptance needs CI | `test_workflow_rules.py::test_dependabot_covers_every_ecosystem_monthly`; zizmor's `dependabot-cooldown` finding fixed with a 7-day cooldown |
+| AC13 | met | **break:** `nodes: [S0, S99]` in the S0 plan, `test_diagram.py` fails; restored. S0 is `wip` until this PR is ready, then `done` |
+| AC14 | met | main plan committed without the Background client lines; `git grep -i -w` for the client name returns 0 hits (the 4 substring hits are "trustworthy" in the privacy test); `make privacy` passes with the local real list (42 rules) |
+| AC15 | met | README, LICENSE, CONTRIBUTING, SECURITY, CHANGELOG, CLAUDE.md and `.env.example` present |
+| AC16 | met | `gh repo view --json visibility` returns `PRIVATE`; `main` holds only the bootstrap commit |
+| AC17 | met | `docs/GO-PUBLIC.md` |
+| AC18 | met | `git log --format=%B` contains no Co-Authored-By or "Generated with" lines |
+| AC19 | met | **break:** `git commit -m "update stuff"` rejected by the commit-msg hook; the six S0 commits went through the hook in Conventional Commits format; `test_conventions.py` covers messages, titles and branches |
+
+Other findings while building:
+- bandit flagged the `git` subprocess in `check_changelog.py` (low severity); it is marked
+  `# nosec` with the reason on the line above (bandit reads any words after `nosec` as test ids).
+- zizmor reports 2 suppressed findings at its default persona; the judge should look at what they are.
