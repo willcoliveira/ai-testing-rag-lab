@@ -33,6 +33,8 @@ def ingest(args: argparse.Namespace) -> int:
         f"ingested {len(result.documents)} documents into {len(result.chunks)} chunks "
         f"(chunk size {settings.chunk_size}, overlap {settings.overlap}): {args.out}"
     )
+    for empty in result.empty_sections:
+        print(f"warning: empty section (heading with no text): {empty}", file=sys.stderr)
     snapshot = inventory.snapshot_json(result)
     if args.snapshot:
         inventory.write_json(root / args.snapshot, snapshot)

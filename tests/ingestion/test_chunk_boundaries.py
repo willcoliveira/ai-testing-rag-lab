@@ -5,7 +5,7 @@ chunker's rules (sections, budget, overlap, oversize units, ids) hold on small d
 
 import pytest
 
-from raglab.chunk.sections import INTRO, ChunkSettings, SectionChunker
+from raglab.chunk.sections import INTRO, ChunkSettings, SectionChunker, empty_sections
 from raglab.core.types import Block, Chunk, Document, DocumentMeta, Page
 from tests.conftest import load_script
 from tests.ingestion_support import answer_key, default_inventory, parsed
@@ -168,3 +168,27 @@ def test_repeated_section_ids_still_give_unique_chunk_ids():
 def test_invalid_settings_are_refused(size, overlap):
     with pytest.raises(ValueError, match="must be"):
         ChunkSettings(size, overlap)
+
+
+# ---------------------------------------------------------------- empty sections (S1b decision)
+
+
+def test_an_empty_leaf_section_is_reported_and_a_parent_heading_is_not():
+    doc = document(
+        h("Doc", level=1),
+        p("Intro."),
+        h("1 First"),
+        p("One."),
+        h("2 Reserved"),
+        h("3 Parent"),
+        h("3.1 Child", level=3),
+        p("Child text."),
+        h("4 Trailing"),
+    )
+    assert empty_sections(doc) == ["2", "4"]
+
+
+@pytest.mark.ocr
+def test_the_project_pack_has_no_empty_section():
+    """User decision (S1b): empty sections are reported, and fail on our own pack."""
+    assert default_inventory().empty_sections == ()

@@ -36,6 +36,7 @@ def inventory_json(inventory: Inventory) -> Json:
             for d in inventory.documents
         ],
         "chunks": [asdict(c) for c in inventory.chunks],
+        "empty_sections": list(inventory.empty_sections),
     }
 
 

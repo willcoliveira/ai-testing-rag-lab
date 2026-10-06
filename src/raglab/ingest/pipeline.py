@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from importlib.metadata import version
 from pathlib import Path
 
-from raglab.chunk.sections import ChunkSettings, SectionChunker
+from raglab.chunk.sections import ChunkSettings, SectionChunker, empty_sections
 from raglab.core.ports import Parser
 from raglab.core.types import Chunk, Document, DocumentMeta, TenantError
 from raglab.ingest import frontmatter, html, ocr, register
@@ -41,6 +41,8 @@ class Inventory:
     tools: dict[str, str]
     documents: tuple[Document, ...]
     chunks: tuple[Chunk, ...]
+    # "<path>: <section id>" for every empty leaf section (reported, never chunked)
+    empty_sections: tuple[str, ...] = ()
 
 
 @contextmanager
@@ -142,4 +144,5 @@ def ingest(root: Path, settings: ChunkSettings | None = None) -> Inventory:
         )
     except (register.RegisterError, frontmatter.FrontMatterError, TenantError) as error:
         raise IngestError(str(error)) from error
-    return Inventory(settings, tools(documents), documents, chunk_all(documents, settings))
+    empty = tuple(f"{d.meta.path}: {s}" for d in documents for s in empty_sections(d))
+    return Inventory(settings, tools(documents), documents, chunk_all(documents, settings), empty)

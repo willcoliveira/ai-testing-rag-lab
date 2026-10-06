@@ -84,6 +84,21 @@ def sections(document: Document) -> list[Section]:
     return out
 
 
+def empty_sections(document: Document) -> list[str]:
+    """Leaf sections with a heading and no text: '## 2 Reserved' gives no chunk, like a parent
+    heading, but unlike a parent nothing under it carries its text, so it is reported (S1b,
+    user decision: report it, and fail when the project's own pack has one)."""
+    found = sections(document)
+    out: list[str] = []
+    for i, section in enumerate(found):
+        if section.section_id == INTRO or section.body:
+            continue
+        following = found[i + 1].section_id if i + 1 < len(found) else ""
+        if not following.startswith(f"{section.section_id}."):
+            out.append(section.section_id)
+    return out
+
+
 def _pieces(placed: PlacedBlock, budget: int, lead: int = 0) -> list[Unit]:
     """A block as units of at most budget characters: whole if it fits, else split between table
     rows or sentences, consecutive pieces packed together while they fit. lead is the length of
