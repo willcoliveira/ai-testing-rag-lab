@@ -31,6 +31,7 @@ import hashlib
 import html
 import io
 import json
+import platform
 import re
 import sys
 import tempfile
@@ -465,6 +466,11 @@ def outputs(root: Path) -> dict[str, bytes]:
     }
 
 
+def platform_id() -> str:
+    """The platform a build ran on, e.g. darwin-arm64 or linux-x86_64."""
+    return f"{sys.platform}-{platform.machine().lower()}"
+
+
 def manifest(root: Path, files: dict[str, bytes]) -> dict[str, object]:
     sources = {
         ".pdf": PDF_SOURCE,
@@ -502,6 +508,10 @@ def manifest(root: Path, files: dict[str, bytes]) -> dict[str, object]:
             "pypdf": version("pypdf"),
             "freetype2": features.version("freetype2"),
         },
+        # raster output depends on the platform as well as the FreeType version (S1a CI: same
+        # FreeType on macOS and Linux, different PNG pixels), so the PNG is compared by pixels only
+        # on the platform that built it; its text and size are compared everywhere
+        "platform": platform_id(),
         "fonts": {
             "pdf": "Helvetica, a PDF core font (not embedded)",
             "png": "Aileron Regular, bundled with the pinned Pillow",

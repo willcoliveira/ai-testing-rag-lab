@@ -73,14 +73,30 @@ def test_rebuild_gives_the_same_html_and_ground_truth(rebuilt):
     assert (out / GT).read_bytes() == (ROOT / GT).read_bytes()
 
 
+def same_raster() -> bool:
+    """True when this machine renders the PNG as the committed build did."""
+    kept = committed_manifest()
+    build = load_script("build_corpus")
+    return (
+        kept["libraries"]["freetype2"] == features.version("freetype2")  # type: ignore[index]
+        and kept.get("platform") == build.platform_id()
+    )
+
+
+def without_png_hashes(m: dict) -> dict:
+    out = json.loads(json.dumps(m))
+    for entry in out["files"]:
+        if entry["path"].endswith(".png"):
+            entry.pop("sha256", None)
+            entry.pop("pixel_sha256", None)
+    return out
+
+
 def test_rebuild_gives_the_same_png(rebuilt):
     out, _ = rebuilt
     with Image.open(out / PNG) as fresh, Image.open(ROOT / PNG) as kept:
         assert fresh.size == kept.size
-        same_freetype = committed_manifest()["libraries"]["freetype2"] == features.version(  # type: ignore[index]
-            "freetype2"
-        )
-        if same_freetype:
+        if same_raster():
             assert sha(fresh.convert("L").tobytes()) == sha(kept.convert("L").tobytes())
     assert manifest_files()[PNG]["pixel_sha256"] == load_script("build_corpus").pixel_sha256(
         (ROOT / PNG).read_bytes()
@@ -90,8 +106,12 @@ def test_rebuild_gives_the_same_png(rebuilt):
 def test_rebuilt_manifest_matches(rebuilt):
     _, fresh = rebuilt
     kept = committed_manifest()
-    if kept["libraries"]["freetype2"] != features.version("freetype2"):  # type: ignore[index]
-        pytest.skip("another FreeType build renders other PNG pixels; compared above")
+    if not same_raster():
+        # another platform or FreeType renders other PNG pixels: everything but the PNG's own
+        # hashes must still match (its size, text and ground truth are compared above)
+        fresh, kept = without_png_hashes(fresh), without_png_hashes(kept)
+        fresh.pop("platform", None)
+        kept.pop("platform", None)
     assert fresh == kept
 
 

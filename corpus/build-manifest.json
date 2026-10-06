@@ -7,6 +7,7 @@
     "pypdf": "6.19.0",
     "freetype2": "2.14.3"
   },
+  "platform": "darwin-arm64",
   "fonts": {
     "pdf": "Helvetica, a PDF core font (not embedded)",
     "png": "Aileron Regular, bundled with the pinned Pillow"
