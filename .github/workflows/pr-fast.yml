@@ -1,4 +1,5 @@
-# pr-fast: every gate that needs no model and no key. Runs on every PR (forks included) and on main.
+# pr-fast: every gate that needs no hosted model and no key (the local embedding model is cached).
+# Runs on every PR (forks included) and on main.
 # Same targets as `make check`. Keyed gates (eval-on-change, nightly, weekly, release) come later
 # and live in their own workflows behind an Environment with required reviewers.
 name: pr-fast
@@ -106,6 +107,12 @@ jobs:
         env:
           HF_HUB_OFFLINE: "1"
         run: make test
+      # S2: recall@5 of the default configuration on the dev split against the published baseline
+      # (docs/THRESHOLDS.md); offline, the model from the cache
+      - name: Retrieval no-regression gate (offline)
+        env:
+          HF_HUB_OFFLINE: "1"
+        run: make gate
 
   conventions:
     name: conventions

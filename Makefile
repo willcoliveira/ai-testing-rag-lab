@@ -8,9 +8,9 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture model test hooks corpus inventory-snapshot playground
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture model test gate hooks corpus inventory-snapshot playground
 
-check: format lint types deps audit sast workflows secrets privacy architecture model test
+check: format lint types deps audit sast workflows secrets privacy architecture model test gate
 
 format:
 	uv run ruff format --check
@@ -60,6 +60,12 @@ model:
 
 test:
 	HF_HUB_OFFLINE=1 uv run pytest -m "$(PYTEST_OFFLINE)"
+
+# the retrieval no-regression gate (docs/THRESHOLDS.md): a fresh run of the default configuration
+# on the dev split, offline with the cached model, must keep recall@5 within one question of the
+# published baseline in runs/published/index.json
+gate:
+	HF_HUB_OFFLINE=1 uv run raglab gate --config config/retrieval-dense.toml
 
 # required once in every clone: commit-msg, pre-commit and pre-push
 hooks:
