@@ -143,3 +143,34 @@ def test_the_gate_passes_within_one_question_and_fails_below(tmp_path):
     stale = gate.check(baseline, current(value, dataset_sha256="0" * 64))
     assert not stale.passed
     assert "publish a new baseline" in stale.message
+
+
+# ---------------------------------------------------------------- the committed published runs
+
+
+def test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline():
+    """runs/published holds real, clean, complete local runs on the dev split only (the test
+    split is never published), index.json is what publish builds from them, and the dense dev
+    baseline the gate reads was made with today's dataset and config (else the gate is stale)."""
+    from raglab.evals import config as eval_config
+
+    published = ROOT / publish.PUBLISHED
+    index = publish.read_index(published)
+    runs = sorted(p.parent for p in published.glob(f"*/{record.MANIFEST}"))
+    assert runs, "no published run"
+    for run_dir in runs:
+        assert record.validate(run_dir, ROOT) == [], run_dir.name
+        manifest, cases = record.read(run_dir)
+        assert manifest["provenance"] == "local", run_dir.name
+        assert manifest["git_dirty"] is False, run_dir.name
+        assert manifest["partial"] is False, run_dir.name
+        assert manifest["split"] == "dev", run_dir.name
+        assert {c["split"] for c in cases} == {"dev"}, run_dir.name
+    assert index == publish.build_index(published, index["baselines"])
+    key = "retrieval/retrieval-dense/dev"
+    baseline_dir = publish.baseline_run(ROOT, key)
+    assert baseline_dir is not None, f"no baseline for {key}"
+    baseline, _ = record.read(baseline_dir)
+    dense = eval_config.load(ROOT / "config" / "retrieval-dense.toml", ROOT)
+    assert baseline["dataset"]["sha256"] == record.sha256_bytes((ROOT / dense.dataset).read_bytes())
+    assert baseline["config"]["sha256"] == eval_config.canonical_sha256(dense.resolved())
