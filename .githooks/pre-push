@@ -3,6 +3,9 @@
 # Before a push: every commit message and every line added by the commits being pushed, so a
 # string committed without the hooks, or committed and removed in a later commit, never leaves
 # this clone. Git gives one line per ref on stdin: <local ref> <local id> <remote ref> <remote id>.
+# CI=1 makes the checker use the example list only; a CI variable left in a developer's shell
+# must not switch the real list off here (S0 judge round 4, E2)
+unset CI
 remote=$1
 status=0
 while read -r _ local_id _ remote_id; do
@@ -17,6 +20,14 @@ while read -r _ local_id _ remote_id; do
     set -- "$local_id" --not --remotes="$remote"
   fi
   node scripts/check-forbidden.mjs --history "$@" </dev/null || status=1
+  # an annotated tag carries a message of its own (S0 judge round 4, E4): checked as prose, without
+  # the object header (its tagger line is an email, which the generic email shape would flag)
+  if [ "$(git cat-file -t "$local_id" 2>/dev/null)" = tag ]; then
+    msg=$(mktemp)
+    git cat-file tag "$local_id" | sed '1,/^$/d' > "$msg"
+    node scripts/check-forbidden.mjs --file "$msg" </dev/null || status=1
+    rm -f "$msg"
+  fi
 done
 [ "$status" -eq 0 ] || echo "pre-push: forbidden strings in the commits being pushed (see above)"
 exit "$status"
