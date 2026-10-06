@@ -95,3 +95,23 @@ def test_ocr_output_becomes_title_headings_and_paragraphs():
         ("paragraph", 0, "3 November 2025"),
         ("heading", 3, "2.1 Accounts on kiosks"),
     ]
+
+
+@pytest.mark.unit
+def test_an_ocr_heading_may_end_in_a_digit_but_a_date_is_not_a_heading():
+    """S1B-J4: '1 Rule 5' opens section 1 (its text would otherwise fold into the section before
+    and section 1 could not be cited); '3 November 2025' stays a paragraph."""
+    blocks = ocr.text_blocks(
+        "Title\n\n1 Rule 5\n\nRule five text.\n\n1.1 Sub rule\n\nText.\n\n"
+        "3 November 2025\n\n12 May 2026\n\n2 Version 2\n"
+    )
+    assert [(b.kind, b.level, b.text) for b in blocks] == [
+        ("heading", 1, "Title"),
+        ("heading", 2, "1 Rule 5"),
+        ("paragraph", 0, "Rule five text."),
+        ("heading", 3, "1.1 Sub rule"),
+        ("paragraph", 0, "Text."),
+        ("paragraph", 0, "3 November 2025"),
+        ("paragraph", 0, "12 May 2026"),
+        ("heading", 2, "2 Version 2"),
+    ]

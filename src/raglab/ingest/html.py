@@ -1,21 +1,26 @@
 """HTML to blocks with the standard library parser: the text a reader of the page sees.
 
-h1 to h6 become headings, p and loose text paragraphs, li items, and a table one table block (its
-rows of th and td cells). The head, scripts, styles, templates and elements with the hidden
-attribute are not shown to a reader, so their text is not kept. Text hidden with CSS is not
-detected (a lab limit: the corpus export has no styles).
+h1 to h6 become headings, p and loose text paragraphs, li items ('- ...', or '1. ...' inside an
+ol, numbered from its start attribute), and a table one table block (its rows of th and td cells).
+A br is a line break inside its block, read as a space, as the Markdown parser reads a line break
+inside a paragraph; an hr ends the block. The head, scripts, styles, templates and elements with
+the hidden attribute are not shown to a reader, so their text is not kept. A byte-order mark and
+CRLF line ends are normalised as for Markdown. Text hidden with CSS is not detected (a lab limit:
+the corpus export has no styles).
 """
 
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 
 from raglab.core.types import Block, Page, table_block
+from raglab.ingest import frontmatter
 
 HEADINGS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6}
 INVISIBLE = frozenset({"head", "script", "style", "template", "noscript"})
 # elements that end the current paragraph
 BLOCK_TAGS = frozenset(
-    {"p", "div", "li", "ul", "ol", "table", "article", "section", "main", "body", "br", "hr"}
+    {"p", "div", "li", "ul", "ol", "table", "article", "section", "main", "body", "hr"}
     | set(HEADINGS)
     | {"blockquote", "pre", "header", "footer", "nav", "aside", "dl", "dt", "dd"}
 )
@@ -35,6 +40,8 @@ class _Reader(HTMLParser):
         self.rows: list[list[str]] | None = None
         self.cell: list[str] | None = None
         self.table_text: list[str] = []  # a caption or loose text inside a table, outside cells
+        self.lists: list[int | None] = []  # open ul (None) and ol (the next item's number)
+        self.marker = "- "  # the current item's marker
 
     # ---------------------------------------------------------------- text runs
 
@@ -46,7 +53,7 @@ class _Reader(HTMLParser):
         if self.kind == "heading":
             self.blocks.append(Block("heading", text, level=self.level))
         elif self.kind == "item":
-            self.blocks.append(Block("item", "- " + text))
+            self.blocks.append(Block("item", self.marker + text))
         else:
             self.blocks.append(Block("paragraph", text))
         self.kind, self.level = "paragraph", 0
@@ -58,10 +65,12 @@ class _Reader(HTMLParser):
                 attributes.get("content") or ""
             )
         if tag in VOID:
-            if tag in ("br", "hr") and not self.hidden_depth and self.cell is None:
+            if self.hidden_depth:
+                return
+            if tag == "br":  # a line break inside the block, never a block end
+                self.handle_data(" ")
+            elif tag == "hr" and self.cell is None:
                 self._flush()
-            elif tag == "br" and self.cell is not None:
-                self.cell.append(" ")
             return
         hidden = tag in INVISIBLE or "hidden" in attributes
         self.stack.append(tag)
@@ -82,9 +91,14 @@ class _Reader(HTMLParser):
             self.kind, self.level = "heading", HEADINGS[tag]
         elif tag == "li":
             self._flush()
-            self.kind = "item"
+            self.kind, self.marker = "item", "- "
+            if self.lists and self.lists[-1] is not None:
+                self.marker = f"{self.lists[-1]}. "
+                self.lists[-1] += 1
         elif tag in BLOCK_TAGS:
             self._flush()
+            if tag in ("ul", "ol"):
+                self.lists.append(_start(attributes) if tag == "ol" else None)
 
     def handle_endtag(self, tag: str) -> None:
         if tag in VOID or tag not in self.stack:
@@ -113,6 +127,8 @@ class _Reader(HTMLParser):
             self.rows, self.table_text = None, []
         elif self.cell is None and (tag in HEADINGS or tag == "li" or tag in BLOCK_TAGS):
             self._flush()
+            if tag in ("ul", "ol") and self.lists:
+                self.lists.pop()
 
     def handle_data(self, data: str) -> None:
         if self.hidden_depth:
@@ -129,10 +145,16 @@ class _Reader(HTMLParser):
         self._flush()
 
 
+def _start(attributes: dict[str, str | None]) -> int:
+    """The number of an ol's first item: its start attribute, 1 when absent or not a number."""
+    start = (attributes.get("start") or "").strip()
+    return int(start) if re.fullmatch(r"-?[0-9]+", start) else 1
+
+
 def read(path: Path) -> tuple[list[Block], dict[str, str]]:
     """The blocks of an HTML file and its corpus-* meta values (id, version, tenant, ...)."""
     reader = _Reader()
-    reader.feed(path.read_text(encoding="utf-8"))
+    reader.feed(frontmatter.normalise_newlines(path.read_text(encoding="utf-8")))
     reader.close()
     return reader.blocks, reader.meta
 

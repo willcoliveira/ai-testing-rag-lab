@@ -11,7 +11,7 @@ import re
 import pytest
 
 from raglab.core.text import normalise_space
-from raglab.ingest import markdown
+from raglab.ingest import html, markdown
 from raglab.ingest.frontmatter import split
 from tests.conftest import ROOT
 from tests.ingestion_support import (
@@ -137,3 +137,80 @@ def test_markdown_drops_front_matter_comments_and_inline_marks():
         ("item", "- two"),
         ("table", "| A | B |\n| 1 | 2 |"),
     ]
+
+
+def html_blocks(tmp_path, text: str, encoding: str = "utf-8") -> list[tuple[str, str]]:
+    path = tmp_path / "page.html"
+    path.write_bytes(text.encode(encoding))
+    return [(b.kind, b.text) for b in html.read(path)[0]]
+
+
+def test_a_line_break_inside_an_html_block_is_a_space(tmp_path):
+    """S1B-J2/D6: a <br> inside a paragraph, item or heading does not start a new block (it would
+    shift the paragraph numbers the answer key cites, such as F-15's 4.1 paragraphs 1 and 2)."""
+    blocks = html_blocks(
+        tmp_path,
+        "<body><h2>4.1 A<br>title</h2><p>Administrators must<br>always use MFA.</p>"
+        "<p>The only exception is.</p><ul><li>Line one<br/>line two</li></ul>"
+        "<table><tr><th>a<br />b</th></tr></table><p>before</p><hr><p>after</p></body>",
+    )
+    assert blocks == [
+        ("heading", "4.1 A title"),
+        ("paragraph", "Administrators must always use MFA."),
+        ("paragraph", "The only exception is."),
+        ("item", "- Line one line two"),
+        ("table", "| a b |"),
+        ("paragraph", "before"),
+        ("paragraph", "after"),
+    ]
+    assert blocks[:3] == [
+        (b.kind, b.text)
+        for b in markdown.blocks(
+            "## 4.1 A title\n\nAdministrators must\nalways use MFA.\n\nThe only exception is.\n"
+        )
+    ]
+
+
+def test_an_html_export_with_a_byte_order_mark_and_crlf_reads_like_one_without(tmp_path):
+    """D2: a BOM is not text (the Markdown parser already drops it)."""
+    page = "<html><head><title>T</title></head>\n<body>\n<h1>Title</h1>\n<p>one\ntwo</p>\n</body>"
+    plain = html_blocks(tmp_path, page)
+    assert plain == [("heading", "Title"), ("paragraph", "one two")]
+    assert html_blocks(tmp_path, "\ufeff" + page.replace("\n", "\r\n")) == plain
+
+
+def test_numbered_markdown_items_are_items_and_thematic_breaks_are_not_text():
+    """S1B-J3/D7: an ordered list keeps its item structure (and its numbers); '---', '***' and
+    '___' on a line of their own are dropped; a wrapped line that starts with a number other
+    than 1 stays in its paragraph; '##2' without a space is not a heading (corpus/SPEC.md)."""
+    blocks = markdown.blocks(
+        "## 5 Steps\n\n1. Disable sign-in.\n2. Revoke\n   sessions.\n3) Reset the password.\n\n"
+        "---\n\n* * *\n\nA line that wraps at\n12. stays in its paragraph.\nAnd a list\n"
+        "1. can start here.\n\n___\n\n##2 Rules\n\n## 6 Next\n\n- one\n"
+    )
+    assert [(b.kind, b.text) for b in blocks] == [
+        ("heading", "5 Steps"),
+        ("item", "1. Disable sign-in."),
+        ("item", "2. Revoke sessions."),
+        ("item", "3. Reset the password."),
+        ("paragraph", "A line that wraps at 12. stays in its paragraph. And a list"),
+        ("item", "1. can start here."),
+        ("paragraph", "##2 Rules"),
+        ("heading", "6 Next"),
+        ("item", "- one"),
+    ]
+
+
+def test_an_html_ordered_list_numbers_its_items_as_markdown_does(tmp_path):
+    """S1B-J3: the HTML export of a numbered list gives the blocks of its Markdown source."""
+    blocks = html_blocks(
+        tmp_path,
+        "<body><h2>5 Steps</h2><ol><li>Disable sign-in.</li><li>Revoke sessions.</li></ol>"
+        '<ol start="3"><li>Reset the password.</li><li>Tell the user.<ul><li>by phone</li></ul>'
+        "</li></ol><ul><li>one</li></ul></body>",
+    )
+    expected = markdown.blocks(
+        "## 5 Steps\n\n1. Disable sign-in.\n2. Revoke sessions.\n\n"
+        "3. Reset the password.\n4. Tell the user.\n\n- by phone\n\n- one\n"
+    )
+    assert blocks == [(b.kind, b.text) for b in expected]
