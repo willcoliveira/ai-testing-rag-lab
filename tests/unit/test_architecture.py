@@ -208,3 +208,35 @@ def test_cli_exit_codes(tmp_path):
     assert arch.main(["check_architecture.py", str(clean)]) == 0
     assert arch.main(["check_architecture.py", str(dirty)]) == 1
     assert arch.main(["check_architecture.py", str(tmp_path / "missing")]) == 2
+
+
+# S1b: file-format parsers are not vendor SDKs, but only raglab.ingest imports them
+@pytest.mark.parametrize("module", ["pypdf", "pytesseract", "yaml", "PIL"])
+def test_parser_libraries_are_allowed_in_ingest(tmp_path, module):
+    package = make_package(tmp_path, {"ingest/reader.py": f"import {module}\n"})
+    assert messages(package) == []
+
+
+@pytest.mark.parametrize(
+    ("path", "source"),
+    [
+        ("chunk/sections.py", "import yaml\n"),
+        ("generate/pipeline.py", "from pypdf import PdfReader\n"),
+        ("adapters/store.py", "import pytesseract\n"),
+        ("__main__.py", "from PIL import Image\n"),
+    ],
+)
+def test_parser_libraries_outside_ingest_are_reported(tmp_path, path, source):
+    package = make_package(tmp_path, {path: source})
+    found = messages(package)
+    assert len(found) == 1, found
+    assert path in found[0]
+    assert "outside raglab.ingest" in found[0]
+
+
+def test_core_importing_a_parser_breaks_both_rules(tmp_path):
+    package = make_package(tmp_path, {"core/types.py": "import yaml\n"})
+    found = messages(package)
+    assert len(found) == 2
+    assert any("standard library" in f for f in found)
+    assert any("outside raglab.ingest" in f for f in found)

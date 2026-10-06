@@ -3,6 +3,8 @@
 1. `raglab.core` imports the standard library and `raglab.core` only.
 2. Vendor SDKs are imported only inside `raglab.adapters`, statically or by a module name given
    at run time.
+3. File-format parsers (pypdf, pytesseract, pyyaml, Pillow) are imported only inside
+   `raglab.ingest`: they are not vendor SDKs, but the rest of raglab works on parsed documents.
 
 A run-time import is found by the call, not by tracking what importlib is bound to (S0 judge round
 3: `importlib = __import__('importlib')`, `il, x = importlib, 1` or `sys.modules['importlib']`
@@ -44,6 +46,10 @@ VENDORS = frozenset(
         "qdrant_client",
     }
 )
+
+
+# file-format libraries, by import name: allowed only in raglab.ingest (rule 3)
+PARSERS = frozenset({"pypdf", "pytesseract", "yaml", "PIL"})
 
 
 @dataclass(frozen=True)
@@ -326,6 +332,12 @@ def check(package_dir: Path) -> list[Violation]:
                 violations.append(
                     Violation(
                         file, line, f"vendor SDK {top} is imported outside {root_name}.adapters"
+                    )
+                )
+            if layer != "ingest" and top in PARSERS:
+                violations.append(
+                    Violation(
+                        file, line, f"parser library {top} is imported outside {root_name}.ingest"
                     )
                 )
     return violations

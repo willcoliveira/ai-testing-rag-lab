@@ -18,11 +18,17 @@ concurrency:
 env:
   GITLEAKS_VERSION: "8.30.1"
   GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  # the Ubuntu 24.04 (ubuntu-latest) packages; OCR text depends on the build, so it is pinned and
+  # an image change fails the install instead of silently changing the OCR (S1b)
+  TESSERACT_VERSION: "5.3.4-1build5"
+  TESSDATA_VERSION: "1:4.1.0-2"
 
 jobs:
+  # the runner is pinned with the Tesseract packages: both move together, in one reviewed PR
+  # (S1b decision), so a new ubuntu-latest never breaks the apt pins on every PR
   check:
     name: check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,6 +52,14 @@ jobs:
           tar -xzf gitleaks.tar.gz gitleaks
           sudo install gitleaks /usr/local/bin/gitleaks
           rm gitleaks gitleaks.tar.gz
+      - name: Install Tesseract (pinned)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            "tesseract-ocr=${TESSERACT_VERSION}" \
+            "tesseract-ocr-eng=${TESSDATA_VERSION}" \
+            "tesseract-ocr-osd=${TESSDATA_VERSION}"
+          tesseract --version
       - name: Format
         run: make format
       - name: Lint
@@ -80,7 +94,7 @@ jobs:
   conventions:
     name: conventions
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

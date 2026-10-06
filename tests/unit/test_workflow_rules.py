@@ -163,3 +163,34 @@ def test_dependabot_covers_every_ecosystem_monthly():
         "minor",
         "patch",
     ]
+
+
+def test_pr_fast_installs_pinned_tesseract_before_the_tests():
+    """S1b AC8: the OCR tests run in CI on a pinned Tesseract, whose version the log shows."""
+    wf = load(WORKFLOW_DIR / "pr-fast.yml")
+    steps = wf["jobs"]["check"]["steps"]
+    names = [step.get("name") for step in steps]
+    install = steps[names.index("Install Tesseract (pinned)")]
+    assert names.index("Install Tesseract (pinned)") < names.index("Tests (offline)")
+    run = install["run"]
+    for package, variable in [
+        ("tesseract-ocr", "TESSERACT_VERSION"),
+        ("tesseract-ocr-eng", "TESSDATA_VERSION"),
+        ("tesseract-ocr-osd", "TESSDATA_VERSION"),
+    ]:
+        assert f'"{package}=${{{variable}}}"' in run, package
+    assert re.fullmatch(r"\d+\.\d+\.\d+-\S+", wf["env"]["TESSERACT_VERSION"])
+    assert re.fullmatch(r"\d+:\d+\.\d+\.\d+-\S+", wf["env"]["TESSDATA_VERSION"])
+    assert "tesseract --version" in run
+    assert steps[names.index("Tests (offline)")]["run"] == "make test"
+
+
+def test_runners_are_pinned_with_the_tesseract_packages():
+    """S1b decision: the runner image is pinned (not ubuntu-latest), so it moves together with the
+    apt pins in one reviewed PR."""
+    for path in WORKFLOWS:
+        for name, job in load(path)["jobs"].items():
+            runner = job.get("runs-on")
+            assert runner is None or runner != "ubuntu-latest", (
+                f"{path.name}:{name} runs on ubuntu-latest"
+            )

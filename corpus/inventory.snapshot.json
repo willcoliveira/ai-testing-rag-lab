@@ -1,0 +1,2159 @@
+{
+  "schema_version": 1,
+  "settings": {
+    "chunk_size": 1200,
+    "overlap": 1
+  },
+  "tools": {
+    "pypdf": "6.19.0",
+    "pyyaml": "6.0.3",
+    "pytesseract": "0.3.13",
+    "tesseract": "5.5.3"
+  },
+  "documents": [
+    {
+      "doc": "A-PWD-V1",
+      "format": "md",
+      "chunks": 11
+    },
+    {
+      "doc": "A-PWD-V2",
+      "format": "pdf",
+      "chunks": 15
+    },
+    {
+      "doc": "A-MFA",
+      "format": "html",
+      "chunks": 14
+    },
+    {
+      "doc": "A-LIFE",
+      "format": "md",
+      "chunks": 19
+    },
+    {
+      "doc": "A-PRIV",
+      "format": "md",
+      "chunks": 16
+    },
+    {
+      "doc": "A-REV",
+      "format": "md",
+      "chunks": 11
+    },
+    {
+      "doc": "A-REMOTE",
+      "format": "md",
+      "chunks": 12
+    },
+    {
+      "doc": "A-DEVICE",
+      "format": "md",
+      "chunks": 16
+    },
+    {
+      "doc": "A-DEVICE-B",
+      "format": "png",
+      "chunks": 4
+    },
+    {
+      "doc": "A-CLASS",
+      "format": "md",
+      "chunks": 17
+    },
+    {
+      "doc": "A-IR",
+      "format": "md",
+      "chunks": 24
+    },
+    {
+      "doc": "A-EXC",
+      "format": "md",
+      "chunks": 12
+    },
+    {
+      "doc": "A-FAQ",
+      "format": "md",
+      "chunks": 14
+    },
+    {
+      "doc": "A-GLOSS",
+      "format": "md",
+      "chunks": 17
+    },
+    {
+      "doc": "B-PWD",
+      "format": "md",
+      "chunks": 9
+    },
+    {
+      "doc": "B-MFA",
+      "format": "md",
+      "chunks": 9
+    },
+    {
+      "doc": "X-NIST",
+      "format": "md",
+      "chunks": 4
+    },
+    {
+      "doc": "X-NCSC",
+      "format": "md",
+      "chunks": 4
+    }
+  ],
+  "chunks": [
+    {
+      "id": "A-PWD-V1@1.0/1/1",
+      "doc": "A-PWD-V1",
+      "section": "1",
+      "page": null,
+      "length": 437,
+      "first_words": "1 Purpose and scope This standard sets out",
+      "sha256": "a0ffae0e2e02fca8784d1e46782be88a5d675866fdd7d083479546702762f956"
+    },
+    {
+      "id": "A-PWD-V1@1.0/2/1",
+      "doc": "A-PWD-V1",
+      "section": "2",
+      "page": null,
+      "length": 471,
+      "first_words": "2 Roles The IAM team owns this standard.",
+      "sha256": "4379287ad78235d4846d639d4a12958e73c00d0f4198b60f98a7d6ee00c4d32d"
+    },
+    {
+      "id": "A-PWD-V1@1.0/3/1",
+      "doc": "A-PWD-V1",
+      "section": "3",
+      "page": null,
+      "length": 664,
+      "first_words": "3 Protecting passwords All passwords are confidential information.",
+      "sha256": "0b73bb03ebfe41e9ec455d2754ec82f2d96fe5f1d19f905d0e59549defce666b"
+    },
+    {
+      "id": "A-PWD-V1@1.0/4/1",
+      "doc": "A-PWD-V1",
+      "section": "4",
+      "page": null,
+      "length": 167,
+      "first_words": "4 Password rules The identity portal enforces the",
+      "sha256": "4f6fc0fe517f99f32adb73af32e32a4fe5885e8ba952108a1a8e03b45813713e"
+    },
+    {
+      "id": "A-PWD-V1@1.0/4.1/1",
+      "doc": "A-PWD-V1",
+      "section": "4.1",
+      "page": null,
+      "length": 137,
+      "first_words": "4.1 Length Passwords must be at least 12",
+      "sha256": "ce0faf789226c098fff2dad249c0f4a14b5cf54ede09e3d2bbe68dcd6329f57f"
+    },
+    {
+      "id": "A-PWD-V1@1.0/4.2/1",
+      "doc": "A-PWD-V1",
+      "section": "4.2",
+      "page": null,
+      "length": 242,
+      "first_words": "4.2 Complexity Passwords must contain at least one",
+      "sha256": "2faaffccaa2d4e71d35db2cd6f19fa0268bc417fa0df2113aaaf65c648ec6035"
+    },
+    {
+      "id": "A-PWD-V1@1.0/4.3/1",
+      "doc": "A-PWD-V1",
+      "section": "4.3",
+      "page": null,
+      "length": 198,
+      "first_words": "4.3 Expiry User passwords expire every 90 days.",
+      "sha256": "1269e40d137c215cda493c20bb5f2f6b39a63421d631530867a54baf097a637a"
+    },
+    {
+      "id": "A-PWD-V1@1.0/4.4/1",
+      "doc": "A-PWD-V1",
+      "section": "4.4",
+      "page": null,
+      "length": 201,
+      "first_words": "4.4 Lockout Accounts lock after 5 consecutive failed",
+      "sha256": "4eb1f03a26afa8a98c6ddfee103e827dbc3670bc1d22e93c01e3552742ced127"
+    },
+    {
+      "id": "A-PWD-V1@1.0/4.5/1",
+      "doc": "A-PWD-V1",
+      "section": "4.5",
+      "page": null,
+      "length": 181,
+      "first_words": "4.5 Suspected compromise If you suspect a password",
+      "sha256": "8908411ff3fe2c6cd885661805420a37dc59b54cc3c2f0bd12757285d03bca61"
+    },
+    {
+      "id": "A-PWD-V1@1.0/5/1",
+      "doc": "A-PWD-V1",
+      "section": "5",
+      "page": null,
+      "length": 338,
+      "first_words": "5 Enforcement An employee found to have broken",
+      "sha256": "445e647f266f67a975631a317a8e0a00b185cec4aa144b4025474de5c1a10f3a"
+    },
+    {
+      "id": "A-PWD-V1@1.0/6/1",
+      "doc": "A-PWD-V1",
+      "section": "6",
+      "page": null,
+      "length": 332,
+      "first_words": "6 Document control - Owner: Head of Identity",
+      "sha256": "804e43fb6cd42517767dbff2143127792013eee6d439ee1846b2f36060e1bf56"
+    },
+    {
+      "id": "A-PWD-V2@2.0/1/1",
+      "doc": "A-PWD-V2",
+      "section": "1",
+      "page": 1,
+      "length": 659,
+      "first_words": "1 Purpose and scope This standard describes how",
+      "sha256": "8fff4ee7f22c73479d2dcf091fe92056bf8bb6e6cba5f8cf6bdf5081e243b1a9"
+    },
+    {
+      "id": "A-PWD-V2@2.0/2/1",
+      "doc": "A-PWD-V2",
+      "section": "2",
+      "page": 1,
+      "length": 745,
+      "first_words": "2 Roles - Every user follows this standard,",
+      "sha256": "618c2a77a15476087459938790429c253cfc9875af7b1e1700c0d1d9a3d8d95a"
+    },
+    {
+      "id": "A-PWD-V2@2.0/3/1",
+      "doc": "A-PWD-V2",
+      "section": "3",
+      "page": 1,
+      "length": 134,
+      "first_words": "3 Definitions Terms such as privileged account, break-glass",
+      "sha256": "4f755f7f0ee5d857f0b59cbcfb88a353db520cbae254d9bf622bb777ca1bf75b"
+    },
+    {
+      "id": "A-PWD-V2@2.0/4.1/1",
+      "doc": "A-PWD-V2",
+      "section": "4.1",
+      "page": 1,
+      "length": 163,
+      "first_words": "4.1 Minimum length Passwords must be at least",
+      "sha256": "03b6d5c40a2ce82d834c72c5efcbdf9ec84818539e7d654ed132834a72da3988"
+    },
+    {
+      "id": "A-PWD-V2@2.0/4.2/1",
+      "doc": "A-PWD-V2",
+      "section": "4.2",
+      "page": 1,
+      "length": 189,
+      "first_words": "4.2 Long passwords Systems must accept passwords of",
+      "sha256": "5ccad9c8687ade52f91543d25de09cbf48620e7d11f1624c8b09db9eb551a428"
+    },
+    {
+      "id": "A-PWD-V2@2.0/4.3/1",
+      "doc": "A-PWD-V2",
+      "section": "4.3",
+      "page": 1,
+      "length": 316,
+      "first_words": "4.3 Composition and blocklist Halvenroot does not impose",
+      "sha256": "09178f39680a7eb9dba7d6802872c125111536238def9371977c7594d853685d"
+    },
+    {
+      "id": "A-PWD-V2@2.0/4.4/1",
+      "doc": "A-PWD-V2",
+      "section": "4.4",
+      "page": 2,
+      "length": 263,
+      "first_words": "4.4 Expiry User passwords expire every 60 days.",
+      "sha256": "e09bb6f6edc592804bb1ce9597fd3763879e5346fe78cb0a38803d62912a92b5"
+    },
+    {
+      "id": "A-PWD-V2@2.0/4.5/1",
+      "doc": "A-PWD-V2",
+      "section": "4.5",
+      "page": 2,
+      "length": 356,
+      "first_words": "4.5 Compromised passwords If you know or suspect",
+      "sha256": "c0f2a0ba80af2aa87bfc9ca4ecccd60ff6324876811a63b94c6aa8e019422f35"
+    },
+    {
+      "id": "A-PWD-V2@2.0/4.6/1",
+      "doc": "A-PWD-V2",
+      "section": "4.6",
+      "page": 2,
+      "length": 592,
+      "first_words": "4.6 Protecting passwords All passwords are confidential information.",
+      "sha256": "da1b0ede00b9182bd24c326f60b2c048e0415d3ae498828217fba0dd62d110f4"
+    },
+    {
+      "id": "A-PWD-V2@2.0/4.7/1",
+      "doc": "A-PWD-V2",
+      "section": "4.7",
+      "page": 2,
+      "length": 257,
+      "first_words": "4.7 Self-service reset Self-service password reset in the",
+      "sha256": "79ae853495cc1cdf430f3532983d6d6020440e815e654c1d41ed6a2197ed6d0f"
+    },
+    {
+      "id": "A-PWD-V2@2.0/5/1",
+      "doc": "A-PWD-V2",
+      "section": "5",
+      "page": 3,
+      "length": 589,
+      "first_words": "5 Sign-in protection Table 1 sets the sign-in",
+      "sha256": "1ffcd1434bc15098b29d2c50197105f9f451995c73a931e8c3e47f155fc31642"
+    },
+    {
+      "id": "A-PWD-V2@2.0/6/1",
+      "doc": "A-PWD-V2",
+      "section": "6",
+      "page": 4,
+      "length": 285,
+      "first_words": "6 External guidance This standard was prepared with",
+      "sha256": "de32b3fbb6d67141f2aa28585bb8fcfb10a94427d167c03543cbb6ebfdb3808e"
+    },
+    {
+      "id": "A-PWD-V2@2.0/7/1",
+      "doc": "A-PWD-V2",
+      "section": "7",
+      "page": 4,
+      "length": 183,
+      "first_words": "7 Exceptions Exceptions to this standard follow the",
+      "sha256": "4a73bee06c3c678c45004d33acdf5d2947dfaffc97a211f39f5778957b53696f"
+    },
+    {
+      "id": "A-PWD-V2@2.0/8/1",
+      "doc": "A-PWD-V2",
+      "section": "8",
+      "page": 4,
+      "length": 456,
+      "first_words": "8 Enforcement The IAM team enforces sections 4",
+      "sha256": "0f7ac4b12d78e1c9a159ebdedc6c7d061a1f436aa9c8e6481b34817316a3b0d1"
+    },
+    {
+      "id": "A-PWD-V2@2.0/9/1",
+      "doc": "A-PWD-V2",
+      "section": "9",
+      "page": 4,
+      "length": 211,
+      "first_words": "9 Document control - Owner: IAM team -",
+      "sha256": "c0fd7bf580fc770eda03c80c93bd04c2ff6f5cb1e09a1cedfe0edc97014bf015"
+    },
+    {
+      "id": "A-MFA@1.0/1/1",
+      "doc": "A-MFA",
+      "section": "1",
+      "page": null,
+      "length": 861,
+      "first_words": "1 Purpose and scope A stolen password gives",
+      "sha256": "1060592d40cf47a0df440df303110deb685a3e0198a7aa0d72afedb09483a3d8"
+    },
+    {
+      "id": "A-MFA@1.0/2.1/1",
+      "doc": "A-MFA",
+      "section": "2.1",
+      "page": null,
+      "length": 505,
+      "first_words": "2.1 Systems that require MFA MFA is required",
+      "sha256": "695ed916911e4ef68753aed7689c400886d5af389d0704a5f52239cc3fb0ad9b"
+    },
+    {
+      "id": "A-MFA@1.0/3.1/1",
+      "doc": "A-MFA",
+      "section": "3.1",
+      "page": null,
+      "length": 691,
+      "first_words": "3.1 Approved factors The approved factors are FIDO2",
+      "sha256": "6313e0b2081170d7c417c6e96cfb29763406a66e7996fe69320182c3bc1dc5a6"
+    },
+    {
+      "id": "A-MFA@1.0/3.2/1",
+      "doc": "A-MFA",
+      "section": "3.2",
+      "page": null,
+      "length": 297,
+      "first_words": "3.2 Factors that are not approved SMS and",
+      "sha256": "8522e9b3832762df0e526d40b13bfe15871164e263c3f01d392288626b7a1e73"
+    },
+    {
+      "id": "A-MFA@1.0/3.3/1",
+      "doc": "A-MFA",
+      "section": "3.3",
+      "page": null,
+      "length": 242,
+      "first_words": "3.3 Registering factors Every user registers at least",
+      "sha256": "d5ca2468b5a15715feca948621710db378d6c7e9e9a1110bcd760e1a03621a69"
+    },
+    {
+      "id": "A-MFA@1.0/4.1/1",
+      "doc": "A-MFA",
+      "section": "4.1",
+      "page": null,
+      "length": 348,
+      "first_words": "4.1 MFA for administrator accounts Administrators must always",
+      "sha256": "a9ac17474b3f39b2ad2cc63caec0cc792c46cb8b620cd7289577ed4a1e0a8591"
+    },
+    {
+      "id": "A-MFA@1.0/5.1/1",
+      "doc": "A-MFA",
+      "section": "5.1",
+      "page": null,
+      "length": 493,
+      "first_words": "5.1 Getting a temporary access pass If you",
+      "sha256": "95a39ed493a3f03e082935f4798d545494f65da9b4f85bf923462ccc8b36085e"
+    },
+    {
+      "id": "A-MFA@1.0/5.2/1",
+      "doc": "A-MFA",
+      "section": "5.2",
+      "page": null,
+      "length": 397,
+      "first_words": "5.2 After registering a new factor Remove the",
+      "sha256": "2c7b50ad10d3c4bd0bc121827d6b6710ff494cf5c812ba7f627e1b626e5eee69"
+    },
+    {
+      "id": "A-MFA@1.0/5.3/1",
+      "doc": "A-MFA",
+      "section": "5.3",
+      "page": null,
+      "length": 294,
+      "first_words": "5.3 No other way in There is no",
+      "sha256": "3267dda70a91b95f04c5f1b1917c304c4e6361bc4c57810499b26534ef701f89"
+    },
+    {
+      "id": "A-MFA@1.0/6.1/1",
+      "doc": "A-MFA",
+      "section": "6.1",
+      "page": null,
+      "length": 301,
+      "first_words": "6.1 Disabled accounts All MFA factors registered to",
+      "sha256": "95a66755345440560ec54d6c82a06bd16917086d27d707f209ccd753671791e1"
+    },
+    {
+      "id": "A-MFA@1.0/6.2/1",
+      "doc": "A-MFA",
+      "section": "6.2",
+      "page": null,
+      "length": 174,
+      "first_words": "6.2 Compromised accounts Factors are also revoked when",
+      "sha256": "363f3f4979971f2abccb91327e56fd3d23f4f0623e6fc4a518eb15379c25ae84"
+    },
+    {
+      "id": "A-MFA@1.0/7.1/1",
+      "doc": "A-MFA",
+      "section": "7.1",
+      "page": null,
+      "length": 174,
+      "first_words": "7.1 Asking for MFA again Halvenroot SSO asks",
+      "sha256": "41250b639af271337b014053cf5236fc33458e8a851b97fd02b26f04c8c0889d"
+    },
+    {
+      "id": "A-MFA@1.0/8/1",
+      "doc": "A-MFA",
+      "section": "8",
+      "page": null,
+      "length": 212,
+      "first_words": "8 Exceptions Exceptions to this standard are requested",
+      "sha256": "9e0b07fabbfe6a1e060107669b8553ca94d370c8215076cabf90afe08cd725b2"
+    },
+    {
+      "id": "A-MFA@1.0/9/1",
+      "doc": "A-MFA",
+      "section": "9",
+      "page": null,
+      "length": 114,
+      "first_words": "9 Document control - Owner: IT Operations Manager",
+      "sha256": "8f851d23477f92faa987472ac829d6def943bddb605d970f2750a35c2f477e61"
+    },
+    {
+      "id": "A-LIFE@1.1/1/1",
+      "doc": "A-LIFE",
+      "section": "1",
+      "page": null,
+      "length": 509,
+      "first_words": "1 Purpose and scope This policy sets out",
+      "sha256": "2e61184fe83e2e9e49e734c471648c71694a98f43f4c1c43ac41e077d225cc1b"
+    },
+    {
+      "id": "A-LIFE@1.1/2/1",
+      "doc": "A-LIFE",
+      "section": "2",
+      "page": null,
+      "length": 563,
+      "first_words": "2 Background (least privilege) To limit the risk",
+      "sha256": "1a69b6bbf470fb2ebc417a460c002716830978a15ad0ed0fdee0df166a4e0edc"
+    },
+    {
+      "id": "A-LIFE@1.1/3.1/1",
+      "doc": "A-LIFE",
+      "section": "3.1",
+      "page": null,
+      "length": 367,
+      "first_words": "3.1 Notification The line manager tells HR about",
+      "sha256": "f6e3e5f37e64919caaee64e7ba2c4b22a3ecda4da304a27ae783e128600b615f"
+    },
+    {
+      "id": "A-LIFE@1.1/3.2/1",
+      "doc": "A-LIFE",
+      "section": "3.2",
+      "page": null,
+      "length": 186,
+      "first_words": "3.2 Account creation Accounts are created no earlier",
+      "sha256": "203b1495baccc0e8dfd8e74dd8cd3b428c17fcdafa94b39b7c2a93f981612cd1"
+    },
+    {
+      "id": "A-LIFE@1.1/3.3/1",
+      "doc": "A-LIFE",
+      "section": "3.3",
+      "page": null,
+      "length": 194,
+      "first_words": "3.3 MFA registration New joiners must register at",
+      "sha256": "7cff3ba87bfa67612085650b4f6d7732a6c26bcaa57a50a0d985cc492ba6bc3c"
+    },
+    {
+      "id": "A-LIFE@1.1/3.4/1",
+      "doc": "A-LIFE",
+      "section": "3.4",
+      "page": null,
+      "length": 295,
+      "first_words": "3.4 Resource owner approval The owner of each",
+      "sha256": "fe05d63f86d7fc7646e01b40ed40d7204df1c661c8be39866cd776bc5edc92bf"
+    },
+    {
+      "id": "A-LIFE@1.1/4/1",
+      "doc": "A-LIFE",
+      "section": "4",
+      "page": null,
+      "length": 158,
+      "first_words": "4 Movers When someone changes role, team or",
+      "sha256": "bd6900b06c538c95d4c08c4c8fb6cf6cb808ece41a9c6fff663d268ff00b362b"
+    },
+    {
+      "id": "A-LIFE@1.1/4.1/1",
+      "doc": "A-LIFE",
+      "section": "4.1",
+      "page": null,
+      "length": 294,
+      "first_words": "4.1 Removing access the new role does not",
+      "sha256": "a8c37157b56c1bba46c1f0d1e47670424f8cd69d47665b8cf85dfa512ff5363e"
+    },
+    {
+      "id": "A-LIFE@1.1/4.2/1",
+      "doc": "A-LIFE",
+      "section": "4.2",
+      "page": null,
+      "length": 285,
+      "first_words": "4.2 Confirming the access the new role needs",
+      "sha256": "dd5746fd5e4394af7693fe0b0af4604314ac8fe5481846c67c68ba9274d2692e"
+    },
+    {
+      "id": "A-LIFE@1.1/5/1",
+      "doc": "A-LIFE",
+      "section": "5",
+      "page": null,
+      "length": 155,
+      "first_words": "5 Leavers HR tells the IAM team about",
+      "sha256": "415101172458015caf8c415e8123adfdd2394d3f85c9d86f88514ab6b7fc7f99"
+    },
+    {
+      "id": "A-LIFE@1.1/5.1/1",
+      "doc": "A-LIFE",
+      "section": "5.1",
+      "page": null,
+      "length": 205,
+      "first_words": "5.1 Employees Employee accounts are disabled at the",
+      "sha256": "9ada32d0c87248d074fc513e6a8e9cd09180bb9dfbf58e14ea35d3959fb33bcc"
+    },
+    {
+      "id": "A-LIFE@1.1/5.2/1",
+      "doc": "A-LIFE",
+      "section": "5.2",
+      "page": null,
+      "length": 217,
+      "first_words": "5.2 Contractors Contractor accounts are disabled at 17:00",
+      "sha256": "232ad03e1ede19918d97030126cabe9bb766ae6aa762091a396fd2c7ca7fe688"
+    },
+    {
+      "id": "A-LIFE@1.1/5.3/1",
+      "doc": "A-LIFE",
+      "section": "5.3",
+      "page": null,
+      "length": 203,
+      "first_words": "5.3 Deletion Disabled accounts are deleted 30 days",
+      "sha256": "3e6c04b9d8d281f312c851c32f9f23bf15fd3cb77c5d927db14ca15135f1e2c3"
+    },
+    {
+      "id": "A-LIFE@1.1/5.4/1",
+      "doc": "A-LIFE",
+      "section": "5.4",
+      "page": null,
+      "length": 297,
+      "first_words": "5.4 Factors and certificates For the revocation of",
+      "sha256": "a26407603c4bd70ed51287cf7af8c49a957e37855970e6a34ef7979570793ad8"
+    },
+    {
+      "id": "A-LIFE@1.1/6/1",
+      "doc": "A-LIFE",
+      "section": "6",
+      "page": null,
+      "length": 173,
+      "first_words": "6 Inactive accounts This section applies to the",
+      "sha256": "81f8f48ac0a1e2d6b47bebe3e9cf31c6ac87b7fe152aed32458c8b959b36f295"
+    },
+    {
+      "id": "A-LIFE@1.1/6.1/1",
+      "doc": "A-LIFE",
+      "section": "6.1",
+      "page": null,
+      "length": 229,
+      "first_words": "6.1 Automatic disabling Accounts with no sign-in for",
+      "sha256": "f1f757778af689b213e44389d9a10dda9e8f4f8651f39eed22c096c93ae7c8b5"
+    },
+    {
+      "id": "A-LIFE@1.1/7.1/1",
+      "doc": "A-LIFE",
+      "section": "7.1",
+      "page": null,
+      "length": 241,
+      "first_words": "7.1 End dates Every contractor account has an",
+      "sha256": "7792ee9b11dce5aaec53828cec27c8d43d8577375a72788e6d5fa64c5665165e"
+    },
+    {
+      "id": "A-LIFE@1.1/8/1",
+      "doc": "A-LIFE",
+      "section": "8",
+      "page": null,
+      "length": 71,
+      "first_words": "8 Access reviews Access is reviewed under the",
+      "sha256": "d088ff19c37635972d6d5323ee9211afc184e34db2173c67ed95451ad422dac3"
+    },
+    {
+      "id": "A-LIFE@1.1/9/1",
+      "doc": "A-LIFE",
+      "section": "9",
+      "page": null,
+      "length": 230,
+      "first_words": "9 Document control - Owner: IAM team lead",
+      "sha256": "07d766dc40c1ff1aacc96bd080ac43a3c0c219cd430c9e76c413eea2e1086e14"
+    },
+    {
+      "id": "A-PRIV@1.0/1/1",
+      "doc": "A-PRIV",
+      "section": "1",
+      "page": null,
+      "length": 555,
+      "first_words": "1 Purpose and scope This standard sets out",
+      "sha256": "9b7e078bca9ad93350ca419ad5f4f69d57f99127a50bac76d3a7c7ed6fff9582"
+    },
+    {
+      "id": "A-PRIV@1.0/2.1/1",
+      "doc": "A-PRIV",
+      "section": "2.1",
+      "page": null,
+      "length": 595,
+      "first_words": "2.1 Separate administrator accounts Privileged work is done",
+      "sha256": "0b21d809cc65573ff3ff2791ac7298518591c61f2090b0620179d299fdeeb11c"
+    },
+    {
+      "id": "A-PRIV@1.0/3.1/1",
+      "doc": "A-PRIV",
+      "section": "3.1",
+      "page": null,
+      "length": 517,
+      "first_words": "3.1 Time-limited roles Privileged roles are activated on",
+      "sha256": "1c3dcd33f77c602b2f54f921eb2c433c02e1104c98b7313094f702996ad33963"
+    },
+    {
+      "id": "A-PRIV@1.0/4.1/1",
+      "doc": "A-PRIV",
+      "section": "4.1",
+      "page": null,
+      "length": 240,
+      "first_words": "4.1 MFA and lockout Administrator accounts use MFA",
+      "sha256": "b95df0117e050e2acd9bfb01bac86d1e03ab8425332cff3e9d19b0642a600cbd"
+    },
+    {
+      "id": "A-PRIV@1.0/5.1/1",
+      "doc": "A-PRIV",
+      "section": "5.1",
+      "page": null,
+      "length": 342,
+      "first_words": "5.1 Managed devices only Privileged access is allowed",
+      "sha256": "53b1bfd9ce4be2c254f4aa330c3676191dfde93004053ed63562dce6467de781"
+    },
+    {
+      "id": "A-PRIV@1.0/6/1",
+      "doc": "A-PRIV",
+      "section": "6",
+      "page": null,
+      "length": 264,
+      "first_words": "6 Break-glass accounts Break-glass accounts are emergency administrator",
+      "sha256": "c0d25b3577b8ae65f98753c05334d58f76b5538f4898e7cede0b46aac6f97c16"
+    },
+    {
+      "id": "A-PRIV@1.0/6.1/1",
+      "doc": "A-PRIV",
+      "section": "6.1",
+      "page": null,
+      "length": 175,
+      "first_words": "6.1 Number of accounts Halvenroot keeps exactly 2",
+      "sha256": "a17890252567231957d0d3a26d6ed2f6b114653e65d048c5e86884297f2dd1dd"
+    },
+    {
+      "id": "A-PRIV@1.0/6.2/1",
+      "doc": "A-PRIV",
+      "section": "6.2",
+      "page": null,
+      "length": 360,
+      "first_words": "6.2 Storing the passwords Each break-glass password is",
+      "sha256": "750f64de7ffc3111b474d0528fb666fa20fd0b977462563705d462d829f8f670"
+    },
+    {
+      "id": "A-PRIV@1.0/6.3/1",
+      "doc": "A-PRIV",
+      "section": "6.3",
+      "page": null,
+      "length": 505,
+      "first_words": "6.3 When a break-glass account may be used",
+      "sha256": "fc24b34a62b9cbe9ee2601d9da15e9151f56f0003c5628b67b62308dd799ab20"
+    },
+    {
+      "id": "A-PRIV@1.0/6.4/1",
+      "doc": "A-PRIV",
+      "section": "6.4",
+      "page": null,
+      "length": 311,
+      "first_words": "6.4 Testing Break-glass accounts are tested every 3",
+      "sha256": "1f2a2d1528b80b60709029e52927bd6208c3b412b9eb16822a14b2818fcb3e54"
+    },
+    {
+      "id": "A-PRIV@1.0/7/1",
+      "doc": "A-PRIV",
+      "section": "7",
+      "page": null,
+      "length": 118,
+      "first_words": "7 Service accounts Service accounts are used by",
+      "sha256": "b6144e9f77eda53d673792d374fcae340e8f6e5179636d5cd2d3646bde5d95aa"
+    },
+    {
+      "id": "A-PRIV@1.0/7.1/1",
+      "doc": "A-PRIV",
+      "section": "7.1",
+      "page": null,
+      "length": 193,
+      "first_words": "7.1 No interactive sign-in Service accounts cannot sign",
+      "sha256": "032d90ff3b3729fffd6de9a3c30f2b33327bfedb3fad64d53fb820b405f7c5b7"
+    },
+    {
+      "id": "A-PRIV@1.0/7.2/1",
+      "doc": "A-PRIV",
+      "section": "7.2",
+      "page": null,
+      "length": 246,
+      "first_words": "7.2 Secrets Service account secrets are kept in",
+      "sha256": "a0170b55b81b6c1859ecc5938ae59935f751592a67b34d6dca7d3bb892b796e7"
+    },
+    {
+      "id": "A-PRIV@1.0/8.1/1",
+      "doc": "A-PRIV",
+      "section": "8.1",
+      "page": null,
+      "length": 332,
+      "first_words": "8.1 Review frequency Privileged accounts are reviewed at",
+      "sha256": "5d3bb8a84d910c1476e2e996ad248cb0a1374a9a27833c3945c49476efe01f90"
+    },
+    {
+      "id": "A-PRIV@1.0/9/1",
+      "doc": "A-PRIV",
+      "section": "9",
+      "page": null,
+      "length": 328,
+      "first_words": "9 Exceptions No exception can remove MFA from",
+      "sha256": "0f1ce1690fdfe48aa5dd7bffa3d0b2d739d858638bb5a3a856a7add578b17889"
+    },
+    {
+      "id": "A-PRIV@1.0/10/1",
+      "doc": "A-PRIV",
+      "section": "10",
+      "page": null,
+      "length": 115,
+      "first_words": "10 Document control - Owner: IT Operations Manager",
+      "sha256": "03da3e4992db53538cac60c423693e80558a4fe8debbe177674e19681b2f8401"
+    },
+    {
+      "id": "A-REV@1.0/1/1",
+      "doc": "A-REV",
+      "section": "1",
+      "page": null,
+      "length": 615,
+      "first_words": "1 Purpose and scope This procedure sets out",
+      "sha256": "46ea519415c9d2222c7c5a696588388ae3bb3e8c7b2ae8866a8b8d7f3218c75b"
+    },
+    {
+      "id": "A-REV@1.0/2/1",
+      "doc": "A-REV",
+      "section": "2",
+      "page": null,
+      "length": 691,
+      "first_words": "2 Roles Resource owner. Owns a system, application",
+      "sha256": "ccda1ca0306af686b899aa24459591f1dd464accff9d4cd34c68520c01fd71ed"
+    },
+    {
+      "id": "A-REV@1.0/3.1/1",
+      "doc": "A-REV",
+      "section": "3.1",
+      "page": null,
+      "length": 197,
+      "first_words": "3.1 Standard user accounts Access for standard user",
+      "sha256": "216d647e2102954bb97d06f8bca98a3658025dafc9f1580267bcf53314af501f"
+    },
+    {
+      "id": "A-REV@1.0/3.2/1",
+      "doc": "A-REV",
+      "section": "3.2",
+      "page": null,
+      "length": 224,
+      "first_words": "3.2 Privileged accounts Privileged accounts are reviewed every",
+      "sha256": "2be58540cc7d9c60e12158cd5984dc881842a062cf89f88ecda3aa4296d44edc"
+    },
+    {
+      "id": "A-REV@1.0/3.3/1",
+      "doc": "A-REV",
+      "section": "3.3",
+      "page": null,
+      "length": 278,
+      "first_words": "3.3 Service accounts Service accounts are reviewed every",
+      "sha256": "0d413142613760a5a507c466ad3353585698f5b8b213ace9f3ce70cecebaf620"
+    },
+    {
+      "id": "A-REV@1.0/4.1/1",
+      "doc": "A-REV",
+      "section": "4.1",
+      "page": null,
+      "length": 367,
+      "first_words": "4.1 Review lists The IAM team sends each",
+      "sha256": "d459f304de986fafc327fc53c813bdf5d35dd92a7f13e1eacc4e8871f767c443"
+    },
+    {
+      "id": "A-REV@1.0/4.2/1",
+      "doc": "A-REV",
+      "section": "4.2",
+      "page": null,
+      "length": 156,
+      "first_words": "4.2 Deadline Reviewers complete each review within 10",
+      "sha256": "ed11cd452581681c9b80b9aa6ea8cf3ae1d41d9fccc23ab29d0c17fb7e698152"
+    },
+    {
+      "id": "A-REV@1.0/4.3/1",
+      "doc": "A-REV",
+      "section": "4.3",
+      "page": null,
+      "length": 435,
+      "first_words": "4.3 Unconfirmed access Access that a reviewer does",
+      "sha256": "335b039ebc05a8f07284b21d17fd3ca4052fbc2af87d9994d0a1c991dbf3677f"
+    },
+    {
+      "id": "A-REV@1.0/5.1/1",
+      "doc": "A-REV",
+      "section": "5.1",
+      "page": null,
+      "length": 296,
+      "first_words": "5.1 Review records Review records are kept for",
+      "sha256": "206f2c45bf40ab711e0204559c75641a9e4e4bd83ea8855ba3d56a643b3178d9"
+    },
+    {
+      "id": "A-REV@1.0/6/1",
+      "doc": "A-REV",
+      "section": "6",
+      "page": null,
+      "length": 223,
+      "first_words": "6 Exceptions A resource owner who cannot follow",
+      "sha256": "43725a44ec92eaf6207ac13e5911c816d5871d0f3bcc1d70dfeb72447d7f596a"
+    },
+    {
+      "id": "A-REV@1.0/7/1",
+      "doc": "A-REV",
+      "section": "7",
+      "page": null,
+      "length": 101,
+      "first_words": "7 Document control - Owner: IAM team -",
+      "sha256": "dc35d5b51f3a52aac532c3e8b6951730d99b2b669d9b5cf723f55a87dc5af5d2"
+    },
+    {
+      "id": "A-REMOTE@1.1/1/1",
+      "doc": "A-REMOTE",
+      "section": "1",
+      "page": null,
+      "length": 536,
+      "first_words": "1 Purpose and scope This policy sets the",
+      "sha256": "b3b951ffcfff3a77a9211668d283b2e6a33ef589235b513a1544a2454335edf0"
+    },
+    {
+      "id": "A-REMOTE@1.1/2/1",
+      "doc": "A-REMOTE",
+      "section": "2",
+      "page": null,
+      "length": 866,
+      "first_words": "2 Background and definitions Unauthorised remote use of",
+      "sha256": "e1855d5bb99d5243802597e0d5154141735c568ee081c57e61fd381618679d5f"
+    },
+    {
+      "id": "A-REMOTE@1.1/3/1",
+      "doc": "A-REMOTE",
+      "section": "3",
+      "page": null,
+      "length": 733,
+      "first_words": "3 General care in uncontrolled spaces Users must",
+      "sha256": "ac16be392867c549d97d92ade1e7e1c98ca91aa7527d3742bded915b27bc0f54"
+    },
+    {
+      "id": "A-REMOTE@1.1/4.1/1",
+      "doc": "A-REMOTE",
+      "section": "4.1",
+      "page": null,
+      "length": 97,
+      "first_words": "4.1 Security updates Remote hosts must install security",
+      "sha256": "27ed6bc128035ce89d60aa7ea3d7fb756b9e4ac25c0f340edae31fdec893d885"
+    },
+    {
+      "id": "A-REMOTE@1.1/4.2/1",
+      "doc": "A-REMOTE",
+      "section": "4.2",
+      "page": null,
+      "length": 188,
+      "first_words": "4.2 Endpoint protection Remote hosts must have endpoint",
+      "sha256": "1b70257f40432d3a7fd0e94afaba20ce3353347a709c7af048dfbb88cceea70d"
+    },
+    {
+      "id": "A-REMOTE@1.1/4.3/1",
+      "doc": "A-REMOTE",
+      "section": "4.3",
+      "page": null,
+      "length": 367,
+      "first_words": "4.3 VPN and MFA Access to Halvenroot systems",
+      "sha256": "73848bd5a7aee7cf00e50709b73160464fd1996f0d24541dfee02c1c3f8c5275"
+    },
+    {
+      "id": "A-REMOTE@1.1/4.4/1",
+      "doc": "A-REMOTE",
+      "section": "4.4",
+      "page": null,
+      "length": 253,
+      "first_words": "4.4 VPN client certificates VPN client certificates are",
+      "sha256": "472188e491ac0bb67fd368116f6e402c8d060a4ffecb2692e2d5ebf795d69fe2"
+    },
+    {
+      "id": "A-REMOTE@1.1/4.5/1",
+      "doc": "A-REMOTE",
+      "section": "4.5",
+      "page": null,
+      "length": 149,
+      "first_words": "4.5 VPN session timeout VPN sessions disconnect after",
+      "sha256": "2fc3d015356834f50f0dc71db388f57828e67330af01cac05df92564245b6f45"
+    },
+    {
+      "id": "A-REMOTE@1.1/4.6/1",
+      "doc": "A-REMOTE",
+      "section": "4.6",
+      "page": null,
+      "length": 183,
+      "first_words": "4.6 Full-disk encryption Information stored on mobile computing",
+      "sha256": "69f154f49805c3c84cf2abf055b44d0f77ef4f4ba15bf400dc103dc23fd0e051"
+    },
+    {
+      "id": "A-REMOTE@1.1/4.7/1",
+      "doc": "A-REMOTE",
+      "section": "4.7",
+      "page": null,
+      "length": 225,
+      "first_words": "4.7 Backups Users of mobile computing equipment outside",
+      "sha256": "8b72cc73f601fe2156885e504ce7f7aadbee9725a02d28c8c2665fc15b95e597"
+    },
+    {
+      "id": "A-REMOTE@1.1/5/1",
+      "doc": "A-REMOTE",
+      "section": "5",
+      "page": null,
+      "length": 774,
+      "first_words": "5 Telework Employees may telework only when their",
+      "sha256": "b07614201ead092b8e17610bfbbd9fb10a328bdad521b50db67f77ef1317f690"
+    },
+    {
+      "id": "A-REMOTE@1.1/6/1",
+      "doc": "A-REMOTE",
+      "section": "6",
+      "page": null,
+      "length": 201,
+      "first_words": "6 Document control - Owner: IT Operations Manager",
+      "sha256": "1180cbc3aac77501c722233c2884a4c19ed6f27d7a301821e45f83b73054ebf6"
+    },
+    {
+      "id": "A-DEVICE@1.2/1/1",
+      "doc": "A-DEVICE",
+      "section": "1",
+      "page": null,
+      "length": 307,
+      "first_words": "1 Purpose and scope This policy sets the",
+      "sha256": "c8dcd1efa6dc442d06a09161ffaddba48adfa643cb4b9010dc94118bdf4c6064"
+    },
+    {
+      "id": "A-DEVICE@1.2/2/1",
+      "doc": "A-DEVICE",
+      "section": "2",
+      "page": null,
+      "length": 423,
+      "first_words": "2 Definitions A workstation is any company-owned or",
+      "sha256": "f4a97bbac294afef9b16bc7b838c905ddf2c2ebf5dd2f732d08d469042e2b36e"
+    },
+    {
+      "id": "A-DEVICE@1.2/3/1",
+      "doc": "A-DEVICE",
+      "section": "3",
+      "page": null,
+      "length": 216,
+      "first_words": "3 Requirements for all devices Every device covered",
+      "sha256": "21625bfc8988ffc1ce7bc820bfad41af30cb2c19f2b61feecac6e822e45c94e5"
+    },
+    {
+      "id": "A-DEVICE@1.2/3.1/1",
+      "doc": "A-DEVICE",
+      "section": "3.1",
+      "page": null,
+      "length": 188,
+      "first_words": "3.1 Operating system The operating system must be",
+      "sha256": "a46b1a5fca4a437bb1de118dc3684ff3178c8b421979281f67e70cab2a8e9008"
+    },
+    {
+      "id": "A-DEVICE@1.2/3.2/1",
+      "doc": "A-DEVICE",
+      "section": "3.2",
+      "page": null,
+      "length": 153,
+      "first_words": "3.2 Encryption Devices must be encrypted at rest.",
+      "sha256": "ddf06a12aa35a977b6740d97eb042c13d95ae9353ca7596c0ea9c302ef818d59"
+    },
+    {
+      "id": "A-DEVICE@1.2/3.3/1",
+      "doc": "A-DEVICE",
+      "section": "3.3",
+      "page": null,
+      "length": 161,
+      "first_words": "3.3 Screen lock Screens must lock after 10",
+      "sha256": "3d1f2f0dc9e0b2ff550a47e0c0fad4bdd83451b7d302fbd0fca3c59705be0ecb"
+    },
+    {
+      "id": "A-DEVICE@1.2/3.4/1",
+      "doc": "A-DEVICE",
+      "section": "3.4",
+      "page": null,
+      "length": 277,
+      "first_words": "3.4 Lost or stolen devices Lost or stolen",
+      "sha256": "2e0efe3a47d3942f972642d426eb16a3bf99ba85feaa4c920c9f1cb3c4e2d8ed"
+    },
+    {
+      "id": "A-DEVICE@1.2/3.5/1",
+      "doc": "A-DEVICE",
+      "section": "3.5",
+      "page": null,
+      "length": 236,
+      "first_words": "3.5 Use and endpoint protection Devices are used",
+      "sha256": "c9ead1090490d407786bc5eaaf7b0f314ec1c4797207477724b5e4c4f899ab77"
+    },
+    {
+      "id": "A-DEVICE@1.2/4/1",
+      "doc": "A-DEVICE",
+      "section": "4",
+      "page": null,
+      "length": 419,
+      "first_words": "4 Laptops and desktops Employees are issued a",
+      "sha256": "d0ca046f2ffe3ba0c1b1f960e7bfeab430ff69abf95315bef0525b7848688f84"
+    },
+    {
+      "id": "A-DEVICE@1.2/5/1",
+      "doc": "A-DEVICE",
+      "section": "5",
+      "page": null,
+      "length": 354,
+      "first_words": "5 Mobile devices Mobile devices run iOS or",
+      "sha256": "cced246ab6905b0708137661577cdbc4955386a940d238c0022c310a0009b506"
+    },
+    {
+      "id": "A-DEVICE@1.2/6/1",
+      "doc": "A-DEVICE",
+      "section": "6",
+      "page": null,
+      "length": 141,
+      "first_words": "6 Removable media Removable media can carry company",
+      "sha256": "d5b6edd6157e92d805a13cdc701eaa9e60665d9d97c56292e8f1f40ba0a1f28e"
+    },
+    {
+      "id": "A-DEVICE@1.2/6.1/1",
+      "doc": "A-DEVICE",
+      "section": "6.1",
+      "page": null,
+      "length": 159,
+      "first_words": "6.1 USB storage devices USB storage devices are",
+      "sha256": "785555586ce6b6ec8935d5e57f1f8cf3f81cc0ae20c617a29b457bf1c470ef19"
+    },
+    {
+      "id": "A-DEVICE@1.2/6.2/1",
+      "doc": "A-DEVICE",
+      "section": "6.2",
+      "page": null,
+      "length": 178,
+      "first_words": "6.2 Exceptions Exceptions follow the Policy Exceptions Process.",
+      "sha256": "5f5ebaeea1f039656f9fbc26ea11673554c32d894a7d80dc1374fe86078a6772"
+    },
+    {
+      "id": "A-DEVICE@1.2/7/1",
+      "doc": "A-DEVICE",
+      "section": "7",
+      "page": null,
+      "length": 223,
+      "first_words": "7 Shared kiosk devices Shared kiosk devices are",
+      "sha256": "e0c0b1e927f9a2ea0bbe4870af21be4ab0bf7b85b6536095df4d14e19bd84381"
+    },
+    {
+      "id": "A-DEVICE@1.2/7.1/1",
+      "doc": "A-DEVICE",
+      "section": "7.1",
+      "page": null,
+      "length": 129,
+      "first_words": "7.1 Kiosk rules Shared kiosk devices on the",
+      "sha256": "95fea690efb4ccb1043fe7c973fc84937b1aa5adc214a6b1f58d2e54546843cd"
+    },
+    {
+      "id": "A-DEVICE@1.2/8/1",
+      "doc": "A-DEVICE",
+      "section": "8",
+      "page": null,
+      "length": 201,
+      "first_words": "8 Document control - Owner: IT Operations Manager",
+      "sha256": "f0331f64a094a5fc2da6bb3a14e8ee2def8ca9004bed1bfd712b2cba4122ef29"
+    },
+    {
+      "id": "A-DEVICE-B@1.0/intro/1",
+      "doc": "A-DEVICE-B",
+      "section": "intro",
+      "page": 1,
+      "length": 334,
+      "first_words": "Device Policy Annex B: Shared Kiosk Devices To:",
+      "sha256": "ccd9531df2a5e5dcef4b95e9d2e0f8489751ae02314a8e51bf92ceef719ff14e"
+    },
+    {
+      "id": "A-DEVICE-B@1.0/1/1",
+      "doc": "A-DEVICE-B",
+      "section": "1",
+      "page": 1,
+      "length": 204,
+      "first_words": "1 Automatic sign-out Kiosk sessions sign out automatically",
+      "sha256": "29080e0040450610a4152d61320d59332e78484acc4cf0d678f8d00c5864bb76"
+    },
+    {
+      "id": "A-DEVICE-B@1.0/2/1",
+      "doc": "A-DEVICE-B",
+      "section": "2",
+      "page": 1,
+      "length": 225,
+      "first_words": "2 Accounts on kiosks Workers sign in to",
+      "sha256": "e6c56c8277e2be8c7ca098559507dd55d63566f823fa453b295b55e36b66527a"
+    },
+    {
+      "id": "A-DEVICE-B@1.0/3/1",
+      "doc": "A-DEVICE-B",
+      "section": "3",
+      "page": 1,
+      "length": 137,
+      "first_words": "3 Faults Report a damaged or unresponsive kiosk",
+      "sha256": "c297bd6ebd9461a16a7f799e5f1412a8448f0501d7f10b1f57b4b36b9695adcc"
+    },
+    {
+      "id": "A-CLASS@1.1/1/1",
+      "doc": "A-CLASS",
+      "section": "1",
+      "page": null,
+      "length": 300,
+      "first_words": "1 Purpose and scope This policy makes sure",
+      "sha256": "c2e74ea82eb0201b20ecbf797f862bbac9e448b1beeacf9af69028d4fe8f4920"
+    },
+    {
+      "id": "A-CLASS@1.1/2/1",
+      "doc": "A-CLASS",
+      "section": "2",
+      "page": null,
+      "length": 245,
+      "first_words": "2 Background This policy defines Halvenroot's data classification",
+      "sha256": "e3a5c01d657c23b548870711e07df536f307edbe7bf9d03c16a8e0193b44275c"
+    },
+    {
+      "id": "A-CLASS@1.1/3.1/1",
+      "doc": "A-CLASS",
+      "section": "3.1",
+      "page": null,
+      "length": 304,
+      "first_words": "3.1 Information received from outside The person who",
+      "sha256": "ba618dcf4f48a7964dd0ef3fc6b04251ea80b79ea1fa00c6bc89a34763c3cfe5"
+    },
+    {
+      "id": "A-CLASS@1.1/3.2/1",
+      "doc": "A-CLASS",
+      "section": "3.2",
+      "page": null,
+      "length": 1056,
+      "first_words": "3.2 Setting the level The confidentiality level is",
+      "sha256": "3882c30e842a6be330772b4c26c2a869e16761e29ad92a8b6ebe518cedf03949"
+    },
+    {
+      "id": "A-CLASS@1.1/3.3/1",
+      "doc": "A-CLASS",
+      "section": "3.3",
+      "page": null,
+      "length": 130,
+      "first_words": "3.3 Lowest adequate level Information owners use the",
+      "sha256": "d329c569fa1b8287699e755a9323dfc15cbe4f18ce8ba287330b06edc933e868"
+    },
+    {
+      "id": "A-CLASS@1.1/3.4/1",
+      "doc": "A-CLASS",
+      "section": "3.4",
+      "page": null,
+      "length": 286,
+      "first_words": "3.4 Authorised persons Restricted and Confidential information must",
+      "sha256": "20f665a96501594d8efa3e96ab54e2d7e9fbf46d8b73ba6cd9b78ccc8412f75c"
+    },
+    {
+      "id": "A-CLASS@1.1/3.5/1",
+      "doc": "A-CLASS",
+      "section": "3.5",
+      "page": null,
+      "length": 140,
+      "first_words": "3.5 Review Information owners review the confidentiality level",
+      "sha256": "4f24ff6a1223bf2be6ab6b2fc02cd65f2d4ebc0b24744db33c2a6cef5fb2a607"
+    },
+    {
+      "id": "A-CLASS@1.1/4.1/1",
+      "doc": "A-CLASS",
+      "section": "4.1",
+      "page": null,
+      "length": 270,
+      "first_words": "4.1 Documents Electronic documents show their confidentiality level",
+      "sha256": "b570071739c863dffbb66c560ec32cfda28c27947b44d3df5b661b278c43739a"
+    },
+    {
+      "id": "A-CLASS@1.1/4.2/1",
+      "doc": "A-CLASS",
+      "section": "4.2",
+      "page": null,
+      "length": 123,
+      "first_words": "4.2 Email Email shows the confidentiality level in",
+      "sha256": "2dc12ed4e3414e0a50a2c1d6adef6c8e99e28e10401cf992256dd571fb0c51f7"
+    },
+    {
+      "id": "A-CLASS@1.1/4.3/1",
+      "doc": "A-CLASS",
+      "section": "4.3",
+      "page": null,
+      "length": 292,
+      "first_words": "4.3 Storage media Disks, memory cards and other",
+      "sha256": "2fbab3baf9ea22445628586463479f45a90e974767a75a8898a0a497b577959c"
+    },
+    {
+      "id": "A-CLASS@1.1/5/1",
+      "doc": "A-CLASS",
+      "section": "5",
+      "page": null,
+      "length": 127,
+      "first_words": "5 Handling Everyone who accesses classified information follows",
+      "sha256": "80f728053b42c612e19d0da22f112e46cea2a73cab644a4c4bb1fba6c57192d2"
+    },
+    {
+      "id": "A-CLASS@1.1/6/1",
+      "doc": "A-CLASS",
+      "section": "6",
+      "page": null,
+      "length": 98,
+      "first_words": "6 Incidents Report improper handling of classified information",
+      "sha256": "b1605f5c5c665fb29ce28611d91cd07ac51de2c59ef84232280d423e263b6fc2"
+    },
+    {
+      "id": "A-CLASS@1.1/7/1",
+      "doc": "A-CLASS",
+      "section": "7",
+      "page": null,
+      "length": 240,
+      "first_words": "7 Document control - Owner: Chief Information Security",
+      "sha256": "d6b2cedb0563dd71c440553f6df471d9b42eb23f448bd8c90d9aaae02b49f194"
+    },
+    {
+      "id": "A-CLASS@1.1/A/1",
+      "doc": "A-CLASS",
+      "section": "A",
+      "page": null,
+      "length": 156,
+      "first_words": "A Handling of classified information Controls are cumulative:",
+      "sha256": "1f73f4c72440212878b66ae0ee4302ee84f1fc0a2d5dc20ad0ccb6dacfc3008e"
+    },
+    {
+      "id": "A-CLASS@1.1/A.1/1",
+      "doc": "A-CLASS",
+      "section": "A.1",
+      "page": null,
+      "length": 677,
+      "first_words": "A.1 Electronic documents Internal Use: - Only authorised",
+      "sha256": "ec33c1949cdb1db125e04cc264a848991669c21215be147ac4a1b9dbad72c794"
+    },
+    {
+      "id": "A-CLASS@1.1/A.2/1",
+      "doc": "A-CLASS",
+      "section": "A.2",
+      "page": null,
+      "length": 795,
+      "first_words": "A.2 Information systems Internal Use: - Only authorised",
+      "sha256": "61a7afc70ca191c27d096aa28dd9160c2a04c918d837db647737e870c3d5acb0"
+    },
+    {
+      "id": "A-CLASS@1.1/A.3/1",
+      "doc": "A-CLASS",
+      "section": "A.3",
+      "page": null,
+      "length": 316,
+      "first_words": "A.3 Email Internal Use: - Only authorised persons",
+      "sha256": "74245cad91450fef506f5599ac29f061256e328a9fea7d1cd76ffff265287023"
+    },
+    {
+      "id": "A-IR@1.0/1/1",
+      "doc": "A-IR",
+      "section": "1",
+      "page": null,
+      "length": 398,
+      "first_words": "1 Purpose and scope This runbook sets out",
+      "sha256": "999635f21847746881937a4285a5578bfdac4d7473d5240240cfe3e936e4d200"
+    },
+    {
+      "id": "A-IR@1.0/2/1",
+      "doc": "A-IR",
+      "section": "2",
+      "page": null,
+      "length": 533,
+      "first_words": "2 Definitions Information security incident: a suspected, attempted,",
+      "sha256": "8efbd7585bc3020f62022e8b759e7aa82daef2a1dd00f10da24e83c2bca4caff"
+    },
+    {
+      "id": "A-IR@1.0/3.1/1",
+      "doc": "A-IR",
+      "section": "3.1",
+      "page": null,
+      "length": 324,
+      "first_words": "3.1 When to report Report a suspected account",
+      "sha256": "5afd910aefdf8c48d725b005f442af64b70ac46de5820c253035c355cb922a8a"
+    },
+    {
+      "id": "A-IR@1.0/3.2/1",
+      "doc": "A-IR",
+      "section": "3.2",
+      "page": null,
+      "length": 152,
+      "first_words": "3.2 How to report Email security@halvenroot.example.com or call",
+      "sha256": "1f754e6f54cb30ea9b1626880667e3ec65d70439bda83ac00a39acf4e49ae3b3"
+    },
+    {
+      "id": "A-IR@1.0/3.3/1",
+      "doc": "A-IR",
+      "section": "3.3",
+      "page": null,
+      "length": 356,
+      "first_words": "3.3 What to include Give as much of",
+      "sha256": "3c7536b984874bd2dbab30ce0c017b03e551e54fb7e7568e4ad681c1d83ddc99"
+    },
+    {
+      "id": "A-IR@1.0/4.1/1",
+      "doc": "A-IR",
+      "section": "4.1",
+      "page": null,
+      "length": 85,
+      "first_words": "4.1 Acknowledgement The on-call SOC analyst acknowledges a",
+      "sha256": "cff813808855ba7af2a6c6b2b4d09c0cc30ea975e9b679c76ab68bbba5112e20"
+    },
+    {
+      "id": "A-IR@1.0/4.2/1",
+      "doc": "A-IR",
+      "section": "4.2",
+      "page": null,
+      "length": 202,
+      "first_words": "4.2 Preliminary investigation A preliminary investigation is completed",
+      "sha256": "50157171256507a45561037002c702f061b83d7242e92ad82503b59888a9cde7"
+    },
+    {
+      "id": "A-IR@1.0/4.3/1",
+      "doc": "A-IR",
+      "section": "4.3",
+      "page": null,
+      "length": 618,
+      "first_words": "4.3 Severity levels If the incident is confirmed,",
+      "sha256": "65aa93fee277ba6367cf93bdaa6d8c7f07551adea9d587d5552d2b595651edbd"
+    },
+    {
+      "id": "A-IR@1.0/5/1",
+      "doc": "A-IR",
+      "section": "5",
+      "page": null,
+      "length": 236,
+      "first_words": "5 Containment The analyst carries out these steps",
+      "sha256": "2f7f7ed87e5b7df1b98b88d0f5989c232bf6231f8f19e8c8fa2600252e4376ab"
+    },
+    {
+      "id": "A-IR@1.0/5.1/1",
+      "doc": "A-IR",
+      "section": "5.1",
+      "page": null,
+      "length": 53,
+      "first_words": "5.1 Disable sign-in Disable sign-in for the account.",
+      "sha256": "087bf67b4bcfa69d216be4b17314add9ea5c365ce7e8553b36948cb621bf416c"
+    },
+    {
+      "id": "A-IR@1.0/5.2/1",
+      "doc": "A-IR",
+      "section": "5.2",
+      "page": null,
+      "length": 67,
+      "first_words": "5.2 Revoke sessions Revoke all active sessions and",
+      "sha256": "a766483c18433e8096d558cfb021ce235e351c82bf8af2b5ff84c19a18e54016"
+    },
+    {
+      "id": "A-IR@1.0/5.3/1",
+      "doc": "A-IR",
+      "section": "5.3",
+      "page": null,
+      "length": 58,
+      "first_words": "5.3 Revoke MFA factors Revoke all registered MFA",
+      "sha256": "09216ab1eeaf06e3b68db42436342f4bceca9f3771aed84245936eda49f78497"
+    },
+    {
+      "id": "A-IR@1.0/5.4/1",
+      "doc": "A-IR",
+      "section": "5.4",
+      "page": null,
+      "length": 43,
+      "first_words": "5.4 Reset the password Reset the password.",
+      "sha256": "9718d91aac3bc3ef4de264de249f3b018ec870b68067098d1e1ed473130e1ccd"
+    },
+    {
+      "id": "A-IR@1.0/5.5/1",
+      "doc": "A-IR",
+      "section": "5.5",
+      "page": null,
+      "length": 115,
+      "first_words": "5.5 Mailbox forwarding rules Check mailbox forwarding rules",
+      "sha256": "ba827dc82e0049be4b3b2ae8f9210eb731855f386122659aacd6b01bac2a3944"
+    },
+    {
+      "id": "A-IR@1.0/5.6/1",
+      "doc": "A-IR",
+      "section": "5.6",
+      "page": null,
+      "length": 99,
+      "first_words": "5.6 Privileged accounts For a privileged account, also",
+      "sha256": "85e94b4fb0912c7f10834cb24382c83ee55dc55d14bf44d4d0d5939e9f0054f6"
+    },
+    {
+      "id": "A-IR@1.0/6.1/1",
+      "doc": "A-IR",
+      "section": "6.1",
+      "page": null,
+      "length": 318,
+      "first_words": "6.1 New MFA factors The account holder registers",
+      "sha256": "95b6867d4f228257b1a0004d0ad6d89c927c28bac0059f31ff7c0be6af816aa7"
+    },
+    {
+      "id": "A-IR@1.0/7.1/1",
+      "doc": "A-IR",
+      "section": "7.1",
+      "page": null,
+      "length": 406,
+      "first_words": "7.1 Log retention Sign-in and audit logs for",
+      "sha256": "92dd9be2776716d3e2d6b7772924e4f81c8b02e509ce066802290607b674aa60"
+    },
+    {
+      "id": "A-IR@1.0/8.1/1",
+      "doc": "A-IR",
+      "section": "8.1",
+      "page": null,
+      "length": 285,
+      "first_words": "8.1 Post-incident review For High severity incidents, a",
+      "sha256": "4514c7e8d49df2151b632c55753af3901a72a28f1ce51df2ba4e69a3b40bcc41"
+    },
+    {
+      "id": "A-IR@1.0/9.1/1",
+      "doc": "A-IR",
+      "section": "9.1",
+      "page": null,
+      "length": 158,
+      "first_words": "9.1 Testing and review This runbook is tested",
+      "sha256": "21e30bcf4b13a949a17466a9fb024002973a304559124c0cdb557db91577820c"
+    },
+    {
+      "id": "A-IR@1.0/10/1",
+      "doc": "A-IR",
+      "section": "10",
+      "page": null,
+      "length": 207,
+      "first_words": "10 Document control - Owner: Security Operations Centre",
+      "sha256": "007108211606d655459a7cc7f9e96cca1457adc1513666420e56a98935a876e3"
+    },
+    {
+      "id": "A-IR@1.0/A/1",
+      "doc": "A-IR",
+      "section": "A",
+      "page": null,
+      "length": 73,
+      "first_words": "A Worked example (training) Training example. All details",
+      "sha256": "89ce77784271bebf35f2d8adbb5bf08a653add68bcdc6aa6dbb4b20d75d13dd1"
+    },
+    {
+      "id": "A-IR@1.0/A.1/1",
+      "doc": "A-IR",
+      "section": "A.1",
+      "page": null,
+      "length": 86,
+      "first_words": "A.1 Report Reporter: employee E-4417 (e4417@halvenroot.example.com, +1-202-555-0188).",
+      "sha256": "84d0885dec08056ed0d0f35efac22fcd15f36e40526cf91760d24988c9ed4200"
+    },
+    {
+      "id": "A-IR@1.0/A.2/1",
+      "doc": "A-IR",
+      "section": "A.2",
+      "page": null,
+      "length": 129,
+      "first_words": "A.2 Exposed credential Exposed credential found in a",
+      "sha256": "71f30b6ceef05e381c72af2f95483a32eaf4712847c2654a0e04502f65e76ade"
+    },
+    {
+      "id": "A-IR@1.0/A.3/1",
+      "doc": "A-IR",
+      "section": "A.3",
+      "page": null,
+      "length": 501,
+      "first_words": "A.3 Response The on-call analyst traced the key",
+      "sha256": "292bb1218a893afe512ce266f1ce2a08f71c9ccff6c6dd4b343310ba5fc9d8fc"
+    },
+    {
+      "id": "A-EXC@1.0/1/1",
+      "doc": "A-EXC",
+      "section": "1",
+      "page": null,
+      "length": 551,
+      "first_words": "1 Purpose and scope This process sets out",
+      "sha256": "679939306de1e9f036d07b8df7c218d7e3f78af5c0695abd96efc7044e2c4533"
+    },
+    {
+      "id": "A-EXC@1.0/2/1",
+      "doc": "A-EXC",
+      "section": "2",
+      "page": null,
+      "length": 95,
+      "first_words": "2 What cannot be excepted Requests to depart",
+      "sha256": "31f34aecf779fac962a9ee957e1f1ed98ca181a0b4925d2040dbb051320a4050"
+    },
+    {
+      "id": "A-EXC@1.0/2.1/1",
+      "doc": "A-EXC",
+      "section": "2.1",
+      "page": null,
+      "length": 282,
+      "first_words": "2.1 Administrator MFA No exception can remove MFA",
+      "sha256": "d16337e60cf943cf8e2af9757489a3f62434063d8d9b71042646ab52d3c25929"
+    },
+    {
+      "id": "A-EXC@1.0/2.2/1",
+      "doc": "A-EXC",
+      "section": "2.2",
+      "page": null,
+      "length": 153,
+      "first_words": "2.2 Shared passwords No exception allows a password",
+      "sha256": "b4fea4ea2356ec91b047c8b7a3a07e3bd58deb35d18dbabe31d7c7341108df82"
+    },
+    {
+      "id": "A-EXC@1.0/3.1/1",
+      "doc": "A-EXC",
+      "section": "3.1",
+      "page": null,
+      "length": 507,
+      "first_words": "3.1 Submitting a request Submit a Security Exception",
+      "sha256": "fcb7f2c6e0ff0e903cec5b6b5159087a2c03fc5e10a80a672bcc9837e13cd4c2"
+    },
+    {
+      "id": "A-EXC@1.0/3.2/1",
+      "doc": "A-EXC",
+      "section": "3.2",
+      "page": null,
+      "length": 291,
+      "first_words": "3.2 Approval The line manager, the resource owner",
+      "sha256": "ddf4e844b4d94d727e453f10c51d1ea16c92c43695bea0e11596cfae1861978c"
+    },
+    {
+      "id": "A-EXC@1.0/3.3/1",
+      "doc": "A-EXC",
+      "section": "3.3",
+      "page": null,
+      "length": 171,
+      "first_words": "3.3 Recording The Security Operations Centre records every",
+      "sha256": "a4a85756c1234534d40a0420e82b02dd8fcf12d7544ef73bed0b35726dc324b8"
+    },
+    {
+      "id": "A-EXC@1.0/4.1/1",
+      "doc": "A-EXC",
+      "section": "4.1",
+      "page": null,
+      "length": 250,
+      "first_words": "4.1 Maximum length An approved exception is valid",
+      "sha256": "5856cf35c4dc3a236e37e63991da4c1b3e8b014c1792e39ec36ce7e1c9f98307"
+    },
+    {
+      "id": "A-EXC@1.0/4.2/1",
+      "doc": "A-EXC",
+      "section": "4.2",
+      "page": null,
+      "length": 176,
+      "first_words": "4.2 Expiry An expired exception gives no permission;",
+      "sha256": "be731b7af4f82dd343c25ae22f21589e090c6db2af8def20238c4c12544e4391"
+    },
+    {
+      "id": "A-EXC@1.0/5.1/1",
+      "doc": "A-EXC",
+      "section": "5.1",
+      "page": null,
+      "length": 872,
+      "first_words": "5.1 Register entries Table 1 lists the exceptions",
+      "sha256": "4d8f99766da8c35a83001cfcd6eaa9e2f70a4bb9d512863790f05c5c3a45cc6f"
+    },
+    {
+      "id": "A-EXC@1.0/5.2/1",
+      "doc": "A-EXC",
+      "section": "5.2",
+      "page": null,
+      "length": 371,
+      "first_words": "5.2 Effect of the register Exception EX-2026-007 allows",
+      "sha256": "64947d9fe36b76f19b1422362708d6b91d675d1276eaa44e6c021adb3b4f9141"
+    },
+    {
+      "id": "A-EXC@1.0/6/1",
+      "doc": "A-EXC",
+      "section": "6",
+      "page": null,
+      "length": 112,
+      "first_words": "6 Document control Owner: Security Operations Centre. Approver:",
+      "sha256": "824d3f7d8cf3eb725eb63bcdab81f86dc5bf5ad787ed8f1f69360a7bd7e6e74e"
+    },
+    {
+      "id": "A-FAQ@1.0/1/1",
+      "doc": "A-FAQ",
+      "section": "1",
+      "page": null,
+      "length": 342,
+      "first_words": "1 Questions This page answers the questions that",
+      "sha256": "b254fa450268622c9ac49176acda0145a5aa761ce0eb509c943b14ccd6dfd3fb"
+    },
+    {
+      "id": "A-FAQ@1.0/Q1/1",
+      "doc": "A-FAQ",
+      "section": "Q1",
+      "page": null,
+      "length": 301,
+      "first_words": "Q1 How long must my password be? Passwords",
+      "sha256": "f942a82292eb3d73a413ade4fdf46c8942f44feee38080fe1c3bde2d53bf3738"
+    },
+    {
+      "id": "A-FAQ@1.0/Q2/1",
+      "doc": "A-FAQ",
+      "section": "Q2",
+      "page": null,
+      "length": 288,
+      "first_words": "Q2 Do I have to change my password",
+      "sha256": "c88aec5d5e9a191884ad1ce1833c204f686d4073b39b899765e1e30a4e8aea06"
+    },
+    {
+      "id": "A-FAQ@1.0/Q3/1",
+      "doc": "A-FAQ",
+      "section": "Q3",
+      "page": null,
+      "length": 419,
+      "first_words": "Q3 Which MFA methods can I use? Halvenroot",
+      "sha256": "bb57d822c59839c505dddc2045136499bafb1c46e396564a6d47caa75388cbf5"
+    },
+    {
+      "id": "A-FAQ@1.0/Q4/1",
+      "doc": "A-FAQ",
+      "section": "Q4",
+      "page": null,
+      "length": 467,
+      "first_words": "Q4 I lost my phone. How do I",
+      "sha256": "bfda93a92b1e5b88aba12e4bb93ff6aaee04d193adf845daf08143872e5d1026"
+    },
+    {
+      "id": "A-FAQ@1.0/Q5/1",
+      "doc": "A-FAQ",
+      "section": "Q5",
+      "page": null,
+      "length": 319,
+      "first_words": "Q5 Can I skip MFA if it gets",
+      "sha256": "d45ec8847f30839fff01135251457d161b1581dbce9ea623fe303bda5a07f8d4"
+    },
+    {
+      "id": "A-FAQ@1.0/Q6/1",
+      "doc": "A-FAQ",
+      "section": "Q6",
+      "page": null,
+      "length": 457,
+      "first_words": "Q6 Can I work from a café or",
+      "sha256": "358c0fccc75daf256a77f93bf2cc59aff8c089ea9c852daa5497af3c09457174"
+    },
+    {
+      "id": "A-FAQ@1.0/Q7/1",
+      "doc": "A-FAQ",
+      "section": "Q7",
+      "page": null,
+      "length": 290,
+      "first_words": "Q7 Can I copy files to a USB",
+      "sha256": "e35dc623aaaf259da87b71de448ac4a7693739e4a572447fb08d930f349df4c1"
+    },
+    {
+      "id": "A-FAQ@1.0/Q8/1",
+      "doc": "A-FAQ",
+      "section": "Q8",
+      "page": null,
+      "length": 414,
+      "first_words": "Q8 I typed my password into a suspicious",
+      "sha256": "286079615a29712265c07443eeb8432f8228d34cfee48227cdf64fb19ff3bbae"
+    },
+    {
+      "id": "A-FAQ@1.0/Q9/1",
+      "doc": "A-FAQ",
+      "section": "Q9",
+      "page": null,
+      "length": 429,
+      "first_words": "Q9 What is a break-glass account? A break-glass",
+      "sha256": "a6ab6afe3ec05bdc5147b06e8333c09f4fabca9f2f423caa618ac26f4e4dbd0b"
+    },
+    {
+      "id": "A-FAQ@1.0/Q10/1",
+      "doc": "A-FAQ",
+      "section": "Q10",
+      "page": null,
+      "length": 305,
+      "first_words": "Q10 Can a colleague use my login while",
+      "sha256": "698e9ac8a52a1cbf3179727a1b75d75cec94ca8dd6fce5ab80a9ed10cdce641c"
+    },
+    {
+      "id": "A-FAQ@1.0/Q11/1",
+      "doc": "A-FAQ",
+      "section": "Q11",
+      "page": null,
+      "length": 431,
+      "first_words": "Q11 Who approves an exception? The line manager,",
+      "sha256": "53b45c473481b08bc65795df6f2e8adc0dcb6e83f3a35c730f3fc6096ee532e6"
+    },
+    {
+      "id": "A-FAQ@1.0/Q12/1",
+      "doc": "A-FAQ",
+      "section": "Q12",
+      "page": null,
+      "length": 209,
+      "first_words": "Q12 Where do I get help? Contact the",
+      "sha256": "330eb7fe29da2d0cb43c54fb9ca0c57729b6b16bb823c935edf0669aa76d3871"
+    },
+    {
+      "id": "A-FAQ@1.0/2/1",
+      "doc": "A-FAQ",
+      "section": "2",
+      "page": null,
+      "length": 114,
+      "first_words": "2 Document control - Owner: IT Operations Manager",
+      "sha256": "065d52741f70d84d5a5c13045a7d84e1043ba7ce19142c153495e7e7285754c2"
+    },
+    {
+      "id": "A-GLOSS@1.0/intro/1",
+      "doc": "A-GLOSS",
+      "section": "intro",
+      "page": null,
+      "length": 175,
+      "first_words": "Halvenroot Security Glossary This glossary defines the terms",
+      "sha256": "1506cdff76e39da50b4e475041bd87b048ef1f5bf169d6cd96df080171514f00"
+    },
+    {
+      "id": "A-GLOSS@1.0/1/1",
+      "doc": "A-GLOSS",
+      "section": "1",
+      "page": null,
+      "length": 193,
+      "first_words": "1 Account holder The person to whom a",
+      "sha256": "3c996ac375ded7ee88574632468a5f9c51680ad2a99329a3fc362db4ec6351ae"
+    },
+    {
+      "id": "A-GLOSS@1.0/2/1",
+      "doc": "A-GLOSS",
+      "section": "2",
+      "page": null,
+      "length": 150,
+      "first_words": "2 Administrator account A separate account, named with",
+      "sha256": "3e2c3b7eb5d73e8eb3ea295de57eb030960707c8d08cb4fadd8c95155c6bce10"
+    },
+    {
+      "id": "A-GLOSS@1.0/3/1",
+      "doc": "A-GLOSS",
+      "section": "3",
+      "page": null,
+      "length": 158,
+      "first_words": "3 Break-glass account An emergency administrator account that",
+      "sha256": "a2190efba2f2ede0b16f9302912de668e35792f077e80f22676c1a339644c546"
+    },
+    {
+      "id": "A-GLOSS@1.0/4/1",
+      "doc": "A-GLOSS",
+      "section": "4",
+      "page": null,
+      "length": 124,
+      "first_words": "4 Business day A business day is Monday",
+      "sha256": "464c8729af695c4f31f674a88046e4ad96565ca8f487f294f0da7b75cf05e9bb"
+    },
+    {
+      "id": "A-GLOSS@1.0/5/1",
+      "doc": "A-GLOSS",
+      "section": "5",
+      "page": null,
+      "length": 239,
+      "first_words": "5 Contractor A person who works for Halvenroot",
+      "sha256": "3ebde44a4c59201608f373fdb3258e05b0b44b1be3a4077646e2a8466d1f8126"
+    },
+    {
+      "id": "A-GLOSS@1.0/6/1",
+      "doc": "A-GLOSS",
+      "section": "6",
+      "page": null,
+      "length": 210,
+      "first_words": "6 Exception A written, approved permission to depart",
+      "sha256": "95e559ceb9aca3d013b80ab68d9996951af5eca922b051564bb9accd1849a08d"
+    },
+    {
+      "id": "A-GLOSS@1.0/7/1",
+      "doc": "A-GLOSS",
+      "section": "7",
+      "page": null,
+      "length": 218,
+      "first_words": "7 IAM team The identity and access management",
+      "sha256": "30065852f98275d0d418d18f16775e7d1623944dc17265484b2e22d9921c762d"
+    },
+    {
+      "id": "A-GLOSS@1.0/8/1",
+      "doc": "A-GLOSS",
+      "section": "8",
+      "page": null,
+      "length": 285,
+      "first_words": "8 Joiner, mover, leaver A joiner is a",
+      "sha256": "8471fbe0dde403ed212bf776ec95131b0dff366ba04d1ea44875d28d4d4c9b0c"
+    },
+    {
+      "id": "A-GLOSS@1.0/9/1",
+      "doc": "A-GLOSS",
+      "section": "9",
+      "page": null,
+      "length": 134,
+      "first_words": "9 Phishing-resistant factor FIDO2 security keys and passkeys.",
+      "sha256": "2a4fa2230a9d270cdb51ec9f707c92bdbe70631facacd24b05dd4eaaae8be033"
+    },
+    {
+      "id": "A-GLOSS@1.0/10/1",
+      "doc": "A-GLOSS",
+      "section": "10",
+      "page": null,
+      "length": 414,
+      "first_words": "10 Privileged account A privileged account is any",
+      "sha256": "18a4d977cb19610cbcddf88caf6930e2b45cbcbd94d462a4e2d5c1e8b09cbcef"
+    },
+    {
+      "id": "A-GLOSS@1.0/11/1",
+      "doc": "A-GLOSS",
+      "section": "11",
+      "page": null,
+      "length": 240,
+      "first_words": "11 Resource owner The person accountable for a",
+      "sha256": "e0f6f328082505746d3bfdfa042938cf4d2ceefcaea7e292d4cc48f43e55c6df"
+    },
+    {
+      "id": "A-GLOSS@1.0/12/1",
+      "doc": "A-GLOSS",
+      "section": "12",
+      "page": null,
+      "length": 254,
+      "first_words": "12 Security Operations Centre (SOC) The team that",
+      "sha256": "95d03aeab8362d2bf68cdea7d44ee0c8118749fac2b255cb46824422e84be5fa"
+    },
+    {
+      "id": "A-GLOSS@1.0/13/1",
+      "doc": "A-GLOSS",
+      "section": "13",
+      "page": null,
+      "length": 250,
+      "first_words": "13 Service account An account used by an",
+      "sha256": "6b5d9c9364726ef36892f3bcc635d38ffde144efd3afa05831fa57f8c6eae74d"
+    },
+    {
+      "id": "A-GLOSS@1.0/14/1",
+      "doc": "A-GLOSS",
+      "section": "14",
+      "page": null,
+      "length": 175,
+      "first_words": "14 Temporary access pass A time-limited pass issued",
+      "sha256": "431831a8cde8d35f509db93ee4151a5f6fa6cfbdb3f375c4debe0cfe680010e4"
+    },
+    {
+      "id": "A-GLOSS@1.0/15/1",
+      "doc": "A-GLOSS",
+      "section": "15",
+      "page": null,
+      "length": 144,
+      "first_words": "15 Working day A day on which the",
+      "sha256": "fc4c1abaa07c3163d9ebe3119ef9f61378ce4f0e7e3dcf3ae5111e766132fc60"
+    },
+    {
+      "id": "A-GLOSS@1.0/16/1",
+      "doc": "A-GLOSS",
+      "section": "16",
+      "page": null,
+      "length": 115,
+      "first_words": "16 Document control - Owner: IT Operations Manager",
+      "sha256": "c47cba9475064765d7bedddb63508d060b4bee8bd04cf962e1d4d9102959ed7d"
+    },
+    {
+      "id": "B-PWD@1.0/1/1",
+      "doc": "B-PWD",
+      "section": "1",
+      "page": null,
+      "length": 549,
+      "first_words": "1 Purpose and scope This standard describes how",
+      "sha256": "dac217bb7064079cedc9cd09d49cc04a30088ce9c8c6e8a7b01cf953781665a0"
+    },
+    {
+      "id": "B-PWD@1.0/2/1",
+      "doc": "B-PWD",
+      "section": "2",
+      "page": null,
+      "length": 483,
+      "first_words": "2 Roles - Every user follows this standard,",
+      "sha256": "3f55c2fb983153960ec907eee902ea06fd1b9ce8401149fc0ae84de05f74a7e2"
+    },
+    {
+      "id": "B-PWD@1.0/3.1/1",
+      "doc": "B-PWD",
+      "section": "3.1",
+      "page": null,
+      "length": 163,
+      "first_words": "3.1 Minimum length Passwords must be at least",
+      "sha256": "9e8c19e06f59bbac14509c648bd5f66aa25c8fac68fe40c51d12ef39cc0a2019"
+    },
+    {
+      "id": "B-PWD@1.0/3.2/1",
+      "doc": "B-PWD",
+      "section": "3.2",
+      "page": null,
+      "length": 264,
+      "first_words": "3.2 Composition and blocklist Mirrowfen does not impose",
+      "sha256": "6cb8fd7c46258c3d61891eaad152287b54f1312aa45305181ed39a8f890ef484"
+    },
+    {
+      "id": "B-PWD@1.0/3.3/1",
+      "doc": "B-PWD",
+      "section": "3.3",
+      "page": null,
+      "length": 337,
+      "first_words": "3.3 Expiry Mirrowfen passwords do not expire on",
+      "sha256": "959426749fec5047b911623ea8ffac987d2e6703c8646ed225c1e1ccce822d90"
+    },
+    {
+      "id": "B-PWD@1.0/4.1/1",
+      "doc": "B-PWD",
+      "section": "4.1",
+      "page": null,
+      "length": 138,
+      "first_words": "4.1 Account lockout An account locks for 15",
+      "sha256": "f8b89ca5f023a5ca7c4718f3313e63908e82a791a0cf1e6251c1680719d04022"
+    },
+    {
+      "id": "B-PWD@1.0/5/1",
+      "doc": "B-PWD",
+      "section": "5",
+      "page": null,
+      "length": 537,
+      "first_words": "5 Protecting passwords All passwords are confidential information.",
+      "sha256": "9a8a0c5a07fc90a91b82f6f53e3ec69fa123aecc7115a28865d7bb516aef1493"
+    },
+    {
+      "id": "B-PWD@1.0/6/1",
+      "doc": "B-PWD",
+      "section": "6",
+      "page": null,
+      "length": 155,
+      "first_words": "6 Help For help with passwords or sign-in",
+      "sha256": "e466aac94d8c1de47925d35b074f982bf2cc6a5b59c73d4ccbffc03e9f06dbb3"
+    },
+    {
+      "id": "B-PWD@1.0/7/1",
+      "doc": "B-PWD",
+      "section": "7",
+      "page": null,
+      "length": 216,
+      "first_words": "7 Document control - Owner: Mirrowfen security lead",
+      "sha256": "2abc7d01968379f361b4d2ea993c0131218ccc7f3f3b836911cd5854953ec0f3"
+    },
+    {
+      "id": "B-MFA@1.0/1/1",
+      "doc": "B-MFA",
+      "section": "1",
+      "page": null,
+      "length": 660,
+      "first_words": "1 Purpose and scope Mirrowfen is a business",
+      "sha256": "bec2f67abe7c05d0bc80466dd87a27855fb6c9de0d8d00c6797833e9ef402384"
+    },
+    {
+      "id": "B-MFA@1.0/2/1",
+      "doc": "B-MFA",
+      "section": "2",
+      "page": null,
+      "length": 220,
+      "first_words": "2 Where MFA is required MFA is required",
+      "sha256": "62b091ac2c7f9ac3173cd3f4901108fd318b5956079f3917d6de00e1b6b09cc4"
+    },
+    {
+      "id": "B-MFA@1.0/3.1/1",
+      "doc": "B-MFA",
+      "section": "3.1",
+      "page": null,
+      "length": 490,
+      "first_words": "3.1 Approved factors The approved factors are authenticator",
+      "sha256": "8104f6dfc697b1eea5a580897431c551a37c6b8a0c5262f0ceffc7c0d9308cbf"
+    },
+    {
+      "id": "B-MFA@1.0/3.2/1",
+      "doc": "B-MFA",
+      "section": "3.2",
+      "page": null,
+      "length": 213,
+      "first_words": "3.2 Fallback factor SMS codes are allowed only",
+      "sha256": "6bbd6b32e7ef5f12bc6a2e37ddcd5d2f684e3e72324cc9e7e0442bce0caf76ae"
+    },
+    {
+      "id": "B-MFA@1.0/4/1",
+      "doc": "B-MFA",
+      "section": "4",
+      "page": null,
+      "length": 130,
+      "first_words": "4 Administrators Mirrowfen administrators use a FIDO2 security",
+      "sha256": "3bae5c66476abc273e98654424b7f049b4f0a155bc1d0396065b8e9173ade397"
+    },
+    {
+      "id": "B-MFA@1.0/5.1/1",
+      "doc": "B-MFA",
+      "section": "5.1",
+      "page": null,
+      "length": 445,
+      "first_words": "5.1 Recovery code Call Mirrowfen IT Support on",
+      "sha256": "19db7e6c8114bf0e17a755b76b472cab85b1518b63d9fc2840130afb2952956e"
+    },
+    {
+      "id": "B-MFA@1.0/6.1/1",
+      "doc": "B-MFA",
+      "section": "6.1",
+      "page": null,
+      "length": 203,
+      "first_words": "6.1 Disabled accounts MFA factors are revoked within",
+      "sha256": "872cd62e1282881b0a9fae268f25b3f39d410971812947d0d56d17d07ec57228"
+    },
+    {
+      "id": "B-MFA@1.0/7.1/1",
+      "doc": "B-MFA",
+      "section": "7.1",
+      "page": null,
+      "length": 182,
+      "first_words": "7.1 Asking for MFA again Mirrowfen sign-ins ask",
+      "sha256": "e3801580b863be00b2587d1fe757db3b21d91995652b184b951df9aeb1cacec7"
+    },
+    {
+      "id": "B-MFA@1.0/8/1",
+      "doc": "B-MFA",
+      "section": "8",
+      "page": null,
+      "length": 132,
+      "first_words": "8 Document control - Owner: Mirrowfen IT Support",
+      "sha256": "724b2a8987ea6dea273a19bcc9344839b484a5086d7a04ee4a5ad70b32f8133c"
+    },
+    {
+      "id": "X-NIST@SP_800-63B-4/intro/1",
+      "doc": "X-NIST",
+      "section": "intro",
+      "page": null,
+      "length": 342,
+      "first_words": "NIST SP 800-63B-4 excerpt: password verifiers and rate",
+      "sha256": "45a005a5a4f505e7c788f86abc8b8318fb49d27028bd575aa58f0716c7b033eb"
+    },
+    {
+      "id": "X-NIST@SP_800-63B-4/3.1.1.2/1",
+      "doc": "X-NIST",
+      "section": "3.1.1.2",
+      "page": null,
+      "length": 1199,
+      "first_words": "3.1.1.2 Password Verifiers - Verifiers and CSPs SHALL",
+      "sha256": "476723432d3c8db443379a7a2c7dc840b3e58b0a2176113be8ac38dc538b464f"
+    },
+    {
+      "id": "X-NIST@SP_800-63B-4/3.1.1.2/2",
+      "doc": "X-NIST",
+      "section": "3.1.1.2",
+      "page": null,
+      "length": 276,
+      "first_words": "- Verifiers SHALL implement a rate-limiting mechanism that",
+      "sha256": "957e601c8085245e5c5c21e801cdaf96c0bf3a13e27be64b56b124581165fd40"
+    },
+    {
+      "id": "X-NIST@SP_800-63B-4/3.2.2/1",
+      "doc": "X-NIST",
+      "section": "3.2.2",
+      "page": null,
+      "length": 889,
+      "first_words": "3.2.2 Rate Limiting (Throttling) When required by the",
+      "sha256": "69208414958b7a9ee98e07291025eb2e92c526cf7f5cfc58e916f696f34e9b19"
+    },
+    {
+      "id": "X-NCSC@1.0/intro/1",
+      "doc": "X-NCSC",
+      "section": "intro",
+      "page": null,
+      "length": 578,
+      "first_words": "NCSC excerpt: Password policy, updating your approach Contains",
+      "sha256": "119e12665a94fcc6fb0009bf67bfd09631b95685c5e941de0b8a44a88a3cd323"
+    },
+    {
+      "id": "X-NCSC@1.0/1/1",
+      "doc": "X-NCSC",
+      "section": "1",
+      "page": null,
+      "length": 784,
+      "first_words": "1 Use throttling or account lockout Password systems",
+      "sha256": "6cf4d497ff89bd7eeb5299dceaef42ffb6f6c20c61c6ba262e5c9f6757ea26cb"
+    },
+    {
+      "id": "X-NCSC@1.0/2/1",
+      "doc": "X-NCSC",
+      "section": "2",
+      "page": null,
+      "length": 294,
+      "first_words": "2 Do not use complexity requirements Using complexity",
+      "sha256": "a0ef7a2737e8bca9cf6c4f8a41ed3dcea01e134fc71898671917340a213e2e6e"
+    },
+    {
+      "id": "X-NCSC@1.0/3/1",
+      "doc": "X-NCSC",
+      "section": "3",
+      "page": null,
+      "length": 911,
+      "first_words": "3 Don't enforce regular password expiry Regular password",
+      "sha256": "bcc72475e8fcde3ba012ce2544338105a0064346c20e6f4e3a13fb7853c08871"
+    }
+  ]
+}

@@ -1,7 +1,10 @@
 import importlib.util
+import socket
 import sys
 from pathlib import Path
 from types import ModuleType
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -16,3 +19,16 @@ def load_script(name: str) -> ModuleType:
     sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests never use the network: a socket connection from the test process fails the test.
+    (Child processes, such as the CLI or git run by a test, are not covered.)"""
+
+    def refuse(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("tests never use the network")
+
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.setattr(socket.socket, "connect_ex", refuse)
+    monkeypatch.setattr(socket, "create_connection", refuse)

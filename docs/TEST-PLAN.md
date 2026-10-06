@@ -250,6 +250,102 @@ Quality attributes Q-01 to Q-06 are traced to gates and run records, not to plan
 
 # Part 2: Test plan (how-to 17)
 
-> **Placeholder.** Filled in stage S1b from the how-to 17 template: one named check per pipeline
-> arrow (ingest, parse, chunk, embed, retrieve, generate, guard), with inputs, oracle, threshold
-> and owner. Do not add content here in S1a.
+Written in stage S1b from the how-to 17 template
+([Test a RAG application](https://github.com/willcoliveira/ai-testing-handbook/blob/main/how-to/17-test-a-rag-application.md)):
+the pipeline drawn as arrows, both flows (load and retrieve), and one named check per arrow. A
+check that exists names its tests (`file::test`); a check that a later stage builds says
+"from S2", "from S3" and so on, and that stage's plan turns it into tests. Lab practice: a
+production system would run the same checks against its real document store and traffic.
+`tests/unit/test_test_plan.py` checks that every arrow has exactly one named check and that each
+check maps to tests that exist or to a later stage.
+
+## 9. The pipeline as arrows
+
+```mermaid
+flowchart LR
+  subgraph Load[Load flow, offline]
+    C[(Corpus files)] -->|L1| R[Register]
+    R -->|L2 md| P[Parse]
+    R -->|L3 pdf| P
+    R -->|L4 html| P
+    R -->|L5 png, OCR| P
+    P -->|L6| K[Chunk]
+    K -->|L7| I[(Inventory)]
+    I -->|L8| SN[Snapshot]
+    I -->|L9| SC[Instruction scan]
+    SC -->|L10| E[Embed]
+    E -->|L11| V[(Index)]
+  end
+  subgraph Retrieve[Retrieve flow, per question]
+    Q[Question + tenant] -->|R1| G[Input guards]
+    G -->|R2| T[Retrieve top k]
+    T -->|R3| F[Tenant filter]
+    F -->|R4| A[Assemble prompt]
+    A -->|R5| M[Generate]
+    M -->|R6| D[Decision label]
+    M -->|R7| CI[Citations]
+    M -->|R8| O[Output guards]
+    O -->|R9| ANS[Answer + report]
+  end
+  V --> T
+```
+
+### 9.1 Load flow (every commit, no model)
+
+| Id | Arrow | Named check | What it asserts (oracle) | Tests, or the stage that builds it | Gate |
+|---|---|---|---|---|---|
+| L1 | corpus → register | `register-is-the-input` | only the documents in `corpus/register.yaml` are read; a missing or unknown tenant, an id, tenant or format that the front matter contradicts, a path outside `corpus/` and any attack file stop the run (fail closed); no attack file reaches the default inventory | `tests/ingestion/test_chunk_metadata.py::test_ingestion_fails_closed_and_names_the_document`, `tests/ingestion/test_chunk_metadata.py::test_no_attack_file_reaches_the_default_inventory` | pr-fast |
+| L2 | register → parse (Markdown) | `markdown-reader-text` | front matter, comments and page markers are not text; headings, items and tables are kept; every value the answer key cites is in its cited section and paragraph | `tests/ingestion/test_ingest_formats.py::test_markdown_drops_front_matter_comments_and_inline_marks`, `tests/ingestion/test_ingest_formats.py::test_every_cited_value_is_in_the_extracted_text_at_its_place` | pr-fast |
+| L3 | register → parse (PDF) | `pdf-pages-and-table-rows` | each of the 4 PDF pages parses to the blocks of its source page; Table 1 is read as rows, so each table-only value sits in its row and column | `tests/ingestion/test_ingest_formats.py::test_pdf_pages_parse_to_the_blocks_of_their_source_pages`, `tests/ingestion/test_ingest_formats.py::test_pdf_table_is_read_as_rows` | pr-fast |
+| L4 | register → parse (HTML) | `html-visible-text` | the HTML export parses to the blocks of its source (headings, paragraphs, items) | `tests/ingestion/test_ingest_formats.py::test_html_export_parses_to_the_blocks_of_its_source` | pr-fast |
+| L5 | register → parse (PNG, OCR) | `ocr-within-cer` | the scanned page is within 1.0% character error rate of its ground truth on the pinned Tesseract, and the scanned-only rule (F-33) is in its section | `tests/ingestion/test_ocr.py::test_scanned_page_is_within_the_stated_cer_of_its_ground_truth`, `tests/ingestion/test_ocr.py::test_the_scanned_only_rule_is_extracted_in_its_section` | pr-fast |
+| L6 | parse → chunk | `rule-and-exception-in-one-chunk` | the planted rule and its exception (F-15) share a chunk at the default settings, and the failure names the boundary when they do not; every feature's cited values stay in one chunk of their section | `tests/ingestion/test_chunk_boundaries.py::test_rule_and_exception_share_a_chunk_at_default_settings`, `tests/ingestion/test_chunk_boundaries.py::test_a_budget_that_splits_them_names_the_boundary`, `tests/ingestion/test_chunk_boundaries.py::test_every_feature_keeps_its_cited_values_in_one_chunk_at_default_settings` | pr-fast |
+| L7 | chunk → inventory | `metadata-on-every-chunk` | every chunk carries doc id, version, status, tenant, section, print page (PDF and PNG), licence, its span and sha256; a chunk without a known tenant cannot be built; ids are deterministic | `tests/ingestion/test_chunk_metadata.py::test_every_chunk_carries_its_metadata`, `tests/ingestion/test_chunk_metadata.py::test_a_chunk_or_document_without_a_known_tenant_cannot_exist`, `tests/ingestion/test_chunk_metadata.py::test_chunk_ids_are_unique_readable_and_deterministic` | pr-fast |
+| L8 | inventory → snapshot | `inventory-snapshot-diff` | the committed snapshot equals a fresh run at the default settings, so a parser, chunker or corpus change is a reviewed diff (`make inventory-snapshot`) | `tests/ingestion/test_inventory_snapshot.py::test_committed_snapshot_matches_a_fresh_run` | pr-fast |
+| L9 | inventory → instruction scan | `instruction-scan-on-ingest` | an instruction planted in a document (T-HIDDEN) is flagged at ingestion in an attack run, and the clean pack raises no flag | from S7 | release |
+| L10 | instruction scan → embed | `embedder-deterministic` | the same chunk text gives the same vector; the vector dimension matches the index | from S2 | pr-fast |
+| L11 | embed → index | `index-holds-every-chunk` | every inventory chunk id is in the index once, with its tenant, doc id and section as filterable metadata | from S2 | pr-fast |
+
+### 9.2 Retrieve flow (per question)
+
+| Id | Arrow | Named check | What it asserts (oracle) | Tests, or the stage that builds it | Gate |
+|---|---|---|---|---|---|
+| R1 | question + tenant → input guards | `tenant-required` | a request without a tenant, or with one the caller may not use, is refused before retrieval (R-21) | from S3 | pr-fast |
+| R2 | input guards → retrieve top k | `retrieval-against-labels` | hit rate, MRR and recall@k against labelled chunk ids, no judge | from S2 | pr-fast |
+| R3 | retrieve → tenant filter | `no-cross-tenant-retrieval` | no retrieved chunk belongs to the other tenant (R-13, R-16); the filter fails closed | from S2 | pr-fast |
+| R4 | tenant filter → assemble prompt | `prompt-snapshot` | the assembled prompt for a fixed question and fixed chunks equals its reviewed snapshot | from S3 | pr-fast |
+| R5 | assemble prompt → generate | `generation-judged` | faithfulness, answer relevancy and contextual precision and recall on the dev slice, with a calibrated judge | from S5 | eval-on-change |
+| R6 | generate → decision label | `decision-label-and-abstention` | the structured label (`answer`, `abstain`, `flag-conflict`, `refuse-and-help`) matches the golden case; abstention is scored as its own check | from S4 | nightly |
+| R7 | generate → citations | `citations-subset-of-retrieved` | every cited chunk id was retrieved for that answer (R-02) | from S3 | pr-fast |
+| R8 | generate → output guards | `secrets-and-pii-withheld` | an answer never repeats the planted secret or personal details (R-19), and must-not-block answers still pass | from S7 | release |
+| R9 | output guards → answer and report | `failure-cause-attributed` | every failing case carries a cause: ingestion, retrieval, generation or abstention | from S8 | nightly |
+
+## 10. The plan, filled in
+
+The how-to 17 template, with what exists after S1b and what later stages fill in.
+
+```
+system: Halvenroot policy assistant (lab), corpus 18 register documents (15 Markdown, 1 PDF,
+  1 HTML export, 1 scanned PNG; Password Standard v1.0 superseded by v2.0; tenants A and B and
+  2 shared external excerpts; 3 attack files outside the register), chunker section-aware,
+  1,200 characters, overlap 1 paragraph, contextual prefix off; embedding <from S2>,
+  store <from S2>, top_k <from S2>, generator <from S3>
+ingestion (every commit): 18 documents parsed (4 formats), 135 answer-key locations (148 values)
+  checked in the extracted text, OCR 1 page (CER <= 1.0% on Tesseract 5.3.4-1build5 in CI),
+  chunk inventory snapshot (228 chunks), metadata on every chunk, tenant fails closed
+retrieval (every commit, no judge): <from S2: 20 labelled questions, hit rate, MRR, recall@k>
+golden set v1: <from S4: 40 cases, the 15/8/8/4/5 mix of the main plan, with expected behaviours>
+judges: <from S5 and S6: faithfulness, answer relevancy, contextual precision/recall; kappa on 30 labels>
+abstention: <from S4: pass if the system abstains on every abstain case; metric canary from S5>
+security: <from S7: planted instruction, two tenants, poisoned duplicate; the attack files are
+  ready and loaded only by raglab.ingest.attacks>
+report: <from S8: per case cause (ingestion/retrieval/generation/abstention), intervals, paired diff>
+```
+
+### What the halved chunk size showed (S1b)
+
+At `--chunk-size 600` (overlap 1) the inventory grows from 228 to 250 chunks and two features
+lose their table context: F-16 and F-17 (the exceptions register in the Policy Exceptions Process,
+section 5.1) no longer have the table's caption, header row and value row in one chunk. The rule
+and its exception (F-15) still share a chunk. The run and its diff are in the S1b ledger; S2
+compares chunk settings on retrieval, with this as the starting point.
