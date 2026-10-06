@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>raglab playground</title>
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>raglab playground</h1>
+    <p>The published runs of the lab, read from <code>runs/published</code>. Each number comes from a
+      real run with its provenance; nothing here calls a model. Lab practice: a production
+      dashboard would read the same run records from a store.</p>
+  </header>
+  <main>
+    <nav aria-label="Published runs"><ul id="runs"></ul></nav>
+    <section id="details" aria-live="polite"></section>
+  </main>
+  <p id="status" role="status"></p>
+</body>
+</html>

@@ -78,10 +78,11 @@ def unmarked_ocr_tests(source: str) -> list[str]:
     ]
 
 
-def test_every_ingestion_test_that_ocrs_the_scanned_page_has_the_ocr_marker():
+def test_every_ingestion_or_retrieval_test_that_ocrs_the_scanned_page_has_the_ocr_marker():
     found = {
         path.name: unmarked
-        for path in sorted((ROOT / "tests" / "ingestion").glob("test_*.py"))
+        for folder in ("ingestion", "retrieval")
+        for path in sorted((ROOT / "tests" / folder).glob("test_*.py"))
         if (unmarked := unmarked_ocr_tests(path.read_text(encoding="utf-8")))
     }
     assert found == {}, f"tests that OCR the scanned page without the ocr marker: {found}"

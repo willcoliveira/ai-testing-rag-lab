@@ -1,4 +1,5 @@
-# One command for every gate that runs without a model or a key: `make check`.
+# One command for every gate that runs without a hosted model or a key: `make check` (the local
+# embedding model is fetched once by `make model`, then read from its cache).
 # CI (.github/workflows/pr-fast.yml) runs the same targets.
 SEMGREP_VERSION := 1.179.0
 ZIZMOR_VERSION := 1.30.1
@@ -7,9 +8,9 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture test hooks corpus inventory-snapshot
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture model test gate hooks corpus inventory-snapshot playground
 
-check: format lint types deps audit sast workflows secrets privacy architecture test
+check: format lint types deps audit sast workflows secrets privacy architecture model test gate
 
 format:
 	uv run ruff format --check
@@ -51,8 +52,20 @@ privacy-history:
 architecture:
 	uv run python scripts/check_architecture.py
 
+# the pinned embedding model (BAAI/bge-small-en-v1.5, ONNX) into $RAGLAB_MODEL_DIR (default
+# ~/.cache/raglab/models): downloads only what is missing or fails its sha256, so it is offline once
+# the cache is filled. The tests never download; they load from this cache.
+model:
+	uv run raglab fetch-model
+
 test:
-	uv run pytest -m "$(PYTEST_OFFLINE)"
+	HF_HUB_OFFLINE=1 uv run pytest -m "$(PYTEST_OFFLINE)"
+
+# the retrieval no-regression gate (docs/THRESHOLDS.md): a fresh run of the default configuration
+# on the dev split, offline with the cached model, must keep recall@5 within one question of the
+# published baseline in runs/published/index.json
+gate:
+	HF_HUB_OFFLINE=1 uv run raglab gate --config config/retrieval-dense.toml
 
 # required once in every clone: commit-msg, pre-commit and pre-push
 hooks:
@@ -68,3 +81,8 @@ corpus:
 # committed file matches a fresh run at the default settings)
 inventory-snapshot:
 	uv run raglab ingest --snapshot corpus/inventory.snapshot.json
+
+# the static playground, served on 127.0.0.1 as Pages will lay it out (playground/ next to
+# runs/published/); it reads the published runs and never calls a model
+playground:
+	uv run python scripts/serve_playground.py

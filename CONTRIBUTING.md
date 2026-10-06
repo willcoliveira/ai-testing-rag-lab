@@ -31,9 +31,11 @@ the example list only, so a maintainer's real names are enforced only where the 
 ## Design rules
 
 - `raglab.core` imports the standard library only. Ports and types live there.
-- Vendor SDKs (model providers, vector stores, guard libraries) are imported only in
-  `raglab.adapters`, which also holds the only constructors for their clients.
-  `scripts/check_architecture.py` enforces both rules.
+- Vendor SDKs (model providers, vector stores, guard libraries, and the local embedder's
+  fastembed, onnxruntime and huggingface_hub) are imported only in `raglab.adapters`, which also
+  holds the only constructors for their clients. The fake adapters (`raglab.adapters.fake`,
+  HashingEmbedder) are imported by no module of raglab: they exist for the unit tests only.
+  `scripts/check_architecture.py` enforces these rules.
 - File-format parsers (pypdf, pytesseract, pyyaml, Pillow) are not vendor SDKs; they are
   imported only in `raglab.ingest`, which turns files into parsed documents for the rest of
   raglab (also enforced by `scripts/check_architecture.py`).

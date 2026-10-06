@@ -194,3 +194,50 @@ def test_runners_are_pinned_with_the_tesseract_packages():
             assert runner is None or runner != "ubuntu-latest", (
                 f"{path.name}:{name} runs on ubuntu-latest"
             )
+
+
+def test_pr_fast_restores_and_fetches_the_model_by_revision_before_the_tests():
+    """S2 AC8: the model is cached by its pinned revision (actions/cache pinned by SHA), fetched
+    with its hashes checked before the tests, and the tests run with the hub offline."""
+    from raglab.adapters import fastembed_embed
+
+    wf = load(WORKFLOW_DIR / "pr-fast.yml")
+    assert wf["env"]["EMBED_MODEL_REVISION"] == fastembed_embed.REVISION
+    steps = wf["jobs"]["check"]["steps"]
+    names = [step.get("name") for step in steps]
+    cache = steps[names.index("Restore the embedding model (cached by revision)")]
+    assert PINNED.match(cache["uses"])
+    assert cache["uses"].startswith("actions/cache@")
+    assert cache["with"] == {
+        "path": "~/.cache/raglab/models",
+        "key": "raglab-model-${{ env.EMBED_MODEL_REVISION }}",
+    }
+    fetch = names.index("Embedding model (download on a miss, hashes checked)")
+    assert steps[fetch]["run"] == "make model"
+    tests = names.index("Tests (offline)")
+    assert names.index("Restore the embedding model (cached by revision)") < fetch < tests
+    assert steps[tests]["env"] == {"HF_HUB_OFFLINE": "1"}
+    assert fastembed_embed.cache_root().as_posix().endswith(".cache/raglab/models")
+
+
+def test_pr_fast_runs_the_retrieval_gate_offline_after_the_tests():
+    """S2 AC8: the recall@5 no-regression gate runs in pr-fast after the tests, offline with the
+    cached model, and `make check` runs the same target."""
+    wf = load(WORKFLOW_DIR / "pr-fast.yml")
+    steps = wf["jobs"]["check"]["steps"]
+    names = [step.get("name") for step in steps]
+    gate = names.index("Retrieval no-regression gate (offline)")
+    assert names.index("Embedding model (download on a miss, hashes checked)") < gate
+    assert names.index("Install Tesseract (pinned)") < gate
+    assert names.index("Tests (offline)") < gate
+    assert steps[gate]["run"] == "make gate"
+    assert steps[gate]["env"] == {"HF_HUB_OFFLINE": "1"}
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    check = re.search(r"^check:(.*)$", makefile, flags=re.M)
+    assert check is not None
+    assert "gate" in check.group(1).split()
+    target = re.search(r"^gate:\n\t(.*)$", makefile, flags=re.M)
+    assert target is not None
+    assert target.group(1) == (
+        "HF_HUB_OFFLINE=1 uv run raglab gate --config config/retrieval-dense.toml"
+    )

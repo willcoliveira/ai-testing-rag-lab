@@ -240,3 +240,62 @@ def test_core_importing_a_parser_breaks_both_rules(tmp_path):
     assert len(found) == 2
     assert any("standard library" in f for f in found)
     assert any("outside raglab.ingest" in f for f in found)
+
+
+# S2: the local embedder's SDKs are vendor SDKs, imported only in raglab.adapters
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from fastembed import TextEmbedding\n",
+        "import onnxruntime\n",
+        "import huggingface_hub\n",
+        "import importlib\nort = importlib.import_module('onnxruntime')\n",
+    ],
+)
+def test_embedder_sdks_outside_adapters_are_reported(tmp_path, source):
+    package = make_package(tmp_path, {"retrieve/dense.py": source})
+    found = messages(package)
+    assert len(found) == 1, found
+    assert "retrieve/dense.py" in found[0]
+    assert "outside raglab.adapters" in found[0]
+
+
+def test_embedder_sdks_inside_adapters_pass(tmp_path):
+    source = "from fastembed import TextEmbedding\nimport onnxruntime\n"
+    package = make_package(tmp_path, {"adapters/fastembed_embed.py": source})
+    assert messages(package) == []
+
+
+# S2 rule 4: the fake adapters (HashingEmbedder) are for the unit tests only
+@pytest.mark.parametrize(
+    ("path", "source"),
+    [
+        ("retrieve/dense.py", "from raglab.adapters.fake import HashingEmbedder\n"),
+        ("evals/run.py", "from raglab.adapters import fake\n"),
+        ("__main__.py", "import raglab.adapters.fake\n"),
+        ("adapters/factory.py", "from . import fake\n"),
+        ("adapters/factory.py", "from .fake import HashingEmbedder\n"),
+        (
+            "evals/run.py",
+            "import importlib\nfake = importlib.import_module('raglab.adapters.fake')\n",
+        ),
+    ],
+)
+def test_the_fake_adapters_are_imported_by_no_module(tmp_path, path, source):
+    package = make_package(tmp_path, {"adapters/fake.py": "import hashlib\n", path: source})
+    found = messages(package)
+    assert len(found) == 1, found
+    assert path in found[0]
+    assert "raglab.adapters.fake is for the unit tests" in found[0]
+
+
+def test_the_fake_adapter_itself_and_other_adapters_pass(tmp_path):
+    package = make_package(
+        tmp_path,
+        {
+            "adapters/fake.py": "import hashlib\nfrom raglab.core import ports\n",
+            "retrieve/dense.py": "from raglab.adapters import fastembed_embed\n",
+            "adapters/fastembed_embed.py": "import fastembed\n",
+        },
+    )
+    assert messages(package) == []

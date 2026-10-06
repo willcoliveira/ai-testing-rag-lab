@@ -303,16 +303,16 @@ flowchart LR
 | L7 | chunk → inventory | `metadata-on-every-chunk` | every chunk carries doc id, version, status, tenant, section, print page (PDF and PNG), licence, its span and sha256; a chunk without a known tenant cannot be built; ids are deterministic | `tests/ingestion/test_chunk_metadata.py::test_every_chunk_carries_its_metadata`, `tests/ingestion/test_chunk_metadata.py::test_a_chunk_or_document_without_a_known_tenant_cannot_exist`, `tests/ingestion/test_chunk_metadata.py::test_chunk_ids_are_unique_readable_and_deterministic` | pr-fast |
 | L8 | inventory → snapshot | `inventory-snapshot-diff` | the committed snapshot equals a fresh run at the default settings, so a parser, chunker or corpus change is a reviewed diff (`make inventory-snapshot`) | `tests/ingestion/test_inventory_snapshot.py::test_committed_snapshot_matches_a_fresh_run` | pr-fast |
 | L9 | inventory → instruction scan | `instruction-scan-on-ingest` | an instruction planted in a document (T-HIDDEN) is flagged at ingestion in an attack run, and the clean pack raises no flag | from S7 | release |
-| L10 | instruction scan → embed | `embedder-deterministic` | the same chunk text gives the same vector; the vector dimension matches the index | from S2 | pr-fast |
-| L11 | embed → index | `index-holds-every-chunk` | every inventory chunk id is in the index once, with its tenant, doc id and section as filterable metadata | from S2 | pr-fast |
+| L10 | instruction scan → embed | `embedder-deterministic` | the same chunk text gives the same vector; the vector dimension matches the index | `tests/retrieval/test_local_embedder.py::test_the_same_text_gives_the_same_vector_of_the_index_dimension`, `tests/retrieval/test_store_and_retrievers.py::test_hashing_embedder_is_deterministic_normalised_and_word_based` | pr-fast |
+| L11 | embed → index | `index-holds-every-chunk` | every inventory chunk id is in the index once, with its tenant, doc id and section as filterable metadata | `tests/retrieval/test_local_embedder.py::test_the_index_holds_every_chunk_once_with_its_tenant`, `tests/retrieval/test_store_and_retrievers.py::test_store_holds_every_chunk_once_and_refuses_bad_input` | pr-fast |
 
 ### 9.2 Retrieve flow (per question)
 
 | Id | Arrow | Named check | What it asserts (oracle) | Tests, or the stage that builds it | Gate |
 |---|---|---|---|---|---|
 | R1 | question + tenant → input guards | `tenant-required` | a request without a tenant, or with one the caller may not use, is refused before retrieval (R-21) | from S3 | pr-fast |
-| R2 | input guards → retrieve top k | `retrieval-against-labels` | hit rate, MRR and recall@k against labelled chunk ids, no judge | from S2 | pr-fast |
-| R3 | retrieve → tenant filter | `no-cross-tenant-retrieval` | no retrieved chunk belongs to the other tenant (R-13, R-16); the filter fails closed | from S2 | pr-fast |
+| R2 | input guards → retrieve top k | `retrieval-against-labels` | hit rate, MRR and recall@k against labelled sections (each resolved to its chunk ids), no judge; every label resolves; recall@5 on dev does not fall below the baseline run (docs/THRESHOLDS.md) | `tests/unit/test_metrics.py::test_case_metrics_by_hand`, `tests/retrieval/test_golden_retrieval.py::test_every_label_resolves_to_existing_chunks`, `tests/retrieval/test_golden_retrieval.py::test_every_label_is_a_location_of_one_of_its_features`, `tests/retrieval/test_run_record.py::test_a_run_writes_a_valid_record_with_its_provenance`, `tests/retrieval/test_publish.py::test_the_gate_passes_within_one_question_and_fails_below`, `tests/retrieval/test_golden_retrieval.py::test_a_section_missing_from_the_real_inventory_fails_naming_its_questions`, `tests/retrieval/test_publish.py::test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline`, `tests/unit/test_workflow_rules.py::test_pr_fast_runs_the_retrieval_gate_offline_after_the_tests` | pr-fast |
+| R3 | retrieve → tenant filter | `no-cross-tenant-retrieval` | no retrieved chunk belongs to the other tenant (R-13, R-16); the filter fails closed | `tests/retrieval/test_tenant_filter.py::test_every_retriever_refuses_a_request_without_a_known_tenant`, `tests/retrieval/test_tenant_filter.py::test_no_chunk_of_the_other_tenant_is_returned_even_for_its_own_text`, `tests/retrieval/test_tenant_filter.py::test_no_cross_tenant_chunk_on_the_whole_pack`, `tests/retrieval/test_golden_retrieval.py::test_tenant_b_questions_label_only_tenant_b_or_shared_documents`, `tests/retrieval/test_run_record.py::test_a_record_that_shows_another_tenants_chunk_is_refused`, `tests/retrieval/test_publish.py::test_a_published_run_edited_to_show_another_tenants_chunk_is_refused` | pr-fast |
 | R4 | tenant filter → assemble prompt | `prompt-snapshot` | the assembled prompt for a fixed question and fixed chunks equals its reviewed snapshot | from S3 | pr-fast |
 | R5 | assemble prompt → generate | `generation-judged` | faithfulness, answer relevancy and contextual precision and recall on the dev slice, with a calibrated judge | from S5 | eval-on-change |
 | R6 | generate → decision label | `decision-label-and-abstention` | the structured label (`answer`, `abstain`, `flag-conflict`, `refuse-and-help`) matches the golden case; abstention is scored as its own check | from S4 | nightly |
@@ -328,12 +328,17 @@ The how-to 17 template, with what exists after S1b and what later stages fill in
 system: Halvenroot policy assistant (lab), corpus 18 register documents (15 Markdown, 1 PDF,
   1 HTML export, 1 scanned PNG; Password Standard v1.0 superseded by v2.0; tenants A and B and
   2 shared external excerpts; 3 attack files outside the register), chunker section-aware,
-  1,200 characters, overlap 1 paragraph, contextual prefix off; embedding <from S2>,
-  store <from S2>, top_k <from S2>, generator <from S3>
+  1,200 characters, overlap 1 paragraph, a table caption kept with its table, contextual
+  prefix off; embedding BAAI/bge-small-en-v1.5 (ONNX through fastembed, pinned revision),
+  store in memory (numpy cosine, tenant filter before ranking), top_k 5 (dense; hybrid with
+  BM25 by reciprocal rank fusion compared), generator <from S3>
 ingestion (every commit): 18 documents parsed (4 formats), 135 answer-key locations (148 values)
   checked in the extracted text, OCR 1 page (CER <= 1.0% on Tesseract 5.3.4-1build5 in CI),
   chunk inventory snapshot (228 chunks), metadata on every chunk, tenant fails closed
-retrieval (every commit, no judge): <from S2: 20 labelled questions, hit rate, MRR, recall@k>
+retrieval (every commit, no judge): about 30 labelled questions (datasets/golden.v1.jsonl, dev
+  and test; labels are sections resolved to chunk ids), hit@5, MRR@5 and recall@5 with 95%
+  bootstrap intervals in run record v1; pr-fast gates recall@5 on dev against the published
+  baseline (docs/THRESHOLDS.md)
 golden set v1: <from S4: 40 cases, the 15/8/8/4/5 mix of the main plan, with expected behaviours>
 judges: <from S5 and S6: faithfulness, answer relevancy, contextual precision/recall; kappa on 30 labels>
 abstention: <from S4: pass if the system abstains on every abstain case; metric canary from S5>
@@ -349,3 +354,11 @@ lose their table context: F-16 and F-17 (the exceptions register in the Policy E
 section 5.1) no longer have the table's caption, header row and value row in one chunk. The rule
 and its exception (F-15) still share a chunk. The run and its diff are in the S1b ledger; S2
 compares chunk settings on retrieval, with this as the starting point.
+
+### The caption fix (S2)
+
+A paragraph that names the table right after it ("Table 1: ...") now forms one unit with the
+table, kept whole up to twice the budget. At the default size nothing changes (the snapshot is
+identical). At 600 the exceptions register keeps its caption and header row with every row, so
+F-17 holds; F-16 still splits, because it also cites the note after the table, and caption,
+table and note (794 characters) fit no 600-character chunk. The S2 ledger records that choice.

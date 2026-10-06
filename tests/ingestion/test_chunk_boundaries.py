@@ -63,11 +63,41 @@ def test_every_feature_keeps_its_cited_values_in_one_chunk_at_default_settings()
     assert splits == [], "\n".join(str(s) for s in splits)
 
 
+def expired_row() -> str:
+    """The id of the expired exception's row (F-17), read from the answer key: outside corpus/,
+    the privacy check reads an id of that shape as a possible ticket number."""
+    feature = next(f for f in answer_key()["features"] if f["id"] == "F-17")
+    return next(loc["table"]["row"] for loc in feature["locations"] if "table" in loc)
+
+
 def test_a_table_split_from_its_header_is_reported():
+    """The positive control: at 250 characters the caption and Table 1 (615) exceed twice the
+    budget, so the table splits between rows and the expired row loses its caption and header."""
+    experiment = load_script("chunk_experiment")
+    chunks = SectionChunker(ChunkSettings(chunk_size=250)).chunk(parsed("A-EXC"))
+    splits = [str(s) for s in experiment.split_groups(tuple(chunks), answer_key())]
+    assert any(
+        s.startswith("F-17 A-EXC 5.1:") and f"Table 1: Exceptions register [{expired_row()}" in s
+        for s in splits
+    ), splits
+
+
+def test_at_600_the_caption_travels_with_its_table():
+    """S2 (carried over from S1b): at 600 characters the caption and Table 1 share a chunk, so
+    every cell F-16 and F-17 cite is read with its caption and header row. F-16 also cites the
+    note after the table ('The Status column shows Approved ...'): caption, table and note are 794
+    characters, which no 600-character chunk holds, so F-16 still splits on that sentence alone
+    (a decision recorded in the S2 ledger)."""
     experiment = load_script("chunk_experiment")
     chunks = SectionChunker(ChunkSettings(chunk_size=600)).chunk(parsed("A-EXC"))
-    splits = [str(s) for s in experiment.split_groups(tuple(chunks), answer_key())]
-    assert any(s.startswith("F-16 A-EXC 5.1:") for s in splits), splits
+    table = [c for c in chunks if "Table 1: Exceptions register\n\n| Id |" in c.text]
+    assert len(table) == 1
+    assert f"| {expired_row()} |" in table[0].text
+    splits = experiment.split_groups(tuple(chunks), answer_key())
+    assert [(s.group.feature, s.group.section) for s in splits] == [("F-16", "5.1")]
+    assert splits[0].reason.endswith(
+        "lacks 'The Status column shows Approved while an exception is in force'"
+    )
 
 
 # ---------------------------------------------------------------- the chunker on small documents
@@ -192,3 +222,40 @@ def test_an_empty_leaf_section_is_reported_and_a_parent_heading_is_not():
 def test_the_project_pack_has_no_empty_section():
     """User decision (S1b): empty sections are reported, and fail on our own pack."""
     assert default_inventory().empty_sections == ()
+
+
+# ---------------------------------------------------------------- captions travel with tables (S2)
+
+
+def table(rows: int, width: int = 10) -> Block:
+    return Block("table", "\n".join(f"| r{n} | {'v' * width} |" for n in range(rows)))
+
+
+@pytest.mark.unit
+def test_a_caption_and_its_table_stay_together_over_the_budget():
+    caption = p("Table 1: Values")
+    doc = document(h("1 S"), p("Intro sentence here."), caption, table(4))  # table 4 x 17 + 3
+    chunks = chunk(doc, size=60)
+    holding = [c for c in chunks if "Table 1: Values" in c.text]
+    assert len(holding) == 1
+    assert holding[0].text.startswith("Table 1: Values\n\n| r0 |")
+    assert holding[0].text.endswith("| r3 | vvvvvvvvvv |")
+    assert len(holding[0].text) > 60  # over the budget, under twice it
+    assert chunks[0].text == "1 S\n\nIntro sentence here."
+
+
+@pytest.mark.unit
+def test_a_table_over_twice_the_budget_splits_between_rows_with_the_caption_leading():
+    doc = document(h("1 S"), p("Table 2. Long"), table(12))
+    chunks = chunk(doc, size=60, overlap=0)
+    assert chunks[0].text.startswith("1 S\n\nTable 2. Long\n\n| r0 |")
+    assert all(len(c.text) <= 60 for c in chunks)
+    assert all(not c.text.endswith("Table 2. Long") for c in chunks)
+
+
+@pytest.mark.unit
+def test_only_a_paragraph_right_before_a_table_is_a_caption():
+    a = "a" * 40
+    doc = document(h("1 S"), p("Table 1: Not a caption, a paragraph follows."), p(a), table(2))
+    texts = [c.text for c in chunk(doc, size=60, overlap=0)]
+    assert texts[0] == "1 S\n\nTable 1: Not a caption, a paragraph follows."

@@ -40,8 +40,8 @@ flowchart TB
   classDef todo fill:#f3f4f6,stroke:#6b7280
   classDef wip fill:#fef3c7,stroke:#92400e
   classDef done fill:#dcfce7,stroke:#166534
-  class S0,S1a,S1b done
-  class S2,S3,S3h,S4,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
+  class S0,S1a,S1b,S2 done
+  class S3,S3h,S4,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
 ```
 
 ## Quickstart
@@ -53,18 +53,42 @@ and [Tesseract](https://github.com/tesseract-ocr/tesseract) for the scanned page
 ```bash
 uv sync
 make hooks     # required in every clone: commit-msg, pre-commit and pre-push hooks
-make check     # every gate that needs no model and no key
+make check     # every gate that needs no hosted model and no key
 uv run raglab --version
 uv run raglab ingest   # parse and chunk the policy pack into runs/tmp/inventory.json
 ```
+
+Retrieval (S2) uses a small local embedding model, BAAI/bge-small-en-v1.5 as ONNX (about 67 MB,
+no PyTorch). `make model` downloads its pinned files once into `~/.cache/raglab/models` and checks
+their hashes; `make check` runs it, and the tests only ever load from that cache.
+
+```bash
+make model                                                            # once
+uv run raglab eval --suite retrieval --config config/retrieval-dense.toml  # a run record in runs/tmp
+uv run raglab eval --suite retrieval --config config/retrieval-dense.toml --split all  # every question
+uv run raglab compare <run A> <run B>      # paired differences with intervals, flipped questions
+uv run raglab publish <run>                # validate, privacy check, add to runs/published
+make gate                                  # recall@5 on dev against the published baseline
+make playground                            # the published runs at http://127.0.0.1:8000/
+```
+
+The questions are `datasets/golden.v1.jsonl` (34 retrieval questions, 22 dev and 12 test; see
+[datasets/DATASHEET.md](datasets/DATASHEET.md)). The baseline is the dense configuration's dev run
+in `runs/published/`: recall@5 0.644, hit@5 0.773, MRR@5 0.564 (n 22, local provenance; intervals
+and the comparison with hybrid and chunk size 600 in the
+[S2 ledger](docs/plans/2026-10-06-s2-retrieval-ledger.md)).
+
+A run is published only from a clean, committed tree, with its provenance (`local` for the ONNX
+embedder) in the manifest. Run record v1 is `schemas/run-record.v1.json`; thresholds and their
+reasons are in [docs/THRESHOLDS.md](docs/THRESHOLDS.md).
 
 `make hooks` is required in every clone, not optional: the hooks check each commit message, each
 staged change and each push for secrets and private names. CI checks a pull request's files and
 commits again, but only with the generic example list.
 
 `make check` runs formatting, lint, types, dependency and dead-code checks, a vulnerability audit,
-SAST, workflow security, secret scanning, the privacy check, the architecture rules and the
-offline tests. CI runs the same on every pull request.
+SAST, workflow security, secret scanning, the privacy check, the architecture rules, the
+offline tests and the retrieval no-regression gate. CI runs the same on every pull request.
 
 ## Licence
 
