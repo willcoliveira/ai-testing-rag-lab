@@ -1,13 +1,13 @@
 ---
 id: A-DEVICE
 title: Device Policy
-version: "1.1"
+version: "1.2"
 tenant: tenant-a
 kind: company
 source: comply:workstation.md
 licence: Apache-2.0
 changed: "Adapted from strongdm/comply themes/comply-soc2/policies/workstation.md (Apache-2.0, commit aab4849); rewritten for the fictional company Halvenroot, values replaced with planted values, sections renumbered. Changed by the ai-testing-rag-lab authors, 2026-10-06."
-effective: 2025-09-01
+effective: 2025-11-03
 status: current
 format: md
 ---
@@ -109,7 +109,7 @@ Shared kiosk devices on the warehouse floor follow Annex B of this policy, a sig
 
 - Owner: IT Operations Manager
 - Approver: CISO
-- Version: 1.1
-- Effective date: 2025-09-01
+- Version: 1.2
+- Effective date: 2025-11-03
 
 Adapted from strongdm/comply (Apache-2.0); changed by the ai-testing-rag-lab authors.

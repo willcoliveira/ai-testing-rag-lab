@@ -181,6 +181,27 @@ def test_company_documents_open_with_scope_and_end_with_document_control():
             assert titles[0] == ("1", "Purpose and scope"), doc.path
 
 
+def test_document_control_matches_the_front_matter():
+    """SPEC section 5: document control, the last numbered section, gives the front matter's
+    version and effective date (labelled "Version:" and "Effective date:"), and a comply-derived
+    file's visible change line is a paragraph of its own there."""
+    for doc in documents().values():
+        if doc.front["kind"] != "company" or doc.id == "A-DEVICE-B":
+            continue
+        numbered = [s for s in doc.sections().values() if s.level == 2 and s.id[0].isdigit()]
+        control = numbered[-1]
+        text = control.text.replace("**", "")
+        version = re.search(r"\bVersion: (\d+(?:\.\d+)*)", text)
+        effective = re.search(r"\bEffective date: (\d{4}-\d{2}-\d{2})\b", text)
+        assert version, f"{doc.path}: no version in document control"
+        assert version.group(1) == doc.front["version"], doc.path
+        assert effective, f"{doc.path}: no effective date in document control"
+        assert effective.group(1) == str(doc.front["effective"]), doc.path
+        if str(doc.front["source"]).startswith("comply:"):
+            paragraphs = [re.sub(r"\s+", " ", p) for p in control.paragraphs()]
+            assert VISIBLE_CHANGE in paragraphs, f"{doc.path}: change line is not a paragraph"
+
+
 # ------------------------------------------------------------------ hygiene
 
 

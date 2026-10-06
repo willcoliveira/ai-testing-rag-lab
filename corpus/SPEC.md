@@ -155,7 +155,8 @@ pages: 4
   `<!-- page: 1 -->`, plain paragraphs only (no tables, no bold, no links), under 200 words.
 - **Cross-references** name the document by title and the section by id ("section 3.2 of the
   Access Review Procedure"), never by file name.
-- **Document control** is the last section of every company document: owner role, approver role,
+- **Document control** is the last numbered section of every company document (lettered
+  appendices, such as Appendix A of A-CLASS and A-IR, come after it): owner role, approver role,
   version and effective date (equal to the front matter), and for comply-derived files the visible
   line "Adapted from strongdm/comply (Apache-2.0); changed by the ai-testing-rag-lab authors." It
   holds no other values.
@@ -225,8 +226,8 @@ Word targets add up to about 12,800 words (about 36 pages at 350 words a page).
 The 12 tenant A documents are the 12 in the stage plan; the password standard has two versions
 (two files) and the Device Policy has its scanned Annex B (a third extra file).
 
-Common to every company document: H1 title; section 1 "Purpose and scope"; the last section
-"Document control" (section 5). Versions and effective dates below are fixed.
+Common to every company document: H1 title; section 1 "Purpose and scope"; the last numbered
+section "Document control" (section 5). Versions and effective dates below are fixed.
 
 ### A-PWD-V1: Password Standard (version "1.0", effective 2024-03-01, status superseded, superseded_by A-PWD-V2)
 
@@ -397,7 +398,7 @@ Required sentences:
 
 Must not mention any exception or the on-call team.
 
-### A-DEVICE: Device Policy (version "1.1", effective 2025-09-01)
+### A-DEVICE: Device Policy (version "1.2", effective 2025-11-03)
 
 Adapt comply `workstation.md`. Remove the vendor names and the references to missing policies.
 
@@ -802,6 +803,14 @@ The fact-checker should not report these:
 - **NIST's "reset the retry count"** is about failed-attempt counters, not password resets, so the
   omission (F-32) holds.
 - **Attack files** contradict the pack on purpose (F-47 to F-49).
+- **The A-EXC exceptions register is a living table.** Its entries are recorded as exceptions are
+  approved, so an entry's Approved or End date can come before or after the document's own
+  effective date (EX-2025-003 was approved before A-EXC 1.0 took effect; EX-2026-007 after). S4
+  must not write date-based cases on that (for example "an exception approved before the process
+  existed is invalid").
+- **A-DEVICE 1.2 takes effect on the Annex B date (2025-11-03).** Section 7.1 refers to Annex B,
+  a memo dated 3 November 2025, so the Device Policy version that refers to it takes effect the
+  same day. No answer-key feature depends on the Device Policy's version or effective date.
 
 ## 10. Size budget
 

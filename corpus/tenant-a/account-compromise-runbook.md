@@ -156,8 +156,9 @@ Tests use a training scenario such as the worked example in appendix A.
 - Owner: Security Operations Centre
 - Approver: CISO
 - Version: 1.0
-- Effective: 2025-09-01
-- Adapted from strongdm/comply (Apache-2.0); changed by the ai-testing-rag-lab authors.
+- Effective date: 2025-09-01
+
+Adapted from strongdm/comply (Apache-2.0); changed by the ai-testing-rag-lab authors.
 
 ## A Worked example (training)
 
