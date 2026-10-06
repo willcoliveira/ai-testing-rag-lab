@@ -1,21 +1,40 @@
-"""AC2: the golden file's retrieval questions: about 30, split dev and test, every planted
-retrieval kind covered, both tenants, and every label resolves to existing chunks the asker may
+"""AC2: the golden file's retrieval questions: about 30, each with its fields, split dev and test
+by kind, every planted retrieval kind covered, both tenants, tenant B questions labelling only
+tenant B or shared external documents, and every label resolves to existing chunks the asker may
 see, at the default chunk size and at 600. The loader and the resolver are tested on small inputs
-too: a label that goes missing fails, naming the question."""
+and on the real file: a label that goes missing fails, naming the question."""
 
 import json
+import re
+from collections import Counter
 
 import pytest
 
 from raglab.chunk.sections import ChunkSettings
 from raglab.evals import golden
-from raglab.ingest import pipeline
+from raglab.ingest import pipeline, register
 from tests.conftest import ROOT
+from tests.corpus_text import answer_key
 from tests.ingestion_support import default_inventory
 from tests.retrieval_support import PACK
 
 pytestmark = pytest.mark.retrieval
 DATASET = ROOT / "datasets" / "golden.v1.jsonl"
+# the retrieval kinds of datasets/DATASHEET.md ("Mix by kind and split")
+QUESTION_KINDS = {
+    "plain-rule",
+    "table-only",
+    "cross-reference",
+    "glossary-dependent",
+    "multi-hop",
+    "scanned-page",
+    "version-conflict",
+    "external-conflict",
+    "exception-status",
+    "tenant-b",
+    "paraphrase",
+    "misspelling",
+}
 
 
 def line(**changes) -> str:
@@ -123,6 +142,66 @@ def test_every_planted_retrieval_kind_is_covered():
     assert any("version" in (q.question_kind or "") for q in found)
     assert any("external" in (q.question_kind or "") for q in found)
     assert any(q.tenant == "tenant-b" for q in found)
+
+
+def test_every_question_has_its_fields_and_known_features():
+    """Schema: an id R-Qnn, a known question_kind, and feature ids that exist in the answer key."""
+    features = {f["id"] for f in answer_key()["features"]}  # type: ignore[index]
+    for q in questions():
+        assert re.fullmatch(r"R-Q\d{2}", q.case_id), q.case_id
+        assert q.question_kind in QUESTION_KINDS, (q.case_id, q.question_kind)
+        ids = q.extra.get("feature_ids")
+        assert isinstance(ids, list), (q.case_id, ids)
+        assert ids, q.case_id
+        assert set(ids) <= features, (q.case_id, set(ids) - features)
+        assert set(q.extra) <= {"question_kind", "feature_ids"}, (q.case_id, set(q.extra))
+
+
+def test_the_split_is_stratified_by_kind():
+    """Every kind has questions in dev and in test, and one in test (datasheet: three split 2/1,
+    two split 1/1, tenant B's four split 3/1), so test keeps one of each kind for nightly and
+    release while dev holds the rest."""
+    found = questions()
+    total = Counter(q.question_kind for q in found)
+    test = Counter(q.question_kind for q in found if q.split == "test")
+    assert set(total) == QUESTION_KINDS
+    for kind, n in total.items():
+        assert test[kind] == 1, (kind, test[kind], n)
+        assert n - test[kind] >= 1, (kind, "no dev question")
+
+
+def test_tenant_b_questions_label_only_tenant_b_or_shared_documents():
+    """A tenant B question labels only tenant B documents or the shared external excerpts, and a
+    tenant A question only tenant A or shared ones, read from the register (the document's own
+    text is never the register)."""
+    tenant = {e.doc_id: e.tenant for e in register.read(ROOT)}
+    for q in questions():
+        for label in q.labels:
+            assert label.doc_id in tenant, (q.case_id, label.doc_id)
+            assert tenant[label.doc_id] in {q.tenant, "shared"}, (q.case_id, label.doc_id)
+            if tenant[label.doc_id] == "shared":
+                assert label.doc_id.startswith("X-"), (q.case_id, label.doc_id)
+    assert all(
+        tenant[label.doc_id] == "tenant-b"
+        for q in questions()
+        if q.tenant == "tenant-b"
+        for label in q.labels
+    )
+
+
+@pytest.mark.ocr
+def test_a_section_missing_from_the_real_inventory_fails_naming_its_questions():
+    """Labels are resolved at run time: if a re-chunk or a corpus edit drops a labelled section,
+    the run stops and names every question that labels it."""
+    chunks = [
+        c for c in default_inventory().chunks if (c.doc_id, c.section_id) != ("A-GLOSS", "10")
+    ]
+    with pytest.raises(golden.LabelError) as error:
+        golden.resolve(questions(), chunks)
+    message = str(error.value)
+    assert "R-Q10: A-GLOSS section 10 has no chunk" in message
+    assert "R-Q12: A-GLOSS section 10 has no chunk" in message
+    assert message.count("has no chunk") == 2
 
 
 @pytest.mark.ocr
