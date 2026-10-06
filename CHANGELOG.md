@@ -5,6 +5,13 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased (v0.1)
 
+- S2: retrieval without a judge: Embedder, VectorStore and Retriever ports; the local
+  bge-small ONNX embedder from pinned, hash-checked files (`make model`, cached by revision in
+  pr-fast); an in-memory store and dense, BM25 and hybrid (reciprocal rank fusion) retrievers,
+  each with a tenant filter that fails closed; hit@k, MRR, recall@k, paired differences and a
+  seeded bootstrap; run record v1 (schema, writer, validator) and `raglab eval`, `compare`,
+  `publish` and `gate`; three configs; a table caption kept with its table in the chunker; the
+  static playground (`make playground`, Pages at go-public); docs/THRESHOLDS.md.
 - S1b: ingestion and chunking: the register reader, Markdown, PDF (tables read as rows), HTML and
   OCR (Tesseract) parsers, the section-aware chunker (1,200 characters, one paragraph of overlap,
   deterministic ids), `raglab ingest` and the committed inventory snapshot

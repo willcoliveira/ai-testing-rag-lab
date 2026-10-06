@@ -95,7 +95,7 @@ def test_every_requirement_is_in_the_traceability_table():
 
 # ---------------------------------------------------------------- part 2 (S1b AC1)
 
-LATER_STAGES = {"S2", "S3", "S3h", "S4", "S4b", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"}
+LATER_STAGES = {"S3", "S3h", "S4", "S4b", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"}
 TEST_ID = re.compile(r"`(tests/[\w/]+\.py)::(test_\w+)`")
 WHERE_LATER = re.compile(r"^from (S\d+[a-z]?)$")
 
@@ -169,6 +169,11 @@ def test_the_stages_so_far_are_filled_in():
     load = {r[0]: r for r in flow_rows("### 9.1 Load flow (every commit, no model)")}
     for arrow in ("L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"):
         assert load[arrow][4].startswith("`tests/"), f"{arrow} is S1b's and must name its tests"
+    rows = {r[0]: r for r in all_rows()}
+    for arrow in ("L10", "L11", "R2", "R3"):
+        assert rows[arrow][4].startswith("`tests/"), f"{arrow} is S2's and must name its tests"
     template = part2().split("## 10. The plan, filled in", 1)[1]
     ingestion = template.split("ingestion (every commit):", 1)[1].split("\nretrieval", 1)[0]
     assert not re.search(r"<[^=\s]", ingestion), "the ingestion line has a <placeholder> left"
+    retrieval = template.split("retrieval (every commit, no judge):", 1)[1].split("\ngolden", 1)[0]
+    assert not re.search(r"<[^=\s]", retrieval), "the retrieval line has a <placeholder> left"

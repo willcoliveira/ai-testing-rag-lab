@@ -59,6 +59,22 @@ uv run raglab --version
 uv run raglab ingest   # parse and chunk the policy pack into runs/tmp/inventory.json
 ```
 
+Retrieval (S2) uses a small local embedding model, BAAI/bge-small-en-v1.5 as ONNX (about 67 MB,
+no PyTorch). `make model` downloads its pinned files once into `~/.cache/raglab/models` and checks
+their hashes; `make check` runs it, and the tests only ever load from that cache.
+
+```bash
+make model                                                            # once
+uv run raglab eval --suite retrieval --config config/retrieval-dense.toml  # a run record in runs/tmp
+uv run raglab compare <run A> <run B>      # paired differences with intervals, flipped questions
+uv run raglab publish <run>                # validate, privacy check, add to runs/published
+make playground                            # the published runs at http://127.0.0.1:8000/
+```
+
+A run is published only from a clean, committed tree, with its provenance (`local` for the ONNX
+embedder) in the manifest. Run record v1 is `schemas/run-record.v1.json`; thresholds and their
+reasons are in [docs/THRESHOLDS.md](docs/THRESHOLDS.md).
+
 `make hooks` is required in every clone, not optional: the hooks check each commit message, each
 staged change and each push for secrets and private names. CI checks a pull request's files and
 commits again, but only with the generic example list.
