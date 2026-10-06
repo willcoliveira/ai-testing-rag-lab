@@ -79,7 +79,8 @@ def file_url(name: str) -> str:
 def https_get(url: str) -> bytes:
     if not url.startswith("https://"):
         raise ModelUnavailable(f"refusing a model download that is not https: {url}")
-    with urllib.request.urlopen(url, timeout=120) as response:  # noqa: S310 (https only, above)  # nosec B310
+    # https only (checked above); the bytes are checked against the pinned sha256 by fetch
+    with urllib.request.urlopen(url, timeout=120) as response:  # noqa: S310  # nosec B310
         return response.read()
 
 
