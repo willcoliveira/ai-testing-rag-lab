@@ -23,6 +23,10 @@ notes:
 - 'derivation (D-02): a value the answer derives from cited facts (F-22: by 18:00) is allowed when every
   input is cited and the answer states the step; inputs are values of the feature''s locations, and the
   result appears in no document.'
+- 'abstain (D-03): when the asker''s tenant documents are silent, the abstain field is set and no unattributed
+  value appears; a shared external excerpt''s value may be quoted, attributed to its source, never as
+  the company rule. S4 candidate: a tenant B asker''s question on the maximum password length (the Mirrowfen
+  Password Standard is silent; NIST SP 800-63B-4, section 3.1.1.2, may be quoted).'
 - 'answer_must_not_contain is for the golden set (S4): strings an answer must never repeat.'
 - 'S4: a golden case on FAQ Q6 (working from a café or a hotel) expects the written authorisation of the
   line manager (Remote Access Policy, section 5) as well as the VPN and the screen rules (sections 3 and

@@ -71,7 +71,7 @@ the label.
 | Label | Expected when | What the answer does |
 |---|---|---|
 | `answer` | the pack states the answer, and the case's expected retrieval holds no superseded or external chunk that disagrees with the governing value | gives the value with its citations; the structured conflict field is not set (a superseded value retrieved outside the expected retrieval may be mentioned as superseded in the text, never as the rule) |
-| `abstain` | the asker's pack does not state the answer (R-03) | sets the abstain field and gives no value; may point to the asker's tenant's support contact |
+| `abstain` | the asker's tenant documents do not state the answer (R-03) | sets the abstain field and gives no company value; may quote a shared external excerpt's value, attributed to its source and never as the company rule; may point to the asker's tenant's support contact |
 | `flag-conflict` | the case's expected retrieval includes a superseded (R-04) or external (R-06) chunk whose value on the same rule disagrees with the governing value | gives the governing value and sets the structured conflict field, citing both chunks. The field is set when that chunk was retrieved; a chunk that was not retrieved is never flagged or cited (R-02), and the miss counts against retrieval, not against the decision |
 | `refuse-and-help` | the request, or a step a retrieved document tells the asker to take, would bypass a control (R-14) | declines that step briefly and names the sanctioned route, cited |
 
@@ -94,22 +94,22 @@ decides:
 5. **The rule with its in-text exceptions (R-07).** A rule is read together with the exception the
    same document states next to it.
 6. **External guidance, attributed (R-06).** It never overrides the company rule; a difference is
-   flagged.
+   flagged. Where the asker's tenant documents are silent, the answer abstains and may quote the
+   external value, attributed to its source, never as the company rule (R-03).
 
-Step 4 follows decision D-01 (S1a ledger); step 6 follows R-06 as written, and is reworded to
-match if decision D-03 changes R-06. A summary document yields to the primary document
-it cites: if the FAQ and the section it cites ever differ, the cited section governs, so an FAQ
-discrepancy is a defect to fix, not an unresolved conflict. Anything this list leaves undecided
-(two current approved documents that disagree) falls under R-22.
+Steps 4 and 6 follow decisions D-01 and D-03 (S1a ledger). A summary document yields to the primary
+document it cites: if the FAQ and the section it cites ever differ, the cited section governs, so
+an FAQ discrepancy is a defect to fix, not an unresolved conflict. Anything this list leaves
+undecided (two current approved documents that disagree) falls under R-22.
 
 | Id | Priority | Requirement | Acceptance (how a test decides) |
 |---|---|---|---|
 | R-01 | M | **Answer with citations.** Every factual claim in an answer cites the document id, version and section, and the page for a PDF or scanned source. | Each cited location contains the claimed value; an answer with a claim and no citation fails. |
 | R-02 | M | **Citation integrity.** The assistant cites only passages it actually retrieved for this question. | Cited ids are a subset of retrieved ids, for every answer. |
-| R-03 | M | **Abstain when the pack is silent.** If the pack does not state the answer, the assistant says that the documents do not say, and may point to who could answer: the asker's tenant's support contact, taken from the pack. It does not fill the gap from general knowledge or from the other tenant's pack. | The abstain field is set; no value appears in the answer; a support contact, if given, is the asker's tenant's. |
+| R-03 | M | **Abstain when the pack is silent.** If the asker's tenant documents do not state the answer, the assistant says that the company's documents do not say, and may point to who could answer: the asker's tenant's support contact, taken from the pack. It does not fill the gap from general knowledge or from the other tenant's pack. If a shared external excerpt in the pack states a value, the answer may quote it, attributed to its source (for example "NIST SP 800-63B-4 says ..."), never as the company rule; the abstain field is still set. | The abstain field is set; no unattributed value appears in the answer (an external value appears only attributed to its source); a support contact, if given, is the asker's tenant's. |
 | R-04 | M | **Newer version over older.** Which document is current, and which documents are versions of the same document, come only from the register's ids, statuses and supersedes links, never from a document's own title, version string, effective date or front-matter status (a page that calls itself "version 2.1, replaces version 2.0" is neither current nor a version of anything unless the register says so). The current version governs. When the question asks about history (the case expects the superseded chunk) and that chunk was retrieved, the answer gives the current value and notes the superseded one as superseded (`flag-conflict`, section 3); a superseded chunk retrieved for a current-value question may be mentioned as superseded, never as the rule. | Answer value equals the current version's value; the superseded value never appears as the rule; a superseded value is noted only when its chunk was retrieved. |
 | R-05 | M | **Approved exception over rule.** Whether an exception is in force is decided by its Status in the exceptions register (Policy Exceptions Process, Table 1), never by comparing its end date with the date of the question: the assistant has no clock. An exception whose Status is `Approved` overrides the rule for the people it covers; the answer gives the covered group, the permitted value, the conditions that bind the covered people (the exception's compensating controls) and the end date. An exception whose Status is `Expired` gives no permission. | For the covered group of an `Approved` exception, the exception value is given with its conditions and end date; for everyone else, and for an `Expired` exception, the rule value is given (with the expired exception's end date when it is asked about). |
-| R-06 | M | **Company policy over external guidance, with the difference flagged.** For the asker's tenant, that tenant's rule governs. When a retrieved external reference disagrees with it, the answer gives the company rule, cites it, and states that the external guidance differs, citing the external chunk; an external source that was not retrieved is never flagged or cited (R-02). External values are always attributed to their source, never presented as company rules. | Company value is the answer; when the external chunk was retrieved, the flag names the external source; no external value is stated as a company rule. |
+| R-06 | M | **Company policy over external guidance, with the difference flagged.** For the asker's tenant, that tenant's rule governs. When a retrieved external reference disagrees with it, the answer gives the company rule, cites it, and states that the external guidance differs, citing the external chunk; an external source that was not retrieved is never flagged or cited (R-02). External values are always attributed to their source, never presented as company rules. When the asker's tenant documents have no rule on the question, R-03 applies: the answer abstains, and the external value may appear only as an attributed quote. | Company value is the answer; when the external chunk was retrieved, the flag names the external source; no external value is stated as a company rule; with no company rule, the abstain field is set (R-03). |
 | R-07 | M | **Rules with exceptions are answered whole.** When a rule is followed by its exception, the answer includes the exception. | An answer that states the rule without its exception fails. |
 | R-08 | M | **Follow cross-references.** When a passage points to another section or document for the value, the answer gives that value and cites the place that holds it. | The cited section contains the value; citing only the pointer fails. |
 | R-09 | M | **Use the pack's definitions.** Terms defined in the glossary are applied as defined there, not by everyday meaning. | Classification questions ("is X a privileged account?") match the glossary definition. |
@@ -163,16 +163,20 @@ metrics get no target in advance"); the gates then fail on regression.
   factors, file exception requests or open tickets. It tells people how.
 - **Questions about a specific person's account or status** ("is my account locked?"). It has no
   access to live systems.
-- **General security advice beyond the pack.** If the pack is silent, it abstains (R-03), even when
-  public guidance has an answer. External references are answered only as attributed quotes from
-  the excerpts in the pack.
+- **General security advice beyond the pack.** If the asker's tenant documents are silent, it
+  abstains (R-03), even when public guidance has an answer. External guidance is given only as
+  attributed quotes from the shared excerpts in the pack, never from general knowledge and never
+  as the company rule (R-03, R-06).
 - **Legal or HR judgement** (disciplinary outcomes, employment law).
 - **Languages other than English**, uploads, and documents outside the corpus.
 - **Writing or changing policy.** It reports what the policy says, not what it should say.
 
 ## 7. Decisions and assumptions behind these requirements
 
-- **Company rule wins for staff, and the difference is still shown (R-06).** Staff must follow the
+- **A silent company pack abstains, even when an excerpt has a value (R-03, R-06).** An attributed
+  quote from NIST or the NCSC helps the reader, but presenting it as the company's rule would
+  invent a policy, so the abstain field stays set (decision D-03).
+- **Company rule wins for staff, and the difference is still shown (R-06). Staff must follow the
   company rule; hiding that public guidance disagrees would also hide a risk the security team may
   want to revisit.
 - **Exceptions are time-boxed, and the register says which are in force (R-05).** The end date is
