@@ -5,6 +5,8 @@
    at run time.
 3. File-format parsers (pypdf, pytesseract, pyyaml, Pillow) are imported only inside
    `raglab.ingest`: they are not vendor SDKs, but the rest of raglab works on parsed documents.
+4. The fake adapters (`raglab.adapters.fake`: HashingEmbedder) are imported by no module of the
+   package: they exist for the unit tests, so no run, eval or published number can use them (S2).
 
 A run-time import is found by the call, not by tracking what importlib is bound to (S0 judge round
 3: `importlib = __import__('importlib')`, `il, x = importlib, 1` or `sys.modules['importlib']`
@@ -40,8 +42,11 @@ VENDORS = frozenset(
         "boto3",
         "botocore",
         "deepeval",
+        "fastembed",
         "guardrails",
+        "huggingface_hub",
         "ollama",
+        "onnxruntime",
         "openai",
         "qdrant_client",
     }
@@ -50,6 +55,9 @@ VENDORS = frozenset(
 
 # file-format libraries, by import name: allowed only in raglab.ingest (rule 3)
 PARSERS = frozenset({"pypdf", "pytesseract", "yaml", "PIL"})
+
+# test-only adapters, by module name relative to the package: imported by no module of it (rule 4)
+TEST_ONLY = frozenset({"adapters.fake"})
 
 
 @dataclass(frozen=True)
@@ -340,7 +348,46 @@ def check(package_dir: Path) -> list[Violation]:
                         file, line, f"parser library {top} is imported outside {root_name}.ingest"
                     )
                 )
+        violations.extend(_test_only_violations(file, tree, parts, root_name))
     return violations
+
+
+def _from_import_names(tree: ast.Module, module_parts: list[str], is_package: bool):
+    """`from a.b import c` also names the module a.b.c (c may be a module)."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            base = (
+                _resolve_relative(module_parts, is_package, node.level, node.module)
+                if node.level
+                else node.module
+            )
+            for alias in node.names:
+                yield node.lineno, f"{base}.{alias.name}"
+
+
+def _test_only_violations(
+    file: Path, tree: ast.Module, parts: list[str], root_name: str
+) -> list[Violation]:
+    """Rule 4: no module of the package imports a test-only adapter (except the module itself)."""
+    is_package = file.name == "__init__.py"
+    dotted = ".".join(parts[1:])
+    found: list[Violation] = []
+    seen: set[tuple[int, str]] = set()
+    names = [
+        *_imported_modules(tree, parts, is_package),
+        *_from_import_names(tree, parts, is_package),
+    ]
+    for line, module in names:
+        for test_only in TEST_ONLY:
+            target = f"{root_name}.{test_only}"
+            if dotted == test_only or (line, target) in seen:
+                continue
+            if module == target or module.startswith(f"{target}."):
+                seen.add((line, target))
+                found.append(
+                    Violation(file, line, f"{target} is for the unit tests; no module imports it")
+                )
+    return found
 
 
 def main(argv: list[str]) -> int:
