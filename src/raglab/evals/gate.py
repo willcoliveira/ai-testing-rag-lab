@@ -4,10 +4,11 @@ A fresh run of the default configuration on the dev split is compared with the p
 of the same suite, config and split (runs/published/index.json). It passes when recall@k is at
 least the baseline's minus a margin of one question (1 / n): the baseline is made on one machine
 and CI runs on another, where the scanned page's OCR text (another Tesseract build) and ONNX
-arithmetic in the last bits can differ, enough to move a near-tied chunk across rank k. The
-margin is provisional until measured in the CI image (docs/THRESHOLDS.md). A baseline made with a
-different dataset or config is stale, and the gate fails until a new baseline is published in a
-reviewed pull request.
+arithmetic in the last bits differ. Measured in the CI image (docs/THRESHOLDS.md): the same top 5
+for every dev question and scores within 0.0010, while the closest labelled chunk sits 0.0021 from
+the rank-k boundary, so one near-tied chunk may cross; the margin absorbs one such flip and no
+more. A baseline made with a different dataset or config is stale, and the gate fails until a new
+baseline is published in a reviewed pull request.
 """
 
 from dataclasses import dataclass
