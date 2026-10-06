@@ -126,3 +126,38 @@ inventory has 367 chunks and F-15 splits (the AC5 break above).
 During the break checks, `git checkout -- docs/TEST-PLAN.md` restored the committed placeholder
 over the uncommitted part 2; part 2 was rewritten from the same text and committed before the
 next break. Every later break was made on committed files only.
+
+## Judges and fixes
+
+Fix round 1 (the only planned round), 2026-10-06. Eight findings were confirmed, all low: the
+criteria-and-breaks judge (S1B-J2 to S1B-J4) and the adversarial-ingestion judge (D1 to D7; D4
+was not confirmed). S1B-J2 and D6 are the same defect, as are S1B-J3 and D7's numbered-list
+part, so each pair has one fix. Every new test was run against the unfixed commit (966c17d, in a
+scratch copy of the tree with only the test files replaced) and failed there: 12 failures (11 in
+`tests/ingestion`, plus the marker check run against the original `test_chunk_metadata.py`). After
+the fixes, `make check` exits 0 (452 tests), the committed corpus parses to the same blocks, and
+`corpus/inventory.snapshot.json` is unchanged (228 chunks; the snapshot test passes without a
+regeneration). Without Tesseract on PATH, `pytest -m "not ocr" tests/ingestion` now gives 94
+passed, 14 deselected (before: 1 failed).
+
+| Defect | Severity | Fix | Test (fails on 966c17d) | Commit |
+|---|---|---|---|---|
+| S1B-J2, D6: an HTML `<br>` inside a paragraph, item or heading split the block, which shifts the paragraph numbers the answer key cites (F-15's 4.1 paragraphs 1 and 2) | low | `html.py`: a `br` is a space inside its block (as Markdown reads a line break), `hr` still ends the block; `br` left `BLOCK_TAGS` | `test_ingest_formats.py::test_a_line_break_inside_an_html_block_is_a_space` (paragraph, item, heading, table cell, hr; compared with the Markdown reading) | deb0de6 |
+| S1B-J3, D7: Markdown numbered items (`1.`, `1)`) joined into one paragraph; a body `---` became paragraph text; `##2` and setext headings fall back silently | low | `markdown.py`: `ITEM` takes numbered markers, the item keeps its number (`1. ...`); a numbered line interrupts a paragraph only when it is 1 (CommonMark), so a wrapped line starting `12. ` stays put; thematic breaks (`---`, `***`, `___`) are dropped; the docstring states that only ATX headings with a space are headings. `html.py`: an `ol` numbers its items from its `start`, so an export keeps the blocks of its source | `test_numbered_markdown_items_are_items_and_thematic_breaks_are_not_text`, `test_an_html_ordered_list_numbers_its_items_as_markdown_does` | deb0de6 |
+| S1B-J4: an OCR heading ending in a digit (`1 Rule 5`) was read as a paragraph, so its section could not be cited | low | `ocr.py`: a heading may end in a digit; a date line (`3 November 2025`, day, month name, year) stays a paragraph | `test_ocr.py::test_an_ocr_heading_may_end_in_a_digit_but_a_date_is_not_a_heading` | deb0de6 |
+| D2: a UTF-8 BOM on an HTML export opened a junk intro chunk holding the title (A-MFA 14 to 15 chunks) | low | `html.read` normalises the text with `frontmatter.normalise_newlines` (BOM, CRLF), as the Markdown path does | `test_an_html_export_with_a_byte_order_mark_and_crlf_reads_like_one_without` (parser), `test_chunk_metadata.py::test_an_html_export_with_a_byte_order_mark_gives_no_extra_chunk` (pipeline) | deb0de6, 9cb54f6 |
+| D3: a non-UTF-8 corpus file escaped as `UnicodeDecodeError`, and `raglab ingest` printed a traceback that did not name the document | low | `pipeline.py`: reads in `describe` and `parse` raise `IngestError("<path>: <file> is not UTF-8 text (<reason> at byte <n>)")` | `test_a_file_that_is_not_utf8_stops_the_run_naming_the_document[latin-1, binary]` (pipeline and CLI: exit 1, the path in stderr, no traceback), `test_an_html_export_that_is_not_utf8_stops_the_run_naming_it` | 9cb54f6 |
+| D5: `SECTION_ID` took Unicode digits, so `## ４ Rules` and `## ５ More` both slugged to `-` and the run stopped with "two chunks share an id", naming nothing | low | `types.py`: `SECTION_ID` is `re.ASCII` (a lookalike heading is identified by its whole text); `sections.py`: repeated keys are counted on the slug, so ids that slug alike get `~2`; `pipeline.chunk_all`: the duplicate-id stop names the id and both documents | `test_section_ids_are_ascii_and_ids_that_slug_alike_stay_unique`, `test_a_repeated_chunk_id_names_the_id_and_the_documents` | 9cb54f6 |
+| D1: the `ocr` marker sat on the `attack_payloads` helper, so `pytest -m "not ocr"` ran the full-inventory test and failed without Tesseract | low | the marker moved to `test_no_attack_file_reaches_the_default_inventory` | `tests/unit/test_ocr_markers.py` reads the ingestion tests and fails when a test that OCRs the scanned page (the full inventory, an ingest of the repo root, the scanned document, or a helper that does) lacks the marker; it named this test on 966c17d | 5254671 |
+
+Notes for the review:
+
+- `scripts/build_corpus.py` has its own block reader, which knows bullets but not numbered items.
+  No corpus document uses a numbered list today; if one is added, the HTML and PDF renderers
+  need the same rule, and `test_html_export_parses_to_the_blocks_of_its_source` and the PDF page
+  comparison fail until they have it.
+- With S1B-J4's fix, a one-line OCR block such as `1 Issued 2024` is now a heading (only
+  day-month-year dates are excluded). The scanned page has no such line; its headings and CER
+  are unchanged.
+
+Pending decisions: none. No finding needed the user's decision.
