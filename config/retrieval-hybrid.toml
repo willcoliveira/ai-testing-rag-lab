@@ -1,0 +1,28 @@
+# Hybrid retrieval: dense (the same embedder) and BM25, fused by reciprocal rank.
+# Read by raglab.evals.config (strict: an unknown or missing key stops the run).
+name = "retrieval-hybrid"
+suite = "retrieval"
+
+[dataset]
+path = "datasets/golden.v1.jsonl"
+split = "dev"
+
+[chunker]
+chunk_size = 1200
+overlap = 1
+
+[embedder]
+provider = "fastembed"
+model = "BAAI/bge-small-en-v1.5"
+revision = "aa8f8b060edb00e03bfdd08813a2949946c8ba55"
+
+[retriever]
+kind = "hybrid"
+k = 5
+candidates = 50
+rrf_k = 60
+
+[bootstrap]
+seed = 20261006
+resamples = 2000
+level = 0.95

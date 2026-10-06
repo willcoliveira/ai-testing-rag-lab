@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run-record.v1.json",
+  "title": "raglab run record v1",
+  "description": "A run directory read as one object: manifest.json and every line of cases.jsonl. report.md is generated from both and checked by raglab.evals.record.validate, as are the sha256 of each file and the results recomputed from the cases. Validated by raglab.evals.schema, which supports a subset of JSON Schema and refuses any other keyword.",
+  "type": "object",
+  "required": ["manifest", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "manifest": {"$ref": "#/$defs/manifest"},
+    "cases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "interval": {
+      "type": "object",
+      "required": ["value", "ci_low", "ci_high", "n"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {"type": "number"},
+        "ci_low": {"type": "number"},
+        "ci_high": {"type": "number"},
+        "n": {"type": "integer", "minimum": 1}
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "required": [
+        "schema_version", "run_id", "created_at", "suite", "gate", "split", "trials", "seed",
+        "provenance", "partial", "git_sha", "git_dirty", "config", "chunker", "embedder",
+        "retriever", "dataset", "corpus", "tools", "bootstrap", "results", "totals", "files"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "run-record.v1"},
+        "run_id": {"type": "string", "pattern": "^[0-9]{8}T[0-9]{6}Z-[a-z0-9-]+-(dev|test|all)-[0-9a-f]{7}$"},
+        "created_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+        "suite": {"enum": ["retrieval"]},
+        "gate": {"enum": ["manual", "pr-fast", "eval-on-change", "nightly", "weekly", "release"]},
+        "split": {"enum": ["dev", "test", "all"]},
+        "trials": {"type": "integer", "minimum": 1},
+        "seed": {"type": "integer"},
+        "provenance": {"enum": ["fake", "local", "hosted"]},
+        "partial": {"type": "boolean"},
+        "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "git_dirty": {"type": "boolean"},
+        "config": {
+          "type": "object",
+          "required": ["name", "path", "file_sha256", "sha256"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+            "path": {"type": "string", "minLength": 1},
+            "file_sha256": {"$ref": "#/$defs/sha256"},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "chunker": {
+          "type": "object",
+          "required": ["chunk_size", "overlap", "sha256"],
+          "additionalProperties": false,
+          "properties": {
+            "chunk_size": {"type": "integer", "minimum": 1},
+            "overlap": {"type": "integer", "minimum": 0},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "embedder": {
+          "type": "object",
+          "required": ["provider", "model", "revision", "dimension", "sha256"],
+          "additionalProperties": {"type": ["string", "integer"]},
+          "properties": {
+            "provider": {"type": "string", "minLength": 1},
+            "model": {"type": "string", "minLength": 1},
+            "revision": {"type": "string", "minLength": 1},
+            "dimension": {"type": "integer", "minimum": 1},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "retriever": {
+          "type": "object",
+          "required": ["kind", "k", "sha256"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {"enum": ["dense", "bm25", "hybrid"]},
+            "k": {"type": "integer", "minimum": 1},
+            "candidates": {"type": "integer", "minimum": 1},
+            "rrf_k": {"type": "integer", "minimum": 0},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "dataset": {
+          "type": "object",
+          "required": ["path", "sha256", "questions"],
+          "additionalProperties": false,
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "questions": {"type": "integer", "minimum": 1}
+          }
+        },
+        "corpus": {
+          "type": "object",
+          "required": ["documents", "chunks", "sha256"],
+          "additionalProperties": false,
+          "properties": {
+            "documents": {"type": "integer", "minimum": 1},
+            "chunks": {"type": "integer", "minimum": 1},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "tools": {
+          "type": "object",
+          "required": ["python", "raglab"],
+          "additionalProperties": {"type": "string"},
+          "properties": {
+            "python": {"type": "string"},
+            "raglab": {"type": "string"}
+          }
+        },
+        "bootstrap": {
+          "type": "object",
+          "required": ["resamples", "seed", "level", "method"],
+          "additionalProperties": false,
+          "properties": {
+            "resamples": {"type": "integer", "minimum": 1},
+            "seed": {"type": "integer"},
+            "level": {"type": "number", "minimum": 0, "maximum": 1},
+            "method": {"const": "percentile"}
+          }
+        },
+        "results": {
+          "type": "object",
+          "required": ["metrics"],
+          "additionalProperties": false,
+          "properties": {
+            "metrics": {
+              "type": "object",
+              "additionalProperties": {"$ref": "#/$defs/interval"}
+            }
+          }
+        },
+        "totals": {
+          "type": "object",
+          "required": ["cases", "duration_s"],
+          "additionalProperties": false,
+          "properties": {
+            "cases": {"type": "integer", "minimum": 1},
+            "duration_s": {"type": "number", "minimum": 0}
+          }
+        },
+        "files": {
+          "type": "object",
+          "required": ["cases.jsonl", "report.md"],
+          "additionalProperties": false,
+          "properties": {
+            "cases.jsonl": {"$ref": "#/$defs/sha256"},
+            "report.md": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "required": [
+        "case_id", "trial", "split", "tenant", "question", "labels", "retrieved", "hit",
+        "reciprocal_rank", "recall", "latency_ms"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "case_id": {"type": "string", "minLength": 1},
+        "trial": {"type": "integer", "minimum": 1},
+        "split": {"enum": ["dev", "test"]},
+        "tenant": {"enum": ["tenant-a", "tenant-b"]},
+        "question": {"type": "string", "minLength": 1},
+        "question_kind": {"type": "string"},
+        "labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["doc_id", "section_id", "chunk_ids", "found"],
+            "additionalProperties": false,
+            "properties": {
+              "doc_id": {"type": "string", "minLength": 1},
+              "section_id": {"type": "string", "minLength": 1},
+              "chunk_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+              "found": {"type": "boolean"}
+            }
+          }
+        },
+        "retrieved": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["rank", "chunk_id", "score", "relevant"],
+            "additionalProperties": false,
+            "properties": {
+              "rank": {"type": "integer", "minimum": 1},
+              "chunk_id": {"type": "string", "minLength": 1},
+              "score": {"type": "number"},
+              "relevant": {"type": "boolean"}
+            }
+          }
+        },
+        "hit": {"type": "integer", "enum": [0, 1]},
+        "reciprocal_rank": {"type": "number", "minimum": 0, "maximum": 1},
+        "recall": {"type": "number", "minimum": 0, "maximum": 1},
+        "latency_ms": {"type": "number", "minimum": 0}
+      }
+    }
+  }
+}

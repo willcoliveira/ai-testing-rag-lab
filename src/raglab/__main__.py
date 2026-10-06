@@ -1,4 +1,5 @@
-"""Command line entry point: ingest, fetch-model, eval, compare, publish. Later stages add ask."""
+"""Command line entry point: ingest, fetch-model, eval, compare, publish and gate. Later stages add
+ask."""
 
 import argparse
 import json
@@ -6,11 +7,28 @@ import sys
 from pathlib import Path
 
 from raglab import __version__
-from raglab.adapters import fastembed_embed
+from raglab.adapters import factory, fastembed_embed
 from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSettings
+from raglab.core.types import TenantError
+from raglab.evals import compare as compare_runs
+from raglab.evals import config as eval_config
+from raglab.evals import gate as retrieval_gate
+from raglab.evals import golden, publish, record, retrieval
 from raglab.ingest import inventory, pipeline
 
 INVENTORY = "runs/tmp/inventory.json"
+RUNS = "runs/tmp"
+GATES = ["manual", "pr-fast", "eval-on-change", "nightly", "weekly", "release"]
+EVAL_ERRORS = (
+    eval_config.ConfigError,
+    factory.AdapterError,
+    fastembed_embed.ModelUnavailable,
+    golden.DatasetError,
+    golden.LabelError,
+    pipeline.IngestError,
+    TenantError,
+    OSError,
+)
 
 
 def ingest(args: argparse.Namespace) -> int:
@@ -61,6 +79,89 @@ def fetch_model(args: argparse.Namespace) -> int:
     return 0
 
 
+def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]:
+    root: Path = args.root
+    config = eval_config.load(args.config, root)
+    embedder, description, provenance = factory.embedder(
+        config.embedder.provider, config.embedder.model, config.embedder.revision
+    )
+    return retrieval.run(config, root, embedder, description, provenance, gate=args.gate)
+
+
+def evaluate(args: argparse.Namespace) -> int:
+    try:
+        manifest, cases = _evaluate(args)
+    except EVAL_ERRORS as error:
+        print(f"eval failed: {error}", file=sys.stderr)
+        return 1
+    root: Path = args.root
+    out: Path = args.out if args.out.is_absolute() else root / args.out
+    run_dir = record.write(out, manifest, cases)
+    if problems := record.validate(run_dir, root):
+        print("eval wrote an invalid run record:\n" + "\n".join(problems), file=sys.stderr)
+        return 1
+    print((run_dir / record.REPORT).read_text(encoding="utf-8"))
+    print(f"run record: {run_dir}")
+    if manifest["git_dirty"]:
+        print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
+    return 0
+
+
+def _run_dir(root: Path, name: Path) -> Path:
+    """A run given as a directory, or as a run id under runs/published or runs/tmp."""
+    for candidate in (name, root / name, root / publish.PUBLISHED / name, root / RUNS / name):
+        if (candidate / record.MANIFEST).is_file():
+            return candidate
+    raise FileNotFoundError(f"no run record at {name}")
+
+
+def compare(args: argparse.Namespace) -> int:
+    root: Path = args.root
+    try:
+        a, b = _run_dir(root, args.a), _run_dir(root, args.b)
+        result = compare_runs.compare(a, b, root)
+    except (compare_runs.CompareError, FileNotFoundError) as error:
+        print(f"compare failed: {error}", file=sys.stderr)
+        return 1
+    out: Path = args.out or root / RUNS / "compare" / f"{a.name}--{b.name}"
+    compare_runs.write(result, out)
+    print(compare_runs.render(result))
+    print(f"written: {out}")
+    return 0
+
+
+def publish_run(args: argparse.Namespace) -> int:
+    root: Path = args.root
+    try:
+        dest = publish.publish(_run_dir(root, args.run), root, baseline=args.baseline)
+    except (publish.PublishError, FileNotFoundError) as error:
+        print(f"publish refused: {error}", file=sys.stderr)
+        return 1
+    print(f"published: {dest} (index: {root / publish.PUBLISHED / publish.INDEX})")
+    return 0
+
+
+def gate(args: argparse.Namespace) -> int:
+    root: Path = args.root
+    try:
+        manifest, cases = _evaluate(args)
+    except EVAL_ERRORS as error:
+        print(f"gate failed: {error}", file=sys.stderr)
+        return 1
+    key = publish.baseline_key(manifest)
+    baseline_dir = publish.baseline_run(root, key)
+    if baseline_dir is None:
+        print(f"gate failed: no published baseline for {key}", file=sys.stderr)
+        return 1
+    if problems := record.validate(baseline_dir, root):
+        print("gate failed: the baseline is invalid: " + "; ".join(problems), file=sys.stderr)
+        return 1
+    baseline, _ = record.read(baseline_dir)
+    verdict = retrieval_gate.check(baseline, manifest)
+    print(f"retrieval no-regression gate ({len(cases)} questions): {verdict.message}")
+    return 0 if verdict.passed else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="raglab", description=__doc__)
     parser.add_argument("--version", action="version", version=f"raglab {__version__}")
@@ -97,11 +198,40 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help=f"cache directory (default ${fastembed_embed.CACHE_ENV} or ~/.cache/raglab/models)",
     )
+    for name, text in (
+        ("eval", "run an evaluation suite and write a run record under runs/tmp"),
+        ("gate", "retrieval no-regression gate: a fresh run against the published baseline"),
+    ):
+        sub = commands.add_parser(name, help=text)
+        if name == "eval":
+            sub.add_argument("--suite", choices=["retrieval"], required=True)
+        sub.add_argument("--config", type=Path, required=True, help="a config/*.toml file")
+        default_gate = "pr-fast" if name == "gate" else "manual"
+        sub.add_argument("--gate", choices=GATES, default=default_gate)
+        sub.add_argument("--out", type=Path, default=Path(RUNS), help=f"(default {RUNS})")
+        sub.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    cmp = commands.add_parser("compare", help="paired differences and flipped questions, B - A")
+    cmp.add_argument("a", type=Path, help="run A: a directory or a run id")
+    cmp.add_argument("b", type=Path, help="run B: a directory or a run id")
+    cmp.add_argument("--out", type=Path, help="where compare.json and compare.md go")
+    cmp.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    pub = commands.add_parser("publish", help="validate a run, check privacy, add it to the index")
+    pub.add_argument("run", type=Path, help="a run directory or run id")
+    pub.add_argument(
+        "--baseline", action="store_true", help="make it the baseline of its config and split"
+    )
+    pub.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     args = parser.parse_args(argv)
-    if args.command == "ingest":
-        return ingest(args)
-    if args.command == "fetch-model":
-        return fetch_model(args)
+    handlers = {
+        "ingest": ingest,
+        "fetch-model": fetch_model,
+        "eval": evaluate,
+        "compare": compare,
+        "publish": publish_run,
+        "gate": gate,
+    }
+    if args.command in handlers:
+        return handlers[args.command](args)
     parser.print_help()
     return 0
 

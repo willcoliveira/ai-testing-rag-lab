@@ -1,12 +1,23 @@
-"""Small chunks and retrievers for the retrieval tests, built with the fake embedder."""
+"""Small chunks, retrievers and runs for the retrieval tests, built with the fake embedder."""
+
+import json
+import shutil
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 
 from raglab.adapters.fake import HashingEmbedder
+from raglab.chunk.sections import ChunkSettings
 from raglab.core.ports import Retriever
 from raglab.core.types import Chunk, ChunkId
+from raglab.evals import config as eval_config
+from raglab.evals import record, retrieval
 from raglab.index.memory import InMemoryStore
+from raglab.ingest.pipeline import Inventory
 from raglab.retrieve.bm25 import BM25Retriever
 from raglab.retrieve.dense import DenseRetriever, index_chunks
 from raglab.retrieve.hybrid import HybridRetriever
+from tests.conftest import ROOT
 
 
 def make_chunk(chunk_id: str, tenant: str, text: str, section: str = "1") -> Chunk:
@@ -53,3 +64,135 @@ def retrievers(chunks: list[Chunk]) -> dict[str, Retriever]:
     d = dense(chunks)
     lexical = BM25Retriever(chunks)
     return {"dense": d, "bm25": lexical, "hybrid": HybridRetriever(d, lexical)}
+
+
+# ---------------------------------------------------------------- small runs with the fake embedder
+
+
+PACK = [
+    make_chunk("A-PWD@1.0/4.1/1", "tenant-a", "Passwords must be at least 15 characters.", "4.1"),
+    make_chunk("A-PWD@1.0/4.1/2", "tenant-a", "Passphrases of four words are allowed.", "4.1"),
+    make_chunk("A-PWD@1.0/5/1", "tenant-a", "Accounts lock after 10 failed sign-ins.", "5"),
+    make_chunk("A-MFA@1.0/4.1/1", "tenant-a", "Administrators must always use MFA.", "4.1"),
+    make_chunk("A-VPN@1.0/4.5/1", "tenant-a", "VPN sessions disconnect after 60 minutes.", "4.5"),
+    make_chunk("B-PWD@1.0/3/1", "tenant-b", "Mirrowfen passwords are at least 12 characters.", "3"),
+    make_chunk(
+        "X-NIST@4/3.1/1", "shared", "Verifiers allow passwords of at least 64 characters.", "3.1"
+    ),
+]
+QUESTIONS = [
+    {
+        "id": "Q1",
+        "kind": "retrieval",
+        "split": "dev",
+        "tenant": "tenant-a",
+        "question": "How many characters must passwords have?",
+        "question_kind": "plain-rule",
+        "relevant": [{"doc_id": "A-PWD", "section_id": "4.1"}],
+    },
+    {
+        "id": "Q2",
+        "kind": "retrieval",
+        "split": "dev",
+        "tenant": "tenant-a",
+        "question": "When do accounts lock after failed sign-ins?",
+        "relevant": [{"doc_id": "A-PWD", "section_id": "5"}],
+    },
+    {
+        "id": "Q3",
+        "kind": "retrieval",
+        "split": "dev",
+        "tenant": "tenant-a",
+        "question": "Must administrators use MFA, and when do VPN sessions disconnect?",
+        "relevant": [
+            {"doc_id": "A-MFA", "section_id": "4.1"},
+            {"doc_id": "A-VPN", "section_id": "4.5"},
+        ],
+    },
+    {
+        "id": "Q4",
+        "kind": "retrieval",
+        "split": "dev",
+        "tenant": "tenant-b",
+        "question": "How long are Mirrowfen passwords?",
+        "relevant": [{"doc_id": "B-PWD", "section_id": "3"}],
+    },
+    {
+        "id": "Q5",
+        "kind": "retrieval",
+        "split": "test",
+        "tenant": "tenant-a",
+        "question": "Are passphrases allowed?",
+        "relevant": [{"doc_id": "A-PWD", "section_id": "4.1"}],
+    },
+    {
+        "id": "Q6",
+        "kind": "behaviour",
+        "split": "dev",
+        "tenant": "tenant-a",
+        "question": "What is the Wi-Fi password?",
+    },
+]
+GIT = retrieval.GitState("0123456789abcdef0123456789abcdef01234567", False)
+
+
+def config_text(name: str, kind: str = "dense", k: int = 2, split: str = "dev") -> str:
+    hybrid = "candidates = 5\nrrf_k = 60\n" if kind == "hybrid" else ""
+    return (
+        f'name = "{name}"\nsuite = "retrieval"\n\n[dataset]\npath = "golden.jsonl"\n'
+        f'split = "{split}"\n\n[chunker]\nchunk_size = 1200\noverlap = 1\n\n[embedder]\n'
+        'provider = "fake"\nmodel = "hashing-256"\nrevision = "fake"\n\n'
+        f'[retriever]\nkind = "{kind}"\nk = {k}\n{hybrid}\n'
+        "[bootstrap]\nseed = 7\nresamples = 200\nlevel = 0.9\n"
+    )
+
+
+def lab_root(tmp_path: Path, questions: list[dict] | None = None) -> Path:
+    """A repo root with the real schema, a small golden file and the scripts publish runs."""
+    root = tmp_path / "repo"
+    (root / "schemas").mkdir(parents=True)
+    shutil.copyfile(ROOT / record.SCHEMA_PATH, root / record.SCHEMA_PATH)
+    lines = [json.dumps(q) for q in (QUESTIONS if questions is None else questions)]
+    (root / "golden.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return root
+
+
+def fake_run(
+    root: Path,
+    name: str = "retrieval-fake",
+    kind: str = "dense",
+    k: int = 2,
+    chunks: list[Chunk] | None = None,
+    when: datetime = datetime(2026, 10, 6, 12, 0, 0, tzinfo=UTC),
+    git: retrieval.GitState = GIT,
+    provenance: str = "fake",
+) -> Path:
+    """A run record written under root/runs/tmp with the fake embedder."""
+    path = root / "config" / f"{name}.toml"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(config_text(name, kind, k), encoding="utf-8")
+    config = eval_config.load(path, root)
+    embedder = HashingEmbedder()
+    inventory = Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(chunks or PACK))
+    description = {
+        "provider": "fake",
+        "model": embedder.model,
+        "revision": embedder.revision,
+        "dimension": embedder.dimension,
+    }
+    manifest, cases = retrieval.run(
+        config,
+        root,
+        embedder,
+        description,
+        provenance,
+        git=git,
+        clock=lambda: when,
+        inventory=inventory,
+    )
+    return record.write(root / "runs" / "tmp", manifest, cases)
+
+
+def read_run(run_dir: Path) -> tuple[Any, list[Any]]:
+    """record.read, typed loosely for the tests' nested lookups."""
+    return record.read(run_dir)
