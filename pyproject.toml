@@ -16,7 +16,10 @@ raglab = "raglab.__main__:main"
 dev = [
     "bandit==1.9.4",
     "deptry==0.25.1",
+    "fpdf2==2.8.9",
+    "pillow==12.3.0",
     "pip-audit==2.10.1",
+    "pypdf==6.19.0",
     "pyright==1.1.414",
     "pytest==9.1.1",
     "pyyaml==6.0.3",
@@ -65,6 +68,11 @@ markers = [
 
 [tool.deptry]
 known_first_party = ["raglab"]
+
+[tool.deptry.per_rule_ignores]
+# the modules of fpdf2, pillow and pypdf: build-time only, for scripts/build_corpus.py, which
+# renders the corpus PDF, HTML export and scanned page; nothing under src/ imports them
+DEP004 = ["fpdf", "PIL", "pypdf"]
 
 [tool.vulture]
 paths = ["src", "scripts"]
