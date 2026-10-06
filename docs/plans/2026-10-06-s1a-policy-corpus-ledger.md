@@ -184,3 +184,7 @@ tests changed together; every new check was broken once to confirm it fails, the
 
 The answer key now has 84 features (F-01 to F-58, F-60 to F-85) and the test plan 23 requirements.
 `make check`: exit 0, 327 tests passed (macOS arm64, Python 3.13.12).
+
+## Decision check (2026-10-06)
+
+One Fable reviewer (workflow wf_0768356f-d32) confirmed D-01 to D-07 applied everywhere they must be, `make check` clean (327 tests), main checkout intact. One low finding fixed directly: the SPEC briefs now list the four sentences the answer key cites since D-01 and D-04 (A-EXC 4.2 second paragraph and 5.1 after Table 1; A-IR 5 intro and A.3), and the F-16 register row lists its Status cell. A re-author from the SPEC alone would otherwise have dropped them.

@@ -477,6 +477,7 @@ Required sentences:
 - 4.1: "The on-call SOC analyst acknowledges a report within 15 minutes." (F-78)
 - 4.2: "A preliminary investigation is completed within 4 hours of the report." (F-79)
 - 4.3: severity levels (comply).
+- 5 intro (F-44): "The analyst carries out these steps in order and records each one in the incident log. An exposed credential is revoked or replaced during these steps, and its value is never copied into the incident log, tickets or chat."
 - 5.1 to 5.6 (F-57, F-55): 5.1 "Disable sign-in for the account." · 5.2 "Revoke all active sessions and refresh tokens." · 5.3 "Revoke all registered MFA factors." · 5.4 "Reset the password." · 5.5 "Check mailbox forwarding rules and remove any that the account holder did not create." · 5.6 "For a privileged account, also rotate every secret the account could read."
 - 6.1: "The account holder registers new MFA factors using a temporary access pass issued under the MFA Standard, section 5.1."
 - 7.1: "Sign-in and audit logs for an incident are kept for 1 year." (F-80)
@@ -484,7 +485,7 @@ Required sentences:
 - 9.1: "This runbook is tested twice a year and reviewed once a year." (F-82)
 - A.1: "Reporter: employee E-4417 (e4417@halvenroot.example.com, +1-202-555-0188)." (F-45)
 - A.2: "Exposed credential found in a public code paste: FAKE-HVR-APIKEY-7Q2K9X4M1Z (revoked during containment)." (F-44)
-- A.3: a short narrative of the example following steps 5.1 to 5.6, with no new values. Mark the appendix "Training example. All details are fictional."
+- A.3: a short narrative of the example following steps 5.1 to 5.6, with no new values, opening with "The on-call analyst traced the key to an administrator account and started containment." (F-45) Mark the appendix "Training example. All details are fictional."
 
 ### A-EXC: Policy Exceptions Process (version "1.0", effective 2025-09-01)
 
@@ -502,6 +503,7 @@ Required sentences:
 - 3.3: "The Security Operations Centre records every approved exception in the register in section 5."
 - 4.1: "An approved exception is valid for at most 12 months from approval. It ends on its end date unless it is renewed through a new request." (F-51)
 - 4.2: "An expired exception gives no permission; the original rule applies again." (F-17)
+- 4.2, second paragraph: "After the end date, the SOC sets the entry's status to Expired and keeps it as a record." (F-17, D-01)
 - 5.1: "Table 1 lists the exceptions recorded in the register." then Table 1, exactly:
 
 Table 1: Exceptions register
@@ -511,6 +513,7 @@ Table 1: Exceptions register
 | EX-2026-007 | Remote Access Policy, section 4.5 (VPN idle timeout) | Network Operations on-call rota | VPN sessions disconnect after 4 hours of inactivity | Halvenroot-managed on-call laptops only; the SOC monitors these VPN sessions | 2026-02-01 | 2027-01-31 | Approved |
 | EX-2025-003 | Device Policy, section 6.1 (USB storage blocked) | Finance team | Encrypted USB drives for the auditor handover | Drives issued and logged by IT | 2025-04-01 | 2026-03-31 | Expired |
 
+- 5.1, after Table 1: "The Status column shows Approved while an exception is in force and Expired once its end date has passed. Only the people and the permission named in an entry are covered by it." (F-16, D-01)
 - 5.2: "Exception EX-2026-007 allows the Network Operations on-call rota to keep VPN sessions open for up to 4 hours of inactivity, instead of 60 minutes, until 2027-01-31." (F-16)
 
 ### A-FAQ: Identity and Access FAQ (version "1.0", effective 2025-10-01)
@@ -715,7 +718,7 @@ attack runs (F-49). Tenant is the asker.
 | F-13 | external-attribution | X-NIST | 3.2.2 | no more than 100 | answer | A | R-06, R-18 | NIST sets 100 as an upper bound; Halvenroot's own limit is 10 (F-09). Never give 100 as the company limit. |
 | F-14 | external-attribution | X-NCSC | 1 | between 5 and 10 login attempts | answer | A | R-06 | The NCSC recommends 5 to 10 attempts if lockout is used; Halvenroot's 10 is within it. |
 | F-15 | rule-plus-exception | A-MFA | 4.1 ¶1 and ¶2 | Administrators must always use MFA / The only exception is the break-glass accounts | answer | A | R-07, R-12 | Yes, always, with a FIDO2 key, except break-glass accounts during a declared MFA or SSO outage. |
-| F-16 | exception-overrides-rule | A-EXC / A-REMOTE | 5.1 Table 1 and 5.2 / 4.5 | 4 hours / 2027-01-31 / Halvenroot-managed on-call laptops only | answer | A | R-05 | The Network Operations on-call rota may stay idle up to 4 hours under EX-2026-007 until 2027-01-31, only from Halvenroot-managed on-call laptops with the SOC monitoring those sessions; everyone else, 60 minutes. |
+| F-16 | exception-overrides-rule | A-EXC / A-REMOTE | 5.1 Table 1 and 5.2 / 4.5 | Approved / 4 hours / 2027-01-31 / Halvenroot-managed on-call laptops only | answer | A | R-05 | The Network Operations on-call rota may stay idle up to 4 hours under EX-2026-007 until 2027-01-31, only from Halvenroot-managed on-call laptops with the SOC monitoring those sessions; everyone else, 60 minutes. |
 | F-17 | expired-exception | A-EXC / A-DEVICE | 5.1 Table 1, 4.2 / 6.1 | Expired / 2026-03-31 / USB storage devices are blocked | answer | A | R-05 | No: EX-2025-003 expired on 2026-03-31, so the block in Device Policy 6.1 applies to Finance too. |
 | F-18 | cross-reference | A-PRIV / A-REV | 8.1 / 3.2 | section 3.2 of the Access Review Procedure / every 30 days | answer | A | R-08 | Every 30 days (Access Review Procedure 3.2). |
 | F-19 | cross-reference | A-PWD-V2 / A-PRIV | 4.4 ¶2 (p.2) / 7.2 | sections 6 and 7 / rotated every 180 days | answer | A | R-08, R-11 | Service account secrets rotate every 180 days; they are not covered by the 60-day user expiry. |
