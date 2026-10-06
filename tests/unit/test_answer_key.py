@@ -432,6 +432,50 @@ def test_refusal_requirement_has_must_not_block_cases():
     assert {("A-MFA", "5.1"), ("A-IR", "5.3")} <= sections
 
 
+def test_procedures_cite_every_step_in_order():
+    """D-06, R-23: a procedure feature cites its parent section and every step under it, in the
+    document's order, and its reference answer gives the steps in that order. R-23 is traced to
+    procedure features only, and the containment steps of the runbook are one of them."""
+    docs = documents()
+    procedures = [f for f in features() if f["kind"] == "procedure"]
+    assert procedures, "no procedure feature"
+    for f in procedures:
+        assert len({loc["doc"] for loc in f["locations"]}) == 1, f["id"]
+        doc = docs[f["locations"][0]["doc"]]
+        parent, *steps = [str(loc["section"]) for loc in f["locations"]]
+        children = [sid for sid in doc.sections() if sid.startswith(parent + ".")]
+        assert len(children) >= 3, f"{f['id']}: {parent} has no steps"
+        assert steps == children, f"{f['id']}: steps {steps}, document {children}"
+        answer = norm(f["reference_answer"]).lower()
+        positions = []
+        for loc in f["locations"][1:]:
+            step = norm(loc["values"][0]).rstrip(".").lower()
+            assert step in answer, f"{f['id']}: step {loc['section']} not in the reference answer"
+            positions.append(answer.index(step))
+        assert positions == sorted(positions), f"{f['id']}: reference answer reorders the steps"
+        assert f["requirements"] == ["R-23"], f["id"]
+    r23 = {f["id"] for f in features() if "R-23" in f["requirements"]}
+    assert r23 == {f["id"] for f in procedures}
+    assert any(loc["doc"] == "A-IR" for f in procedures for loc in f["locations"])
+
+
+def test_version_history_has_a_dated_answer():
+    """D-06: the auditor's question "when was version 1 replaced?" has a feature citing the
+    current version's statement that it replaces version 1.0 and its effective date."""
+    docs = documents()
+    history = [f for f in features() if f["kind"] == "version-history"]
+    assert history, "no version-history feature"
+    for f in history:
+        cited = " ".join(v for loc in f["locations"] for v in loc["values"])
+        assert re.search(r"replaces version \d+\.\d+", cited), f["id"]
+        for loc in f["locations"]:
+            assert docs[loc["doc"]].front["status"] == "current", f"{f['id']}: cite the new one"
+        effective = str(docs[f["locations"][0]["doc"]].front["effective"])
+        assert f"Effective date: {effective}" in cited, f"{f['id']}: effective date not cited"
+        assert effective in f["reference_answer"], f["id"]
+        assert "R-04" in f["requirements"], f["id"]
+
+
 # ------------------------------------------------------------------ decision labels
 
 

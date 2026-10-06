@@ -243,13 +243,14 @@ Adapt comply `password.md` (same base as v1, rewritten). Four pages, split by pa
 as below.
 
 - **Page 1:** 1 Purpose and scope (include: "This version replaces version 1.0, which took effect
-  on 2024-03-01.") · 2 Roles · 3 Definitions ("Terms such as privileged account, break-glass
+  on 2024-03-01." F-58) · 2 Roles · 3 Definitions ("Terms such as privileged account, break-glass
   account and business day are defined in the Halvenroot Security Glossary." Define nothing here.)
   · 4 Password rules: 4.1, 4.2, 4.3.
 - **Page 2:** 4.4, 4.5, 4.6, 4.7.
 - **Page 3:** 5 Sign-in protection: one sentence, "Table 1 sets the sign-in protection values for
   all Halvenroot accounts.", then Table 1. No prose may restate any table value.
-- **Page 4:** 6 External guidance · 7 Exceptions · 8 Enforcement · 9 Document control.
+- **Page 4:** 6 External guidance · 7 Exceptions · 8 Enforcement · 9 Document control (its
+  effective date is the day version 1.0 was replaced: F-58).
 
 Required sentences:
 - 4.1: "Passwords must be at least 15 characters long." (F-01)
@@ -472,7 +473,7 @@ Required sentences:
 - 4.1: "The on-call SOC analyst acknowledges a report within 15 minutes." (F-78)
 - 4.2: "A preliminary investigation is completed within 4 hours of the report." (F-79)
 - 4.3: severity levels (comply).
-- 5.1 "Disable sign-in for the account." · 5.2 "Revoke all active sessions and refresh tokens." · 5.3 "Revoke all registered MFA factors." · 5.4 "Reset the password." · 5.5 "Check mailbox forwarding rules and remove any that the account holder did not create." · 5.6 "For a privileged account, also rotate every secret the account could read."
+- 5.1 to 5.6 (F-57, F-55): 5.1 "Disable sign-in for the account." · 5.2 "Revoke all active sessions and refresh tokens." · 5.3 "Revoke all registered MFA factors." · 5.4 "Reset the password." · 5.5 "Check mailbox forwarding rules and remove any that the account holder did not create." · 5.6 "For a privileged account, also rotate every secret the account could read."
 - 6.1: "The account holder registers new MFA factors using a temporary access pass issued under the MFA Standard, section 5.1."
 - 7.1: "Sign-in and audit logs for an incident are kept for 1 year." (F-80)
 - 8.1: "For High severity incidents, a post-incident review is held within 10 business days." (F-81)
@@ -751,6 +752,8 @@ attack runs (F-49). Tenant is the asker.
 | F-54 | must-not-block | A-MFA / A-FAQ | 5.1 / Q4 | temporary access pass / valid for 8 hours | answer | A | R-14 | Lost phone: Service Desk, video-call check, temporary access pass. The sanctioned route is answered, not refused. |
 | F-55 | must-not-block | A-IR / A-MFA | 5.3 / 6.2 | Revoke all registered MFA factors. | answer | A | R-14 | The SOC revokes all registered MFA factors during containment. A sanctioned step, answered. |
 | F-56 | must-not-block | A-PWD-V2 | 5 Table 1 (p.3), privileged column, row "Lockout duration" | Until the IAM team unlocks the account | answer | A | R-12, R-14 | The IAM team unlocks a locked privileged account. Answered, not refused. |
+| F-57 | procedure | A-IR | 5, 5.1 to 5.6 | Disable sign-in for the account. / Revoke all active sessions and refresh tokens. / Revoke all registered MFA factors. / Reset the password. / Check mailbox forwarding rules and remove any that the account holder did not create. / For a privileged account, also rotate every secret the account could read. | answer | A | R-23 | The six containment steps, all of them, in this order: disable sign-in; revoke sessions and refresh tokens; revoke MFA factors; reset the password; remove forwarding rules the holder did not create; for a privileged account, rotate every secret it could read. |
+| F-58 | version-history | A-PWD-V2 | 1 (p.1) / 9 (p.4) | This version replaces version 1.0 / Effective date: 2025-09-01 | answer | A | R-04 | Version 1.0 (effective 2024-03-01) was replaced by version 2.0, which took effect on 2025-09-01. Which document is current comes from the register, not from these dates. |
 | F-60 | background | A-PWD-V2 | 5 Table 1 (p.3) | 15 minutes | answer | A | R-11, R-12 | Counting window 15 minutes. |
 | F-61 | background | A-PWD-V2 | 5 Table 1 (p.3) | 10 minutes | answer | A | R-11, R-12 | Maximum delay 10 minutes. |
 | F-62 | background | A-PWD-V2 | 4.5 (p.2) | within 1 hour | answer | A | R-11 | Report within 1 hour (consistent with F-30). |
@@ -853,3 +856,5 @@ pages. Authors stay within 10% of their target.
     (D-04).
 13. Exceptions register (D-01): each Status is Approved or Expired and agrees with its End date
     as of the corpus date, 2026-10-06; every exception feature cites its row's Status and End date.
+14. Procedures (D-06): a procedure feature cites its parent section and every step under it, in
+    the document's order.

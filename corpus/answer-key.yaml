@@ -1357,6 +1357,90 @@ features:
       column: Privileged accounts
     values:
     - Until the IAM team unlocks the account
+- id: F-57
+  kind: procedure
+  expected: answer
+  tenants: [tenant-a]
+  requirements: [R-23]
+  reference_answer: 'The analyst carries out the six containment steps in this order and records each
+    one: (1) disable sign-in for the account; (2) revoke all active sessions and refresh tokens; (3) revoke
+    all registered MFA factors; (4) reset the password; (5) check mailbox forwarding rules and remove
+    any that the account holder did not create; (6) for a privileged account, also rotate every secret
+    the account could read (Account-Compromise Incident Runbook, sections 5.1 to 5.6).'
+  locations:
+  - doc: A-IR
+    path: corpus/tenant-a/account-compromise-runbook.md
+    version: '1.0'
+    section: '5'
+    values:
+    - carries out these steps in order
+  - doc: A-IR
+    path: corpus/tenant-a/account-compromise-runbook.md
+    version: '1.0'
+    section: '5.1'
+    values:
+    - Disable sign-in for the account.
+  - doc: A-IR
+    path: corpus/tenant-a/account-compromise-runbook.md
+    version: '1.0'
+    section: '5.2'
+    values:
+    - Revoke all active sessions and refresh tokens.
+  - doc: A-IR
+    path: corpus/tenant-a/account-compromise-runbook.md
+    version: '1.0'
+    section: '5.3'
+    values:
+    - Revoke all registered MFA factors.
+  - doc: A-IR
+    path: corpus/tenant-a/account-compromise-runbook.md
+    version: '1.0'
+    section: '5.4'
+    values: [Reset the password.]
+  - doc: A-IR
+    path: corpus/tenant-a/account-compromise-runbook.md
+    version: '1.0'
+    section: '5.5'
+    values:
+    - Check mailbox forwarding rules and remove any that the account holder did not create.
+  - doc: A-IR
+    path: corpus/tenant-a/account-compromise-runbook.md
+    version: '1.0'
+    section: '5.6'
+    values:
+    - For a privileged account, also rotate every secret the account could read.
+  note: 'R-23: a golden case on the containment steps fails if a step is missing, merged, reordered or
+    added. F-55 asks about step 5.3 alone.'
+- id: F-58
+  kind: version-history
+  expected: answer
+  tenants: [tenant-a]
+  requirements: [R-04]
+  reference_answer: Version 1.0 of the password standard, effective 2024-03-01, was replaced by version
+    2.0 of the Password and Authentication Standard, which took effect on 2025-09-01 (Password and Authentication
+    Standard, sections 1 and 9).
+  locations:
+  - doc: A-PWD-V2
+    path: corpus/tenant-a/password-standard-v2.md
+    version: '2.0'
+    section: '1'
+    page: 1
+    values:
+    - This version replaces version 1.0, which took effect on 2024-03-01.
+  - doc: A-PWD-V2
+    path: corpus/tenant-a/password-standard-v2.md
+    version: '2.0'
+    section: '9'
+    page: 4
+    values: [replaces version 1.0, 'Effective date: 2025-09-01']
+  expected_retrieval:
+  - doc: A-PWD-V2
+    section: '1'
+  - doc: A-PWD-V2
+    section: '9'
+  note: 'An auditor''s history question (when was version 1 replaced?): the date is version 2.0''s effective
+    date, cited from its document control. Which document is current comes from the register (A-PWD-V2
+    supersedes A-PWD-V1), never from these dates (R-04). Nothing disagrees, so the label is answer.'
 - id: F-60
   kind: background
   expected: answer
