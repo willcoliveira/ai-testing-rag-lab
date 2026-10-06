@@ -60,6 +60,15 @@ a labelled section stops existing.
   without it. That includes the pointer section of a cross-reference (the section that sends the
   reader elsewhere) as well as its target, because the answer cites both.
 - **Multi-hop** questions list one section per hop (two or three).
+- **Labels follow the feature's reference answer.** A label is a section the question's feature
+  lists as a location in the answer key, and a section the reference answer cites is labelled
+  even where the question asks only for part of it. R-Q14 asks which second-factor methods a new
+  joiner may set up and by when; it labels A-MFA 3.2 (the factors that are not approved) as well
+  as A-MFA 3.1 and A-LIFE 3.3, because F-23's reference answer says SMS and voice-call codes are
+  not allowed, and a joiner choosing a factor needs that. The cost: when 3.2 is not in the top k,
+  R-Q14's recall is 1/3, not 1/2 (S2 review finding S2-L2; recomputed from the published dev
+  cases, without 3.2 dev recall@5 would be 0.652 instead of 0.644 for dense and 0.629 instead of
+  0.621 for dense at 600; hybrid unchanged).
 - **Version-conflict** questions ask about history, so both the current section (A-PWD-V2) and the
   superseded one (A-PWD-V1) are relevant, as in feature F-04's expected retrieval. R-Q19 and
   R-Q20 also ask about history, so they label version 1.0 too. That differs on purpose from the
@@ -69,16 +78,24 @@ a labelled section stops existing.
   R-Q21 and R-Q23 are the planted conflict (F-08: periodic expiry). R-Q22 is the attribution
   variant (F-13): NIST's limit of 100 attempts is an upper bound, so it does not contradict the
   company's limit, but the question needs both the company table and the excerpt.
-- **Exception questions** R-Q24 and R-Q25 label the register table (Policy Exceptions Process 5.1),
-  the section that gives the register's effect or expiry (5.2 or 4.2), and the rule being
-  excepted. R-Q26 asks only which exceptions are in force, so it labels the register table alone.
+- **Exception questions** R-Q24 and R-Q25 label the register table (Policy Exceptions Process
+  5.1), the Policy Exceptions Process section that gives the register's effect or expiry (A-EXC
+  5.2 or 4.2), and the rule being excepted. R-Q26 asks only which exceptions are in force, so it
+  labels the register table alone. A rule's own document may restate the expiry for that rule:
+  Device Policy 6.2 says an exception applies only while it is approved and in date, after which
+  the USB block in 6.1 applies again. It is not labelled for R-Q25: F-17 does not list it, the
+  reference answer is complete without it, and labelling it next to A-EXC 4.2 would make recall
+  demand two statements of one rule, the problem of the FAQ near-duplicates (Known limits). It is
+  in no published run's top 5; labelled, it would lower dev recall@5 by 0.004 in every run (S2
+  review finding S2-L4, recomputed from the published cases).
 - **Feature ids for a rule used outside its feature.** R-Q15 (an employee who leaves with
   immediate effect) lists F-22 next to F-65 because F-22 is the feature that locates the MFA
   revocation rule (MFA Standard 6.1); F-22's own case is about a contractor.
 - Every label was checked by script: the document is in the register, the section exists in the
   inventory, a tenant B question labels only tenant B documents, a tenant A question labels only
   tenant A or shared documents, and every feature id exists in the answer key. All but one label
-  is a location of one of its question's features. The exception is R-Q09's pointer section
+  is a location of one of its question's features (`tests/retrieval/test_golden_retrieval.py`
+  checks it). The exception is R-Q09's pointer section
   (Account Lifecycle Policy 5.4), which no feature lists. R-Q09 targets F-73 (how long a VPN
   certificate is valid) and also asks what happens to the certificate at leaving, which the same
   target section answers.
@@ -136,7 +153,8 @@ a labelled section stops existing.
   section is labelled, so a retriever that returns only the FAQ chunk scores a miss. This affects
   R-Q14 (FAQ Q3), R-Q18, R-Q21 and R-Q23 (FAQ Q2), R-Q19 and R-Q33 (FAQ Q1), and R-Q25 (FAQ Q7).
   Adding the FAQ sections to `relevant` would be wrong, because recall would then demand both
-  copies. The fix is a schema choice that is still open: groups of labels where any one member
+  copies. The same holds for Device Policy 6.2, which restates for R-Q25 the expiry rule of
+  A-EXC 4.2. The fix is a schema choice that is still open: groups of labels where any one member
   counts.
 - **Section labels and multi-chunk sections.** One labelled section has two chunks at the default
   settings: NIST SP 800-63B-4, section 3.1.1.2 (R-Q21). The expiry sentence that R-Q21 needs is

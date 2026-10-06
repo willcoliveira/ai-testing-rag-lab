@@ -250,3 +250,46 @@ def test_every_label_resolves_to_existing_chunks(chunk_size):
     )
     resolved = golden.resolve(questions(), list(inventory.chunks))
     assert all(ids for r in resolved for _, ids in r.groups)
+
+
+# The datasheet: "All but one label is a location of one of its question's features", the
+# exception being R-Q09's pointer section. A label outside its features' locations (the S2 review
+# weighed adding Device Policy 6.2 to R-Q25) fails here until the datasheet and the answer key
+# agree on it.
+LABELS_OUTSIDE_THE_FEATURES = {("R-Q09", "A-LIFE", "5.4")}
+
+
+def test_every_label_is_a_location_of_one_of_its_features():
+    features = {f["id"]: f for f in answer_key()["features"]}  # type: ignore[index]
+    outside: set[tuple[str, str, str]] = set()
+    for q in questions():
+        locations = {
+            (str(location["doc"]), str(location["section"]))
+            for feature in q.extra["feature_ids"]  # type: ignore[union-attr]
+            for location in features[feature]["locations"]
+        }
+        outside |= {
+            (q.case_id, label.doc_id, label.section_id)
+            for label in q.labels
+            if (label.doc_id, label.section_id) not in locations
+        }
+    assert outside == LABELS_OUTSIDE_THE_FEATURES
+
+
+def datasheet() -> str:
+    return re.sub(r"\s+", " ", (ROOT / "datasets" / "DATASHEET.md").read_text(encoding="utf-8"))
+
+
+# S2 review findings S2-L2 and S2-L4: the label scope of R-Q14 and R-Q25 is stated, with its cost.
+def test_the_datasheet_states_the_label_scope_the_review_raised():
+    text = datasheet()
+    assert "Labels follow the feature's reference answer." in text
+    assert "R-Q14 asks which second-factor methods" in text
+    assert "it labels A-MFA 3.2 (the factors that are not approved)" in text
+    assert "It is not labelled for R-Q25: F-17 does not list it" in text
+    assert (
+        "the Policy Exceptions Process section that gives the register's effect or expiry" in text
+    )
+    by_id = {q.case_id: q for q in questions()}
+    assert golden.Label("A-MFA", "3.2") in by_id["R-Q14"].labels
+    assert golden.Label("A-DEVICE", "6.2") not in by_id["R-Q25"].labels
