@@ -313,7 +313,11 @@ each reproduced independently. Fixed directly under the same go ("Fix all four, 
 | D3 | low | a history exception on one line hid the same string wrapped across other lines | an exempted line no longer marks its match as reported | `test_a_history_exception_does_not_hide_a_wrapped_copy` |
 
 Fails without the fix: 9 tests fail against e7034a8, all of them new or changed cases.
-`make check` exit 0, 244 tests.
+
+The first push was blocked by the pre-push hook: the D3 fix let a reviewed history exception (the
+vendoring commit's example ids) come back through the across-lines view. Fixed by leaving exempted
+lines out of the across-lines views (`test_a_history_exception_is_not_reported_again_across_lines`);
+the branch's history then gave 0 hits in 46 commits with the real list. `make check` exit 0, 245 tests.
 
 ## Stage S0 result
 
