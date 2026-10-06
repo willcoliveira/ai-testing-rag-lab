@@ -81,7 +81,6 @@ def test_chunk_ids_are_unique_readable_and_deterministic():
         assert chunker.chunk(parsed(doc_id)) == chunker.chunk(parsed(doc_id))
 
 
-@full
 def attack_payloads() -> set[str]:
     """The values the answer key cites in the attack files (canary, links, addresses, rules)."""
     attack_docs = {"T-HIDDEN", "T-POISON", "T-FAKE"}
@@ -94,6 +93,7 @@ def attack_payloads() -> set[str]:
     }
 
 
+@full
 def test_no_attack_file_reaches_the_default_inventory():
     inventory = default_inventory()
     attack_ids = {d.meta.doc_id for d in attacks.attack_documents(ROOT)}
