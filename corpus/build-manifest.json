@@ -23,9 +23,9 @@
     {
       "path": "corpus/tenant-a/mfa-standard.html",
       "source": "corpus/tenant-a/mfa-standard.md",
-      "source_sha256": "579f929da4737fe9d7ac2884df2339dd4e4cf6c1cad530931aba02364a15c7b7",
-      "sha256": "40e4b54cd1de9bebebf24bdd645dbf1f1763ae45d4b069426f2bed66d4c8d596",
-      "text_sha256": "74e087c35e91b636bed2a3bc124e3f0c1e3cda80ad5ed2bd4ccf7dfff533f157"
+      "source_sha256": "154b5ab8f377b365d149c59651eea8ec00752ff5d1462b11ed6cf21c10850c10",
+      "sha256": "63547d8a6bd34c7446968538c32be20a6e4a92cb637328ebbe294058e2815a2c",
+      "text_sha256": "fdf9fe95a667050a8bc1e6da23e0a8486d920b8900cc295d05f00b72d9c717e0"
     },
     {
       "path": "corpus/tenant-a/device-policy-annex-b-kiosk.png",

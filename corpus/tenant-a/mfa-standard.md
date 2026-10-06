@@ -31,7 +31,7 @@ identity portal.
 
 ### 2.1 Systems that require MFA
 
-MFA is required for every sign-in to Halvenroot single sign-on (SSO), the VPN, email and every administrative console. Section 4.1 sets the only exception.
+MFA is required for every sign-in to Halvenroot single sign-on (SSO), the VPN, email and every administrative console. Section 4.1 sets the only standing exception; any other departure needs an approved exception under section 8.
 
 Systems that sign people in through SSO inherit this requirement, so a new application is covered
 once it is connected to SSO. A system that cannot enforce MFA must not hold Halvenroot data unless

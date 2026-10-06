@@ -297,7 +297,7 @@ Sections: 1 Purpose and scope · 2 Where MFA is required (2.1) · 3 Factors (3.1
 6.2) · 7 Sessions (7.1) · 8 Exceptions · 9 Document control.
 
 Required sentences:
-- 2.1: "MFA is required for every sign-in to Halvenroot single sign-on (SSO), the VPN, email and every administrative console. Section 4.1 sets the only exception."
+- 2.1: "MFA is required for every sign-in to Halvenroot single sign-on (SSO), the VPN, email and every administrative console. Section 4.1 sets the only standing exception; any other departure needs an approved exception under section 8."
 - 3.1: "The approved factors are FIDO2 security keys, passkeys, authenticator app push notifications with number matching, and authenticator app one-time codes." then "FIDO2 security keys and passkeys are the phishing-resistant factors." (F-23)
 - 3.2: "SMS and voice-call codes are not approved factors at Halvenroot." (F-37)
 - 3.3: "Every user registers at least two factors." (F-83)
