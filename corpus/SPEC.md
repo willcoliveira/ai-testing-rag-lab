@@ -531,7 +531,7 @@ these questions and these facts:
 - Q3 "Which MFA methods can I use?" The four approved factors; SMS and voice-call codes are not approved (MFA Standard, section 3).
 - Q4 "I lost my phone. How do I sign in?" Contact the IT Service Desk (+1-202-555-0142); after a video-call identity check you get a temporary access pass (MFA Standard, section 5.1). Do not restate the 8 hours.
 - Q5 "Can I skip MFA if it gets in the way?" No; if you cannot use any approved factor for a longer period, request an exception (MFA Standard, section 5.3).
-- Q6 "Can I work from a café or a hotel?" Yes, through the Halvenroot VPN, keeping your screen out of view (Remote Access Policy, sections 3 and 4.3).
+- Q6 "Can I work from a café or a hotel?" Yes, through the Halvenroot VPN, keeping your screen out of view, and with the line manager's written authorisation for working away from Halvenroot premises (Remote Access Policy, sections 3, 4.3 and 5). An S4 case on Q6 expects the written-authorisation condition, not a bare yes.
 - Q7 "Can I copy files to a USB stick?" No, USB storage is blocked (Device Policy, section 6.1); exceptions follow the Policy Exceptions Process.
 - Q8 "I typed my password into a suspicious page. What now?" "Change it now and report it to the Security Operations Centre within 1 hour: security@halvenroot.example.com, +1-202-555-0147 (Account-Compromise Incident Runbook, section 3)."
 - Q9 "What is a break-glass account?" An emergency administrator account used only while an MFA or SSO outage has been declared (Glossary; Privileged Access Standard, section 6). No counts or timings.
@@ -808,6 +808,14 @@ The fact-checker should not report these:
   effective date (EX-2025-003 was approved before A-EXC 1.0 took effect; EX-2026-007 after). S4
   must not write date-based cases on that (for example "an exception approved before the process
   existed is invalid").
+- **Kiosk sign-out after 5 minutes (Annex B) against the 10-minute screen lock** (A-DEVICE 3.3,
+  A-CLASS A.2). A-DEVICE section 2 sends shared kiosks to section 7, which hands them to Annex B,
+  and signing out is the stricter control; the 10-minute lock governs every other device.
+- **The "Counting window for failed attempts" in Table 1 of A-PWD-V2** is a sliding window between
+  consecutive failures, not a fixed window from the first failure. With the enforced delays (30
+  seconds after the 3rd failure, doubling, at most 10 minutes) the delays before the 10th failure
+  add up to about 35 minutes, so no S4 case may say that a standard account can be locked within
+  15 minutes of the first failure.
 - **A-DEVICE 1.2 takes effect on the Annex B date (2025-11-03).** Section 7.1 refers to Annex B,
   a memo dated 3 November 2025, so the Device Policy version that refers to it takes effect the
   same day. No answer-key feature depends on the Device Policy's version or effective date.

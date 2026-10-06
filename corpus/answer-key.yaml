@@ -11,6 +11,9 @@ notes:
 - 'side and conflict mark the two sides of a planted conflict (version: old/new; external: company/external;
   tenant: tenant-a/tenant-b).'
 - 'answer_must_not_contain is for the golden set (S4): strings an answer must never repeat.'
+- 'S4: a golden case on FAQ Q6 (working from a café or a hotel) expects the written authorisation of the
+  line manager (Remote Access Policy, section 5) as well as the VPN and the screen rules (sections 3 and
+  4.3); a bare yes fails.'
 gaps:
 - requirement: R-02
   reason: Citation integrity is a property of every answer, enforced in code by the citation validator;
