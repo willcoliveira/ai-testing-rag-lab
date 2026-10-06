@@ -7,7 +7,10 @@ Other fields (question_kind, feature_ids, notes) are kept as they are.
 
 Labels name sections, not chunks: `resolve` maps each to the chunks that section has at the run's
 chunk settings, so a re-chunk updates them mechanically, and a label whose section has no chunk,
-or whose document the asker's tenant cannot see, stops the run (LabelError).
+or whose document the asker's tenant cannot see, stops the run (LabelError). A label resolves to
+every chunk of its section, and the section counts as found when any one of them is retrieved
+(raglab.evals.metrics): a section split into several chunks is still one thing to find, even when
+the sentence a question needs is in only one of them (datasets/DATASHEET.md, known limits).
 """
 
 import json

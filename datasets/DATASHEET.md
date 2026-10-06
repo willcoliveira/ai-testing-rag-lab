@@ -140,8 +140,11 @@ a labelled section stops existing.
   counts.
 - **Section labels and multi-chunk sections.** One labelled section has two chunks at the default
   settings: NIST SP 800-63B-4, section 3.1.1.2 (R-Q21). The expiry sentence that R-Q21 needs is
-  in its first chunk. How a section with several chunks counts towards recall is decided where
-  labels are resolved, and stated there.
+  in its first chunk. How such a section counts is decided where labels are resolved
+  (`raglab.evals.golden`, `raglab.evals.metrics`): a label is resolved to every chunk of its
+  section, and the section counts as found when any one of them is in the top k. So R-Q21's NIST
+  label is also found by the second chunk alone, which does not hold the expiry sentence; the
+  measure is generous there, and S5's judged metrics check the answer itself.
 - **Pointer sections are labelled.** Cross-reference labels include the pointer section, so a
   retriever that jumps straight to the target scores full hit@k but lower recall@k.
 - **Scanned page.** The two scanned-page questions depend on OCR. An OCR change that alters the
