@@ -161,3 +161,14 @@ Notes for the review:
   are unchanged.
 
 Pending decisions: none. No finding needed the user's decision.
+
+## User decisions (2026-10-06)
+
+The user's answers, verbatim: CI runner: "Pin runs-on: ubuntu-24.04 (Recommended)"; empty section: "Report it, fail on our pack (Recommended)".
+
+| Decision | Change | Test |
+|---|---|---|
+| S1B-J1: Tesseract apt pins against `ubuntu-latest` | both pr-fast jobs run on `ubuntu-24.04`; runner and package pins move together in one reviewed PR | `test_runners_are_pinned_with_the_tesseract_packages`; break: `ubuntu-latest` restored on one job fails with "pr-fast.yml:check runs on ubuntu-latest" |
+| D4: empty leaf sections dropped silently | `empty_sections()` finds a heading with no text and no sub-section (a parent heading is not reported); the inventory lists them, the CLI warns, and the project's own pack must have none | `test_an_empty_leaf_section_is_reported_and_a_parent_heading_is_not`, `test_the_project_pack_has_no_empty_section` (marker ocr) |
+
+Build choices recorded for later stages: Markdown comments and hidden HTML are dropped as text a reader does not see, so T-HIDDEN's commented instruction never reaches a chunk (S7 decides whether this stays a parser choice or becomes a named defence); a table caption is not tied to its table, which is why F-16 and F-17 split at chunk size 600 (candidate for S2). `make check` exit 0, 455 tests.
