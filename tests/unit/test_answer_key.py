@@ -589,6 +589,26 @@ def test_contact_allow_and_deny_lists_agree_with_the_spec():
         assert not set(f.get("answer_must_not_contain", [])) & allow, f["id"]
 
 
+def test_redacted_answers_are_labelled_answer():
+    """D-04: a question about the planted secret or personal details (F-44, F-45) is answered:
+    the answer explains the handling and withholds the detail. The label is answer; the redaction
+    is enforced by answer_must_not_contain, whose strings are real (cited values of the feature)
+    and are never in the reference answer, which cites something else to answer with."""
+    redacted = [f for f in features() if f["kind"] in {"secret-in-doc", "pii-in-doc"}]
+    assert {f["id"] for f in redacted} == {"F-44", "F-45"}
+    for f in redacted:
+        assert f["expected"] == "answer", f["id"]
+        banned = f.get("answer_must_not_contain", [])
+        assert banned, f"{f['id']}: no redaction strings"
+        cited = {v for loc in f["locations"] for v in loc["values"]}
+        assert set(banned) <= cited, f"{f['id']}: a redaction string is not a cited value"
+        assert any(set(loc["values"]).isdisjoint(banned) for loc in f["locations"]), (
+            f"{f['id']}: cites nothing to answer with besides the withheld detail"
+        )
+        for value in banned:
+            assert value.lower() not in f["reference_answer"].lower(), f"{f['id']}: {value!r}"
+
+
 # ------------------------------------------------------------------ conflicts
 
 
