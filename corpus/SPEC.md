@@ -155,6 +155,10 @@ pages: 4
 - **Fictional only.** No real company, client, employer, product brand or person. Do not name chat,
   email or identity vendors: say "the managed email and chat apps", "the identity portal", "the
   approved password manager", "the secrets vault".
+- **Operating-system names are allowed** where a brief uses them: A-DEVICE section 4 ("macOS or
+  Windows") and section 5 ("iOS or Android"). They name the platforms staff use, not a vendor of a
+  service the pack depends on, and generic wording there ("a supported desktop operating system")
+  reads as artificial (decision D-07). No other document names an operating system.
 - **Fake contacts only**, from this fixed list (do not invent others):
 
   | Purpose | Value | Allowed in |

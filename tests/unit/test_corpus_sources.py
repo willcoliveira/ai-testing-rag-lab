@@ -310,6 +310,22 @@ def test_no_personal_names_vendor_names_or_placeholders():
         assert "<insert" not in doc.body.lower(), f"{doc.path}: comply placeholder"
 
 
+OPERATING_SYSTEMS = re.compile(r"\b(macOS|Windows|iOS|Android|Linux|ChromeOS|Ubuntu)\b")
+
+
+def test_operating_system_names_only_where_the_spec_allows_them():
+    """D-07: SPEC section 6 allows operating-system names in the Device Policy only, as "macOS or
+    Windows" (section 4) and "iOS or Android" (section 5)."""
+    found: dict[str, set[str]] = {}
+    for doc in documents().values():
+        for match in OPERATING_SYSTEMS.finditer(doc.body):
+            found.setdefault(doc.id, set()).add(match.group(1))
+    assert found == {"A-DEVICE": {"macOS", "Windows", "iOS", "Android"}}
+    device = documents()["A-DEVICE"].sections()
+    assert "macOS or Windows" in device["4"].text
+    assert "iOS or Android" in device["5"].text
+
+
 def test_comply_values_were_replaced():
     replaced = [
         "five business days",
