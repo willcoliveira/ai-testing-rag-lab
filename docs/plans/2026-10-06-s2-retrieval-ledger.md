@@ -34,51 +34,126 @@ The user's answers, verbatim (2026-10-06, quoted in the plan): playground: "Loca
 | Playground | `playground/` (index.html with a strict CSP, model.js pure, app.js renders with textContent only, app.css); `make playground` serves `playground/` beside `runs/published/` on 127.0.0.1 (`scripts/serve_playground.py`); Pages added to docs/GO-PUBLIC.md as step 9 |
 | CI | pr-fast: `actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0` restores `~/.cache/raglab/models` keyed by `EMBED_MODEL_REVISION`, then `make model` (download on a miss, hashes always checked), tests with `HF_HUB_OFFLINE=1` |
 | Architecture | `scripts/check_architecture.py`: fastembed, onnxruntime and huggingface_hub are vendor SDKs; rule 4 (fake adapters imported by no module) |
+| Golden set v1 | `datasets/golden.v1.jsonl` and `datasets/DATASHEET.md` (question author): 34 retrieval questions, 22 dev and 12 test, stratified by kind; 30 asked as tenant A, 4 as tenant B; labels at section level, resolved to chunk ids at run time |
+| Integration | `raglab eval --split` (dev, test or all) (`evals/config.with_split`: the split is in the resolved config, so its sha256 and the run id say which questions ran); `runs/published/` with the dense dev baseline and the hybrid and dense-600 dev runs; `make gate` in `make check` and the pr-fast step "Retrieval no-regression gate (offline)" after the tests |
 | Dependencies | runtime `fastembed==0.8.1`, `rank-bm25==0.2.2`, `numpy==2.5.3` (lock: onnxruntime 1.30.0, huggingface-hub 1.33.0, tokenizers 0.23.2); `typings/rank_bm25` stub for pyright strict; `.gitleaks.toml` allows the 64-hex model pins in the adapter only |
 
-## Evidence per criterion (developer run, 2026-10-06, macOS arm64)
+## Evidence per criterion (developer, 2026-10-06, macOS arm64)
 
-`make check` exits 0 with the question author's draft `datasets/golden.v1.jsonl` in the work tree
-(599 tests passed). The real-dataset tests in `tests/retrieval/test_golden_retrieval.py` need that
-file, which the question author commits.
+`make check` exits 0 with the gate as its last target: 607 tests passed, and the gate printed
+the line quoted under AC8. Each break was made on a committed file and restored with `git checkout`.
 
 | AC | Status | Evidence | Break (restored from git) |
 |---|---|---|---|
 | AC1 | met | `tests/unit/test_metrics.py`: per-case hit, RR and recall on seven hand-computed rankings (a section split into two chunks counts once), means, type 7 quantiles (also against `statistics.quantiles(method="inclusive")`), paired difference 0.125 by hand, bootstrap of a constant, of [0, 1] (both ends), seeded and reproducible, near the normal approximation | RR as 1/(rank + 1): 5 failures across metrics, run record and compare tests; interval tail as 1 - level: 1 failure |
-| AC2 | pending (question author, reviewer) | `tests/retrieval/test_golden_retrieval.py`: loader and resolver on small inputs; on the draft file: 34 retrieval questions (22 dev, 12 test), both tenants, the planted kinds, every label resolves at 1,200 and at 600 | (the file is the author's) |
+| AC2 | met by the tests; the independent label review is the verify step | `tests/retrieval/test_golden_retrieval.py` on the committed file: 34 questions (22 dev, 12 test), both tenants; every line has an `R-Qnn` id, one of the datasheet's 12 kinds and feature ids that exist in `corpus/answer-key.yaml`; every kind has questions in both splits, one in test; the planted kinds (table-only, cross-reference, glossary, multi-hop with two or more labels, the scanned page, version and external conflicts, tenant B); tenant B questions label only tenant B documents and tenant A questions only tenant A or the shared `X-*` excerpts (from `corpus/register.yaml`); every label resolves to chunks the asker may see at 1,200 and at 600; with A-GLOSS 10 removed from the real inventory the run stops with "R-Q10: A-GLOSS section 10 has no chunk" and the same for R-Q12, and nothing else. Loader and resolver also on small inputs. `datasets/DATASHEET.md`. The rule for a section with several chunks (found when any of its chunks is in the top k) is now stated in the datasheet and in `raglab.evals.golden` | label of R-Q02 changed to A-LIFE 6.2 in the committed file: `raglab gate` stops with "labels that do not resolve: R-Q02: A-LIFE section 6.2 has no chunk" |
 | AC3 | met | `tests/retrieval/test_tenant_filter.py`: no tenant, empty, `shared`, unknown refused by every retriever; on fixtures and on the whole pack (every chunk's text asked as the other tenant, k 20) no cross-tenant chunk, for dense, BM25 and hybrid | store filter removed: 7 failures (dense and hybrid; `check_visible` raised TenantError); filter and both output checks removed: "dense: A-PWD-V1@1.0/1/1 asked as tenant-b returned ['A-PWD-V1@1.0/1/1', ...]"; BM25 filter removed: TenantError "chunk B-1@1.0/1/1 of tenant-b was retrieved for tenant-a" |
-| AC4 | met (fake embedder); the real run follows the questions | `tests/retrieval/test_run_record.py`: a run writes manifest, cases and report that validate; git sha, dirty flag, config file and resolved hashes, chunker, embedder and retriever hashes, model and revision, seed, provenance; eight broken manifests rejected by the schema; edited cases and report caught; same inputs give the same results. A real `raglab eval` with bge-small on the draft file validated (`record.validate` returned no problem) and passed the privacy check (0 hits); its numbers are from a dirty tree and are not recorded | report check disabled in the validator: 1 failure; dirty-run refusal disabled: 1 failure (publish) |
-| AC5 | mechanism met; result pending | `tests/retrieval/test_compare.py`: paired differences, intervals and flipped ids against hand values; unpaired runs refused (k, dataset, case ids, an invalid record). The three-configuration result goes here after the committed questions and a clean run | (covered by the RR break above) |
-| AC6 | partly met (decision below) | `tests/ingestion/test_chunk_boundaries.py`: at 600 the caption and Table 1 share a chunk with every row; F-17 holds; F-16 splits only on the note after the table; positive control at 250; three unit tests (over the budget, over twice the budget, a caption only right before a table). `make inventory-snapshot`: no diff (228 chunks, 0 changed); `chunk_experiment.py --chunk-size 600`: 249 chunks (was 250), 1 feature split (was 2) | (the 600 test is the S1b break turned into a check) |
+| AC4 | met | `tests/retrieval/test_run_record.py` (fake embedder); the six real runs below each validated on writing (`raglab eval` exits non-zero on an invalid record), were made from clean commit `5f1d3a0` (`git_dirty: false`), provenance `local`, model BAAI/bge-small-en-v1.5 at `aa8f8b0`; the three published ones validate again in `tests/retrieval/test_publish.py::test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline` and passed the privacy check on publish | report check disabled in the validator: 1 failure; dirty-run refusal disabled: 1 failure (publish) |
+| AC5 | met | `tests/retrieval/test_compare.py`; the three configurations compared on dev and on the full set, results below | (covered by the RR break above) |
+| AC6 | partly met (decision below) | `tests/ingestion/test_chunk_boundaries.py`: at 600 the caption and Table 1 share a chunk with every row; F-17 holds; F-16 splits only on the note after the table; positive control at 250; three unit tests. `make inventory-snapshot`: no diff (228 chunks, 0 changed); `chunk_experiment.py --chunk-size 600`: 249 chunks (was 250), 1 feature split (was 2) | (the 600 test is the S1b break turned into a check) |
 | AC7 | met | `make check`: deptry, vulture, pyright clean; architecture 0 violations; tests offline (`tests/unit/test_no_network.py` guard on, the model loaded from the cache) | `from raglab.adapters.fake import HashingEmbedder` and `import fastembed` in `retrieve/dense.py`: "raglab.adapters.fake is for the unit tests; no module imports it", "vendor SDK fastembed is imported outside raglab.adapters" |
-| AC8 | needs CI | `tests/unit/test_workflow_rules.py::test_pr_fast_restores_and_fetches_the_model_by_revision_before_the_tests`; zizmor: no findings. The gate step is not wired yet (see below) | `make model` step replaced: "assert 'echo skipped' == 'make model'" |
-| AC9 | met (unit and smoke; browser in Track B) | `tests/unit/test_playground.py`: model.js renders a published index (run list, intervals, per-question hits and labelled ids) in Node; app.js itself runs against two published runs with a stand-in DOM and fetch (`tests/playground_dom.mjs`): run list newest first, metrics and question tables, a click on the other run, no error in the status line, only `runs/published/` fetched; paths outside it refused; CSP and no HTML writes; scripts parse; the local site holds only the playground and the published runs. Served from a scratch site, the page, scripts and index answered 200. No real browser render this round (the browser extension was not connected) | `fetchText` path prefixed with `../`: the app.js test fails (status line shows the fetch error) |
-| AC10 | pending | CHANGELOG line, this ledger, docs/TEST-PLAN.md rows L10, L11, R2, R3; the diagram moves to done when the stage closes | |
+| AC8 | needs CI; local and CI-image evidence met | pr-fast: model cache and `make model` before the tests (`test_pr_fast_restores_and_fetches_the_model_by_revision_before_the_tests`); the gate step "Retrieval no-regression gate (offline)" runs `make gate` with `HF_HUB_OFFLINE=1` after the model, Tesseract and the tests (`test_pr_fast_runs_the_retrieval_gate_offline_after_the_tests`, which also checks that `make check` runs `gate`); zizmor: no findings. Locally `make gate`: "recall@5 0.644 (n 22) passes: the threshold is the baseline 0.644 (20261006T172928Z-retrieval-dense-dev-5f1d3a0) minus one question (1/22), 0.598". CI-image run below. To confirm on the PR: pr-fast green and its gate log line | (1) gate step removed from pr-fast.yml: "'Retrieval no-regression gate (offline)' is not in list", 1 failed; (2) margin made two questions in `gate.py`: `test_the_gate_passes_within_one_question_and_fails_below` fails ("assert not True"); (3) a real regression, dense returning ranks 2 to 6 (`store.search(..., k + 1)[1:]` in `retrieve/dense.py`): `make gate` fails, "recall@5 0.318 (n 22) fails: the threshold is ... 0.598"; (4) one question's wording changed in the committed golden file (labels still resolve): "the baseline ... has another dataset.sha256 (ffb8c5a5... vs e9c3e832...): publish a new baseline in a reviewed pull request", exit 1 |
+| AC9 | met (unit and smoke; browser in Track B) | `tests/unit/test_playground.py`: model.js renders a published index in Node; app.js runs against two published runs with a stand-in DOM and fetch (`tests/playground_dom.mjs`); paths outside `runs/published/` refused; CSP and no HTML writes. `runs/published/index.json` now holds three real runs, rebuilt identically by `publish.build_index` (test above). No real browser render this round | `fetchText` path prefixed with `../`: the app.js test fails |
+| AC10 | met | S2 `done` in docs/ARCHITECTURE.md and README (`tests/unit/test_diagram.py`); the CHANGELOG S2 line extended (golden set, published runs, gate); this ledger; docs/TEST-PLAN.md rows R2 and R3 name the new tests | |
+
+A note on breaks: after a break that keeps a file's size and is restored within the same second,
+Python may run the stale bytecode (the `.pyc` checks mtime in seconds and size). That happened once
+here (the margin break left `gate.py`'s compiled two-question margin in place, visible as a
+threshold of 0.553); the cached file was removed and the runs were repeated. Every number above is
+from a run after that.
+
+## Results (2026-10-06, commit 5f1d3a0, clean tree, macOS arm64, Tesseract 5.5.3)
+
+bge-small-en-v1.5 (ONNX, revision `aa8f8b0`), k = 5, bootstrap 2,000 resamples, seed 20261006,
+95% percentile intervals. Labels are sections; a section is found when any of its chunks is in
+the top 5.
+
+**Dev split (22 questions), the published runs**
+
+| Config | Run | hit@5 | MRR@5 | recall@5 |
+|---|---|---|---|---|
+| dense, 1,200 (default, **baseline**) | `20261006T172928Z-retrieval-dense-dev-5f1d3a0` | 0.773 (0.591 to 0.909) | 0.564 (0.390 to 0.739) | 0.644 (0.470 to 0.811) |
+| hybrid (dense + BM25, RRF), 1,200 | `20261006T172957Z-retrieval-hybrid-dev-5f1d3a0` | 0.727 (0.545 to 0.909) | 0.548 (0.368 to 0.730) | 0.606 (0.424 to 0.773) |
+| dense, 600 | `20261006T173026Z-retrieval-dense-600-dev-5f1d3a0` | 0.773 (0.591 to 0.909) | 0.590 (0.406 to 0.767) | 0.621 (0.447 to 0.788) |
+
+**Full set (34 questions: dev and test), not published**
+
+| Config | hit@5 | MRR@5 | recall@5 |
+|---|---|---|---|
+| dense, 1,200 | 0.824 (0.706 to 0.941) | 0.654 (0.520 to 0.789) | 0.696 (0.559 to 0.824) |
+| hybrid, 1,200 | 0.735 (0.588 to 0.882) | 0.520 (0.380 to 0.665) | 0.627 (0.480 to 0.775) |
+| dense, 600 | 0.824 (0.706 to 0.941) | 0.671 (0.533 to 0.808) | 0.681 (0.549 to 0.809) |
+
+**Paired differences (`raglab compare`, B minus A, 95% paired bootstrap interval)**
+
+| Split | A → B | hit@5 | MRR@5 | recall@5 | Flipped (hit) |
+|---|---|---|---|---|---|
+| dev | dense → hybrid | -0.045 (-0.182 to +0.091) | -0.016 (-0.222 to +0.172) | -0.038 (-0.174 to +0.098) | found by hybrid only: R-Q10; by dense only: R-Q02, R-Q14 |
+| dev | dense → dense-600 | +0.000 (+0.000 to +0.000) | +0.026 (-0.019 to +0.102) | -0.023 (-0.068 to +0.000) | none; recall lower on R-Q22, MRR higher on R-Q25, lower on R-Q01 and R-Q22 |
+| all | dense → hybrid | -0.088 (-0.235 to +0.059) | -0.134 (-0.302 to +0.027) | -0.069 (-0.216 to +0.083) | 2 found by hybrid only, 5 by dense only (the dev ones above plus 1 and 3 test questions) |
+| all | dense → dense-600 | +0.000 (+0.000 to +0.000) | +0.017 (-0.012 to +0.066) | -0.015 (-0.044 to +0.000) | none; the test questions are unchanged |
+
+Reading:
+- Every interval of a difference contains 0: at n 22 (or 34) none of the three configurations is
+  shown better or worse. Hybrid is lower on every point estimate, and the flips go both ways.
+  The default stays dense at 1,200, as the plan set it; nothing was chosen from these numbers,
+  and the full set (which holds the test split) was run only to report it.
+- Chunk size 600 changes no hit. It loses one section on R-Q22: X-NIST 3.2.2, which at 600 is
+  two chunks, neither in the top 5 (at 1,200 its one chunk was at rank 4); it also moves a few
+  first ranks.
+- Dense misses five dev questions: both table-only ones (R-Q04, R-Q05: Table 1 of the PDF),
+  R-Q10 (glossary), R-Q18 (version conflict) and R-Q33 (misspelling). Hybrid finds R-Q10.
+- The FAQ decision (1 below) moves these numbers: in the baseline's top 5 lists, the FAQ copy of
+  R-Q18's answer (FAQ Q2) is at rank 2, so with "any one of the group" labels R-Q18 would be a
+  hit, and R-Q19, R-Q21 and R-Q25 would have a higher first rank. That is read from the lists, not
+  from a run.
+
+**Mac and the CI image (the gate margin).** The dense dev run repeated at commit `dbd7c63` (same
+dataset, config and code path) in `ubuntu:24.04` linux/amd64 under Docker on the Mac, with
+`tesseract-ocr=5.3.4-1build5` and `tesseract-ocr-eng=1:4.1.0-2` as pr-fast pins and Python 3.13
+from uv: the same top 5 chunk ids, in the same order, for all 22 questions, so the same metrics
+(recall@5 0.644). The largest score difference was 0.0010, on the scanned page's chunk
+(A-DEVICE-B 1, whose OCR text differs, so the corpus sha256 differs); every other chunk was within
+0.0002. The closest labelled chunk to the rank-5 boundary in the baseline is 0.0021 away (R-Q22,
+from a k = 20 listing), about twice the largest difference. So the margin stays at one question
+(docs/THRESHOLDS.md): a zero margin could fail on arithmetic alone, and one flipped section moves
+recall@5 by 0.023 at most for a two-label question. This was an emulated amd64, not the GitHub
+runner; the PR's gate log is the runner's own number.
 
 ## Still to do in this stage
 
-1. The question author commits `datasets/golden.v1.jsonl` and `datasets/DATASHEET.md`; the
-   reviewer checks the labels.
-2. From a clean commit: `raglab eval` with the three configs, `raglab compare` dense with hybrid
-   and dense with dense-600 (result into AC5 above), `raglab publish <dense run> --baseline`
-   (with the others published or not), commit `runs/published/`.
-3. Measure the Mac-to-CI difference (dense, dev, in `ubuntu:24.04` with the pinned Tesseract)
-   and set the gate margin from it. Then wire the gate: a pr-fast step `uv run raglab gate --config config/retrieval-dense.toml` after
-   the tests (and a `make gate` target in `check`), with its workflow test; break it once.
-4. Diagram and README: S2 done.
+1. Verify: the independent reviewer checks every label against its chunk text; the judges re-run
+   this evidence and the breaks.
+2. CI on the PR: pr-fast green, with the model step and the gate's log line.
 
-## Decision needed
+## Decisions needed
 
-**F-16 at chunk size 600.** The caption now travels with its table, and F-17 holds at 600. F-16
-also cites the note under the table ("The Status column shows Approved while an exception is in
-force"): caption, table and note are 794 characters, which no chunk of 600 can hold. Options:
+**From the question author (the reviewer or you confirm):**
 
-- (a) accept that F-16 splits at 600 (what the experiment measures; the default 1,200 keeps
-  everything together); or
-- (b) also bind a table's following note (a paragraph that names one of its columns) to the
-  table, so a chunk may grow to about 800 at size 600.
+1. **FAQ near-duplicates (F-53).** Only the primary section is labelled, so a retriever that
+   returns only the FAQ copy scores a miss on R-Q14, R-Q18, R-Q19, R-Q21, R-Q23, R-Q25 and R-Q33.
+   Adding the FAQ sections to `relevant` would make recall demand both copies. The fix is a schema
+   choice: label groups where any one member counts. Open; the effect on the baseline is above.
+2. **A section with several chunks** (X-NIST 3.1.1.2 has /1 and /2; R-Q21's expiry sentence is in
+   /1). Decided in the build and now stated in the datasheet and `raglab.evals.golden`: the
+   section is found when any of its chunks is in the top k. Generous for R-Q21 if only /2 comes
+   back; S5's judged metrics check the answer itself. Confirm or change.
+3. **Pointer sections are labelled** for cross-references (R-Q07 A-PRIV 8.1, R-Q08 A-PWD-V2 4.4,
+   R-Q09 A-LIFE 5.4): a retriever that jumps straight to the target gets the hit but lower recall.
+4. **R-Q19 and R-Q20 label version 1.0 too** (history questions), on purpose unlike the answer
+   key's `expected_retrieval` for F-05 and F-07 (version 2.0 only).
 
-The developer built (a)'s state and recommends it: (b) is a rule fitted to one paragraph.
+**From the build:**
+
+5. **F-16 at chunk size 600.** The caption now travels with its table, and F-17 holds at 600. F-16
+   also cites the note under the table: caption, table and note are 794 characters, which no
+   chunk of 600 can hold. (a) accept that F-16 splits at 600 (the default 1,200 keeps everything
+   together), or (b) also bind a table's following note to the table. The developer recommends
+   (a): (b) is a rule fitted to one paragraph.
+6. **The gate margin is one question**, set from the CI-image measurement above, where the task
+   text says recall@5 "must not fall below the published baseline". A zero margin is a one-line
+   change in `raglab.evals.gate` and its test, at the risk of a failure from arithmetic alone
+   (R-Q22 sits 0.0021 from the boundary).
 
 ## Choices made in the build (for the review)
 
@@ -94,7 +169,11 @@ The developer built (a)'s state and recommends it: (b) is a rule fitted to one p
 6. **git_dirty counts untracked files**, so a run with an uncommitted dataset cannot be published.
 7. **Model files outside the checkout** (`~/.cache/raglab/models`), so the secret and privacy
    scans never read 67 MB of ONNX, and CI caches the same path.
-8. **The gate margin is one question, provisionally** (docs/THRESHOLDS.md): the scanned page's
-   OCR differs between the Mac (Tesseract 5.5.3) and CI (5.3.4), and one dev question labels that
-   page, besides ONNX last-bit differences. Before the gate is wired, the dense dev run is repeated
-   in the `ubuntu:24.04` image with the pinned Tesseract and the margin is set from what it shows.
+8. **The gate margin is one question** (docs/THRESHOLDS.md), set from the CI-image run above:
+   no difference in any top 5, scores within 0.0010, the closest labelled chunk 0.0021 from the
+   boundary.
+9. **Runs are published for the dev split only.** The full-set runs stay in `runs/tmp` (their
+   per-question results include the test split, which is never used to choose anything);
+   `tests/retrieval/test_publish.py` checks that every published case is a dev case.
+10. **`raglab eval --split`** runs a committed config on another split instead of adding three
+   more config files; the split is in the resolved config, so the run says which questions ran.

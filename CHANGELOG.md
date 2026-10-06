@@ -11,7 +11,10 @@ One line per change, newest first, grouped by release. Each pull request adds it
   each with a tenant filter that fails closed; hit@k, MRR, recall@k, paired differences and a
   seeded bootstrap; run record v1 (schema, writer, validator) and `raglab eval`, `compare`,
   `publish` and `gate`; three configs; a table caption kept with its table in the chunker; the
-  static playground (`make playground`, Pages at go-public); docs/THRESHOLDS.md.
+  static playground (`make playground`, Pages at go-public); docs/THRESHOLDS.md; golden set v1
+  (34 labelled retrieval questions, dev and test, with a datasheet); the dense dev baseline and the
+  hybrid and chunk-600 dev runs in `runs/published/`; and the recall@5 no-regression gate in
+  pr-fast and `make check` (`make gate`).
 - S1b: ingestion and chunking: the register reader, Markdown, PDF (tables read as rows), HTML and
   OCR (Tesseract) parsers, the section-aware chunker (1,200 characters, one paragraph of overlap,
   deterministic ids), `raglab ingest` and the committed inventory snapshot
