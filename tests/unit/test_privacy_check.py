@@ -223,15 +223,25 @@ def test_line_join_view_handles_crlf(repo, content, hit):
 
 
 # Found while fixing round 2: the path rule exempted every file whose name starts with
-# privacy/forbidden-strings, so an editor backup of the real list was never scanned. Untracked it is
-# scanned; staged it is refused like the real list (judge round 3).
+# privacy/forbidden-strings, so an editor backup of the real list was never scanned. A backup that
+# is not ignored is scanned; staged it is refused like the real list (judge round 3). Editor backups
+# (`~`, `#...#`) are also gitignored since judge round 4, so git will not stage one without -f.
 @pytest.mark.parametrize("name", ["forbidden-strings.txt~", "forbidden-strings.txt.bak"])
 def test_only_the_two_list_files_are_exempt(repo, name):
     (repo / "privacy" / name).write_text("acmeclient\n", encoding="utf-8")
+    ignored = name.endswith("~")
     result = run(repo)
-    assert result.returncode == 1
-    assert f"privacy/{name}:1" in result.stdout
-    git(repo, "add", f"privacy/{name}")
+    if ignored:
+        assert f"privacy/{name}" not in result.stdout
+        not_staged = subprocess.run(
+            ["git", "add", f"privacy/{name}"], cwd=repo, capture_output=True, env=clean_env()
+        )
+        assert not_staged.returncode != 0  # ignored: git refuses without -f
+        git(repo, "add", "-f", f"privacy/{name}")
+    else:
+        assert result.returncode == 1
+        assert f"privacy/{name}:1" in result.stdout
+        git(repo, "add", f"privacy/{name}")
     in_index = staged(repo, ci=False)
     assert in_index.returncode == 2
     assert "REFUSING" in in_index.stderr
@@ -616,3 +626,145 @@ def test_linked_worktree_uses_the_main_worktree_list(repo, tmp_path_factory):
     assert in_index.returncode == 1
     assert "leak.md:1" in in_index.stdout
     assert run(wt, ci=True).returncode == 0  # CI uses the example list only
+
+
+# Judge round 4 (E1): a \b-anchored rule does not match its own text, and the "line of the real
+# list" check ran on the example list only, so a copy of the list at another path, or one rule
+# pasted into a note, passed every check. Local only: CI has no real list.
+@pytest.mark.parametrize("rel", ["docs/names.txt", "list-copy.txt", "privacy/old-list.txt"])
+def test_a_copy_of_the_real_list_at_another_path_is_found(repo, rel):
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# old\n/\\bacmeclient\\b/i\n", encoding="utf-8")
+    result = run(repo)
+    assert result.returncode == 1
+    assert f"{rel}:2: a line of the real list (not shown)" in result.stdout
+    assert "acmeclient" not in result.stdout.lower()
+    git(repo, "add", "-f", rel)
+    assert staged(repo, ci=False).returncode == 1
+    commit(repo, "docs: keep a list")
+    git(repo, "rm", "-q", "--cached", rel)
+    commit(repo, "docs: drop the list")
+    history = run(repo, "--history", "--all")
+    assert history.returncode == 1
+    assert f":{rel}:2: a line of the real list (not shown)" in history.stdout
+
+
+def test_a_real_rule_pasted_into_a_note_is_found(repo):
+    (repo / "note.md").write_text("The rule is /\\bacmeclient\\b/i for now.\n", encoding="utf-8")
+    result = run(repo)
+    assert result.returncode == 1
+    assert "note.md:1: matches" in result.stdout
+    assert run(repo, ci=True).returncode == 0  # the real list never reaches CI
+
+
+def test_escapes_in_code_do_not_trip_the_example_shapes(repo):
+    # an example shape appears only once the escapes are dropped; that view runs the real rules only
+    (repo / "x.py").write_text('PATTERN = r"arn\\:aws\\:"\n', encoding="utf-8")
+    assert run(repo, ci=True).returncode == 0
+
+
+# Judge round 4 (E3): author and committer identities were never checked, so a name or an internal
+# domain in an identity was pushed. The generic email shape is left out: every identity is an email.
+def test_history_checks_author_and_committer(repo):
+    commit(repo, "chore: base")
+    base = rev(repo)
+
+    def commit_as(name: str, email: str) -> str:
+        git(
+            repo,
+            "-c",
+            f"user.name={name}",
+            "-c",
+            f"user.email={email}",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-q",
+            "--no-verify",
+            "--allow-empty",
+            "-m",
+            "docs: note",
+        )
+        return rev(repo)
+
+    named = commit_as("AcmeClient Dev", "dev@example.com")
+    local = run(repo, "--history", f"{base}..HEAD")
+    assert local.returncode == 1
+    assert f"{named[:12]} author:1: matches" in local.stdout
+    assert f"{named[:12]} committer:1: matches" in local.stdout
+    base = rev(repo)
+    internal = commit_as("Dev", "dev@build." + "co" + "rp")
+    in_ci = run(repo, "--history", f"{base}..HEAD", ci=True)
+    assert in_ci.returncode == 1
+    assert f"{internal[:12]} author:1: matches" in in_ci.stdout
+    base = rev(repo)
+    commit_as("Dev", "dev@example.com")
+    assert run(repo, "--history", f"{base}..HEAD").returncode == 0
+
+
+def bare_remote(repo: Path, tmp_path_factory, extra_env: dict[str, str] | None = None):
+    """The real pre-push hook, a commit pushed to a local bare remote, and a git runner."""
+    hooks = repo / ".githooks"
+    hooks.mkdir(exist_ok=True)
+    shutil.copy(ROOT / ".githooks" / "pre-push", hooks / "pre-push")
+    remote = tmp_path_factory.mktemp("remote") / "origin.git"
+    config = tmp_path_factory.mktemp("config") / "gitconfig"
+    config.write_text("", encoding="utf-8")
+    env = {
+        **clean_env(GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM="1"),
+        **(extra_env or {}),
+    }
+
+    def g(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, env=env)
+
+    assert g("init", "-q", "--bare", str(remote)).returncode == 0
+    for key, value in (
+        ("user.name", "Test"),
+        ("user.email", "test@example.com"),
+        ("commit.gpgsign", "false"),
+        ("tag.gpgsign", "false"),
+        ("core.hooksPath", ".githooks"),
+    ):
+        assert g("config", key, value).returncode == 0
+    assert g("remote", "add", "origin", str(remote)).returncode == 0
+    assert g("add", ".githooks").returncode == 0
+    assert g("commit", "-q", "--no-verify", "-m", "chore: base").returncode == 0
+    first = g("push", "-q", "origin", "HEAD:refs/heads/main")
+    assert first.returncode == 0, first.stdout + first.stderr
+    return g, remote
+
+
+# Judge round 4 (E2): the hooks honoured a CI variable left in the developer's shell, which turned
+# the real list off.
+def test_pre_push_uses_the_real_list_even_with_ci_set(repo, tmp_path_factory):
+    g, _ = bare_remote(repo, tmp_path_factory, {"CI": "1"})
+    (repo / "leak.md").write_text("worked for AcmeClient\n", encoding="utf-8")
+    assert g("add", "leak.md").returncode == 0
+    assert g("commit", "-q", "--no-verify", "-m", "docs: add a note").returncode == 0
+    blocked = g("push", "origin", "HEAD:refs/heads/main")
+    assert blocked.returncode != 0
+    assert "leak.md:1: matches" in blocked.stdout + blocked.stderr
+
+
+@pytest.mark.parametrize("hook", ["pre-commit", "commit-msg", "pre-push"])
+def test_every_privacy_hook_unsets_ci(hook):
+    text = (ROOT / ".githooks" / hook).read_text(encoding="utf-8")
+    assert text.index("unset CI") < text.index("check-")
+
+
+# Judge round 4 (E4): the pre-push checked commits only, so an annotated tag's message was pushed.
+def test_pre_push_checks_an_annotated_tag_message(repo, tmp_path_factory):
+    g, remote = bare_remote(repo, tmp_path_factory)
+    assert g("tag", "-a", "v-note", "-m", "chore(tag): for AcmeClient").returncode == 0
+    blocked = g("push", "origin", "v-note")
+    assert blocked.returncode != 0
+    assert "matches" in blocked.stdout + blocked.stderr
+    tags = subprocess.run(
+        ["git", "tag"], cwd=remote, capture_output=True, text=True, env=clean_env()
+    ).stdout
+    assert "v-note" not in tags
+    assert g("tag", "-a", "v-clean", "-m", "chore(tag): first lab release").returncode == 0
+    clean = g("push", "origin", "v-clean")
+    assert clean.returncode == 0, clean.stdout + clean.stderr

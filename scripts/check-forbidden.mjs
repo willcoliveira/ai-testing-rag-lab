@@ -17,7 +17,7 @@
 //   to its target; --dir walks do not follow links either (S0 judge round 3)
 // - --file input (a commit message, a PR body) is prose, so it gets the line-break view
 //   (S0 judge round 3)
-// - --history <revisions>: every commit message and every line the commits added, so a string
+// - --history <revisions>: every commit message, author and committer, and every line the commits added, so a string
 //   committed without the hooks and removed later is still found (S0 judge round 3); reviewed
 //   false positives in the history are listed in privacy/history-exceptions.txt by commit and line
 // Scans every tracked and untracked (not ignored) file for forbidden strings; --dir <path> scans that
@@ -98,6 +98,8 @@ const realRules = process.env.CI ? [] : loadList(REAL);
 const rules = [...loadList(EXAMPLE), ...realRules];
 // the real list's lines, to find one copied into the example list
 const realLines = new Set(realRules.map((r) => r.src.toLowerCase()));
+// for commit and tag identities: an identity is an email, so the generic email shape is left out
+const identityRules = rules.filter((r) => !r.re.test("someone@example.com"));
 const ALLOW_TOKENS = new Set(existsSync(join(root, "privacy/allowlist.txt"))
   ? readFileSync(join(root, "privacy/allowlist.txt"), "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))
   : []);
@@ -169,7 +171,6 @@ function exampleListProblems(text) {
     const kind = lineKind(l);
     if (kind === "placeholder") placeholders++;
     else if (kind === "plain") problems.push(`${i + 1}: a plain-text line; the example list holds only comments, <placeholders> and /regex/ lines`);
-    else if (kind === "regex" && realLines.has(l.toLowerCase())) problems.push(`${i + 1}: a line of the real list`);
   });
   if (!placeholders) problems.push(" no <placeholder> line left; is it the real list copied over the example?");
   return problems;
@@ -177,6 +178,11 @@ function exampleListProblems(text) {
 // a /regex/ line read as the text it matches, so the real list's rules find a name written as
 // /\bname\b/i: the class escapes (\b, \d, \s, \w) as a space, any other escape as its character
 const regexText = (line) => line.replace(/\\[bBdDsSwW]/g, " ").replace(/\\(.)/g, "$1");
+// The real list's rules, to run them alone on that view: a rule written down in any file (a copy of
+// the list at another path, a rule pasted into a note) is found by its name, since a \b-anchored
+// rule does not match its own text. The generic example shapes are left out of that view, so code
+// with escapes does not trip them (S0 judge round 4, E1).
+const REAL_RULE_SET = new Set(realRules);
 // The noreply address is removed from a line before matching, so it cannot hide anything else on
 // that line (security review 2026-10-04); only the whole address: `alice.noreply@anthropic.com`
 // is not exempt.
@@ -254,10 +260,20 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
   text.split(/\r?\n|\r/).forEach((raw, i) => {
     const line = ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), raw);
     const seen = new Set();
-    const lineViews = [line, projection(line)];
-    if (regexView) lineViews.push(regexText(line));
-    for (const view of lineViews) {
-      for (const r of ruleSet) {
+    // a line that is one of the real list's own lines, in any file: reported without its text,
+    // so a copy of the list never reaches a log (S0 judge round 4, E1)
+    const trimmed = line.trim();
+    if (lineKind(trimmed) === "regex" && realLines.has(trimmed.toLowerCase()) && !exempt(lineNo(i))) {
+      report(`${f}:${lineNo(i)}: a line of the real list (not shown)`);
+      return;
+    }
+    const lineViews = [[line, ruleSet], [projection(line), ruleSet]];
+    if (regexView) lineViews.push([regexText(line), ruleSet]);
+    else if (line.includes("\\") && REAL_RULE_SET.size) {
+      lineViews.push([regexText(line), ruleSet.filter((r) => REAL_RULE_SET.has(r))]);
+    }
+    for (const [view, viewRules] of lineViews) {
+      for (const r of viewRules) {
         // every match, not just the first: one allowlisted token must not mask a later hit
         // (built page chunks are a single line each)
         for (const m of view.matchAll(r.global)) {
@@ -351,13 +367,17 @@ const historyExceptions = new Set(existsSync(EXCEPTIONS_FILE)
   : []);
 function scanHistory() {
   let commits = 0;
-  // commit messages, as prose
-  for (const entry of gitLog(["-z", "--format=%H%n%B"]).split("\0")) {
+  // commit messages, as prose; author and committer identities with every rule except the generic
+  // email shape (every identity is an email), so a name or an internal domain in an identity is
+  // found before it is pushed (S0 judge round 4, E3)
+  for (const entry of gitLog(["-z", "--format=%H%n%an <%ae>%n%cn <%ce>%n%B"]).split("\0")) {
     if (!entry.trim()) continue;
-    const nl = entry.indexOf("\n");
-    const sha = (nl < 0 ? entry : entry.slice(0, nl)).trim();
+    const [sha, author = "", committer = "", ...body] = entry.replace(/^\n+/, "").split("\n");
     commits++;
-    scanText(`${sha.slice(0, 12)} message`, nl < 0 ? "" : entry.slice(nl + 1), { ruleSet: rules, prose: true });
+    const at = sha.trim().slice(0, 12);
+    scanText(`${at} author`, author, { ruleSet: identityRules, prose: false });
+    scanText(`${at} committer`, committer, { ruleSet: identityRules, prose: false });
+    scanText(`${at} message`, body.join("\n"), { ruleSet: rules, prose: true });
   }
   // the lines each commit added, per file. A merge shows its combined diff (--cc): only lines new
   // to every parent count, so a branch merged in is not scanned twice.

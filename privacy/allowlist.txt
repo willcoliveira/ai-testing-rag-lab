@@ -6,3 +6,4 @@ ADR-002
 .claude/settings.local.json
 # Reserved example domain used in tests.
 test@example.com
+dev@example.com

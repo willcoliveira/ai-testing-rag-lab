@@ -9,5 +9,9 @@ runs/tmp/
 .env*
 !.env.example
 privacy/forbidden-strings.txt
+# a copy of the real list anywhere, and editor backups of it (also refused if force-added)
+**/forbidden-strings.txt
+privacy/*~
+privacy/#*#
 .claude/settings.local.json
 .mcp.json
