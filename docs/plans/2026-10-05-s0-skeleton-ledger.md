@@ -257,3 +257,27 @@ and its list of local changes:
   carries a hit its path exemption hides); D7 (symlinks read through); D8 (`--file` input not read
   as prose, once the line-break view is ported); D3 if the handbook has no history scan or pre-push
   hook.
+
+## Judge round 4 and the E fixes (2026-10-06)
+
+Judge round 4 (three Fable judges in clones, workflow wf_301194ae-d06) re-ran AC1-AC19 and every
+finding from rounds 1-3: all met or fixed, `make check` clean in each clone, the main checkout
+intact. Two judges stalled after a usage-limit pause and were retried by the workflow; the safety
+classifier timed out once while the security judge ran, so the main checkout was checked by hand
+afterwards (core.bare false, tree clean, no worktrees). Six new defects were reproduced
+independently (none rejected, none high). The user's go to fix them: "continue" (after the choice
+between fixing E1-E6 and shipping with them as follow-ups). Fixed by the main session directly,
+as they were small:
+
+| # | Severity | Finding | Fix | Test |
+|---|---|---|---|---|
+| E1 | medium | a \b-anchored real rule does not match its own text, and the "line of the real list" check ran on the example list only, so a copy of the list elsewhere or a rule pasted into a note passed | in every mode, a /regex/ line equal to a real-list line is reported without its text; any line with escapes is also read with the escapes dropped, against the real rules only; `**/forbidden-strings.txt` and editor backups in privacy/ are gitignored | `test_a_copy_of_the_real_list_at_another_path_is_found` (tree, staged, history), `test_a_real_rule_pasted_into_a_note_is_found`; expected pass: `test_escapes_in_code_do_not_trip_the_example_shapes` |
+| E2 | low | a CI variable left in the shell turned the real list off in the hooks | every hook runs `unset CI` before the checker | `test_pre_push_uses_the_real_list_even_with_ci_set`, `test_every_privacy_hook_unsets_ci` |
+| E3 | medium | author and committer identities were never checked | `--history` checks both identities with every rule except the generic email shape | `test_history_checks_author_and_committer` (a name locally, an internal domain in CI) |
+| E4 | low | the pre-push checked commits only; an annotated tag's message was pushed | pre-push checks an annotated tag's message (without the object header) as prose | `test_pre_push_checks_an_annotated_tag_message` (real hook, local bare remote) |
+| E5 | low | Git's "Merge branch 'x' (early part)" was rejected | accepted for branch items in commit messages; PR titles still reject merges | `test_good_headers_pass` / `test_bad_headers_fail` cases |
+| E6 | low | major action updates were grouped with minor and patch, against the file's header | `update-types: ["minor", "patch"]` on the github-actions group | `test_dependabot_covers_every_ecosystem_monthly` |
+
+Fails without the fix: the new tests run against f86dad1 give 14 failures, all of them the new
+cases (including the backup-file test, whose expectation changed with the new ignore rule).
+`make check` exit 0, 230 tests.
