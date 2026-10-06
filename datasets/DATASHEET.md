@@ -154,8 +154,9 @@ a labelled section stops existing.
   R-Q14 (FAQ Q3), R-Q18, R-Q21 and R-Q23 (FAQ Q2), R-Q19 and R-Q33 (FAQ Q1), and R-Q25 (FAQ Q7).
   Adding the FAQ sections to `relevant` would be wrong, because recall would then demand both
   copies. The same holds for Device Policy 6.2, which restates for R-Q25 the expiry rule of
-  A-EXC 4.2. The fix is a schema choice that is still open: groups of labels where any one member
-  counts.
+  A-EXC 4.2. The fix is a schema choice, groups of labels where any one member counts; it is
+  deferred to S4, which rebuilds the golden set and its baseline (the user's decision,
+  2026-10-06).
 - **Section labels and multi-chunk sections.** One labelled section has two chunks at the default
   settings: NIST SP 800-63B-4, section 3.1.1.2 (R-Q21). The expiry sentence that R-Q21 needs is
   in its first chunk. How such a section counts is decided where labels are resolved

@@ -50,7 +50,7 @@ the line quoted under AC8. Each break was made on a committed file and restored 
 | AC3 | met | `tests/retrieval/test_tenant_filter.py`: no tenant, empty, `shared`, unknown refused by every retriever; on fixtures and on the whole pack (every chunk's text asked as the other tenant, k 20) no cross-tenant chunk, for dense, BM25 and hybrid | store filter removed: 7 failures (dense and hybrid; `check_visible` raised TenantError); filter and both output checks removed: "dense: A-PWD-V1@1.0/1/1 asked as tenant-b returned ['A-PWD-V1@1.0/1/1', ...]"; BM25 filter removed: TenantError "chunk B-1@1.0/1/1 of tenant-b was retrieved for tenant-a" |
 | AC4 | met | `tests/retrieval/test_run_record.py` (fake embedder); the six real runs below each validated on writing (`raglab eval` exits non-zero on an invalid record), were made from clean commit `5f1d3a0` (`git_dirty: false`), provenance `local`, model BAAI/bge-small-en-v1.5 at `aa8f8b0`; the three published ones validate again in `tests/retrieval/test_publish.py::test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline` and passed the privacy check on publish | report check disabled in the validator: 1 failure; dirty-run refusal disabled: 1 failure (publish) |
 | AC5 | met | `tests/retrieval/test_compare.py`; the three configurations compared on dev and on the full set, results below | (covered by the RR break above) |
-| AC6 | partly met (decision below) | `tests/ingestion/test_chunk_boundaries.py`: at 600 the caption and Table 1 share a chunk with every row; F-17 holds; F-16 splits only on the note after the table; positive control at 250; three unit tests. `make inventory-snapshot`: no diff (228 chunks, 0 changed); `chunk_experiment.py --chunk-size 600`: 249 chunks (was 250), 1 feature split (was 2) | (the 600 test is the S1b break turned into a check) |
+| AC6 | not met as written; reworded by the user's decision (below): F-17 holds at 600 and F-16's table reads with its caption | `tests/ingestion/test_chunk_boundaries.py`: at 600 the caption and Table 1 share a chunk with every row; F-17 holds; F-16 splits only on the note after the table; positive control at 250; three unit tests. `make inventory-snapshot`: no diff (228 chunks, 0 changed); `chunk_experiment.py --chunk-size 600`: 249 chunks (was 250), 1 feature split (was 2) | (the 600 test is the S1b break turned into a check) |
 | AC7 | met | `make check`: deptry, vulture, pyright clean; architecture 0 violations; tests offline (`tests/unit/test_no_network.py` guard on, the model loaded from the cache) | `from raglab.adapters.fake import HashingEmbedder` and `import fastembed` in `retrieve/dense.py`: "raglab.adapters.fake is for the unit tests; no module imports it", "vendor SDK fastembed is imported outside raglab.adapters" |
 | AC8 | needs CI; local and CI-image evidence met | pr-fast: model cache and `make model` before the tests (`test_pr_fast_restores_and_fetches_the_model_by_revision_before_the_tests`); the gate step "Retrieval no-regression gate (offline)" runs `make gate` with `HF_HUB_OFFLINE=1` after the model, Tesseract and the tests (`test_pr_fast_runs_the_retrieval_gate_offline_after_the_tests`, which also checks that `make check` runs `gate`); zizmor: no findings. Locally `make gate`: "recall@5 0.644 (n 22) passes: the threshold is the baseline 0.644 (20261006T172928Z-retrieval-dense-dev-5f1d3a0) minus one question (1/22), 0.598". CI-image run below. To confirm on the PR: pr-fast green and its gate log line | (1) gate step removed from pr-fast.yml: "'Retrieval no-regression gate (offline)' is not in list", 1 failed; (2) margin made two questions in `gate.py`: `test_the_gate_passes_within_one_question_and_fails_below` fails ("assert not True"); (3) a real regression, dense returning ranks 2 to 6 (`store.search(..., k + 1)[1:]` in `retrieve/dense.py`): `make gate` fails, "recall@5 0.318 (n 22) fails: the threshold is ... 0.598"; (4) one question's wording changed in the committed golden file (labels still resolve): "the baseline ... has another dataset.sha256 (ffb8c5a5... vs e9c3e832...): publish a new baseline in a reviewed pull request", exit 1 |
 | AC9 | met (unit and smoke; browser in Track B) | `tests/unit/test_playground.py`: model.js renders a published index in Node; app.js runs against two published runs with a stand-in DOM and fetch (`tests/playground_dom.mjs`); paths outside `runs/published/` refused; CSP and no HTML writes. `runs/published/index.json` now holds three real runs, rebuilt identically by `publish.build_index` (test above). No real browser render this round | `fetchText` path prefixed with `../`: the app.js test fails |
@@ -129,8 +129,7 @@ runner; the PR's gate log is the runner's own number.
 
 ## Still to do in this stage
 
-1. Verify: the independent reviewer checks every label against its chunk text; the judges re-run
-   this evidence and the breaks.
+1. Verify: done (see "Judges and fixes" below).
 2. CI on the PR: pr-fast green, with the model step and the gate's log line.
 
 ## Decisions needed
@@ -241,3 +240,16 @@ Pending decisions (titles; the first six are under "Decisions needed" above):
 7. Label scope of R-Q14 and R-Q25 (S2-L2, S2-L4): keep the labels as the feature's reference
    answer gives them (done this round), or drop A-MFA 3.2 from R-Q14 and add A-DEVICE 6.2 to
    R-Q25 (with an F-17 location in the answer key), re-running and republishing the baseline
+
+## The user's decisions (2026-10-06)
+
+Asked as four questions; the answers, verbatim:
+
+| Decision | Answer | What it means |
+|---|---|---|
+| 1. FAQ near-duplicates (F-53) | "Defer to S4 (Recommended)" | primary-only labels stay; the caveat is in the datasheet and in the Reading above; S4 designs label groups where any one member counts, when it rebuilds the golden set and republishes the baseline |
+| 5. F-16 at chunk size 600 | "Accept and reword AC6 (Recommended)" | AC6 is not met as written; it now reads "the caption stays with its table; F-17 holds at 600 and F-16's table reads with its caption; the snapshot is updated with a reviewed diff". F-16 splits at 600 only on the note after the table; the default 1,200 keeps it whole |
+| 6. Gate margin | "One question (Recommended)" | recall@5 may fall by at most one question (1/22) below the baseline, as docs/THRESHOLDS.md gives the reason; the GitHub runner's gate line on the PR is the first check of it |
+| 2, 3, 4 and 7. Label rules | "Accept all four (Recommended)" | a section with several chunks is found when any chunk is; pointer sections are labelled; R-Q19 and R-Q20 label v1 too; labels follow the feature's reference answer (R-Q14 keeps A-MFA 3.2, A-DEVICE 6.2 stays unlabelled). Nothing re-run |
+
+No decision is pending. The stage's remaining evidence is CI on the PR (AC8).
