@@ -17,6 +17,9 @@ notes:
 - 'canaries lists, per tenant, the strings that identify that tenant''s content (R-13, R-16): none of
   the other tenant''s canaries may appear in an answer or a citation. Values both tenants share are not
   canaries.'
+- 'Whether an exception is in force is its Status cell in the exceptions register (Policy Exceptions Process,
+  Table 1), never a comparison of its end date with the date of the question: the assistant has no clock
+  (decision D-01). An answer about an exception gives its end date.'
 - 'answer_must_not_contain is for the golden set (S4): strings an answer must never repeat.'
 - 'S4: a golden case on FAQ Q6 (working from a café or a hotel) expects the written authorisation of the
   line manager (Remote Access Policy, section 5) as well as the VPN and the screen rules (sections 3 and
@@ -489,6 +492,21 @@ features:
     table:
       caption: 'Table 1: Exceptions register'
       row: EX-2026-007
+      column: Status
+    values: [Approved]
+  - doc: A-EXC
+    path: corpus/tenant-a/policy-exceptions-process.md
+    version: '1.0'
+    section: '5.1'
+    values:
+    - The Status column shows Approved while an exception is in force
+  - doc: A-EXC
+    path: corpus/tenant-a/policy-exceptions-process.md
+    version: '1.0'
+    section: '5.1'
+    table:
+      caption: 'Table 1: Exceptions register'
+      row: EX-2026-007
       column: Compensating controls
     values:
     - Halvenroot-managed on-call laptops only
@@ -543,6 +561,7 @@ features:
     section: '4.2'
     values:
     - An expired exception gives no permission
+    - the SOC sets the entry's status to Expired
   - doc: A-DEVICE
     path: corpus/tenant-a/device-policy.md
     version: '1.2'

@@ -7,6 +7,7 @@ docs/TEST-PLAN.md is covered by a feature or listed as a gap.
 """
 
 import re
+from datetime import date
 from functools import cache
 from typing import Any
 
@@ -312,6 +313,59 @@ def test_multi_hop_values_live_in_different_documents():
         for doc in docs.values():
             if all(norm(v) in norm(doc.body) for v in values):
                 pytest.fail(f"{f['id']}: {doc.id} alone holds every value")
+
+
+# ------------------------------------------------------------------ exceptions (D-01)
+
+# The corpus date: the day the exceptions register's statuses were last set (corpus/SPEC.md,
+# section 9). A refresh of the corpus moves it and updates the statuses with it.
+CORPUS_DATE = date(2026, 10, 6)
+EXCEPTION_KINDS = {"exception-overrides-rule", "expired-exception"}
+
+
+def exceptions_register() -> list[dict[str, str]]:
+    section = documents()["A-EXC"].sections()["5.1"]
+    return section.table("Table 1: Exceptions register")
+
+
+def test_exception_status_agrees_with_its_end_date():
+    """D-01: the register's Status column decides whether an exception is in force. As of the
+    corpus date each Status agrees with its End date, every entry lasts at most 12 months from
+    approval (Policy Exceptions Process, section 4.1), and none is approved after the corpus
+    date."""
+    rows = exceptions_register()
+    assert {r["Status"] for r in rows} == {"Approved", "Expired"}
+    for row in rows:
+        approved = date.fromisoformat(row["Approved"])
+        end = date.fromisoformat(row["End date"])
+        assert approved <= CORPUS_DATE, row["Id"]
+        assert approved < end <= approved.replace(year=approved.year + 1), row["Id"]
+        in_force = end >= CORPUS_DATE
+        assert (row["Status"] == "Approved") == in_force, f"{row['Id']}: Status against End date"
+
+
+def test_exception_features_cite_status_and_end_date():
+    """D-01: an exception feature cites its row's Status cell (what decides) and its End date cell
+    (what the answer reports), and its reference answer gives that end date. One feature covers
+    an Approved exception, one an Expired one."""
+    rows = {r["Id"]: r for r in exceptions_register()}
+    found = [f for f in features() if f["kind"] in EXCEPTION_KINDS]
+    assert {f["expected"] for f in found} == {"answer"}
+    statuses: set[str] = set()
+    for f in found:
+        cells = {
+            (loc["table"]["row"], loc["table"]["column"]): loc["values"]
+            for loc in f["locations"]
+            if loc.get("table", {}).get("caption") == "Table 1: Exceptions register"
+        }
+        ids = {row for row, _ in cells}
+        assert len(ids) == 1, f"{f['id']}: cites {sorted(ids)}"
+        (eid,) = ids
+        assert cells.get((eid, "Status")) == [rows[eid]["Status"]], f"{f['id']}: Status cell"
+        assert cells.get((eid, "End date")) == [rows[eid]["End date"]], f"{f['id']}: End date"
+        assert rows[eid]["End date"] in f["reference_answer"], f"{f['id']}: end date not given"
+        statuses.add(rows[eid]["Status"])
+    assert statuses == {"Approved", "Expired"}
 
 
 # ------------------------------------------------------------------ requirements

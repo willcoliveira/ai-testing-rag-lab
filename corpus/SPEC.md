@@ -799,7 +799,10 @@ The fact-checker should not report these:
   approved, so an entry's Approved or End date can come before or after the document's own
   effective date (EX-2025-003 was approved before A-EXC 1.0 took effect; EX-2026-007 after). S4
   must not write date-based cases on that (for example "an exception approved before the process
-  existed is invalid").
+  existed is invalid"). Whether an exception is in force is its Status cell, not a comparison of
+  dates (decision D-01, `docs/TEST-PLAN.md` R-05). As of the corpus date, 2026-10-06, each Status
+  agrees with its End date (`test_answer_key.py` checks it); a refresh of the corpus after
+  2027-01-31 sets EX-2026-007 to Expired and changes F-16 with it.
 - **Kiosk sign-out after 5 minutes (Annex B) against the 10-minute screen lock** (A-DEVICE 3.3,
   A-CLASS A.2). A-DEVICE section 2 sends shared kiosks to section 7, which hands them to Annex B,
   and signing out is the stricter control; the 10-minute lock governs every other device.
@@ -842,3 +845,5 @@ pages. Authors stay within 10% of their target.
 12. Decision labels: a feature is `flag-conflict` exactly when its expected retrieval includes the
     superseded or external side of its conflict; R-14 has must-not-block features answered, not
     refused.
+13. Exceptions register (D-01): each Status is Approved or Expired and agrees with its End date
+    as of the corpus date, 2026-10-06; every exception feature cites its row's Status and End date.

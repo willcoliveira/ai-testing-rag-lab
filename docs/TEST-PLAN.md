@@ -88,15 +88,16 @@ decides:
 2. **Current version (R-04).** An approved document governs over the version it supersedes.
 3. **Rules that cannot be excepted** (Policy Exceptions Process, sections 2.1 and 2.2: MFA on an
    administrator account, sharing a password). No exception or other document overrides them.
-4. **An approved exception that is in force (R-05)** governs, for the people it covers and until
-   its end date, over the rule it excepts.
+4. **An exception whose Status in the exceptions register is `Approved` (R-05)** governs, for the
+   people it covers, over the rule it excepts; the answer gives its end date. An `Expired`
+   exception decides nothing.
 5. **The rule with its in-text exceptions (R-07).** A rule is read together with the exception the
    same document states next to it.
 6. **External guidance, attributed (R-06).** It never overrides the company rule; a difference is
    flagged.
 
-Steps 4 and 6 follow R-05 and R-06 as written; if decisions D-01 or D-03 change those
-requirements, these steps are reworded to match. A summary document yields to the primary document
+Step 4 follows decision D-01 (S1a ledger); step 6 follows R-06 as written, and is reworded to
+match if decision D-03 changes R-06. A summary document yields to the primary document
 it cites: if the FAQ and the section it cites ever differ, the cited section governs, so an FAQ
 discrepancy is a defect to fix, not an unresolved conflict. Anything this list leaves undecided
 (two current approved documents that disagree) falls under R-22.
@@ -107,7 +108,7 @@ discrepancy is a defect to fix, not an unresolved conflict. Anything this list l
 | R-02 | M | **Citation integrity.** The assistant cites only passages it actually retrieved for this question. | Cited ids are a subset of retrieved ids, for every answer. |
 | R-03 | M | **Abstain when the pack is silent.** If the pack does not state the answer, the assistant says that the documents do not say, and may point to who could answer: the asker's tenant's support contact, taken from the pack. It does not fill the gap from general knowledge or from the other tenant's pack. | The abstain field is set; no value appears in the answer; a support contact, if given, is the asker's tenant's. |
 | R-04 | M | **Newer version over older.** Which document is current, and which documents are versions of the same document, come only from the register's ids, statuses and supersedes links, never from a document's own title, version string, effective date or front-matter status (a page that calls itself "version 2.1, replaces version 2.0" is neither current nor a version of anything unless the register says so). The current version governs. When the question asks about history (the case expects the superseded chunk) and that chunk was retrieved, the answer gives the current value and notes the superseded one as superseded (`flag-conflict`, section 3); a superseded chunk retrieved for a current-value question may be mentioned as superseded, never as the rule. | Answer value equals the current version's value; the superseded value never appears as the rule; a superseded value is noted only when its chunk was retrieved. |
-| R-05 | M | **Approved exception over rule.** An approved exception that has not reached its end date overrides the rule for the people it covers. The answer gives the covered group, the permitted value, the conditions that bind the covered people (the exception's compensating controls) and the end date. An expired exception gives no permission. | For the covered group the exception value is given with its conditions and end date; for everyone else, and after expiry, the rule value is given. |
+| R-05 | M | **Approved exception over rule.** Whether an exception is in force is decided by its Status in the exceptions register (Policy Exceptions Process, Table 1), never by comparing its end date with the date of the question: the assistant has no clock. An exception whose Status is `Approved` overrides the rule for the people it covers; the answer gives the covered group, the permitted value, the conditions that bind the covered people (the exception's compensating controls) and the end date. An exception whose Status is `Expired` gives no permission. | For the covered group of an `Approved` exception, the exception value is given with its conditions and end date; for everyone else, and for an `Expired` exception, the rule value is given (with the expired exception's end date when it is asked about). |
 | R-06 | M | **Company policy over external guidance, with the difference flagged.** For the asker's tenant, that tenant's rule governs. When a retrieved external reference disagrees with it, the answer gives the company rule, cites it, and states that the external guidance differs, citing the external chunk; an external source that was not retrieved is never flagged or cited (R-02). External values are always attributed to their source, never presented as company rules. | Company value is the answer; when the external chunk was retrieved, the flag names the external source; no external value is stated as a company rule. |
 | R-07 | M | **Rules with exceptions are answered whole.** When a rule is followed by its exception, the answer includes the exception. | An answer that states the rule without its exception fails. |
 | R-08 | M | **Follow cross-references.** When a passage points to another section or document for the value, the answer gives that value and cites the place that holds it. | The cited section contains the value; citing only the pointer fails. |
@@ -174,8 +175,12 @@ metrics get no target in advance"); the gates then fail on regression.
 - **Company rule wins for staff, and the difference is still shown (R-06).** Staff must follow the
   company rule; hiding that public guidance disagrees would also hide a risk the security team may
   want to revisit.
-- **Exceptions are time-boxed (R-05).** The end date is part of the answer, because an expired
-  exception is the most common way people end up out of policy without knowing it.
+- **Exceptions are time-boxed, and the register says which are in force (R-05).** The end date is
+  part of the answer, because an expired exception is the most common way people end up out of
+  policy without knowing it. The assistant has no clock, so the exceptions register's Status
+  column decides whether an exception is in force (the SOC sets it to Expired after the end date,
+  Policy Exceptions Process, section 4.2); an answer that compared dates itself would drift from
+  the register as the pack ages (decision D-01).
 - **"Refuse and help" (R-14) is one requirement, not two.** A bare refusal sends people to shadow
   IT; a helpful bypass is a vulnerability. The useful answer is the sanctioned route.
 - **Team contacts are not PII (R-19).** The Service Desk and SOC addresses are published contact
