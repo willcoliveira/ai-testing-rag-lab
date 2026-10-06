@@ -104,6 +104,9 @@ def diff_summary(old: Json, new: Json) -> str:
         f"chunks: {len(_rows(old))} -> {len(_rows(new))}; "
         + ", ".join(f"{len(ids)} {kind}" for kind, ids in changes.items())
     ]
+    for field in ("settings", "tools"):
+        if old.get(field) != new.get(field):
+            lines.append(f"{field}: {old.get(field)} -> {new.get(field)}")
     docs = sorted(
         {i.split("@", 1)[0] for kind in ("added", "removed", "changed") for i in changes[kind]}
     )

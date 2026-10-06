@@ -70,8 +70,12 @@ def section_pages(document: Document, section_id: str) -> set[int | None]:
 
 def table_cell(blocks: list[Block], caption: str, row: str, column: str) -> str:
     """The text of one cell of the table whose caption paragraph is `caption`."""
-    at = next(i for i, b in enumerate(blocks) if b.text == caption)
-    table = next(b for b in blocks[at + 1 :] if b.kind == "table")
+    at = next((i for i, b in enumerate(blocks) if b.text == caption), None)
+    assert at is not None, f"no caption {caption!r}"
+    table = next((b for b in blocks[at + 1 :] if b.kind == "table"), None)
+    assert table is not None, f"no table block after {caption!r}: the table was not read as rows"
     header, *rows = table.rows()
-    line = next(r for r in rows if r[0] == row)
+    line = next((r for r in rows if r[0] == row), None)
+    assert line is not None, f"{caption}: no row {row!r} in {[r[0] for r in rows]}"
+    assert column in header, f"{caption}: no column {column!r} in {header}"
     return line[header.index(column)]
