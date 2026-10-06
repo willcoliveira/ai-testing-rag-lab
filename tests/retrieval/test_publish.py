@@ -10,7 +10,7 @@ import pytest
 
 from raglab.evals import gate, publish, record, retrieval
 from tests.conftest import ROOT
-from tests.retrieval_support import fake_run, lab_root, read_run
+from tests.retrieval_support import fake_run, lab_root, read_run, reseal
 
 pytestmark = [pytest.mark.unit, pytest.mark.retrieval]
 
@@ -177,3 +177,24 @@ def test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline():
     assert dataset["sha256"] == record.sha256_bytes((ROOT / dense.dataset).read_bytes())
     used = record.as_json(baseline["config"])
     assert used["sha256"] == eval_config.canonical_sha256(dense.resolved())
+
+
+def test_a_published_run_edited_to_show_another_tenants_chunk_is_refused(tmp_path):
+    """S2 judge D3, as reproduced: the dense baseline copied, R-Q01 (tenant A) given tenant B's
+    B-PWD 1.0 3.1 at rank 1 with every flag, score, hash and the report made to agree. The
+    validator refuses it, so neither publish nor the gate accepts it."""
+    baseline_dir = publish.baseline_run(ROOT, "retrieval/retrieval-dense/dev")
+    assert baseline_dir is not None
+    run_dir = tmp_path / baseline_dir.name
+    shutil.copytree(baseline_dir, run_dir)
+    assert record.validate(run_dir, ROOT) == []
+    _, cases = read_run(run_dir)
+    q01 = next(c for c in cases if c["case_id"] == "R-Q01")
+    assert q01["tenant"] == "tenant-a"
+    q01["retrieved"][0]["chunk_id"] = "B-PWD@1.0/3.1/1"
+    reseal(run_dir, cases)
+    assert record.validate(run_dir, ROOT) == [
+        "case R-Q01 (tenant-a): chunk B-PWD@1.0/3.1/1 is tenant-b, which it cannot see"
+    ]
+    with pytest.raises(publish.PublishError, match=r"B-PWD@1\.0/3\.1/1 is tenant-b"):
+        publish.publish(run_dir, ROOT, privacy=clean)

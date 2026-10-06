@@ -147,11 +147,37 @@ def config_text(name: str, kind: str = "dense", k: int = 2, split: str = "dev") 
     )
 
 
+# The documents of the small runs and their tenants: PACK's, and A-Z, the extra chunk of a test
+# that changes the corpus. lab_root registers them, because record.validate checks every chunk id
+# against the register (S2 judge D3).
+LAB_DOCS = {**{c.doc_id: c.tenant for c in PACK}, "A-Z": "tenant-a"}
+
+
+def write_register(root: Path, docs: dict[str, str]) -> None:
+    """corpus/register.yaml naming each document with its tenant, and a placeholder file for each
+    (the register's paths must exist)."""
+    lines = ["schema_version: 1", "documents:"]
+    for doc, tenant in docs.items():
+        path = f"corpus/{doc.lower()}.md"
+        (root / path).parent.mkdir(parents=True, exist_ok=True)
+        (root / path).write_text(f"# {doc}\n", encoding="utf-8")
+        lines += [
+            f"- id: {doc}",
+            "  status: approved",
+            "  supersedes: null",
+            f"  tenant: {tenant}",
+            f"  path: {path}",
+        ]
+    (root / "corpus" / "register.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def lab_root(tmp_path: Path, questions: list[dict] | None = None) -> Path:
-    """A repo root with the real schema, a small golden file and the scripts publish runs."""
+    """A repo root with the real schema, a register of the small runs' documents and a small
+    golden file."""
     root = tmp_path / "repo"
     (root / "schemas").mkdir(parents=True)
     shutil.copyfile(ROOT / record.SCHEMA_PATH, root / record.SCHEMA_PATH)
+    write_register(root, LAB_DOCS)
     lines = [json.dumps(q) for q in (QUESTIONS if questions is None else questions)]
     (root / "golden.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return root
@@ -196,3 +222,29 @@ def fake_run(
 def read_run(run_dir: Path) -> tuple[Any, list[Any]]:
     """record.read, typed loosely for the tests' nested lookups."""
     return record.read(run_dir)
+
+
+def reseal(run_dir: Path, cases: list[Any]) -> None:
+    """Rewrite cases.jsonl with flags, scores, results, report and file hashes that agree, as a
+    careful hand edit would: only the tenant check can tell such a record from a real one."""
+    manifest, _ = read_run(run_dir)
+    k = manifest["retriever"]["k"]
+    for case in cases:
+        ids = [r["chunk_id"] for r in case["retrieved"]]
+        sets = [frozenset(label["chunk_ids"]) for label in case["labels"]]
+        for r in case["retrieved"]:
+            r["relevant"] = any(r["chunk_id"] in s for s in sets)
+        for label, s in zip(case["labels"], sets, strict=True):
+            label["found"] = bool(set(ids) & s)
+        case.update(record.case_scores(ids, sets, k))
+    manifest["results"] = record.results_from_cases(cases, k, manifest["bootstrap"])
+    body = {key: v for key, v in manifest.items() if key != "files"}
+    cases_bytes = record.cases_text(cases).encode()
+    report_bytes = record.render_report(body, cases).encode()
+    (run_dir / record.CASES).write_bytes(cases_bytes)
+    (run_dir / record.REPORT).write_bytes(report_bytes)
+    manifest["files"] = {
+        record.CASES: record.sha256_bytes(cases_bytes),
+        record.REPORT: record.sha256_bytes(report_bytes),
+    }
+    (run_dir / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")

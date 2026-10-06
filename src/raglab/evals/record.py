@@ -5,20 +5,24 @@
 - `validate` reads a run directory back and lists every problem: the schema
   (schemas/run-record.v1.json, both files read as one object), the run id against the directory
   name, the file hashes, the case count, the results recomputed from the cases (the same seeded
-  bootstrap gives the same intervals), and report.md against a fresh render, so the report is
-  never edited by hand.
+  bootstrap gives the same intervals), report.md against a fresh render, so the report is never
+  edited by hand, and the tenants: every retrieved and labelled chunk id names a document of the
+  register (corpus/register.yaml) that the case's tenant may see, so a record that shows another
+  tenant's chunk is refused even when its flags, scores, hashes and report agree (S2 judge D3).
 
 The report and the cases carry chunk ids and scores, never chunk text.
 """
 
 import hashlib
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
+from raglab.core.types import visible_tenants
 from raglab.evals import metrics
 from raglab.evals.schema import Validator
+from raglab.ingest import register
 
 SCHEMA_VERSION = "run-record.v1"
 SCHEMA_PATH = "schemas/run-record.v1.json"
@@ -208,6 +212,31 @@ def case_problems(case: Json, k: int) -> list[str]:
     return problems
 
 
+def doc_tenants(root: Path) -> dict[str, str]:
+    """Each registered document's tenant, from corpus/register.yaml under root."""
+    return {entry.doc_id: entry.tenant for entry in register.read(root)}
+
+
+def tenant_problems(case: Json, tenants: Mapping[str, str]) -> list[str]:
+    """A retrieved or labelled chunk whose document is not in the register, or belongs to a
+    tenant the case's tenant may not see. A chunk id is `<doc id>@<version>/<section>/<n>`."""
+    where = f"case {case['case_id']} ({case['tenant']})"
+    visible = visible_tenants(case["tenant"])
+    ids = [str(as_json(r)["chunk_id"]) for r in as_list(case["retrieved"])]
+    ids += [
+        str(i) for label in as_list(case["labels"]) for i in as_list(as_json(label)["chunk_ids"])
+    ]
+    problems: list[str] = []
+    for chunk_id in ids:
+        doc = chunk_id.split("@", 1)[0]
+        tenant = tenants.get(doc)
+        if tenant is None:
+            problems.append(f"{where}: chunk {chunk_id} names {doc}, which is not in the register")
+        elif tenant not in visible:
+            problems.append(f"{where}: chunk {chunk_id} is {tenant}, which it cannot see")
+    return problems
+
+
 def validate(run_dir: Path, root: Path) -> list[str]:
     """Every problem with the run at run_dir; [] when it is a valid run record v1."""
     for name in (MANIFEST, CASES, REPORT):
@@ -235,6 +264,12 @@ def validate(run_dir: Path, root: Path) -> list[str]:
         problems.append("a case id appears twice in cases.jsonl")
     k = cast(int, as_json(manifest["retriever"])["k"])
     problems.extend(problem for case in cases for problem in case_problems(case, k))
+    try:
+        tenants = doc_tenants(root)
+    except (OSError, ValueError) as error:  # the register fails closed: no check, no valid run
+        problems.append(f"the register cannot be read, so the tenants are unchecked ({error})")
+    else:
+        problems.extend(problem for case in cases for problem in tenant_problems(case, tenants))
     expected = results_from_cases(cases, k, as_json(manifest["bootstrap"]))
     if manifest["results"] != expected:
         problems.append(

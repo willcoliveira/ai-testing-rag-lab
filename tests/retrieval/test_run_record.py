@@ -13,7 +13,7 @@ from raglab.evals import record
 from raglab.evals.config import canonical_sha256
 from raglab.evals.schema import SchemaError, Validator
 from tests.conftest import ROOT
-from tests.retrieval_support import GIT, PACK, fake_run, lab_root, read_run
+from tests.retrieval_support import GIT, PACK, fake_run, lab_root, read_run, reseal
 
 pytestmark = [pytest.mark.unit, pytest.mark.retrieval]
 
@@ -204,3 +204,55 @@ def test_the_schema_validator_types_and_constraints():
         "$: unexpected property 'x'",
     ]
     assert v.errors({"n": 1, "flag": True, "tags": ["y"]}) == ["$.tags[0]: 'y' does not match ^x"]
+
+
+# ---------------------------------------------------------------- tenants (S2 judge D3)
+
+
+def test_a_record_that_shows_another_tenants_chunk_is_refused(tmp_path):
+    root = lab_root(tmp_path)
+    run_dir = fake_run(root)
+    _, cases = read_run(run_dir)
+    q1 = next(c for c in cases if c["case_id"] == "Q1")
+    assert q1["tenant"] == "tenant-a"
+    q1["retrieved"][0]["chunk_id"] = "B-PWD@1.0/3/1"
+    reseal(run_dir, cases)
+    assert record.validate(run_dir, root) == [
+        "case Q1 (tenant-a): chunk B-PWD@1.0/3/1 is tenant-b, which it cannot see"
+    ]
+
+
+def test_a_tenant_b_label_on_a_tenant_a_case_is_refused(tmp_path):
+    root = lab_root(tmp_path)
+    run_dir = fake_run(root)
+    _, cases = read_run(run_dir)
+    q2 = next(c for c in cases if c["case_id"] == "Q2")
+    q2["labels"][0]["chunk_ids"] = ["B-PWD@1.0/3/1"]
+    reseal(run_dir, cases)
+    assert record.validate(run_dir, root) == [
+        "case Q2 (tenant-a): chunk B-PWD@1.0/3/1 is tenant-b, which it cannot see"
+    ]
+
+
+def test_shared_chunks_pass_and_an_unregistered_document_is_refused(tmp_path):
+    root = lab_root(tmp_path)
+    run_dir = fake_run(root)
+    _, cases = read_run(run_dir)
+    q4 = next(c for c in cases if c["case_id"] == "Q4")
+    assert q4["tenant"] == "tenant-b"
+    q4["retrieved"][0]["chunk_id"] = "X-NIST@4/3.1/1"  # shared: every tenant may see it
+    reseal(run_dir, cases)
+    assert record.validate(run_dir, root) == []
+    q4["retrieved"][0]["chunk_id"] = "Q-NONE@1/1/1"
+    reseal(run_dir, cases)
+    assert record.validate(run_dir, root) == [
+        "case Q4 (tenant-b): chunk Q-NONE@1/1/1 names Q-NONE, which is not in the register"
+    ]
+
+
+def test_a_root_without_a_register_fails_closed(tmp_path):
+    root = lab_root(tmp_path)
+    run_dir = fake_run(root)
+    (root / "corpus" / "register.yaml").unlink()
+    [problem] = record.validate(run_dir, root)
+    assert problem.startswith("the register cannot be read, so the tenants are unchecked")
