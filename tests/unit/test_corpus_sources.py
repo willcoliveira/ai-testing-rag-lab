@@ -47,7 +47,8 @@ def inventory() -> dict[str, dict[str, str]]:
     for path, rest in rows:
         cells = [c.strip() for c in rest.split("|")]
         assert path not in out, f"{path} listed twice"
-        out[path] = dict(zip(["id", "status", "source", "licence", "notes"], cells, strict=True))
+        columns = ["id", "status", "supersedes", "source", "licence", "notes"]
+        out[path] = dict(zip(columns, cells, strict=True))
     return out
 
 
@@ -74,6 +75,41 @@ def test_inventory_matches_each_documents_front_matter():
         source = next(d for d in documents().values() if d.id == row["id"])
         if path != source.path:  # a generated file: its source's licence
             assert row["licence"] == source.front["licence"], path
+
+
+REGISTER_STATUS = {
+    ("company", "current"): "approved",
+    ("company", "superseded"): "superseded",
+    ("external", "current"): "reference",
+    ("attack", "test-material"): "test material",
+}
+
+
+def test_register_statuses_and_supersedes_links():
+    """The register (TEST-PLAN section 3) agrees with the corpus: each document's status follows
+    its kind and front-matter status, its renderings share it, and the Supersedes column names
+    exactly the superseded documents, each from a current document of the same tenant."""
+    listed = inventory()
+    docs = documents()
+    for doc in docs.values():
+        row = listed[doc.path]
+        expected = REGISTER_STATUS[(str(doc.front["kind"]), str(doc.front["status"]))]
+        assert row["status"] == expected, doc.path
+        assert row["supersedes"] == str(doc.front.get("supersedes", "—")), doc.path
+        for path, other in listed.items():
+            if other["id"] == doc.id and other["status"] != "support":
+                assert (other["status"], other["supersedes"]) == (
+                    row["status"],
+                    row["supersedes"],
+                ), path
+    links = {row["id"]: row["supersedes"] for row in listed.values() if row["supersedes"] != "—"}
+    superseded = {d.id for d in docs.values() if listed[d.path]["status"] == "superseded"}
+    assert set(links.values()) == superseded
+    assert superseded, "the register names no superseded document"
+    for new, old in links.items():
+        assert listed[docs[new].path]["status"] == "approved", new
+        assert docs[new].tenant == docs[old].tenant, new
+        assert docs[old].front.get("superseded_by") == new, old
 
 
 def test_no_file_derives_from_an_excluded_source():

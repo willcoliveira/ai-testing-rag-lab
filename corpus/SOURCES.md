@@ -9,9 +9,12 @@ evidence in [SPEC.md](SPEC.md), section 2). Every person is a role title. Every 
 phone number and token is a visible fake: addresses end in `example.com` or `example.org`, phone
 numbers are `555-01xx` numbers and tokens start with `FAKE-`.
 
-**Precedence (requirement R-15).** Only the documents marked `approved` below are the policy pack.
-The three files under `attacks/` are **deliberate test material, not policy**: they are ingested
-only in attack runs, so that tests can show the assistant ignores them.
+**Precedence (requirement R-15).** The inventory below is the register: its ids, statuses and
+Supersedes column decide which document is current and which documents are versions of the same
+document, never a document's own title, version string, effective date or front matter
+(`docs/TEST-PLAN.md`, section 3). The three files under `attacks/` are **deliberate test material,
+not policy**: they are ingested only in attack runs, so that tests can show the assistant ignores
+them.
 
 ## Upstream sources
 
@@ -29,44 +32,52 @@ handbook (no redistribution licence confirmed).
 
 ## Inventory
 
-Status: `approved` is a document of the policy pack; `superseded` is an approved document replaced
-by a newer version; `reference` is a shared external excerpt; `test material` is a deliberate
-attack file; `support` is a file about the corpus, not part of it. Generated files carry the
-licence of their Markdown source.
+Status says what a file does:
 
-| Path | Id | Status | Source | Licence | Notes |
-|---|---|---|---|---|---|
-| `corpus/SPEC.md` | — | support | ours | CC-BY-4.0 | Corpus specification and planted-value register |
-| `corpus/SOURCES.md` | — | support | ours | CC-BY-4.0 | This file |
-| `corpus/LICENSE.md` | — | support | ours | CC-BY-4.0 | Licence summary for the corpus folder |
-| `corpus/answer-key.yaml` | — | support | ours | CC-BY-4.0 | One entry per planted feature |
-| `corpus/build-manifest.json` | — | support | ours | CC-BY-4.0 | sha256 of the generated files, written by `scripts/build_corpus.py` |
-| `corpus/licenses/Apache-2.0.txt` | — | support | comply:LICENSE.txt | Apache-2.0 | The Apache License 2.0 text, copied unchanged from comply |
-| `corpus/tenant-a/password-standard-v1.md` | A-PWD-V1 | superseded | comply:password.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values |
-| `corpus/tenant-a/password-standard-v2.md` | A-PWD-V2 | approved | comply:password.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values; ingested as the PDF |
-| `corpus/tenant-a/password-standard-v2.pdf` | A-PWD-V2 | approved | comply:password.md | Apache-2.0 | Generated from the Markdown (4 pages); carries the change line on page 4 |
-| `corpus/tenant-a/mfa-standard.md` | A-MFA | approved | ours | CC-BY-4.0 | Ingested as the HTML export |
-| `corpus/tenant-a/mfa-standard.html` | A-MFA | approved | ours | CC-BY-4.0 | Generated HTML export |
-| `corpus/tenant-a/account-lifecycle.md` | A-LIFE | approved | comply:access.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values |
-| `corpus/tenant-a/privileged-access-standard.md` | A-PRIV | approved | ours | CC-BY-4.0 | |
-| `corpus/tenant-a/access-review-procedure.md` | A-REV | approved | ours | CC-BY-4.0 | |
-| `corpus/tenant-a/remote-access-policy.md` | A-REMOTE | approved | comply:remote.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values |
-| `corpus/tenant-a/device-policy.md` | A-DEVICE | approved | comply:workstation.md | Apache-2.0 | Changed: rewritten for Halvenroot, vendor names removed, planted values |
-| `corpus/tenant-a/device-policy-annex-b-kiosk.md` | A-DEVICE-B | approved | ours | CC-BY-4.0 | Ingested only as the scanned PNG |
-| `corpus/tenant-a/device-policy-annex-b-kiosk.png` | A-DEVICE-B | approved | ours | CC-BY-4.0 | Generated scanned page (rotation and noise) |
-| `corpus/tenant-a/device-policy-annex-b-kiosk.gt.txt` | A-DEVICE-B | support | ours | CC-BY-4.0 | Ground-truth text of the scanned page, for the OCR test |
-| `corpus/tenant-a/data-classification-policy.md` | A-CLASS | approved | comply:classification.md | Apache-2.0 | Changed: trimmed, rewritten for Halvenroot, planted values |
-| `corpus/tenant-a/account-compromise-runbook.md` | A-IR | approved | comply:incident.md | Apache-2.0 | Changed: narrowed to account compromise, planted values; its appendix holds the planted fake PII and secret |
-| `corpus/tenant-a/policy-exceptions-process.md` | A-EXC | approved | ours | CC-BY-4.0 | |
-| `corpus/tenant-a/faq.md` | A-FAQ | approved | ours | CC-BY-4.0 | Deliberate near-duplicates of other documents |
-| `corpus/tenant-a/glossary.md` | A-GLOSS | approved | ours | CC-BY-4.0 | |
-| `corpus/tenant-b/password-standard.md` | B-PWD | approved | comply:password.md | Apache-2.0 | Changed: rewritten for Mirrowfen, planted values |
-| `corpus/tenant-b/mfa-standard.md` | B-MFA | approved | ours | CC-BY-4.0 | |
-| `corpus/external/nist-sp-800-63b-4-excerpt.md` | X-NIST | reference | nist:sp800-63b-4 | NIST-public | Courtesy of NIST; quoted text only |
-| `corpus/external/ncsc-password-policy-excerpt.md` | X-NCSC | reference | ncsc:password-policy-updating-your-approach | OGL-UK-3.0 | Contains public sector information licensed under the OGL v3.0 |
-| `corpus/attacks/hidden-instruction-wifi-note.md` | T-HIDDEN | test material | ours | CC-BY-4.0 | **Deliberate test material:** a note with a hidden instruction to AI assistants |
-| `corpus/attacks/poisoned-password-standard.md` | T-POISON | test material | comply:password.md | Apache-2.0 | **Deliberate test material:** a poisoned near-duplicate of A-PWD-V2. Changed: derived from A-PWD-V2 with weakened values |
-| `corpus/attacks/fake-policy-update.md` | T-FAKE | test material | ours | CC-BY-4.0 | **Deliberate test material:** a fake "updated policy" page asking for passwords |
+- `approved`: in the pack, and governs: its values are the company's rules.
+- `superseded`: in the pack, replaced by the document named in its successor's Supersedes cell;
+  retrievable and cited for history only, never as the current rule.
+- `reference`: a shared external excerpt, in the pack for both tenants; its values are given only
+  attributed to their source, never as a company rule.
+- `test material`: a deliberate attack file, never in the pack.
+- `support`: a file about the corpus, not a document of it.
+
+Every generated file carries the licence of its Markdown source; the PDF, HTML and PNG
+renderings also carry its status and Supersedes cell (the ground-truth text is support).
+
+| Path | Id | Status | Supersedes | Source | Licence | Notes |
+|---|---|---|---|---|---|---|
+| `corpus/SPEC.md` | — | support | — | ours | CC-BY-4.0 | Corpus specification and planted-value register |
+| `corpus/SOURCES.md` | — | support | — | ours | CC-BY-4.0 | This file |
+| `corpus/LICENSE.md` | — | support | — | ours | CC-BY-4.0 | Licence summary for the corpus folder |
+| `corpus/answer-key.yaml` | — | support | — | ours | CC-BY-4.0 | One entry per planted feature |
+| `corpus/build-manifest.json` | — | support | — | ours | CC-BY-4.0 | sha256 of the generated files, written by `scripts/build_corpus.py` |
+| `corpus/licenses/Apache-2.0.txt` | — | support | — | comply:LICENSE.txt | Apache-2.0 | The Apache License 2.0 text, copied unchanged from comply |
+| `corpus/tenant-a/password-standard-v1.md` | A-PWD-V1 | superseded | — | comply:password.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values |
+| `corpus/tenant-a/password-standard-v2.md` | A-PWD-V2 | approved | A-PWD-V1 | comply:password.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values; ingested as the PDF |
+| `corpus/tenant-a/password-standard-v2.pdf` | A-PWD-V2 | approved | A-PWD-V1 | comply:password.md | Apache-2.0 | Generated from the Markdown (4 pages); carries the change line on page 4 |
+| `corpus/tenant-a/mfa-standard.md` | A-MFA | approved | — | ours | CC-BY-4.0 | Ingested as the HTML export |
+| `corpus/tenant-a/mfa-standard.html` | A-MFA | approved | — | ours | CC-BY-4.0 | Generated HTML export |
+| `corpus/tenant-a/account-lifecycle.md` | A-LIFE | approved | — | comply:access.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values |
+| `corpus/tenant-a/privileged-access-standard.md` | A-PRIV | approved | — | ours | CC-BY-4.0 | |
+| `corpus/tenant-a/access-review-procedure.md` | A-REV | approved | — | ours | CC-BY-4.0 | |
+| `corpus/tenant-a/remote-access-policy.md` | A-REMOTE | approved | — | comply:remote.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values |
+| `corpus/tenant-a/device-policy.md` | A-DEVICE | approved | — | comply:workstation.md | Apache-2.0 | Changed: rewritten for Halvenroot, vendor names removed, planted values |
+| `corpus/tenant-a/device-policy-annex-b-kiosk.md` | A-DEVICE-B | approved | — | ours | CC-BY-4.0 | Ingested only as the scanned PNG |
+| `corpus/tenant-a/device-policy-annex-b-kiosk.png` | A-DEVICE-B | approved | — | ours | CC-BY-4.0 | Generated scanned page (rotation and noise) |
+| `corpus/tenant-a/device-policy-annex-b-kiosk.gt.txt` | A-DEVICE-B | support | — | ours | CC-BY-4.0 | Ground-truth text of the scanned page, for the OCR test |
+| `corpus/tenant-a/data-classification-policy.md` | A-CLASS | approved | — | comply:classification.md | Apache-2.0 | Changed: trimmed, rewritten for Halvenroot, planted values |
+| `corpus/tenant-a/account-compromise-runbook.md` | A-IR | approved | — | comply:incident.md | Apache-2.0 | Changed: narrowed to account compromise, planted values; its appendix holds the planted fake PII and secret |
+| `corpus/tenant-a/policy-exceptions-process.md` | A-EXC | approved | — | ours | CC-BY-4.0 | |
+| `corpus/tenant-a/faq.md` | A-FAQ | approved | — | ours | CC-BY-4.0 | Deliberate near-duplicates of other documents |
+| `corpus/tenant-a/glossary.md` | A-GLOSS | approved | — | ours | CC-BY-4.0 | |
+| `corpus/tenant-b/password-standard.md` | B-PWD | approved | — | comply:password.md | Apache-2.0 | Changed: rewritten for Mirrowfen, planted values |
+| `corpus/tenant-b/mfa-standard.md` | B-MFA | approved | — | ours | CC-BY-4.0 | |
+| `corpus/external/nist-sp-800-63b-4-excerpt.md` | X-NIST | reference | — | nist:sp800-63b-4 | NIST-public | Courtesy of NIST; quoted text only |
+| `corpus/external/ncsc-password-policy-excerpt.md` | X-NCSC | reference | — | ncsc:password-policy-updating-your-approach | OGL-UK-3.0 | Contains public sector information licensed under the OGL v3.0 |
+| `corpus/attacks/hidden-instruction-wifi-note.md` | T-HIDDEN | test material | — | ours | CC-BY-4.0 | **Deliberate test material:** a note with a hidden instruction to AI assistants |
+| `corpus/attacks/poisoned-password-standard.md` | T-POISON | test material | — | comply:password.md | Apache-2.0 | **Deliberate test material:** a poisoned near-duplicate of A-PWD-V2. Changed: derived from A-PWD-V2 with weakened values |
+| `corpus/attacks/fake-policy-update.md` | T-FAKE | test material | — | ours | CC-BY-4.0 | **Deliberate test material:** a fake "updated policy" page asking for passwords |
 
 ## Size
 
