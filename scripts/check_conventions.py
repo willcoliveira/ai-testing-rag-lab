@@ -43,7 +43,8 @@ def _group(singular: str, plural: str, item: str) -> str:
 
 _GROUP = "|".join(
     (
-        _group("branch", "branches", _NAME),
+        # "(early part)": Git's suffix for a merge of an earlier commit of a branch (judge round 4)
+        _group("branch", "branches", rf"{_NAME}(?: \(early part\))?"),
         _group("remote-tracking branch", "remote-tracking branches", _NAME),
         _group("tag", "tags", _NAME),
         _group("commit", "commits", _HEX),

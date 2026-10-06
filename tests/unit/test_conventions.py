@@ -20,6 +20,9 @@ conv = load_script("check_conventions")
         "Merge branch 'main' into feat/s2-retrieval",
         "Merge pull request #12 from willcoliveira/feat/s2-retrieval",
         "fixup! feat(api): add /ask",
+        # judge round 4 (E5): a merge of an earlier commit of a branch
+        "Merge branch 'topic' (early part)",
+        "Merge branch 'topic' (early part) into main",
         # judge round 2: what Git writes when a bare commit id is merged
         "Merge commit '" + "0123abcd" * 5 + "'",
         "Merge commit '" + "0123abcd" * 5 + "' into feat/s2-retrieval",
@@ -53,6 +56,8 @@ def test_good_headers_pass(header):
         'Revert "anything',
         'Revert "update stuff"',
         "fixup! update stuff",
+        "Merge branch 'topic' (any text)",
+        "Merge branch 'topic' (early part) extra",
         "Merge commit 'anything i like'",
         "Merge commit 'HEAD' into main and more",
         "Merge commit '0123abc' into feat/x extra words",
