@@ -58,7 +58,7 @@ model:
 	uv run raglab fetch-model
 
 test:
-	uv run pytest -m "$(PYTEST_OFFLINE)"
+	HF_HUB_OFFLINE=1 uv run pytest -m "$(PYTEST_OFFLINE)"
 
 # required once in every clone: commit-msg, pre-commit and pre-push
 hooks:

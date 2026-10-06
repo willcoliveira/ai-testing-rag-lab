@@ -194,3 +194,27 @@ def test_runners_are_pinned_with_the_tesseract_packages():
             assert runner is None or runner != "ubuntu-latest", (
                 f"{path.name}:{name} runs on ubuntu-latest"
             )
+
+
+def test_pr_fast_restores_and_fetches_the_model_by_revision_before_the_tests():
+    """S2 AC8: the model is cached by its pinned revision (actions/cache pinned by SHA), fetched
+    with its hashes checked before the tests, and the tests run with the hub offline."""
+    from raglab.adapters import fastembed_embed
+
+    wf = load(WORKFLOW_DIR / "pr-fast.yml")
+    assert wf["env"]["EMBED_MODEL_REVISION"] == fastembed_embed.REVISION
+    steps = wf["jobs"]["check"]["steps"]
+    names = [step.get("name") for step in steps]
+    cache = steps[names.index("Restore the embedding model (cached by revision)")]
+    assert PINNED.match(cache["uses"])
+    assert cache["uses"].startswith("actions/cache@")
+    assert cache["with"] == {
+        "path": "~/.cache/raglab/models",
+        "key": "raglab-model-${{ env.EMBED_MODEL_REVISION }}",
+    }
+    fetch = names.index("Embedding model (download on a miss, hashes checked)")
+    assert steps[fetch]["run"] == "make model"
+    tests = names.index("Tests (offline)")
+    assert names.index("Restore the embedding model (cached by revision)") < fetch < tests
+    assert steps[tests]["env"] == {"HF_HUB_OFFLINE": "1"}
+    assert fastembed_embed.cache_root().as_posix().endswith(".cache/raglab/models")

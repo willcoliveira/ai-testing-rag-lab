@@ -22,6 +22,10 @@ env:
   # an image change fails the install instead of silently changing the OCR (S1b)
   TESSERACT_VERSION: "5.3.4-1build5"
   TESSDATA_VERSION: "1:4.1.0-2"
+  # the embedding model's pinned revision (raglab.adapters.fastembed_embed.REVISION; a test keeps
+  # them equal): the cache key, so a new revision never restores old files. The files live in
+  # ~/.cache/raglab/models (the adapter's default), outside the checkout the scans read.
+  EMBED_MODEL_REVISION: "aa8f8b060edb00e03bfdd08813a2949946c8ba55"
 
 jobs:
   # the runner is pinned with the Tesseract packages: both move together, in one reviewed PR
@@ -45,6 +49,15 @@ jobs:
         run: python -m pip install --require-hashes --no-deps -r .github/ci-requirements.txt
       - name: Install the project
         run: uv sync --locked
+      # restored by revision; on a miss `make model` downloads it (network on, before the tests)
+      # and on a hit it only checks every file's sha256, so a poisoned cache entry fails here
+      - name: Restore the embedding model (cached by revision)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/raglab/models
+          key: raglab-model-${{ env.EMBED_MODEL_REVISION }}
+      - name: Embedding model (download on a miss, hashes checked)
+        run: make model
       - name: Install gitleaks (checksum verified)
         run: |
           curl -sSfL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
@@ -88,7 +101,10 @@ jobs:
         run: make privacy-history RANGE="$BASE_SHA..$HEAD_SHA"
       - name: Architecture rules
         run: make architecture
+      # the tests load the model from the cache only; HF_HUB_OFFLINE stops any library download
       - name: Tests (offline)
+        env:
+          HF_HUB_OFFLINE: "1"
         run: make test
 
   conventions:
