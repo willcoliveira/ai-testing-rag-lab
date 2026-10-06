@@ -21,8 +21,9 @@ BlockKind = Literal["heading", "paragraph", "item", "table"]
 BLOCK_SEPARATOR = "\n\n"
 
 # A section id is the leading token of a heading: 4, 4.1, 3.1.1.2, A, A.2 or Q1 (corpus/SPEC.md,
-# section 5). A heading without one is identified by its whole text.
-SECTION_ID = re.compile(r"^(?:\d+(?:\.\d+)*|[A-Z](?:\.\d+)*|Q\d+)$")
+# section 5), in ASCII digits only (a fullwidth or Arabic-Indic '4' is not one). A heading without
+# one is identified by its whole text.
+SECTION_ID = re.compile(r"^(?:\d+(?:\.\d+)*|[A-Z](?:\.\d+)*|Q\d+)$", flags=re.ASCII)
 
 
 class TenantError(ValueError):

@@ -9,8 +9,17 @@ from pathlib import Path
 import pytest
 import yaml
 
+from raglab.__main__ import main
 from raglab.chunk.sections import ChunkSettings, SectionChunker
-from raglab.core.types import TENANTS, Chunk, ChunkId, DocumentMeta, TenantError, sha256_text
+from raglab.core.types import (
+    TENANTS,
+    Chunk,
+    ChunkId,
+    DocumentMeta,
+    TenantError,
+    sha256_text,
+    split_heading,
+)
 from raglab.ingest import attacks, frontmatter, pipeline
 from tests.conftest import ROOT
 from tests.ingestion_support import answer_key, default_inventory, entries, parsed
@@ -224,3 +233,91 @@ def test_a_document_with_only_headings_yields_no_chunk_and_fails(tmp_path):
     )
     with pytest.raises(pipeline.IngestError, match="no chunk"):
         pipeline.ingest(root)
+
+
+def write_doc(root: Path, body: bytes, name: str = "doc.md") -> None:
+    (root / "corpus" / "tenant-a" / name).write_bytes(body)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "body",
+    [f"---\n{FRONT}---\n\n# Title\n\n## 1 Scope\n\nCaf\u00e9 text.\n".encode("latin-1"),
+     f"---\n{FRONT}---\n\n# Title\n\n## 1 Scope\n\n".encode() + b"\x00\x01\xff\xfe\n"],
+    ids=["latin-1", "binary"],
+)  # fmt: skip
+def test_a_file_that_is_not_utf8_stops_the_run_naming_the_document(tmp_path, capsys, body):
+    """D3: a non-UTF-8 save is an IngestError naming the document, and the CLI says so in one
+    line (no traceback)."""
+    root = mini_corpus(tmp_path, ENTRY, FRONT)
+    write_doc(root, body)
+    with pytest.raises(pipeline.IngestError, match=r"corpus/tenant-a/doc\.md: .*not UTF-8 text"):
+        pipeline.ingest(root)
+    assert main(["ingest", "--root", str(root), "--out", "out.json"]) == 1
+    err = capsys.readouterr().err
+    assert "corpus/tenant-a/doc.md" in err
+    assert "Traceback" not in err
+
+
+@pytest.mark.unit
+def test_an_html_export_that_is_not_utf8_stops_the_run_naming_it(tmp_path):
+    root = mini_corpus(tmp_path, {**ENTRY, "path": "corpus/tenant-a/doc.html"}, FRONT)
+    front = FRONT.replace("format: md", "format: html")
+    write_doc(root, f"---\n{front}---\n\n# Title\n".encode())
+    write_doc(
+        root, "<body><h1>Title</h1><h2>1 Scope</h2><p>Caf\u00e9</p>".encode("latin-1"), "doc.html"
+    )
+    with pytest.raises(pipeline.IngestError, match=r"corpus/tenant-a/doc\.html: .*not UTF-8 text"):
+        pipeline.ingest(root)
+
+
+@pytest.mark.unit
+def test_an_html_export_with_a_byte_order_mark_gives_no_extra_chunk(tmp_path):
+    """D2: the BOM of an HTML export is not text, so it does not open an intro chunk."""
+    root = mini_corpus(tmp_path, {**ENTRY, "path": "corpus/tenant-a/doc.html"}, FRONT)
+    front = FRONT.replace("format: md", "format: html")
+    write_doc(root, f"---\n{front}---\n\n# Title\n".encode())
+    page = "\ufeff<!doctype html>\r\n<html><body>\r\n<h1>Title</h1>\r\n<h2>1 Scope</h2>\r\n"
+    write_doc(root, (page + "<p>Some text.</p>\r\n</body></html>\r\n").encode(), "doc.html")
+    inventory = pipeline.ingest(root)
+    assert [(c.chunk_id, c.text) for c in inventory.chunks] == [
+        ("A-X@1.0/1/1", "1 Scope\n\nSome text.")
+    ]
+
+
+@pytest.mark.unit
+def test_section_ids_are_ascii_and_ids_that_slug_alike_stay_unique(tmp_path):
+    """D5: a heading numbered with fullwidth or Arabic-Indic digits has no section id (its text
+    is its id), and headings whose ids slug alike still give unique chunk ids."""
+    assert split_heading("\uff14 Rules") == ("\uff14 Rules", "\uff14 Rules")
+    assert split_heading("\u0664 Rules") == ("\u0664 Rules", "\u0664 Rules")
+    assert split_heading("4 Rules") == ("4", "Rules")
+    root = mini_corpus(tmp_path, ENTRY, FRONT)
+    body = (
+        "# Title\n\n## \uff14 Rules\n\nfour.\n\n## \uff15 More\n\nfive.\n\n"
+        "## \u0664 Rules\n\nfour.\n\n## \u0665 More\n\nfive.\n\n"
+        "## \u00c4 x\n\na.\n\n## \u00d6 x\n\no.\n"
+    )
+    write_doc(root, f"---\n{FRONT}---\n\n{body}".encode())
+    chunks = pipeline.ingest(root).chunks
+    assert [(c.chunk_id, c.section_id) for c in chunks] == [
+        ("A-X@1.0/-_Rules/1", "\uff14 Rules"),
+        ("A-X@1.0/-_More/1", "\uff15 More"),
+        ("A-X@1.0/-_Rules~2/1", "\u0664 Rules"),
+        ("A-X@1.0/-_More~2/1", "\u0665 More"),
+        ("A-X@1.0/-_x/1", "\u00c4 x"),
+        ("A-X@1.0/-_x~2/1", "\u00d6 x"),
+    ]
+
+
+@pytest.mark.unit
+def test_a_repeated_chunk_id_names_the_id_and_the_documents(tmp_path):
+    """D5: the duplicate-id stop says which id and which documents."""
+    root = mini_corpus(tmp_path, ENTRY, FRONT)
+    document = pipeline.parse(root, pipeline.describe(root, "A-X", "approved", "tenant-a",
+                                                      "corpus/tenant-a/doc.md", "md"))  # fmt: skip
+    with pytest.raises(
+        pipeline.IngestError,
+        match=re.escape("corpus/tenant-a/doc.md: chunk id A-X@1.0/1/1 is already used by "),
+    ):
+        pipeline.chunk_all((document, document), ChunkSettings())

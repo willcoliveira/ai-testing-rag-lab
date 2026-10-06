@@ -162,10 +162,11 @@ class SectionChunker:
             units = _units(section, self.settings.chunk_size)
             if not units:
                 continue
-            seen[section.section_id] = seen.get(section.section_id, 0) + 1
             key = _slug(section.section_id)
-            if seen[section.section_id] > 1:  # a repeated section id stays unique in the ids
-                key += f"~{seen[section.section_id]}"
+            # a repeated section id, or two that slug alike ('Ä x' and 'Ö x'), stays unique
+            seen[key] = seen.get(key, 0) + 1
+            if seen[key] > 1:
+                key += f"~{seen[key]}"
             for n, (lo, hi) in enumerate(_groups(units, self.settings), start=1):
                 start, end = units[lo].start, units[hi - 1].end
                 chunks.append(

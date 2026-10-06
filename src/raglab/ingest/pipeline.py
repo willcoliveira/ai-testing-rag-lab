@@ -12,6 +12,8 @@ another id, tenant or format, an unreadable file or a document that yields no ch
 with an error that names the document.
 """
 
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from importlib.metadata import version
 from pathlib import Path
@@ -41,6 +43,17 @@ class Inventory:
     chunks: tuple[Chunk, ...]
 
 
+@contextmanager
+def _utf8(rel: str, path: Path) -> Generator[None]:
+    """A file that is not UTF-8 text stops the run with an error naming the document."""
+    try:
+        yield
+    except UnicodeDecodeError as error:
+        raise IngestError(
+            f"{rel}: {path.name} is not UTF-8 text ({error.reason} at byte {error.start})"
+        ) from error
+
+
 def metadata_file(root: Path, rel: str) -> Path:
     """The Markdown file whose front matter describes the document at rel."""
     path = root / rel
@@ -53,7 +66,9 @@ def metadata_file(root: Path, rel: str) -> Path:
 def describe(root: Path, doc_id: str, status: str, tenant: str, rel: str, fmt: str) -> DocumentMeta:
     """A document's metadata: the caller's id, status and tenant, checked against the front
     matter of its Markdown source, plus the source's title, version, kind and licence."""
-    front = frontmatter.read(metadata_file(root, rel), rel)
+    source = metadata_file(root, rel)
+    with _utf8(rel, source):
+        front = frontmatter.read(source, rel)
     missing = [f for f in FRONT_FIELDS if not front.get(f)]
     if missing:
         raise IngestError(f"{rel}: front matter lacks {', '.join(missing)}")
@@ -79,11 +94,12 @@ def parse(root: Path, meta: DocumentMeta) -> Document:
     """The document at meta.path, parsed by its format. An HTML export's corpus-id meta, when it
     has one, must name the same document."""
     path = root / meta.path
-    if meta.format == "html":
-        _, meta_tags = html.read(path)
-        if meta_tags.get("id", meta.doc_id) != meta.doc_id:
-            raise IngestError(f"{meta.path}: its corpus-id meta names {meta_tags['id']!r}")
-    document = Document(meta, PARSERS[meta.format].parse(path))
+    with _utf8(meta.path, path):
+        if meta.format == "html":
+            _, meta_tags = html.read(path)
+            if meta_tags.get("id", meta.doc_id) != meta.doc_id:
+                raise IngestError(f"{meta.path}: its corpus-id meta names {meta_tags['id']!r}")
+        document = Document(meta, PARSERS[meta.format].parse(path))
     if not document.text().strip():
         raise IngestError(f"{meta.path}: no text was extracted")
     return document
@@ -107,9 +123,11 @@ def chunk_all(documents: tuple[Document, ...], settings: ChunkSettings) -> tuple
         if not found:
             raise IngestError(f"{document.meta.path}: no chunk was produced")
         chunks.extend(found)
-    ids = [c.chunk_id for c in chunks]
-    if len(ids) != len(set(ids)):
-        raise IngestError("two chunks share an id")
+    owners: dict[str, str] = {}
+    for chunk in chunks:
+        if (owner := owners.get(chunk.chunk_id)) is not None:
+            raise IngestError(f"{chunk.path}: chunk id {chunk.chunk_id} is already used by {owner}")
+        owners[chunk.chunk_id] = chunk.path
     return tuple(chunks)
 
 
