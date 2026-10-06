@@ -166,11 +166,14 @@ def test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline():
         assert manifest["partial"] is False, run_dir.name
         assert manifest["split"] == "dev", run_dir.name
         assert {c["split"] for c in cases} == {"dev"}, run_dir.name
-    assert index == publish.build_index(published, index["baselines"])
+    baselines = {str(k): str(v) for k, v in record.as_json(index["baselines"]).items()}
+    assert index == publish.build_index(published, baselines)
     key = "retrieval/retrieval-dense/dev"
     baseline_dir = publish.baseline_run(ROOT, key)
     assert baseline_dir is not None, f"no baseline for {key}"
     baseline, _ = record.read(baseline_dir)
     dense = eval_config.load(ROOT / "config" / "retrieval-dense.toml", ROOT)
-    assert baseline["dataset"]["sha256"] == record.sha256_bytes((ROOT / dense.dataset).read_bytes())
-    assert baseline["config"]["sha256"] == eval_config.canonical_sha256(dense.resolved())
+    dataset = record.as_json(baseline["dataset"])
+    assert dataset["sha256"] == record.sha256_bytes((ROOT / dense.dataset).read_bytes())
+    used = record.as_json(baseline["config"])
+    assert used["sha256"] == eval_config.canonical_sha256(dense.resolved())
