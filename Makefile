@@ -7,9 +7,9 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture test hooks corpus inventory-snapshot
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture model test hooks corpus inventory-snapshot playground
 
-check: format lint types deps audit sast workflows secrets privacy architecture test
+check: format lint types deps audit sast workflows secrets privacy architecture model test
 
 format:
 	uv run ruff format --check
@@ -50,6 +50,12 @@ privacy-history:
 
 architecture:
 	uv run python scripts/check_architecture.py
+
+# the pinned embedding model (BAAI/bge-small-en-v1.5, ONNX) into $RAGLAB_MODEL_DIR (default
+# ~/.cache/raglab/models): downloads only what is missing or fails its sha256, so it is offline once
+# the cache is filled. The tests never download; they load from this cache.
+model:
+	uv run raglab fetch-model
 
 test:
 	uv run pytest -m "$(PYTEST_OFFLINE)"

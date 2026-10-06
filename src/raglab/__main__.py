@@ -1,4 +1,4 @@
-"""Command line entry point. Later stages add ask, eval and publish."""
+"""Command line entry point: ingest, fetch-model, eval, compare, publish. Later stages add ask."""
 
 import argparse
 import json
@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from raglab import __version__
+from raglab.adapters import fastembed_embed
 from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSettings
 from raglab.ingest import inventory, pipeline
 
@@ -46,6 +47,20 @@ def ingest(args: argparse.Namespace) -> int:
     return 0
 
 
+def fetch_model(args: argparse.Namespace) -> int:
+    try:
+        directory, fetched = fastembed_embed.fetch(args.cache)
+    except (fastembed_embed.ModelUnavailable, OSError) as error:
+        print(f"fetch-model failed: {error}", file=sys.stderr)
+        return 1
+    state = f"downloaded {', '.join(fetched)}" if fetched else "already in the cache"
+    print(
+        f"{fastembed_embed.MODEL} at revision {fastembed_embed.REVISION}: {state}; "
+        f"every file matches its pinned sha256: {directory}"
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="raglab", description=__doc__)
     parser.add_argument("--version", action="version", version=f"raglab {__version__}")
@@ -73,9 +88,20 @@ def main(argv: list[str] | None = None) -> int:
         "--snapshot", type=Path, help="also write the snapshot here (default settings only)"
     )
     run.add_argument("--compare", type=Path, help="print the diff against this snapshot")
+    fetch = commands.add_parser(
+        "fetch-model",
+        help="download the pinned embedding model files once and check their hashes",
+    )
+    fetch.add_argument(
+        "--cache",
+        type=Path,
+        help=f"cache directory (default ${fastembed_embed.CACHE_ENV} or ~/.cache/raglab/models)",
+    )
     args = parser.parse_args(argv)
     if args.command == "ingest":
         return ingest(args)
+    if args.command == "fetch-model":
+        return fetch_model(args)
     parser.print_help()
     return 0
 
