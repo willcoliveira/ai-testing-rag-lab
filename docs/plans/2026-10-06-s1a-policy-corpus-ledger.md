@@ -188,3 +188,7 @@ The answer key now has 84 features (F-01 to F-58, F-60 to F-85) and the test pla
 ## Decision check (2026-10-06)
 
 One Fable reviewer (workflow wf_0768356f-d32) confirmed D-01 to D-07 applied everywhere they must be, `make check` clean (327 tests), main checkout intact. One low finding fixed directly: the SPEC briefs now list the four sentences the answer key cites since D-01 and D-04 (A-EXC 4.2 second paragraph and 5.1 after Table 1; A-IR 5 intro and A.3), and the F-16 register row lists its Status cell. A re-author from the SPEC alone would otherwise have dropped them.
+
+## CI on the PR (2026-10-06)
+
+The first pr-fast run on PR #3 failed one test, `test_rebuilt_manifest_matches`: on Linux the scanned PNG rebuilt with different bytes although FreeType had the same version, which the plan listed as a risk. The PDF, the HTML and the PNG's text matched. Fix: the manifest records the build platform (`darwin-arm64`), and the PNG is compared by pixels only on the same platform and FreeType; elsewhere everything but the PNG's own hashes must match, and its size and ground-truth text are compared everywhere. A simulated Linux manifest passes; zeroing a PNG hash still fails the integrity test.
