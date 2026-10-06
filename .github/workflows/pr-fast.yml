@@ -24,9 +24,11 @@ env:
   TESSDATA_VERSION: "1:4.1.0-2"
 
 jobs:
+  # the runner is pinned with the Tesseract packages: both move together, in one reviewed PR
+  # (S1b decision), so a new ubuntu-latest never breaks the apt pins on every PR
   check:
     name: check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,7 +94,7 @@ jobs:
   conventions:
     name: conventions
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

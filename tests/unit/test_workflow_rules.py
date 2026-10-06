@@ -183,3 +183,14 @@ def test_pr_fast_installs_pinned_tesseract_before_the_tests():
     assert re.fullmatch(r"\d+:\d+\.\d+\.\d+-\S+", wf["env"]["TESSDATA_VERSION"])
     assert "tesseract --version" in run
     assert steps[names.index("Tests (offline)")]["run"] == "make test"
+
+
+def test_runners_are_pinned_with_the_tesseract_packages():
+    """S1b decision: the runner image is pinned (not ubuntu-latest), so it moves together with the
+    apt pins in one reviewed PR."""
+    for path in WORKFLOWS:
+        for name, job in load(path)["jobs"].items():
+            runner = job.get("runs-on")
+            assert runner is None or runner != "ubuntu-latest", (
+                f"{path.name}:{name} runs on ubuntu-latest"
+            )
