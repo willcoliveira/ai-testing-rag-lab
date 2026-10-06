@@ -35,26 +35,13 @@ warehouses (this explains the warehouse kiosks). Mirrowfen is described only as 
 that runs its own directory and its own security standards". People appear only as role titles
 (CISO, IT Operations Manager, line manager, resource owner). No personal names anywhere.
 
-**Search evidence (web searches, 2026-10-06).** A name is accepted only when exact-match searches,
-plain and with business terms (company, Ltd, Inc, software, product, brand), return no
-organisation, product or person using it.
-
-| Candidate | Searches | Result | Decision |
-|---|---|---|---|
-| Halvenroot | `"Halvenroot"` (extended); `"Halvenroot" company OR Ltd OR software OR product OR brand` (extended); `Halvenroot` (unquoted) | No exact match. Nearest results: Halfen (construction brand), HAL Computer Systems, Webroot, a parsnip variety "Halblange". None use the name. | **Accepted** (tenant A) |
-| Mirrowfen | `"Mirrowfen"` (extended); `"Mirrowfen" company OR Ltd OR business OR software OR brand` (extended) | No exact match. Nearest results: Mirefen (a region in a video game), Mirofen (a medicine brand), Mirow, Mirro, Miro. Spelling differs from each. | **Accepted** (tenant B) |
-| Kilnbrook | extended search with company terms | A real UK company, Kilnbrook Limited, exists (Companies House 01458400) | Rejected |
-| Corvelle | `"Corvelle Freight" OR "Corvelle Logistics"` | Too close to CorVel Corporation | Rejected |
-| Quorvane | `"Quorvane"` | Results dominated by Qorvo (semiconductors) | Rejected |
-| Ferrowmont | standard and extended | No exact match, but one letter from Ferrmont s.r.o., a real manufacturer | Rejected (too close) |
-| Velloran | extended | Used for characters in fiction and games | Rejected |
-| Brackwater | extended | A Swedish web consultancy uses it | Rejected |
-| Wrenhollow | standard | Real place and street names (Wren Hollow) | Rejected |
-| Larkspire | standard | No exact match, but too close to Larkspur and Lark/Larksuite | Rejected |
-| Tallowmere | not searched further | Recalled as an existing indie game title | Rejected |
-
-Famous sample names (Contoso, Northwind, Acme, Globex and the like) were not considered. The S1a
-hygiene reviewer repeats the two accepted searches and records the result in the ledger (AC8).
+**Search evidence.** A name is accepted only when exact-match web searches, plain and with business
+terms (company, Ltd, Inc, software, product, brand), return no organisation, product or person
+using it. Both names above passed on 2026-10-06, and the S1a hygiene reviewer repeated the searches
+the same day with the same result. The searches, their nearest results and the rejected candidates
+are recorded in the S1a ledger
+([`docs/plans/2026-10-06-s1a-policy-corpus-ledger.md`](../docs/plans/2026-10-06-s1a-policy-corpus-ledger.md),
+AC8), not here, so that the corpus names no real organisation.
 
 ## 3. Layout, tenants and formats
 

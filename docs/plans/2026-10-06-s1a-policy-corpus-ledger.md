@@ -78,7 +78,7 @@ verbatim at its cited place by `test_answer_key.py`.
 | AC5 | met | `corpus/answer-key.yaml`: 79 features (F-01 to F-53, F-60 to F-85), equal to the SPEC register's ids, expected behaviours, tenants and R-ids. `test_answer_key.py` (20 tests): every value verbatim (whitespace normalised) in its section, its paragraph, its table cell, its PDF page and in the rendered PDF, HTML or ground-truth text; omission phrases (F-32, the F-22 "18:00" check, F-40 for tenant B) appear nowhere in their scope; the scanned-only value is in no other document; no tenant A file states a sign-in protection number outside Table 1 (and v1 4.4); no single document holds both halves of a multi-hop feature. **Breaks:** F-01 value changed to 16, 3 fail; "reset attempts" added to the glossary, 1 fails; "7 failed attempts" added to the FAQ, 1 fails; the kiosk value copied into the Device Policy, 1 fails; all restored |
 | AC6 | met | `test_answer_key.py::test_version_and_tenant_conflicts_really_differ` (F-04 to F-07 old against new, with v1 superseded and v2 current; F-34 to F-39 and F-52 tenant B against tenant A: numbers disjoint or exactly one side negates) and `test_company_expiry_contradicts_the_quoted_external_lines` (v2 4.4 states expiry; the quoted NIST and NCSC lines argue against it; v2 section 6 does not claim a disagreement). **Break:** v1 4.3 changed to 60 days, 2 fail; restored |
 | AC7 | met locally; Linux pixels need CI | `test_corpus_build.py` (9 tests): a rebuild into a temp dir gives the same PDF bytes and extracted text, the same HTML and ground truth, the same PNG pixels (FreeType 2.14.3) and the same manifest; the manifest's sha256 match the committed files and their Markdown sources; the PDF has 4 pages with each section on its marked page; the HTML has an anchor per section. `uv run python scripts/build_corpus.py --check` prints "up to date". **Break:** v2 Markdown edited without a rebuild, 3 fail; restored |
-| AC8 | needs the hygiene reviewer | the PM's searches are in `corpus/SPEC.md` section 2; the reviewer repeats them and records the result here |
+| AC8 | met | the PM's searches and the hygiene reviewer's repeat searches are in "AC8: name search evidence" below (moved out of `corpus/SPEC.md` section 2, which keeps the two accepted names and a pointer here) |
 | AC9 | met | contacts are example.com/.org, phones `555-01xx`, tokens `FAKE-` (`test_corpus_sources.py::test_every_email_phone_and_token_is_visibly_fake`). `make privacy`: 0 hits across 90 files with the real list (42 rules); gitleaks dir and git: no leaks. `test_corpus_allowlist_scope.py` (16 tests): every corpus allowlist entry is visibly fake; none is in the global allowlist; all pass under `corpus/` and each is a hit at 8 paths outside it (including `docs/corpus/x.md` and `corpus.md`) and in a commit message; an unlisted address under `corpus/` is a hit; any gitleaks allowlist matching a corpus path matches nothing outside. **Break:** the `inCorpus` condition replaced with `true`, 9 fail; restored |
 | AC10 | pending | the three-lens review, merge agent and decision list come next |
 | AC11 | met (CI check on the PR) | `docs/ARCHITECTURE.md` and README mark S1a done (`test_diagram.py`, `test_readme.py` pass); CHANGELOG line added; S0 AC12 noted above |
@@ -86,3 +86,32 @@ verbatim at its cited place by `test_answer_key.py`.
 
 `make check`: exit 0, 309 tests passed (macOS arm64, Python 3.13.12, uv 0.12.23, gitleaks 8.30.1,
 node 24.14.1).
+
+## AC8: name search evidence
+
+A name is accepted only when exact-match web searches, plain and with business terms (company,
+Ltd, Inc, software, product, brand), return no organisation, product or person using it. This
+evidence lives here rather than in `corpus/SPEC.md`, so that the corpus itself names no real
+organisation. Famous sample names (Contoso, Northwind, Acme, Globex and the like) were not
+considered.
+
+**The PM's searches (2026-10-06).**
+
+| Candidate | Searches | Result | Decision |
+|---|---|---|---|
+| Halvenroot | `"Halvenroot"` (extended); `"Halvenroot" company OR Ltd OR software OR product OR brand` (extended); `Halvenroot` (unquoted) | No exact match. Nearest results: Halfen (construction brand), HAL Computer Systems, Webroot, a parsnip variety "Halblange". None use the name. | **Accepted** (tenant A) |
+| Mirrowfen | `"Mirrowfen"` (extended); `"Mirrowfen" company OR Ltd OR business OR software OR brand` (extended) | No exact match. Nearest results: Mirefen (a region in a video game), Mirofen (a medicine brand), Mirow, Mirro, Miro. Spelling differs from each. | **Accepted** (tenant B) |
+| Kilnbrook | extended search with company terms | A real UK company, Kilnbrook Limited, exists (Companies House 01458400) | Rejected |
+| Corvelle | `"Corvelle Freight" OR "Corvelle Logistics"` | Too close to CorVel Corporation | Rejected |
+| Quorvane | `"Quorvane"` | Results dominated by Qorvo (semiconductors) | Rejected |
+| Ferrowmont | standard and extended | No exact match, but one letter from Ferrmont s.r.o., a real manufacturer | Rejected (too close) |
+| Velloran | extended | Used for characters in fiction and games | Rejected |
+| Brackwater | extended | A Swedish web consultancy uses it | Rejected |
+| Wrenhollow | standard | Real place and street names (Wren Hollow) | Rejected |
+| Larkspire | standard | No exact match, but too close to Larkspur and Lark/Larksuite | Rejected |
+| Tallowmere | not searched further | Recalled as an existing indie game title | Rejected |
+
+**The hygiene reviewer's repeat searches (2026-10-06).** The reviewer repeated the exact-match
+searches for both accepted names, plain and with the business terms. Result: no exact match for
+Halvenroot or Mirrowfen. Nearest hits: Halimione, Halva, HAL Robotics, Mirefen, Mirfentanil,
+Mirofen, Mirow, Miro. None uses either name; both stay accepted.
