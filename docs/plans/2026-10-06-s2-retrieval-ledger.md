@@ -107,6 +107,13 @@ Reading:
   R-Q18's answer (FAQ Q2) is at rank 2, so with "any one of the group" labels R-Q18 would be a
   hit, and R-Q19, R-Q21 and R-Q25 would have a higher first rank. That is read from the lists, not
   from a run.
+- **The FAQ decision also reverses the dense-to-hybrid comparison** (the labels judge's S2-L1,
+  recomputed from the published dev cases with the FAQ copy counting for its primary section):
+  hit@5 becomes dense 0.818, hybrid 0.864, dense-600 0.818, and recall@5 0.682, 0.720 and 0.659.
+  Hybrid gains R-Q14, R-Q18 and R-Q33 (FAQ Q3, Q2 and Q1 in its top 5); dense gains only R-Q18.
+  The paired difference dense to hybrid becomes +0.045 (-0.091 to +0.182) on hit@5 and +0.038
+  (-0.114 to +0.197) on recall@5. Every interval still contains 0. So "hybrid is lower" above holds
+  only under primary-only labels; it is not a finding about hybrid.
 
 **Mac and the CI image (the gate margin).** The dense dev run repeated at commit `dbd7c63` (same
 dataset, config and code path) in `ubuntu:24.04` linux/amd64 under Docker on the Mac, with
