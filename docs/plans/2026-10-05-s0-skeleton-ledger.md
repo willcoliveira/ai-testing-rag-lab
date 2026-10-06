@@ -298,3 +298,33 @@ The user's go: "Fix all four, then PR".
 
 Fails without the fix: 8 of the new tests fail against af30b89, all of them the new cases.
 `make check` exit 0, 238 tests.
+
+## F-fix check and the last fixes (2026-10-06)
+
+The F1-F4 check (one Fable judge, workflow wf_7492a20f-7b3) found all four fixed (37 of 37 real
+rules caught verbatim, flagless, in `re.compile`, as JS literals and quoted), `make check` clean
+(238 tests), no regressions from the new escapes view on ordinary code, and three new defects,
+each reproduced independently. Fixed directly under the same go ("Fix all four, then PR"):
+
+| # | Severity | Finding | Fix | Test |
+|---|---|---|---|---|
+| D1 | medium | a real list made by filling in the example's placeholders (as the template said) repeated the example's generic rules, so the tracked files that state them were flagged for that contributor | the two lists may not share a line: the check refuses with the reason (keep only private names in the real list; no private rule in the example), without printing the line; the template's instructions now say the real list holds private names only. A first attempt that dropped shared lines from the real rules was reverted before commit: it hid a private rule pasted into the example list | `test_a_real_list_that_repeats_the_example_is_refused`; updated `test_the_copy_step_run_backwards_is_caught`, `test_a_real_name_written_as_a_regex_in_the_example_list_is_found` (now refused, exit 2) |
+| D2 | low | a copy of the list quoted, bulleted or numbered printed its rules | quote markers, bullets and line numbers are stripped before the list-line comparison | `test_a_prefixed_copy_of_the_list_prints_none_of_it` (4 prefixes) |
+| D3 | low | a history exception on one line hid the same string wrapped across other lines | an exempted line no longer marks its match as reported | `test_a_history_exception_does_not_hide_a_wrapped_copy` |
+
+Fails without the fix: 9 tests fail against e7034a8, all of them new or changed cases.
+`make check` exit 0, 244 tests.
+
+## Stage S0 result
+
+AC1-AC9 and AC13-AC19 met (re-verified by judges in four rounds plus two targeted checks); AC10,
+AC11 (the real PR) and AC12 need CI and are checked on the pull request. Not run further: another
+judge round on D1-D3. The adversarial rounds kept finding narrower edge cases of a gate whose job
+is accidental leaks; the PR's CI is the next check.
+
+Known limits, recorded rather than patched (static checks, threat model is accidental leaks):
+`getattr`/`exec`/`vars()` and file-path module loading in the architecture rule; file names
+themselves are not checked for forbidden strings; `uvx` tool environments resolve their
+dependencies unlocked; semgrep's `p/python` rules need the network. Handbook follow-up (not done
+here): the handbook's original `check-forbidden.mjs` has the quoted-file-name, line-wrap, CRLF and
+prefix-path issues fixed in this repo's vendored copy.
