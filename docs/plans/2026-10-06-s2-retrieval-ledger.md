@@ -253,3 +253,14 @@ Asked as four questions; the answers, verbatim:
 | 2, 3, 4 and 7. Label rules | "Accept all four (Recommended)" | a section with several chunks is found when any chunk is; pointer sections are labelled; R-Q19 and R-Q20 label v1 too; labels follow the feature's reference answer (R-Q14 keeps A-MFA 3.2, A-DEVICE 6.2 stays unlabelled). Nothing re-run |
 
 No decision is pending. The stage's remaining evidence is CI on the PR (AC8).
+
+## CI on the PR (2026-10-06)
+
+PR #5, pr-fast run 37510897112 on ubuntu-24.04: `check` and `conventions` pass (3m13s).
+
+- AC8: the model cache missed on this first run ("Cache not found for input keys:
+  raglab-model-aa8f8b060edb00e03bfdd08813a2949946c8ba55"), `make model` downloaded and checked
+  the files, then 619 tests passed offline and the gate step printed: "recall@5 0.644 (n 22)
+  passes: the threshold is the baseline 0.644 (20261006T172928Z-retrieval-dense-dev-5f1d3a0)
+  minus one question (1/22), 0.598". The runner's number equals the Mac's and the CI image's.
+- The cache hit is checked on the next run of this PR (the run that carries this section).
