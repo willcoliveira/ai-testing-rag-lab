@@ -74,3 +74,8 @@ corpus:
 # committed file matches a fresh run at the default settings)
 inventory-snapshot:
 	uv run raglab ingest --snapshot corpus/inventory.snapshot.json
+
+# the static playground, served on 127.0.0.1 as Pages will lay it out (playground/ next to
+# runs/published/); it reads the published runs and never calls a model
+playground:
+	uv run python scripts/serve_playground.py

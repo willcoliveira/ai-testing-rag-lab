@@ -1,0 +1,95 @@
+"""AC9: the static playground renders runs/published/index.json (run list, metrics with
+intervals, per-question hits) with no network and no model. The page's data model
+(playground/model.js) runs in Node against a published directory made by `raglab publish`; the
+page itself loads nothing but its own files and the published runs, and writes text, never HTML.
+A browser test of the page comes with Track B (Playwright)."""
+
+import json
+import re
+import shutil
+import subprocess
+
+import pytest
+
+from raglab.evals import publish
+from tests.conftest import ROOT, load_script
+from tests.retrieval_support import fake_run, lab_root
+
+pytestmark = pytest.mark.unit
+PLAYGROUND = ROOT / "playground"
+NODE = shutil.which("node")
+
+
+@pytest.mark.skipif(NODE is None, reason="the smoke check runs the page's model in node")
+def test_the_page_model_renders_a_published_index(tmp_path):
+    root = lab_root(tmp_path)
+    run_dir = fake_run(root, provenance="local")
+    publish.publish(run_dir, root, baseline=True, privacy=lambda d, r: [])
+    published = root / "runs" / "published"
+    done = subprocess.run(
+        [str(NODE), str(ROOT / "tests" / "playground_smoke.mjs"), str(published)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = json.loads(done.stdout)
+    [shown] = out["runs"]
+    run = shown["run"]
+    assert run["runId"] == run_dir.name
+    assert run["baseline"] is True
+    assert (run["config"], run["retriever"], run["provenance"]) == (
+        "retrieval-fake",
+        "dense, k 2",
+        "local",
+    )
+    index = json.loads((published / "index.json").read_text())
+    metric = index["runs"][0]["metrics"]["recall@2"]
+    low, high = metric["ci_low"], metric["ci_high"]
+    expected = f"{metric['value']:.3f} ({low:.3f} to {high:.3f}, n {metric['n']})"
+    assert {"name": "recall@2", "text": expected} in run["metrics"]
+    assert [c["caseId"] for c in shown["cases"]] == ["Q1", "Q2", "Q3", "Q4"]
+    cases = [json.loads(line) for line in (run_dir / "cases.jsonl").read_text().splitlines()]
+    for row, case in zip(shown["cases"], cases, strict=True):
+        assert row["hit"] == (case["hit"] == 1)
+        assert [r["id"] for r in row["retrieved"]] == [r["chunk_id"] for r in case["retrieved"]]
+        assert [r["relevant"] for r in row["retrieved"]] == [
+            r["relevant"] for r in case["retrieved"]
+        ]
+    assert {"label": "Provenance", "value": "local"} in shown["manifest"]
+    assert out["refused"] == ["../x/", "https://example.org/", "/etc/", ".hidden/"]
+
+
+def test_the_page_loads_only_its_own_files_and_writes_text_only():
+    html = (PLAYGROUND / "index.html").read_text(encoding="utf-8")
+    assert "default-src 'none'" in html
+    assert "connect-src 'self'" in html
+    assert re.findall(r'(?:src|href)="([^"]+)"', html) == ["app.css", "app.js"]
+    for path in sorted(PLAYGROUND.glob("*.js")):
+        source = path.read_text(encoding="utf-8")
+        assert not re.search(
+            r"innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(", source
+        ), path.name
+        assert not re.search(r"https?://", source), f"{path.name} names a URL"
+    app = (PLAYGROUND / "app.js").read_text(encoding="utf-8")
+    assert re.findall(r"fetch\(([^,)]+)", app) == ["path"]
+    assert "runs/published/" in (PLAYGROUND / "model.js").read_text(encoding="utf-8")
+
+
+def test_the_local_site_serves_the_playground_next_to_the_published_runs(tmp_path):
+    serve = load_script("serve_playground")
+    root = tmp_path / "repo"
+    shutil.copytree(PLAYGROUND, root / "playground")
+    (root / "runs" / "published").mkdir(parents=True)
+    (root / "runs" / "published" / "index.json").write_text("{}")
+    site = serve.build_site(root, tmp_path / "site")
+    assert sorted(p.name for p in site.iterdir()) == sorted(
+        [*(p.name for p in PLAYGROUND.iterdir()), "runs"]
+    )
+    assert (site / "runs" / "published" / "index.json").read_text() == "{}"
+    assert not (site / "pyproject.toml").exists()
+
+
+@pytest.mark.skipif(NODE is None, reason="node checks the page's script syntax")
+@pytest.mark.parametrize("name", ["app.js", "model.js"])
+def test_the_page_scripts_parse(name):
+    subprocess.run([str(NODE), "--check", str(PLAYGROUND / name)], check=True, capture_output=True)
