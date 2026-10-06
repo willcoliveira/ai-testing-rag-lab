@@ -5,6 +5,12 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased (v0.1)
 
+- S1a: requirements (docs/TEST-PLAN.md part 1) and the fictional Halvenroot and Mirrowfen policy
+  corpus (21 documents adapted from strongdm/comply, NIST and NCSC excerpts, and three labelled
+  attack files), with the planted-feature answer key, the machine-readable register
+  (corpus/register.yaml), SOURCES.md and licence notes, a deterministic build of the PDF, HTML
+  export and scanned page, a corpus-only privacy allowlist, and tests for the plan, the key, the
+  sources, the build and the allowlist scope.
 - S0: repo skeleton with `make check` and the pr-fast workflow (format, lint, types, deptry,
   vulture, pip-audit, bandit, semgrep, zizmor, gitleaks, privacy, architecture rules, offline
   tests), Conventional Commits and semantic branch checks, the changelog check, Dependabot, the

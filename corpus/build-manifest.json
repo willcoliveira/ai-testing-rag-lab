@@ -1,0 +1,73 @@
+{
+  "generator": "scripts/build_corpus.py",
+  "build_date": "2026-10-06",
+  "libraries": {
+    "fpdf2": "2.8.9",
+    "pillow": "12.3.0",
+    "pypdf": "6.19.0",
+    "freetype2": "2.14.3"
+  },
+  "platform": "darwin-arm64",
+  "fonts": {
+    "pdf": "Helvetica, a PDF core font (not embedded)",
+    "png": "Aileron Regular, bundled with the pinned Pillow"
+  },
+  "files": [
+    {
+      "path": "corpus/tenant-a/password-standard-v2.pdf",
+      "source": "corpus/tenant-a/password-standard-v2.md",
+      "source_sha256": "4bf93a9ceb1ef0e54b3dd00e25566430677b6ff131dd4d319275a9c9444d7463",
+      "sha256": "deb954d4cfa311d1082ca3c00de5768d190832530c0dda915b5a18b40df5c0d5",
+      "pages": 4,
+      "text_sha256": "9b213b286bfb204df61e2dde3801ef3c3311f4dbaa08810b92948614378f2f97"
+    },
+    {
+      "path": "corpus/tenant-a/mfa-standard.html",
+      "source": "corpus/tenant-a/mfa-standard.md",
+      "source_sha256": "154b5ab8f377b365d149c59651eea8ec00752ff5d1462b11ed6cf21c10850c10",
+      "sha256": "63547d8a6bd34c7446968538c32be20a6e4a92cb637328ebbe294058e2815a2c",
+      "text_sha256": "fdf9fe95a667050a8bc1e6da23e0a8486d920b8900cc295d05f00b72d9c717e0"
+    },
+    {
+      "path": "corpus/tenant-a/device-policy-annex-b-kiosk.png",
+      "source": "corpus/tenant-a/device-policy-annex-b-kiosk.md",
+      "source_sha256": "5449c91351e46491b5880699ea0f39137863a1cf556b634b52db8fe78d80e1b4",
+      "sha256": "3548277df012206ff392d168f3493291df881fcc1eae052d6b8fb23835e62025",
+      "pages": 1,
+      "pixel_sha256": "ba7b9b7edd6362f3e3d0b905da6c3adb04e166d64e2dc632f59f4f7387269db9"
+    },
+    {
+      "path": "corpus/tenant-a/device-policy-annex-b-kiosk.gt.txt",
+      "source": "corpus/tenant-a/device-policy-annex-b-kiosk.md",
+      "source_sha256": "5449c91351e46491b5880699ea0f39137863a1cf556b634b52db8fe78d80e1b4",
+      "sha256": "285139b96a2e684b848962d7c772ea913f8f690b030fd290a05ad21bc1de6ab3"
+    }
+  ],
+  "print_pages": {
+    "layout": "A4, 20 mm margins, Helvetica 10.5 pt body (the PDF layout)",
+    "documents": {
+      "T-FAKE": 1,
+      "T-HIDDEN": 1,
+      "T-POISON": 2,
+      "X-NCSC": 1,
+      "X-NIST": 1,
+      "A-REV": 2,
+      "A-IR": 3,
+      "A-LIFE": 3,
+      "A-CLASS": 3,
+      "A-DEVICE-B": 1,
+      "A-DEVICE": 2,
+      "A-FAQ": 2,
+      "A-GLOSS": 2,
+      "A-MFA": 3,
+      "A-PWD-V1": 2,
+      "A-PWD-V2": 4,
+      "A-EXC": 2,
+      "A-PRIV": 3,
+      "A-REMOTE": 2,
+      "B-MFA": 2,
+      "B-PWD": 2
+    },
+    "total": 44
+  }
+}

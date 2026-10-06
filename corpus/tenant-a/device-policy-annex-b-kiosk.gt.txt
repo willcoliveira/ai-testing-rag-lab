@@ -1,0 +1,13 @@
+Device Policy Annex B: Shared Kiosk Devices
+To: Warehouse shift leads
+From: IT Operations Manager
+Date: 3 November 2025
+Subject: Shared kiosk devices
+This memo sets the rules for shared kiosk devices on the warehouse floor. It forms Annex B of the Device Policy and applies at every Halvenroot site. Please share it with your teams.
+1 Automatic sign-out
+Kiosk sessions sign out automatically after 5 minutes of inactivity. Finish or save your work before you step away from a kiosk. Do not change kiosk settings to keep a session open.
+2 Accounts on kiosks
+Workers sign in to a kiosk with their own Halvenroot account. Shared kiosk passwords are not allowed. Sign out when you finish a task so that the next worker starts a new session under their own account.
+3 Faults
+Report a damaged or unresponsive kiosk to the IT Service Desk. Do not try to repair it yourself.
+Signed: IT Operations Manager

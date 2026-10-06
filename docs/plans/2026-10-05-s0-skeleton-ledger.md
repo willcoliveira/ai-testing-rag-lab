@@ -332,3 +332,9 @@ themselves are not checked for forbidden strings; `uvx` tool environments resolv
 dependencies unlocked; semgrep's `p/python` rules need the network. Handbook follow-up (not done
 here): the handbook's original `check-forbidden.mjs` has the quoted-file-name, line-wrap, CRLF and
 prefix-path issues fixed in this repo's vendored copy.
+
+## After merge (2026-10-06)
+
+PR #1 merged. AC12 confirmed: Dependabot ran update jobs for uv, github-actions and pip, all
+successful, and opened PR #2, whose commit carries `Signed-off-by: dependabot[bot]
+<support@github.com>` and passed pr-fast (the F4 fix in real use). All 19 S0 criteria met.

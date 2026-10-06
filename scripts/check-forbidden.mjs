@@ -17,6 +17,9 @@
 //   to its target; --dir walks do not follow links either (S0 judge round 3)
 // - --file input (a commit message, a PR body) is prose, so it gets the line-break view
 //   (S0 judge round 3)
+// - a corpus-scoped allowlist, privacy/allowlist-corpus.txt: tokens allowed only in files under
+//   corpus/ (the lab corpus's planted fakes), never elsewhere, in a commit message or an identity
+//   (S1a, tests/unit/test_corpus_allowlist_scope.py)
 // - --history <revisions>: every commit message, author and committer, and every line the commits added, so a string
 //   committed without the hooks and removed later is still found (S0 judge round 3); reviewed
 //   false positives in the history are listed in privacy/history-exceptions.txt by commit and line
@@ -122,9 +125,17 @@ const realComments = new Set(process.env.CI || !existsSync(REAL) ? [] : readFile
   .split("\n").map((l) => l.trim().toLowerCase()).filter((l) => l.startsWith("#") && l.length >= 12));
 // for commit and tag identities: an identity is an email, so the generic email shape is left out
 const identityRules = rules.filter((r) => !r.re.test("someone@example.com"));
-const ALLOW_TOKENS = new Set(existsSync(join(root, "privacy/allowlist.txt"))
-  ? readFileSync(join(root, "privacy/allowlist.txt"), "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))
+const readTokens = (rel) => new Set(existsSync(join(root, rel))
+  ? readFileSync(join(root, rel), "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))
   : []);
+const ALLOW_TOKENS = readTokens("privacy/allowlist.txt");
+// Tokens allowed only in a file whose path starts with corpus/: the planted fake contacts, tokens
+// and ids of the lab corpus (example.com and example.org addresses, FAKE- tokens). They are never
+// allowed in any other file, in a commit message or in an identity (S1a).
+const CORPUS_SCOPE = "corpus/";
+const CORPUS_ALLOWLIST = "privacy/allowlist-corpus.txt";
+const CORPUS_ALLOW_TOKENS = readTokens(CORPUS_ALLOWLIST);
+const inCorpus = (path) => typeof path === "string" && path.startsWith(CORPUS_SCOPE) && !path.split("/").includes("..");
 // --history takes every argument after it; the other options come before it
 const histArg = process.argv.indexOf("--history");
 const historyRevs = histArg > 0 ? process.argv.slice(histArg + 1) : null;
@@ -182,7 +193,8 @@ const files = historyRevs ? new Map() : new Map((scanFile ? [resolve(root, scanF
 // from the example list's rules only: the real list's rules still run on them, so a real name pasted
 // into one is found (S0 judge round 3).
 const REAL_LABEL = "privacy/forbidden-strings.txt";
-const REAL_RULES_ONLY = new Set([EXAMPLE_LABEL, "scripts/check-forbidden.mjs", "uv.lock"]);
+// The corpus allowlist lists the planted example-shaped tokens on purpose, so it is one of them.
+const REAL_RULES_ONLY = new Set([EXAMPLE_LABEL, "scripts/check-forbidden.mjs", "uv.lock", CORPUS_ALLOWLIST]);
 const rulesFor = (f) => (REAL_RULES_ONLY.has(f) ? realRules : rules);
 // The example list holds only comments, <placeholders> and /regex/ lines, and keeps at least one
 // placeholder. A plain-text line there is a name, in every mode (CI included); a list with no
@@ -230,9 +242,12 @@ const DELIM = /[\s`'"()[\]<>{},;|*]/;
 // exempt when the whole match is the address, so they pass the generic email shape, while a
 // real-list name inside a noreply address is still matched by its own rule (S0 judge, F4)
 const GITHUB_ADDRESS = [/^[\w.+[\]-]+@users\.noreply\.github\.com$/i, /^(?:noreply|support)@github\.com$/i];
-const allowedMatch = (view, m) =>
+// path: the file's repo-relative path, for the corpus-scoped tokens (null for a commit message,
+// an identity or --file input)
+const allowedMatch = (view, m, path) =>
   ALLOW_TOKENS.has(m[0]) || ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length)) ||
-  GITHUB_ADDRESS.some((p) => p.test(m[0]));
+  GITHUB_ADDRESS.some((p) => p.test(m[0])) ||
+  (inCorpus(path) && (CORPUS_ALLOW_TOKENS.has(m[0]) || CORPUS_ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length))));
 function tokenAt(line, start, end) {
   let a = start, b = end;
   while (a > 0 && !DELIM.test(line[a - 1])) a--;
@@ -297,7 +312,7 @@ function report(message) {
 // text its regexes match), then on the whole text with whitespace runs as one space and, for prose,
 // with the lines of a paragraph joined. lineNo(i) is the number shown for line i.
 // exempt(n) is true for a reviewed false positive on line n (history mode only).
-function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = false, exempt = () => false }) {
+function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = false, exempt = () => false, path = null }) {
   if (!ruleSet.length) return;
   const reported = new Set();
   let copied = false;
@@ -327,7 +342,7 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
         // (built page chunks are a single line each)
         for (const m of view.matchAll(r.global)) {
           if (!m[0]) continue;
-          if (allowedMatch(view, m)) continue;
+          if (allowedMatch(view, m, path)) continue;
           const key = `${r.src}\u0000${m[0]}`;
           if (seen.has(key)) continue;
           seen.add(key);
@@ -369,7 +384,7 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
     for (const r of ruleSet) {
       for (const m of view.matchAll(r.global)) {
         if (!m[0]) continue;
-        if (allowedMatch(view, m)) continue;
+        if (allowedMatch(view, m, path)) continue;
         const key = `${r.src}\u0000${m[0]}`.toLowerCase();
         if (reported.has(key)) continue;
         reported.add(key);
@@ -387,6 +402,7 @@ function checkFile(f, text) {
     ruleSet: rulesFor(f),
     prose: Boolean(scanFile) || (PROSE.test(f) && !f.startsWith("privacy/")),
     regexView: f === EXAMPLE_LABEL,
+    path: scanFile ? null : f,
   });
 }
 // git log for the --history revisions; read-only, and blind to the user's diff and log settings
@@ -486,6 +502,7 @@ function scanHistory() {
       lineNo: (i) => nums[i],
       regexView: f === EXAMPLE_LABEL,
       exempt: (n) => historyExceptions.has(`${at}:${f}:${n}`),
+      path: f,
     });
   }
   // the example list's format, as each commit that changed it left the whole file

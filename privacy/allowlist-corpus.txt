@@ -1,0 +1,13 @@
+# Tokens that the generic patterns flag but that are planted fakes of the lab corpus (corpus/SPEC.md,
+# section 6). One per line, exact match. scripts/check-forbidden.mjs allows them ONLY in files whose
+# path starts with corpus/; anywhere else (code, docs, commit messages) they are still hits.
+# tests/unit/test_corpus_allowlist_scope.py checks that scope and that every entry is visibly fake
+# (an example.com or example.org address, a FAKE- token, or an exceptions-register id).
+servicedesk@halvenroot.example.com
+security@halvenroot.example.com
+itsupport@mirrowfen.example.org
+e4417@halvenroot.example.com
+policy-update@example.org
+FAKE-CANARY-7781
+EX-2026-007
+EX-2025-003

@@ -49,5 +49,7 @@ being pushed and CI on a pull request's commits.
 may contain only comments, `<placeholders>` and `/regex/` lines. A maintainer's real list is
 `privacy/forbidden-strings.txt`, which is gitignored and must never be committed: the check refuses
 to run, in CI too, while it or any copy of it is in the index. Public tokens that a pattern would
-flag go in `privacy/allowlist.txt`; a reviewed false positive in the history goes in
+flag go in `privacy/allowlist.txt`; the planted fakes of the lab corpus (example.com and example.org
+addresses, `FAKE-` tokens) go in `privacy/allowlist-corpus.txt`, which applies only to files under
+`corpus/`; a reviewed false positive in the history goes in
 `privacy/history-exceptions.txt` (full commit id, path and line) with its reason.

@@ -1,0 +1,102 @@
+# The machine-readable register of the policy corpus (decision D-05): one entry per document of
+# the pack, read by S1b (ingestion) and S3 (generation). Fields: id; status (approved, superseded
+# or reference, as docs/TEST-PLAN.md section 3 defines them); supersedes (the id this document
+# replaces, or null); tenant (tenant-a, tenant-b or shared); path (the file ingestion reads: the
+# PDF, HTML export or scanned PNG where the document is rendered, else its Markdown).
+# It agrees with the inventory of corpus/SOURCES.md (tests/unit/test_corpus_sources.py checks
+# it). A document's own front matter or text is never the register.
+# The attack files (status test material in SOURCES.md) are deliberately not listed: in an attack
+# run they are ingested as pages outside the register, as a real poisoned page would be, so no
+# pipeline can drop them by reading this file (corpus/SPEC.md section 3).
+schema_version: 1
+documents:
+- id: A-PWD-V1
+  status: superseded
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/password-standard-v1.md
+- id: A-PWD-V2
+  status: approved
+  supersedes: A-PWD-V1
+  tenant: tenant-a
+  path: corpus/tenant-a/password-standard-v2.pdf
+- id: A-MFA
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/mfa-standard.html
+- id: A-LIFE
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/account-lifecycle.md
+- id: A-PRIV
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/privileged-access-standard.md
+- id: A-REV
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/access-review-procedure.md
+- id: A-REMOTE
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/remote-access-policy.md
+- id: A-DEVICE
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/device-policy.md
+- id: A-DEVICE-B
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/device-policy-annex-b-kiosk.png
+- id: A-CLASS
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/data-classification-policy.md
+- id: A-IR
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/account-compromise-runbook.md
+- id: A-EXC
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/policy-exceptions-process.md
+- id: A-FAQ
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/faq.md
+- id: A-GLOSS
+  status: approved
+  supersedes: null
+  tenant: tenant-a
+  path: corpus/tenant-a/glossary.md
+- id: B-PWD
+  status: approved
+  supersedes: null
+  tenant: tenant-b
+  path: corpus/tenant-b/password-standard.md
+- id: B-MFA
+  status: approved
+  supersedes: null
+  tenant: tenant-b
+  path: corpus/tenant-b/mfa-standard.md
+- id: X-NIST
+  status: reference
+  supersedes: null
+  tenant: shared
+  path: corpus/external/nist-sp-800-63b-4-excerpt.md
+- id: X-NCSC
+  status: reference
+  supersedes: null
+  tenant: shared
+  path: corpus/external/ncsc-password-policy-excerpt.md

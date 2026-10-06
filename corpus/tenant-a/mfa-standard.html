@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Multi-Factor Authentication Standard</title>
+<meta name="corpus-id" content="A-MFA">
+<meta name="corpus-version" content="1.0">
+<meta name="corpus-tenant" content="tenant-a">
+<meta name="corpus-effective" content="2025-09-01">
+<meta name="corpus-licence" content="CC-BY-4.0">
+</head>
+<body>
+<article>
+<h1>Multi-Factor Authentication Standard</h1>
+<h2 id="sec-1">1 Purpose and scope</h2>
+<p>A stolen password gives an attacker everything they need unless a second proof of identity is required. Multi-factor authentication (MFA) closes that gap: a sign-in succeeds only when the person proves both what they know and what they have.</p>
+<p>This standard sets out where Halvenroot requires MFA, which factors are approved, the stricter rule for administrators, what to do when a factor is lost, when factors are revoked and how often MFA is asked for again. It applies to every person who holds a Halvenroot account and to every system that signs people in through Halvenroot single sign-on. Password rules are set in the Password and Authentication Standard; administrator accounts, break-glass accounts and service accounts are governed by the Privileged Access Standard. The IAM team enforces this standard through the identity portal.</p>
+<h2 id="sec-2">2 Where MFA is required</h2>
+<h3 id="sec-2-1">2.1 Systems that require MFA</h3>
+<p>MFA is required for every sign-in to Halvenroot single sign-on (SSO), the VPN, email and every administrative console. Section 4.1 sets the only standing exception; any other departure needs an approved exception under section 8.</p>
+<p>Systems that sign people in through SSO inherit this requirement, so a new application is covered once it is connected to SSO. A system that cannot enforce MFA must not hold Halvenroot data unless an exception has been approved under section 8.</p>
+<h2 id="sec-3">3 Factors</h2>
+<h3 id="sec-3-1">3.1 Approved factors</h3>
+<p>The approved factors are FIDO2 security keys, passkeys, authenticator app push notifications with number matching, and authenticator app one-time codes.</p>
+<p>FIDO2 security keys and passkeys are the phishing-resistant factors.</p>
+<p>A phishing-resistant factor is bound to the real Halvenroot sign-in page, so it will not complete a sign-in on a look-alike site. Number matching asks the user to type the number shown on the sign-in screen into the app, which stops a user from approving a request they did not start.</p>
+<p>Use a phishing-resistant factor wherever you can. Information systems that hold Confidential data require one; see the Data Classification Policy, section A.2.</p>
+<h3 id="sec-3-2">3.2 Factors that are not approved</h3>
+<p>SMS and voice-call codes are not approved factors at Halvenroot.</p>
+<p>Codes sent by text message or phone call can be intercepted or redirected to an attacker's SIM card. The identity portal does not offer these methods, and the IT Service Desk will not enable them.</p>
+<h3 id="sec-3-3">3.3 Registering factors</h3>
+<p>Every user registers at least two factors.</p>
+<p>Register your factors in the identity portal, on separate devices where you can, so that losing a single device does not lock you out. Never share a factor with a colleague.</p>
+<h2 id="sec-4">4 Administrators</h2>
+<h3 id="sec-4-1">4.1 MFA for administrator accounts</h3>
+<p>Administrators must always use MFA, with a FIDO2 security key, for every sign-in to an administrative console.</p>
+<p>The only exception is the break-glass accounts described in section 6 of the Privileged Access Standard: they sign in without MFA, and only while an outage of the MFA or SSO service has been declared.</p>
+<h2 id="sec-5">5 Lost, stolen or replaced factors</h2>
+<h3 id="sec-5-1">5.1 Getting a temporary access pass</h3>
+<p>If you lose a phone or security key, contact the IT Service Desk at +1-202-555-0142. After verifying your identity on a video call, the Service Desk issues a temporary access pass that is valid for 8 hours and can be used once to register a new factor.</p>
+<p>The Service Desk never asks for your password. If you replace a device and can still sign in with another registered factor, register the new one yourself in the identity portal; you do not need a pass.</p>
+<h3 id="sec-5-2">5.2 After registering a new factor</h3>
+<p>Remove the lost factor from your account once the new one is registered.</p>
+<p>If the lost security key belonged to an administrator account, also report it to the Security Operations Centre.</p>
+<p>If you think a lost or stolen device has been used to sign in to your account, treat it as a suspected account compromise and follow the Account-Compromise Incident Runbook.</p>
+<h3 id="sec-5-3">5.3 No other way in</h3>
+<p>There is no other way to sign in without MFA. If you cannot use any approved factor for a longer period, request an exception through the Policy Exceptions Process.</p>
+<p>Colleagues, line managers and the Service Desk cannot switch MFA off for you, and you must not ask them to.</p>
+<h2 id="sec-6">6 Revocation</h2>
+<h3 id="sec-6-1">6.1 Disabled accounts</h3>
+<p>All MFA factors registered to an account are revoked within 1 hour of the account being disabled.</p>
+<p>Revocation is carried out by the identity portal. A revoked factor cannot be used again, even if the account is later re-enabled; the account holder registers new factors instead.</p>
+<h3 id="sec-6-2">6.2 Compromised accounts</h3>
+<p>Factors are also revoked when the Security Operations Centre contains a compromised account; see the Account-Compromise Incident Runbook, section 5.</p>
+<h2 id="sec-7">7 Sessions</h2>
+<h3 id="sec-7-1">7.1 Asking for MFA again</h3>
+<p>Halvenroot SSO asks for MFA again after 12 hours.</p>
+<p>SSO also asks for MFA again after you sign out and when you sign in from a new device or browser.</p>
+<h2 id="sec-8">8 Exceptions</h2>
+<p>Exceptions to this standard are requested and approved through the Policy Exceptions Process. No exception can remove MFA from an administrator account; see the Policy Exceptions Process, section 2.</p>
+<h2 id="sec-9">9 Document control</h2>
+<ul>
+<li>Owner: IT Operations Manager</li>
+<li>Approver: CISO</li>
+<li>Version: 1.0</li>
+<li>Effective date: 2025-09-01</li>
+</ul>
+</article>
+</body>
+</html>

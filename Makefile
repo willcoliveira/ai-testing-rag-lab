@@ -7,7 +7,7 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture test hooks
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture test hooks corpus
 
 check: format lint types deps audit sast workflows secrets privacy architecture test
 
@@ -57,3 +57,8 @@ test:
 # required once in every clone: commit-msg, pre-commit and pre-push
 hooks:
 	git config core.hooksPath .githooks
+
+# re-render the corpus PDF, HTML export and scanned page after a corpus Markdown change
+# (tests/unit/test_corpus_build.py fails until the committed files match a fresh build)
+corpus:
+	uv run python scripts/build_corpus.py

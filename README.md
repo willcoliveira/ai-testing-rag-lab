@@ -40,8 +40,8 @@ flowchart TB
   classDef todo fill:#f3f4f6,stroke:#6b7280
   classDef wip fill:#fef3c7,stroke:#92400e
   classDef done fill:#dcfce7,stroke:#166534
-  class S0 done
-  class S1a,S1b,S2,S3,S3h,S4,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
+  class S0,S1a done
+  class S1b,S2,S3,S3h,S4,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
 ```
 
 ## Quickstart
@@ -65,5 +65,8 @@ offline tests. CI runs the same on every pull request.
 
 ## Licence
 
-Code: MIT ([LICENSE](LICENSE)). The policy corpus arrives in stage S1a with its own licence file,
-set by the openly licensed sources it is adapted from.
+Code: MIT ([LICENSE](LICENSE)). The policy corpus under `corpus/` keeps the licences of what it is
+made from (Apache-2.0 for the parts adapted from strongdm/comply, CC BY 4.0 for our own writing,
+and the NIST and UK OGL terms for the two quoted excerpts): see
+[corpus/LICENSE.md](corpus/LICENSE.md) and [corpus/SOURCES.md](corpus/SOURCES.md). Everything in
+the corpus is fictional, and the files under `corpus/attacks/` are deliberate test material.
