@@ -26,6 +26,11 @@ BLOCK_SEPARATOR = "\n\n"
 SECTION_ID = re.compile(r"^(?:\d+(?:\.\d+)*|[A-Z](?:\.\d+)*|Q\d+)$", flags=re.ASCII)
 
 
+# The tenants a retrieval request can name. A person belongs to one company; "shared" is a kind of
+# document, not anyone's tenant, so a request for it is refused.
+REQUEST_TENANTS = frozenset({"tenant-a", "tenant-b"})
+
+
 class TenantError(ValueError):
     """A document or chunk has no tenant, or one that is not known: ingestion stops (fails
     closed) rather than index content no tenant filter can scope."""
@@ -36,6 +41,30 @@ def check_tenant(tenant: object, where: str) -> str:
     if not isinstance(tenant, str) or tenant not in TENANTS:
         raise TenantError(f"{where}: tenant {tenant!r} is not one of {sorted(TENANTS)}")
     return tenant
+
+
+def visible_tenants(tenant: object) -> frozenset[str]:
+    """The chunk tenants a request for this tenant may see: its own and the shared references.
+    A request with no tenant, an empty one, "shared" or an unknown one raises TenantError: the
+    tenant filter fails closed, it never falls back to "everything"."""
+    if not isinstance(tenant, str) or tenant not in REQUEST_TENANTS:
+        raise TenantError(
+            f"retrieval needs the tenant of the request, one of {sorted(REQUEST_TENANTS)}; "
+            f"got {tenant!r}"
+        )
+    return frozenset({tenant, "shared"})
+
+
+def check_visible(results: "list[ScoredChunk]", tenant: str) -> "list[ScoredChunk]":
+    """The results, after checking that every one is visible to the tenant; a chunk of another
+    tenant raises TenantError (the second line of the filter, after the one before ranking)."""
+    visible = visible_tenants(tenant)
+    for result in results:
+        if result.chunk.tenant not in visible:
+            raise TenantError(
+                f"chunk {result.chunk.chunk_id} of {result.chunk.tenant} was retrieved for {tenant}"
+            )
+    return results
 
 
 def split_heading(text: str) -> tuple[str, str]:
@@ -178,3 +207,12 @@ class Chunk:
             object.__setattr__(self, "sha256", digest)
         elif self.sha256 != digest:
             raise ValueError(f"chunk {self.chunk_id}: sha256 does not match its text")
+
+
+@dataclass(frozen=True)
+class ScoredChunk:
+    """A retrieved chunk and the score its retriever gave it (higher is better; scores of
+    different retrievers are not comparable)."""
+
+    chunk: Chunk
+    score: float
