@@ -29,6 +29,7 @@ OPTIONAL_FIELDS = {
     "expected_in_attack_runs",
     "expected_retrieval",
     "note",
+    "derivation",
 }
 LOCATION_FIELDS = {"doc", "path", "version", "section", "values"}
 OPTIONAL_LOCATION_FIELDS = {"page", "paragraph", "table", "side", "exclusive"}
@@ -313,6 +314,29 @@ def test_multi_hop_values_live_in_different_documents():
         for doc in docs.values():
             if all(norm(v) in norm(doc.body) for v in values):
                 pytest.fail(f"{f['id']}: {doc.id} alone holds every value")
+
+
+def test_derived_values_cite_every_input():
+    """D-02: a value derived from cited facts (F-22) is allowed when every input is cited and the
+    step is stated. Each input is a value of one of the feature's locations, the inputs come from
+    at least two locations, the reference answer states the result, and the result is in no
+    document (it is derived, not quoted). R-10 permits it and R-18 exempts it."""
+    docs = documents()
+    derived = [f for f in features() if "derivation" in f]
+    assert derived, "no feature plants a derivation"
+    for f in derived:
+        d = f["derivation"]
+        assert set(d) == {"inputs", "step", "result"}, f["id"]
+        assert d["step"].strip(), f["id"]
+        cited = [{norm(v) for v in loc["values"]} for loc in f["locations"]]
+        for value in d["inputs"]:
+            assert any(norm(value) in vals for vals in cited), f"{f['id']}: {value!r} not cited"
+        sources = {i for i, vals in enumerate(cited) for v in d["inputs"] if norm(v) in vals}
+        assert len(sources) >= 2, f"{f['id']}: a derivation combines two cited facts"
+        assert norm(d["result"]) in norm(f["reference_answer"]), f"{f['id']}: result not stated"
+        for doc in docs.values():
+            assert norm(d["result"]) not in norm(doc.body), f"{f['id']}: result quoted in {doc.id}"
+        assert {"R-10", "R-18"} <= set(f["requirements"]), f["id"]
 
 
 # ------------------------------------------------------------------ exceptions (D-01)

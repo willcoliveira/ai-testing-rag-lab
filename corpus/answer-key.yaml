@@ -20,6 +20,9 @@ notes:
 - 'Whether an exception is in force is its Status cell in the exceptions register (Policy Exceptions Process,
   Table 1), never a comparison of its end date with the date of the question: the assistant has no clock
   (decision D-01). An answer about an exception gives its end date.'
+- 'derivation (D-02): a value the answer derives from cited facts (F-22: by 18:00) is allowed when every
+  input is cited and the answer states the step; inputs are values of the feature''s locations, and the
+  result appears in no document.'
 - 'answer_must_not_contain is for the golden set (S4): strings an answer must never repeat.'
 - 'S4: a golden case on FAQ Q6 (working from a café or a hotel) expects the written authorisation of the
   line manager (Remote Access Policy, section 5) as well as the VPN and the screen rules (sections 3 and
@@ -645,7 +648,7 @@ features:
   kind: multi-hop
   expected: answer
   tenants: [tenant-a]
-  requirements: [R-10]
+  requirements: [R-10, R-18]
   reference_answer: The contractor account is disabled at 17:00 local time on Friday (Account Lifecycle
     Policy, section 5.2) and MFA factors are revoked within 1 hour of that (MFA Standard, section 6.1),
     so by 18:00 local time on Friday.
@@ -665,6 +668,13 @@ features:
   must_not_appear:
     scope: corpus
     phrases: ['18:00']
+  derivation:
+    inputs:
+    - 17:00 local time on the contractor's last working day
+    - within 1 hour of the account being disabled
+    step: The account is disabled at 17:00 on the last working day and its factors are revoked within
+      1 hour of that, so they are gone by 18:00 the same day.
+    result: by 18:00 local time on Friday
 - id: F-23
   kind: multi-hop
   expected: answer

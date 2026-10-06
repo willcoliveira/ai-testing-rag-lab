@@ -715,7 +715,7 @@ attack runs (F-49). Tenant is the asker.
 | F-19 | cross-reference | A-PWD-V2 / A-PRIV | 4.4 ¶2 (p.2) / 7.2 | sections 6 and 7 / rotated every 180 days | answer | A | R-08, R-11 | Service account secrets rotate every 180 days; they are not covered by the 60-day user expiry. |
 | F-20 | glossary-dependent | A-GLOSS | 10 | change another account's access or credentials | answer | A | R-09 | Yes: an account that can reset other people's passwords is privileged (glossary 10(a)), so the Privileged Access Standard applies. |
 | F-21 | glossary-dependent | A-GLOSS / A-LIFE | 4 / 3.1 | Monday to Friday, excluding Halvenroot public holidays / at least 5 business days before the start date | answer | A | R-09 | HR must notify IAM at least 5 business days (Monday to Friday, excluding public holidays) before the start date. |
-| F-22 | multi-hop | A-LIFE / A-MFA | 5.2 / 6.1 | 17:00 local time on the contractor's last working day / within 1 hour of the account being disabled | answer | A | R-10 | The account is disabled at 17:00 Friday and MFA factors are revoked within 1 hour, so by 18:00 local time on Friday. |
+| F-22 | multi-hop | A-LIFE / A-MFA | 5.2 / 6.1 | 17:00 local time on the contractor's last working day / within 1 hour of the account being disabled | answer | A | R-10, R-18 | The account is disabled at 17:00 Friday and MFA factors are revoked within 1 hour, so by 18:00 local time on Friday (a derivation: both inputs cited, the step stated). |
 | F-23 | multi-hop | A-LIFE / A-MFA | 3.3 / 3.1, 3.2 | at least two MFA factors before the end of their first working day / FIDO2 security keys, passkeys | answer | A | R-10 | Two factors by the end of day one, chosen from the four approved ones; SMS is not allowed. |
 | F-24 | numeric | A-MFA | 7.1 | after 12 hours | answer | A | R-11, R-12 | Every 12 hours. |
 | F-25 | numeric | A-REMOTE | 4.5 | after 60 minutes of inactivity | answer | A | R-11 | 60 minutes idle (unless covered by EX-2026-007). |
@@ -837,7 +837,8 @@ pages. Authors stay within 10% of their target.
 8. Hygiene: every email ends in `example.com` or `example.org` (including subdomains), every phone
    number is a `555-01xx` number, every token starts with `FAKE-`.
 9. Multi-hop: neither A-LIFE nor A-MFA alone contains both F-22 values, and "18:00" appears
-   nowhere.
+   nowhere. A feature with a `derivation` (D-02) cites every input, states the result in its
+   reference answer, and the result appears in no document.
 10. Register: the `SOURCES.md` inventory's statuses follow each document's kind and status, and
     its Supersedes column names exactly the superseded documents (`docs/TEST-PLAN.md` section 3).
 11. Leak canaries: each string in the answer key's `canaries` is in its own tenant's documents
