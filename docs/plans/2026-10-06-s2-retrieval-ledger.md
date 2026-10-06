@@ -177,3 +177,60 @@ runner; the PR's gate log is the runner's own number.
    `tests/retrieval/test_publish.py` checks that every published case is a dev case.
 10. **`raglab eval --split`** runs a committed config on another split instead of adding three
    more config files; the split is in the resolved config, so the run says which questions ran.
+
+## Judges and fixes
+
+Fix round 1, 2026-10-06. Four of the judges' findings were confirmed, all low: D2 and D3 (code)
+and S2-L2 and S2-L4 (labels). Every new test was run against
+the unfixed commit `e4ea4e8` in a scratch copy of the tree (`git archive`, with only the four test
+files replaced): 11 failures, every one an assertion on the missing behaviour. The guard
+`test_every_label_is_a_location_of_one_of_its_features` passes there too, as it should: it pins
+the label policy the datasheet now states, not a defect. After the fixes, `make check` exits 0
+with 619 tests (607 before), and the gate printed the same line as under AC8: "recall@5 0.644
+(n 22) passes: the threshold is the baseline 0.644 (20261006T172928Z-retrieval-dense-dev-5f1d3a0)
+minus one question (1/22), 0.598".
+
+| Defect | Severity | Fix | Test (fails on e4ea4e8) | Commit |
+|---|---|---|---|---|
+| D2: a retrieval question with no `relevant` field was reported by file line only ("golden.v1.jsonl:24: ..."), while a label that does not resolve names its question | low | `golden.parse_line` reads the id first, and every later `DatasetError` names the line and the question ("golden.v1.jsonl:24 (R-Q24): a retrieval question needs at least one relevant section") | `test_golden_retrieval.py::test_an_error_after_the_id_names_the_question` (four errors: no relevant, tenant, question, a label field), `::test_a_committed_question_without_relevant_is_named_by_its_id` (the judge's repro on a copy of the committed file) | bd0a6f0 |
+| D3: `record.validate` did not check whose chunks a case shows, so a hand edit putting B-PWD 1.0 3.1 into tenant A's R-Q01, with flags, scores, results, report and hashes made to agree, validated, and publish and the gate trusted it | low | `validate` reads `corpus/register.yaml` (`raglab.ingest.register`) and refuses every retrieved or labelled chunk id whose document is not in the register or belongs to a tenant the case's tenant may not see; an unreadable register is a problem, so the check fails closed. The test support's `lab_root` now writes a register of the small runs' documents | `test_run_record.py::test_a_record_that_shows_another_tenants_chunk_is_refused`, `::test_a_tenant_b_label_on_a_tenant_a_case_is_refused`, `::test_shared_chunks_pass_and_an_unregistered_document_is_refused`, `::test_a_root_without_a_register_fails_closed`; `test_publish.py::test_a_published_run_edited_to_show_another_tenants_chunk_is_refused` (the judge's repro on a copy of the dense baseline: validate and publish both refuse it). The committed-runs test gets the check through `validate`: the three published runs pass it | 8d312b9 |
+| S2-L2: R-Q14 labels A-MFA 3.2 (the factors that are not approved), though the question asks which methods are allowed and by when | low | no label change. The datasheet now states the policy both label findings turn on: labels follow the feature's reference answer, so R-Q14 keeps 3.2 (F-23's reference answer says SMS and voice-call codes are not allowed), with its cost | `test_golden_retrieval.py::test_the_datasheet_states_the_label_scope_the_review_raised` (also asserts the labels as they stand); guard `::test_every_label_is_a_location_of_one_of_its_features` | be05c6e |
+| S2-L4: Device Policy 6.2 restates the expiry rule for the USB block and is as relevant to R-Q25 as the labelled A-EXC 4.2, but is not labelled | low | no label change, under the same policy: F-17 does not list 6.2 and its reference answer is complete without it, and labelling it next to A-EXC 4.2 would make recall demand two statements of one rule, as with the FAQ near-duplicates (decision 1). The exception-question rule now names the A-EXC sections, and the known-limits FAQ note includes 6.2 | the same two tests; adding 6.2 to R-Q25 fails the guard until the answer key lists it | be05c6e |
+
+**No label or metric changed,** so no run was repeated: the published runs, the baseline and the
+results tables above stand as they are (old and new are the same numbers). For the decision
+below, the effect of the other choice, recomputed from the published dev cases (not from a run):
+
+| Config | recall@5 now | R-Q14 without A-MFA 3.2 | R-Q25 with A-DEVICE 6.2 |
+|---|---|---|---|
+| dense, 1,200 (baseline) | 0.644 | 0.652 (R-Q14 0.333 to 0.500) | 0.640 (R-Q25 0.333 to 0.250) |
+| hybrid, 1,200 | 0.606 | 0.606 (R-Q14 finds nothing) | 0.602 |
+| dense, 600 | 0.621 | 0.629 | 0.617 |
+
+hit@5 and MRR@5 do not move in either case. A label change also changes the dataset's sha256, so
+the baseline would have to be re-run and republished in the same pull request (the gate calls it
+stale otherwise).
+
+Notes for the review:
+
+- `scripts/check_architecture.py` already listed fastembed, onnxruntime and huggingface_hub as
+  vendor SDKs from the build; nothing to extend.
+- The plan says multi-hop questions have "two labelled chunks"; the datasheet says one section
+  per hop, "two or three", and R-Q14 has three. The approved plan is left as approved.
+- `raglab.evals.record` now imports `raglab.ingest.register` (YAML stays inside `raglab.ingest`;
+  architecture check: 0 violations). A run whose documents are not in the register, such as a
+  later attack run over files outside it, will need those documents' tenants from somewhere the
+  validator trusts; S7 decides where.
+- `docs/TEST-PLAN.md`: R2 names the label-policy guard, R3 the two record-tenant tests.
+
+Pending decisions (titles; the first six are under "Decisions needed" above):
+
+1. FAQ near-duplicates (F-53)
+2. A section with several chunks
+3. Pointer sections are labelled
+4. R-Q19 and R-Q20 label version 1.0 too
+5. F-16 at chunk size 600
+6. The gate margin is one question
+7. Label scope of R-Q14 and R-Q25 (S2-L2, S2-L4): keep the labels as the feature's reference
+   answer gives them (done this round), or drop A-MFA 3.2 from R-Q14 and add A-DEVICE 6.2 to
+   R-Q25 (with an F-17 location in the answer key), re-running and republishing the baseline
