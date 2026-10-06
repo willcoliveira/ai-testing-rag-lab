@@ -898,3 +898,14 @@ def test_a_history_exception_does_not_hide_a_wrapped_copy(repo):
     assert result.returncode == 1
     assert "leak.md:1:" not in result.stdout
     assert "across lines" in result.stdout
+
+
+def test_a_history_exception_is_not_reported_again_across_lines(repo):
+    """Regression of the D3 fix, caught by the pre-push hook on the S0 branch: the exempted line
+    came back through the across-lines view."""
+    commit(repo, "chore: base")
+    base = rev(repo)
+    added = commit_file(repo, "leak.md", "clean\n" + arn(), "docs: add")
+    (repo / "privacy" / "history-exceptions.txt").write_text(f"{added}:leak.md:2\n", "utf-8")
+    result = run(repo, "--history", f"{base}..HEAD", ci=True)
+    assert result.returncode == 0, result.stdout

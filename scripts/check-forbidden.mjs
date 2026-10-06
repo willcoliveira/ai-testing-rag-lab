@@ -345,7 +345,11 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
   if (copied) return;
   // a name wrapped across lines or with extra spaces: the whole file with all whitespace runs as one
   // space, in both views (round four); hits already reported on a single line are not repeated
-  const flat = ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), text).replace(/\s+/g, " ");
+  // a reviewed exception's line is left out of these views (a blank line in its place, which also
+  // ends a paragraph), so it is not reported again across lines, while the same string wrapped
+  // elsewhere in the file still is (S0, a regression of the D3 fix caught by the pre-push hook)
+  const kept = text.split(/\r?\n|\r/).map((l, i) => (exempt(lineNo(i)) ? "" : l)).join("\n");
+  const flat = ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), kept).replace(/\s+/g, " ");
   // prose only (the one-token-per-line lists in privacy/ are not prose): a token wrapped at a line break inside a paragraph (`arn:` / `aws:`), lines joined
   // with nothing between them. Code files are left out: joining them glues a decorator to the
   // previous line and reads as an email address.
@@ -353,7 +357,7 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
   // line, so a token wrapped at a CRLF was never joined (S0 judge round 2)
   // --file input is a commit message or a PR body: prose whatever its name (S0 judge round 3)
   const joined = prose
-    ? ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), text)
+    ? ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), kept)
         .replace(/\r\n?/g, "\n")
         .split(/\n[ \t]*\n/)
         .map((para) => para.replace(/[ \t]*\n[ \t]*/g, ""))
