@@ -263,4 +263,6 @@ PR #5, pr-fast run 37510897112 on ubuntu-24.04: `check` and `conventions` pass (
   the files, then 619 tests passed offline and the gate step printed: "recall@5 0.644 (n 22)
   passes: the threshold is the baseline 0.644 (20261006T172928Z-retrieval-dense-dev-5f1d3a0)
   minus one question (1/22), 0.598". The runner's number equals the Mac's and the CI image's.
-- The cache hit is checked on the next run of this PR (the run that carries this section).
+- Second run (37511432348, commit 1528300): "Cache restored from key:
+  raglab-model-aa8f8b060edb00e03bfdd08813a2949946c8ba55", 619 passed offline, and the same gate
+  line. AC8 met: all ten criteria are now met, AC6 in its reworded form.
