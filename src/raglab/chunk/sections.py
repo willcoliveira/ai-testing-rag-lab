@@ -7,7 +7,10 @@
 2. **Units.** Each paragraph, list item and table of a section is one unit; the section heading
    travels with the first unit. A unit longer than the budget is split, a table between rows and a
    paragraph between sentences, into pieces that each fit (a single row or sentence longer than
-   the budget is kept whole: a chunk exceeds the budget only then).
+   the budget is kept whole: a chunk exceeds the budget only then, or for a captioned table).
+   **A table caption travels with its table (S2):** a paragraph "Table N: ..." right before a
+   table forms one unit with it, kept whole up to twice the budget, so every row is read with
+   its caption and header row; a longer table splits between rows with the caption leading.
 3. **Packing.** Units are packed in order into chunks of at most `chunk_size` characters. Each
    chunk after the first of a section starts with the last `overlap` units of the one before
    (fewer when they would not fit next to a new unit). Chunks never cross a section boundary.
@@ -34,6 +37,10 @@ DEFAULT_CHUNK_SIZE = 1200
 DEFAULT_OVERLAP = 1
 INTRO = "intro"
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+# a table caption: "Table 1: ...", "Table 2. ..." (the pack's convention, corpus/SPEC.md)
+CAPTION = re.compile(r"^Table \d+[:.] ")
+# a caption and its table are kept whole up to this many times the budget (S2)
+TABLE_LIMIT = 2
 
 
 @dataclass(frozen=True)
@@ -125,12 +132,47 @@ def _pieces(placed: PlacedBlock, budget: int, lead: int = 0) -> list[Unit]:
     return units
 
 
+def is_caption(placed: PlacedBlock, following: PlacedBlock | None) -> bool:
+    """A paragraph that names the table right after it ('Table 1: Exceptions register')."""
+    return (
+        placed.block.kind == "paragraph"
+        and following is not None
+        and following.block.kind == "table"
+        and CAPTION.match(placed.block.text) is not None
+    )
+
+
+def _captioned_table(
+    caption: PlacedBlock, table: PlacedBlock, budget: int, lead: int
+) -> list[Unit]:
+    """A caption and its table as units: one unit, kept whole up to TABLE_LIMIT times the budget
+    (like an over-long sentence, it may exceed the budget: a row read without its caption and
+    header row loses its meaning); a longer table is split between rows, the caption leading the
+    first piece, so the caption never ends a chunk without its table."""
+    span = table.end - caption.start
+    if lead + span <= TABLE_LIMIT * budget:
+        return [Unit(caption.start, table.end, caption.page, table.page)]
+    pieces = _pieces(table, budget, lead + table.start - caption.start)
+    first = pieces[0]
+    pieces[0] = Unit(caption.start, first.end, caption.page, first.page_end)
+    return pieces
+
+
 def _units(section: Section, budget: int) -> list[Unit]:
     heading = section.heading
     lead = heading.end - heading.start + len(BLOCK_SEPARATOR) if heading else 0
     units: list[Unit] = []
-    for placed in section.body:
+    body = section.body
+    i = 0
+    while i < len(body):
+        placed = body[i]
+        following = body[i + 1] if i + 1 < len(body) else None
+        if following is not None and is_caption(placed, following):
+            units.extend(_captioned_table(placed, following, budget, 0 if units else lead))
+            i += 2
+            continue
         units.extend(_pieces(placed, budget, 0 if units else lead))
+        i += 1
     if units and heading is not None:
         first = units[0]
         units[0] = Unit(heading.start, first.end, heading.page, first.page_end)
