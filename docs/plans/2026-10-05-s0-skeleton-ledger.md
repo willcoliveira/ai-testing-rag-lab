@@ -281,3 +281,20 @@ as they were small:
 Fails without the fix: the new tests run against f86dad1 give 14 failures, all of them the new
 cases (including the backup-file test, whose expectation changed with the new ignore rule).
 `make check` exit 0, 230 tests.
+
+## E-fix check and the F fixes (2026-10-06)
+
+The E1-E6 check (one Fable judge, workflow wf_ba297a8d-fff) found every E fix holding, `make check`
+clean (230 tests), no regressions (ordinary code, GitHub noreply addresses, lightweight and signed
+tags, this branch's own CI history range), and four new low defects, each reproduced independently.
+The user's go: "Fix all four, then PR".
+
+| # | Finding | Fix | Test |
+|---|---|---|---|
+| F1 | a copy of the list printed fragments of itself through the across-lines pass and its comment line | the list's long comment lines count as list lines; once a file holds a list line, the across-lines views are skipped for it | `test_a_copy_of_the_list_prints_none_of_it` |
+| F2 | pre-push checked a tag's message, not its tagger | new `--identity <file>` mode (identity rules: every rule but the email shape); pre-push feeds it the tagger's name and address | `test_pre_push_checks_the_tagger`, `test_identity_mode_skips_the_email_shape_only` |
+| F3 | rules with `?`, `{n}` or digit classes were missed when written another way (flag dropped, in code) | list lines compared without flags; the escapes view drops quantifiers and reads `\d{m}` as m zeros. Measured against the real list (counts only): 37 of 37 rules caught verbatim, without the flag and inside `re.compile(r"...")` | `test_a_rule_written_another_way_is_found` (4 cases) |
+| F4 | Dependabot's `Signed-off-by: ... <support@github.com>` tripped the generic email shape, so every Dependabot PR would fail pr-fast's history step | GitHub's noreply and support addresses are exempt when the whole match is the address, so a real-list name inside a noreply address is still found by its own rule | `test_github_trailer_addresses_pass_the_email_shape` |
+
+Fails without the fix: 8 of the new tests fail against af30b89, all of them the new cases.
+`make check` exit 0, 238 tests.
