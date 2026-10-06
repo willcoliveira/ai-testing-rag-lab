@@ -48,6 +48,7 @@ AC8), not here, so that the corpus names no real organisation.
 ```
 corpus/
   SPEC.md                 this file
+  register.yaml           the machine-readable register (ids, statuses, supersedes, tenants, paths)
   tenant-a/*.md           Halvenroot documents (14 files)
   tenant-b/*.md           Mirrowfen variants (2 files)
   external/*.md           NIST and NCSC excerpts (2 files), tenant "shared"
@@ -841,6 +842,8 @@ pages. Authors stay within 10% of their target.
    reference answer, and the result appears in no document.
 10. Register: the `SOURCES.md` inventory's statuses follow each document's kind and status, and
     its Supersedes column names exactly the superseded documents (`docs/TEST-PLAN.md` section 3).
+    `register.yaml` (D-05) lists every document of the pack once, with the inventory's id, status
+    and Supersedes, the front matter's tenant and the path ingestion reads, and no attack file.
 11. Leak canaries: each string in the answer key's `canaries` is in its own tenant's documents
     and in no document of the other tenant or the shared excerpts.
 12. Decision labels: a feature is `flag-conflict` exactly when its expected retrieval includes the

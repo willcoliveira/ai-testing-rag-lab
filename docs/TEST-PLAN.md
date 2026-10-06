@@ -50,18 +50,19 @@ supersedes it. The status says what a document does:
 | `approved` | yes | Governs: its values are the company's rules. |
 | `superseded` | yes | Stays retrievable and citable for history ("what did version 1 say?", F-04); its values are never given as the current rule. |
 | `reference` | yes, for both tenants | Shared external guidance: its values are given only attributed to their source, never as a company rule (R-06). |
-| `test material` | never | Attack files, ingested only in attack runs; never cited and never the source of a value (R-15, R-17). |
+| `test material` | never | Attack files, ingested only in attack runs; never cited and never the source of a value (R-15, R-17). Listed in the `SOURCES.md` inventory, never in `corpus/register.yaml`. |
 
 "The pack" means the register's `approved` and `superseded` documents of the asker's tenant plus
 the shared `reference` documents. A document that is not in the register, whatever it says about
 itself, is not in the pack.
 
-**Where the register comes from.** S1b reads the register (ids, statuses and supersedes links)
-from one machine-readable source and gives each chunk its document's register entry. The format of
-that source is decision D-05 (pending). Until D-05 is taken, the source is the inventory table of
-[`corpus/SOURCES.md`](../corpus/SOURCES.md) (columns Id, Status and Supersedes); this paragraph is
-reworded to name whatever source D-05 picks. A document's own front matter or text is never the
-register.
+**Where the register comes from.** S1b and S3 read the register from one machine-readable file,
+[`corpus/register.yaml`](../corpus/register.yaml) (decision D-05): for each document of the pack
+its id, status, supersedes link, tenant and the path ingestion reads. S1b gives each chunk its
+document's register entry. The file agrees with the inventory table of
+[`corpus/SOURCES.md`](../corpus/SOURCES.md) (columns Id, Status and Supersedes), which a unit test
+checks. A document's own front matter or text is never the register. The attack files are not in
+`register.yaml`: in an attack run they are pages outside the register (R-15).
 
 **Decision labels.** Every golden case has one expected decision. The label belongs to the case,
 not to the planted feature alone: the same rule can be asked about its history or its current value

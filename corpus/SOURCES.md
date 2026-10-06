@@ -12,9 +12,14 @@ numbers are `555-01xx` numbers and tokens start with `FAKE-`.
 **Precedence (requirement R-15).** The inventory below is the register: its ids, statuses and
 Supersedes column decide which document is current and which documents are versions of the same
 document, never a document's own title, version string, effective date or front matter
-(`docs/TEST-PLAN.md`, section 3). The three files under `attacks/` are **deliberate test material,
-not policy**: they are ingested only in attack runs, so that tests can show the assistant ignores
-them.
+(`docs/TEST-PLAN.md`, section 3). [`register.yaml`](register.yaml) is its machine-readable form
+(decision D-05): one entry per document of the pack with its id, status, supersedes link, tenant
+and the path ingestion reads; S1b and S3 read it, and `tests/unit/test_corpus_sources.py` checks
+that it agrees with the inventory below.
+
+The three files under `attacks/` are **deliberate test material, not policy**: they are ingested
+only in attack runs, so that tests can show the assistant ignores them, and they are not in
+`register.yaml`, so that a pipeline cannot drop them by reading it.
 
 ## Upstream sources
 
@@ -51,6 +56,7 @@ renderings also carry its status and Supersedes cell (the ground-truth text is s
 | `corpus/SOURCES.md` | — | support | — | ours | CC-BY-4.0 | This file |
 | `corpus/LICENSE.md` | — | support | — | ours | CC-BY-4.0 | Licence summary for the corpus folder |
 | `corpus/answer-key.yaml` | — | support | — | ours | CC-BY-4.0 | One entry per planted feature |
+| `corpus/register.yaml` | — | support | — | ours | CC-BY-4.0 | The machine-readable register (D-05): id, status, supersedes, tenant and ingested path of each document of the pack |
 | `corpus/build-manifest.json` | — | support | — | ours | CC-BY-4.0 | sha256 of the generated files, written by `scripts/build_corpus.py` |
 | `corpus/licenses/Apache-2.0.txt` | — | support | — | comply:LICENSE.txt | Apache-2.0 | The Apache License 2.0 text, copied unchanged from comply |
 | `corpus/tenant-a/password-standard-v1.md` | A-PWD-V1 | superseded | — | comply:password.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values |

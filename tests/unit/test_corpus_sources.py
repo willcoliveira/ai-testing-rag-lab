@@ -5,6 +5,7 @@ import re
 from datetime import date
 
 import pytest
+import yaml
 
 from tests.conftest import ROOT
 from tests.corpus_text import CORPUS, documents
@@ -110,6 +111,45 @@ def test_register_statuses_and_supersedes_links():
         assert listed[docs[new].path]["status"] == "approved", new
         assert docs[new].tenant == docs[old].tenant, new
         assert docs[old].front.get("superseded_by") == new, old
+
+
+REGISTER_FIELDS = ["id", "status", "supersedes", "tenant", "path"]
+PACK_STATUSES = {"approved", "superseded", "reference"}
+
+
+def register_file() -> dict[str, object]:
+    return yaml.safe_load((CORPUS / "register.yaml").read_text(encoding="utf-8"))
+
+
+def test_machine_readable_register_agrees_with_sources():
+    """D-05: corpus/register.yaml, which S1b and S3 read, lists each document of the pack once
+    with the SOURCES.md inventory's id, status and Supersedes, the front matter's tenant and the
+    path ingestion reads (the rendered file for a pdf, html or png document). Attack files are
+    not in it (they are pages outside the register in an attack run)."""
+    listed = inventory()
+    docs = documents()
+    register = register_file()
+    assert register["schema_version"] == 1
+    entries = register["documents"]
+    assert isinstance(entries, list)
+    ids = [str(e["id"]) for e in entries]
+    assert len(ids) == len(set(ids)), "a document is in the register twice"
+    pack = {row["id"] for row in listed.values() if row["status"] in PACK_STATUSES}
+    assert set(ids) == pack, f"register.yaml differs from SOURCES.md: {set(ids) ^ pack}"
+    for entry in entries:
+        assert list(entry) == REGISTER_FIELDS, f"{entry.get('id')}: fields {list(entry)}"
+        doc = docs[str(entry["id"])]
+        fmt = str(doc.front["format"])
+        ingested = doc.path if fmt == "md" else doc.path.removesuffix(".md") + "." + fmt
+        assert entry["path"] == ingested, f"{doc.id}: path is not the file ingestion reads"
+        row = listed[ingested]
+        assert row["id"] == doc.id, f"{doc.id}: SOURCES.md row of {ingested}"
+        assert entry["status"] == row["status"], f"{doc.id}: status"
+        assert (entry["supersedes"] or "—") == row["supersedes"], f"{doc.id}: supersedes"
+        assert entry["tenant"] == doc.tenant, f"{doc.id}: tenant"
+    attacks = {d.id for d in docs.values() if d.front["kind"] == "attack"}
+    assert attacks, "no attack files"
+    assert not attacks & set(ids), "an attack file is in register.yaml"
 
 
 def test_no_file_derives_from_an_excluded_source():
