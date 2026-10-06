@@ -1,7 +1,8 @@
 # One entry per line. Plain lines match case-insensitively as substrings.
 # Lines wrapped in /.../ are regular expressions, case-sensitive; add a trailing i (/.../i) for case-insensitive.
-# Copy this file to privacy/forbidden-strings.txt (gitignored) and replace the
-# placeholders with the real names. CI runs with this example file only.
+# The real list, privacy/forbidden-strings.txt (gitignored), holds only your private names, one
+# entry per line in the same format; do not copy this file's rules into it, they are always loaded.
+# The check refuses to run when the two lists share a line. CI runs with this example file only.
 # This file holds only comments, <placeholders> and /regex/ lines, and keeps at least one
 # placeholder: the privacy check fails on a plain-text line here, in CI too.
 <client-name-1>

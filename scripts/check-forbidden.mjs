@@ -94,8 +94,24 @@ function loadList(path) {
       return { re: new RegExp(esc, "i"), global: new RegExp(esc, "gi"), src: l };
     }).filter(Boolean);
 }
+const exampleRules = loadList(EXAMPLE);
 const realRules = process.env.CI ? [] : loadList(REAL);
-const rules = [...loadList(EXAMPLE), ...realRules];
+const rules = [...exampleRules, ...realRules];
+// The two lists must not share a line (S0 judge, F check D1). A shared line is either the real list
+// repeating the example's generic rules (a real list made by filling in the example: the generic
+// rules are always loaded, so the real list holds the private names only), or a private rule copied
+// into the example list. Both stop every check here, with the reason, rather than producing
+// confusing hits on the tracked files or hiding a pasted rule. The line itself is not printed.
+if (!process.env.CI && existsSync(REAL) && existsSync(EXAMPLE)) {
+  const flagless = (l) => l.trim().toLowerCase().replace(/^(\/.*\/)[a-z]*$/i, "$1");
+  const meaningful = (l) => l && l !== "#" && !(l.startsWith("<") && l.endsWith(">")) && (!l.startsWith("#") || l.length >= 12);
+  const exampleLines = new Set(readFileSync(EXAMPLE, "utf8").split("\n").map(flagless).filter(meaningful));
+  const shared = readFileSync(REAL, "utf8").split("\n").map(flagless).filter(meaningful).filter((l) => exampleLines.has(l));
+  if (shared.length) {
+    console.error(`REFUSING: privacy/forbidden-strings.txt and the example list share ${shared.length} line(s). Keep only your private names in the real list (the example's generic rules are always loaded), and make sure no private rule was copied into privacy/forbidden-strings.example.txt.`);
+    process.exit(2);
+  }
+}
 // the real list's lines, to find one copied into the example list
 // compared without the trailing flags, so /rule/ and /rule/i are the same line (S0 judge, F3)
 const stripFlags = (l) => l.replace(/\/[a-z]*$/i, "/");
@@ -291,8 +307,10 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
     // a line that is one of the real list's own lines, in any file: reported without its text,
     // so a copy of the list never reaches a log (S0 judge round 4, E1)
     const trimmed = line.trim();
-    const lower = trimmed.toLowerCase();
-    const listLine = (lineKind(trimmed) === "regex" && realLines.has(stripFlags(lower))) || realComments.has(lower);
+    // a copy quoted in Markdown, bulleted or numbered (cat -n) is still a copy (S0 judge, F check D2)
+    const bare = trimmed.replace(/^(?:>\s*|[-*+]\s+|\d+[.:)]?\s+)+/, "");
+    const bareLower = bare.toLowerCase();
+    const listLine = (lineKind(bare) === "regex" && realLines.has(stripFlags(bareLower))) || realComments.has(bareLower);
     if (listLine && !exempt(lineNo(i))) {
       copied = true;
       report(`${f}:${lineNo(i)}: a line of the real list (not shown)`);
@@ -313,8 +331,10 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
           const key = `${r.src}\u0000${m[0]}`;
           if (seen.has(key)) continue;
           seen.add(key);
-          reported.add(key.toLowerCase());
+          // an exempted line does not count as reported, so the same string wrapped elsewhere in
+          // the file is still found (S0 judge, F check D3)
           if (exempt(lineNo(i))) continue;
+          reported.add(key.toLowerCase());
           report(`${f}:${lineNo(i)}: matches ${r.src} (${m[0]})`);
         }
       }

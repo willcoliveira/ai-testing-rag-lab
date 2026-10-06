@@ -326,18 +326,23 @@ def test_the_copy_step_run_backwards_is_caught(repo, ci):
     real = (repo / "privacy" / "forbidden-strings.txt").read_text(encoding="utf-8")
     (repo / EXAMPLE).write_text(real, encoding="utf-8")
     result = run(repo, ci=ci)
-    assert result.returncode == 1
-    assert "no <placeholder> line left" in result.stdout
-    if not ci:
-        assert f"{EXAMPLE}:1: a line of the real list" in result.stdout
+    if ci:  # no real list in CI: the example's own structure gives it away
+        assert result.returncode == 1
+        assert "no <placeholder> line left" in result.stdout
+    else:  # locally the two lists share every line: refused, nothing printed from them
+        assert result.returncode == 2
+        assert "REFUSING" in result.stderr
+        assert "acmeclient" not in (result.stdout + result.stderr).lower()
 
 
 @pytest.mark.parametrize("line", ["/\\bacmeclient\\b/i", "/\\bAcmeClient\\b/"])
 def test_a_real_name_written_as_a_regex_in_the_example_list_is_found(repo, line):
     append(repo, EXAMPLE, line + "\n")
     result = run(repo)
-    assert result.returncode == 1
-    assert f"{EXAMPLE}:" in result.stdout
+    # the lists now share a line: refused before any scan (F check D1), without the line's text
+    assert result.returncode == 2
+    assert "REFUSING" in result.stderr
+    assert "acmeclient" not in (result.stdout + result.stderr).lower()
 
 
 @pytest.mark.parametrize("rel", ["scripts/check-forbidden.mjs", "uv.lock"])
@@ -848,3 +853,48 @@ def test_github_trailer_addresses_pass_the_email_shape(repo):
     local = run(repo, "--history", f"{base}..HEAD")
     assert local.returncode == 1
     assert "message:" in local.stdout
+
+
+# F check D1: a real list made by filling in the example's placeholders repeats the example's
+# generic rules, which flagged the tracked files that state them. The lists may not share a line:
+# such a real list is refused with the reason, and a real list of private names only is clean.
+def test_a_real_list_that_repeats_the_example_is_refused(repo):
+    example = (repo / "privacy" / "forbidden-strings.example.txt").read_text(encoding="utf-8")
+    names = iter(["Globex Corp", "Initech", "Hooli Agency", "Vandelay", "Pied Piper", "Tyrell"] * 3)
+    filled = "\n".join(
+        next(names) if line.startswith("<") and line.endswith(">") else line
+        for line in example.splitlines()
+    )
+    (repo / "privacy" / "forbidden-strings.txt").write_text(filled + "\n", encoding="utf-8")
+    refused = run(repo)
+    assert refused.returncode == 2
+    assert "Keep only your private names" in refused.stderr
+    (repo / "privacy" / "forbidden-strings.txt").write_text("Initech\nVandelay\n", "utf-8")
+    assert run(repo).returncode == 0
+    (repo / "leak.md").write_text("worked with Initech\n", encoding="utf-8")
+    assert run(repo).returncode == 1
+
+
+# F check D2: a copy of the list quoted, bulleted or numbered printed its rules.
+@pytest.mark.parametrize("prefix", ["> ", "- ", "  3\t", "12. "])
+def test_a_prefixed_copy_of_the_list_prints_none_of_it(repo, prefix):
+    (repo / "privacy" / "forbidden-strings.txt").write_text(FULL_LIST, encoding="utf-8")
+    copied = "".join(prefix + line + "\n" for line in FULL_LIST.splitlines())
+    (repo / "quoted.md").write_text(copied, encoding="utf-8")
+    result = run(repo)
+    assert result.returncode == 1
+    assert result.stdout.count("a line of the real list (not shown)") == 4
+    assert "acme" not in result.stdout.lower()
+
+
+# F check D3: an exception on one line hid the same string wrapped across other lines.
+def test_a_history_exception_does_not_hide_a_wrapped_copy(repo):
+    commit(repo, "chore: base")
+    base = rev(repo)
+    wrapped = "see arn" + ":\naws:iam::x\n"
+    added = commit_file(repo, "leak.md", arn() + "\n" + wrapped, "docs: add")
+    (repo / "privacy" / "history-exceptions.txt").write_text(f"{added}:leak.md:1\n", "utf-8")
+    result = run(repo, "--history", f"{base}..HEAD", ci=True)
+    assert result.returncode == 1
+    assert "leak.md:1:" not in result.stdout
+    assert "across lines" in result.stdout
