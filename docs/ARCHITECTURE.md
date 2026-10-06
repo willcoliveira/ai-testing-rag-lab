@@ -122,7 +122,6 @@ flowchart TB
   classDef todo fill:#f3f4f6,stroke:#6b7280
   classDef wip fill:#fef3c7,stroke:#92400e
   classDef done fill:#dcfce7,stroke:#166534
-  class S0,S1a done
-  class S1b wip
+  class S0,S1a,S1b done
   class S2,S3,S3h,S4,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
 ```

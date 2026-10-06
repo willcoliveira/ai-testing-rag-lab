@@ -34,6 +34,11 @@ the example list only, so a maintainer's real names are enforced only where the 
 - Vendor SDKs (model providers, vector stores, guard libraries) are imported only in
   `raglab.adapters`, which also holds the only constructors for their clients.
   `scripts/check_architecture.py` enforces both rules.
+- File-format parsers (pypdf, pytesseract, pyyaml, Pillow) are not vendor SDKs; they are
+  imported only in `raglab.ingest`, which turns files into parsed documents for the rest of
+  raglab (also enforced by `scripts/check_architecture.py`).
+- `corpus/inventory.snapshot.json` is regenerated on purpose with `make inventory-snapshot` after
+  a parser, chunker or corpus change, and its diff is reviewed in the pull request.
 - Prompts are versioned code with contract tests; no developer comments inside prompt text.
 - A provider failure returns an explicit "unavailable" status, never a guessed answer.
 - Model ids are dated snapshots, never aliases.
