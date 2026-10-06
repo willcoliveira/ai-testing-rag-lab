@@ -7,7 +7,7 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture test hooks corpus
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture test hooks corpus inventory-snapshot
 
 check: format lint types deps audit sast workflows secrets privacy architecture test
 
@@ -62,3 +62,9 @@ hooks:
 # (tests/unit/test_corpus_build.py fails until the committed files match a fresh build)
 corpus:
 	uv run python scripts/build_corpus.py
+
+# regenerate the committed chunk inventory snapshot on purpose, after a parser, chunker or corpus
+# change, and review its diff in the PR (tests/ingestion/test_inventory_snapshot.py fails until the
+# committed file matches a fresh run at the default settings)
+inventory-snapshot:
+	uv run raglab ingest --snapshot corpus/inventory.snapshot.json

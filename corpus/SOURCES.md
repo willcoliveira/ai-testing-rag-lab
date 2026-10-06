@@ -58,6 +58,7 @@ renderings also carry its status and Supersedes cell (the ground-truth text is s
 | `corpus/answer-key.yaml` | — | support | — | ours | CC-BY-4.0 | One entry per planted feature |
 | `corpus/register.yaml` | — | support | — | ours | CC-BY-4.0 | The machine-readable register (D-05): id, status, supersedes, tenant and ingested path of each document of the pack |
 | `corpus/build-manifest.json` | — | support | — | ours | CC-BY-4.0 | sha256 of the generated files, written by `scripts/build_corpus.py` |
+| `corpus/inventory.snapshot.json` | — | support | — | ours | CC-BY-4.0 | The chunk inventory snapshot at the default settings (S1b): per chunk its id, document, section, page, length, first words and sha256, written by `make inventory-snapshot` |
 | `corpus/licenses/Apache-2.0.txt` | — | support | — | comply:LICENSE.txt | Apache-2.0 | The Apache License 2.0 text, copied unchanged from comply |
 | `corpus/tenant-a/password-standard-v1.md` | A-PWD-V1 | superseded | — | comply:password.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values |
 | `corpus/tenant-a/password-standard-v2.md` | A-PWD-V2 | approved | A-PWD-V1 | comply:password.md | Apache-2.0 | Changed: rewritten for Halvenroot, planted values; ingested as the PDF |
