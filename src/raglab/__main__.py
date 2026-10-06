@@ -82,6 +82,9 @@ def fetch_model(args: argparse.Namespace) -> int:
 def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]:
     root: Path = args.root
     config = eval_config.load(args.config, root)
+    split: str | None = getattr(args, "split", None)
+    if split is not None:
+        config = eval_config.with_split(config, split)
     embedder, description, provenance = factory.embedder(
         config.embedder.provider, config.embedder.model, config.embedder.revision
     )
@@ -205,6 +208,11 @@ def main(argv: list[str] | None = None) -> int:
         sub = commands.add_parser(name, help=text)
         if name == "eval":
             sub.add_argument("--suite", choices=["retrieval"], required=True)
+            sub.add_argument(
+                "--split",
+                choices=eval_config.SPLITS,
+                help="run on another split than the config's (the gate always uses the config's)",
+            )
         sub.add_argument("--config", type=Path, required=True, help="a config/*.toml file")
         default_gate = "pr-fast" if name == "gate" else "manual"
         sub.add_argument("--gate", choices=GATES, default=default_gate)

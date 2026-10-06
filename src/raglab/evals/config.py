@@ -34,13 +34,14 @@ import hashlib
 import json
 import re
 import tomllib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import cast
 
 from raglab.chunk.sections import ChunkSettings
 
 NAME = re.compile(r"^[a-z0-9-]+$")
+SPLITS = ("dev", "test", "all")
 SECTIONS: dict[str, dict[str, type | tuple[type, ...]]] = {
     "": {"name": str, "suite": str},
     "dataset": {"path": str, "split": str},
@@ -152,7 +153,7 @@ def load(path: Path, root: Path) -> EvalConfig:
     if suite != "retrieval":
         raise ConfigError(f"{where}: suite {suite!r}: only retrieval exists (S2)")
     split = str(dataset["split"])
-    if split not in {"dev", "test", "all"}:
+    if split not in SPLITS:
         raise ConfigError(f"{where}: split {split!r} is not dev, test or all")
     kind = str(retriever["kind"])
     if kind not in {"dense", "bm25", "hybrid"}:
@@ -197,3 +198,12 @@ def load(path: Path, root: Path) -> EvalConfig:
             cast(int, bootstrap["seed"]), cast(int, bootstrap["resamples"]), level
         ),
     )
+
+
+def with_split(config: EvalConfig, split: str) -> EvalConfig:
+    """The same config on another split (`raglab eval --split`): the split is part of the resolved
+    settings, so the run id and the config sha256 in the manifest say which questions ran, and a
+    run on another split never matches the dev baseline the gate reads."""
+    if split not in SPLITS:
+        raise ConfigError(f"split {split!r} is not dev, test or all")
+    return replace(config, split=split)

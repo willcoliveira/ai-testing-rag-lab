@@ -82,6 +82,21 @@ def test_hashes_are_of_the_file_and_of_the_resolved_settings(tmp_path):
     )
 
 
+def test_another_split_changes_the_resolved_settings_and_their_hash(tmp_path):
+    """`raglab eval --split all`: the full-set run says so in its config sha256 and run id, so it
+    is never taken for the dev baseline the gate reads."""
+    path = tmp_path / "c.toml"
+    path.write_text(config_text("x"), encoding="utf-8")
+    dev = config.load(path, tmp_path)
+    full = config.with_split(dev, "all")
+    assert (dev.split, full.split) == ("dev", "all")
+    assert full.file_sha256 == dev.file_sha256
+    assert full.resolved()["dataset"] == {"path": dev.dataset, "split": "all"}
+    assert config.canonical_sha256(full.resolved()) != config.canonical_sha256(dev.resolved())
+    with pytest.raises(config.ConfigError, match="split 'train'"):
+        config.with_split(dev, "train")
+
+
 def test_the_factory_builds_only_the_pinned_local_embedder():
     with pytest.raises(factory.AdapterError, match="only fastembed"):
         factory.embedder("fake", "hashing-256", "fake")
