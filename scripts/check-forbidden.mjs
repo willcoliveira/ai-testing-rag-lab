@@ -97,7 +97,13 @@ function loadList(path) {
 const realRules = process.env.CI ? [] : loadList(REAL);
 const rules = [...loadList(EXAMPLE), ...realRules];
 // the real list's lines, to find one copied into the example list
-const realLines = new Set(realRules.map((r) => r.src.toLowerCase()));
+// compared without the trailing flags, so /rule/ and /rule/i are the same line (S0 judge, F3)
+const stripFlags = (l) => l.replace(/\/[a-z]*$/i, "/");
+const realLines = new Set(realRules.map((r) => stripFlags(r.src.toLowerCase())));
+// the real list's own comment lines (long enough not to be generic), so a whole copy of the list
+// is reported without any of its text (S0 judge, F1)
+const realComments = new Set(process.env.CI || !existsSync(REAL) ? [] : readFileSync(REAL, "utf8")
+  .split("\n").map((l) => l.trim().toLowerCase()).filter((l) => l.startsWith("#") && l.length >= 12));
 // for commit and tag identities: an identity is an email, so the generic email shape is left out
 const identityRules = rules.filter((r) => !r.re.test("someone@example.com"));
 const ALLOW_TOKENS = new Set(existsSync(join(root, "privacy/allowlist.txt"))
@@ -123,6 +129,10 @@ const label = (abs) => relative(root, abs).split("\\").join("/");
 const fileArg = opts.indexOf("--file");
 const scanFile = fileArg > 0 ? opts[fileArg + 1] : null;
 if (fileArg > 0 && (!scanFile || !existsSync(scanFile) || statSync(scanFile).isDirectory())) { console.error(`--file: no such file ${scanFile || ""}`); process.exit(2); }
+// --identity <path>: a name and address (a tagger line) checked with the identity rules
+const identityArg = opts.indexOf("--identity");
+const identityFile = identityArg > 0 ? opts[identityArg + 1] : null;
+if (identityArg > 0 && (!identityFile || !existsSync(identityFile) || statSync(identityFile).isDirectory())) { console.error(`--identity: no such file ${identityFile || ""}`); process.exit(2); }
 // --files-from <path>: the files named there (NUL-separated, relative to the working directory)
 const listArg = opts.indexOf("--files-from");
 const listFile = listArg > 0 ? opts[listArg + 1] : null;
@@ -177,7 +187,17 @@ function exampleListProblems(text) {
 }
 // a /regex/ line read as the text it matches, so the real list's rules find a name written as
 // /\bname\b/i: the class escapes (\b, \d, \s, \w) as a space, any other escape as its character
-const regexText = (line) => line.replace(/\\[bBdDsSwW]/g, " ").replace(/\\(.)/g, "$1");
+// (quantifiers ?, *, + and {m,n} dropped too, so a rule such as /\bname ?x\b/ reads as its name;
+// S0 judge, F3)
+// A digit class reads as zeros (\d{3,5} as 000), so a digit-shape rule such as a ticket-id shape
+// reads as an id it matches.
+const regexText = (line) => line
+  .replace(/\\d\{(\d+)(?:,\d*)?\}/g, (_, m) => "0".repeat(Number(m)))
+  .replace(/\\d[+*?]?/g, "0")
+  .replace(/\\[bBdDsSwW]/g, " ")
+  .replace(/\{\d+(?:,\d*)?\}/g, "")
+  .replace(/(?<!\\)[?*+]/g, "")
+  .replace(/\\(.)/g, "$1");
 // The real list's rules, to run them alone on that view: a rule written down in any file (a copy of
 // the list at another path, a rule pasted into a note) is found by its name, since a \b-anchored
 // rule does not match its own text. The generic example shapes are left out of that view, so code
@@ -190,6 +210,13 @@ const ALLOW_SUBSTRINGS = [/(?<![\w.+-])noreply@anthropic\.com/gi];
 // the whole token around a match, so an allowlisted token is compared in full, not by the part of
 // it a rule happened to match
 const DELIM = /[\s`'"()[\]<>{},;|*]/;
+// GitHub's own addresses in trailers (Dependabot's Signed-off-by, squash-merge Co-authored-by):
+// exempt when the whole match is the address, so they pass the generic email shape, while a
+// real-list name inside a noreply address is still matched by its own rule (S0 judge, F4)
+const GITHUB_ADDRESS = [/^[\w.+[\]-]+@users\.noreply\.github\.com$/i, /^(?:noreply|support)@github\.com$/i];
+const allowedMatch = (view, m) =>
+  ALLOW_TOKENS.has(m[0]) || ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length)) ||
+  GITHUB_ADDRESS.some((p) => p.test(m[0]));
 function tokenAt(line, start, end) {
   let a = start, b = end;
   while (a > 0 && !DELIM.test(line[a - 1])) a--;
@@ -257,13 +284,17 @@ function report(message) {
 function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = false, exempt = () => false }) {
   if (!ruleSet.length) return;
   const reported = new Set();
+  let copied = false;
   text.split(/\r?\n|\r/).forEach((raw, i) => {
     const line = ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), raw);
     const seen = new Set();
     // a line that is one of the real list's own lines, in any file: reported without its text,
     // so a copy of the list never reaches a log (S0 judge round 4, E1)
     const trimmed = line.trim();
-    if (lineKind(trimmed) === "regex" && realLines.has(trimmed.toLowerCase()) && !exempt(lineNo(i))) {
+    const lower = trimmed.toLowerCase();
+    const listLine = (lineKind(trimmed) === "regex" && realLines.has(stripFlags(lower))) || realComments.has(lower);
+    if (listLine && !exempt(lineNo(i))) {
+      copied = true;
       report(`${f}:${lineNo(i)}: a line of the real list (not shown)`);
       return;
     }
@@ -278,7 +309,7 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
         // (built page chunks are a single line each)
         for (const m of view.matchAll(r.global)) {
           if (!m[0]) continue;
-          if (ALLOW_TOKENS.has(m[0]) || ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length))) continue;
+          if (allowedMatch(view, m)) continue;
           const key = `${r.src}\u0000${m[0]}`;
           if (seen.has(key)) continue;
           seen.add(key);
@@ -289,6 +320,9 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
       }
     }
   });
+  // a file holding lines of the real list is a copy of it: the views below would print fragments
+  // of the list, so they are skipped; its lines are already reported (S0 judge, F1)
+  if (copied) return;
   // a name wrapped across lines or with extra spaces: the whole file with all whitespace runs as one
   // space, in both views (round four); hits already reported on a single line are not repeated
   const flat = ALLOW_SUBSTRINGS.reduce((l, a) => l.replace(a, (s) => " ".repeat(s.length)), text).replace(/\s+/g, " ");
@@ -311,7 +345,7 @@ function scanText(f, text, { ruleSet, prose, lineNo = (i) => i + 1, regexView = 
     for (const r of ruleSet) {
       for (const m of view.matchAll(r.global)) {
         if (!m[0]) continue;
-        if (ALLOW_TOKENS.has(m[0]) || ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length))) continue;
+        if (allowedMatch(view, m)) continue;
         const key = `${r.src}\u0000${m[0]}`.toLowerCase();
         if (reported.has(key)) continue;
         reported.add(key);
@@ -441,6 +475,11 @@ function scanHistory() {
     for (const problem of exampleListProblems(text)) report(`${at.slice(0, 12)}:${EXAMPLE_LABEL}:${problem}`);
   }
   return commits;
+}
+if (identityFile) {
+  scanText("identity", readFileSync(identityFile, "utf8"), { ruleSet: identityRules, prose: false });
+  console.log(`${hits} hits in the identity (${identityRules.length} rules)`);
+  process.exit(hits ? 1 : 0);
 }
 if (historyRevs) {
   const commits = scanHistory();

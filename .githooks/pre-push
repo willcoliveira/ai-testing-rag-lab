@@ -26,6 +26,9 @@ while read -r _ local_id _ remote_id; do
     msg=$(mktemp)
     git cat-file tag "$local_id" | sed '1,/^$/d' > "$msg"
     node scripts/check-forbidden.mjs --file "$msg" </dev/null || status=1
+    # the tagger's name and address, with the identity rules (S0 judge, F2)
+    git cat-file tag "$local_id" | sed -n 's/^tagger \(.*\) [0-9][0-9]* [-+][0-9][0-9]*$/\1/p' > "$msg"
+    node scripts/check-forbidden.mjs --identity "$msg" </dev/null || status=1
     rm -f "$msg"
   fi
 done

@@ -768,3 +768,83 @@ def test_pre_push_checks_an_annotated_tag_message(repo, tmp_path_factory):
     assert g("tag", "-a", "v-clean", "-m", "chore(tag): first lab release").returncode == 0
     clean = g("push", "origin", "v-clean")
     assert clean.returncode == 0, clean.stdout + clean.stderr
+
+
+FULL_LIST = (
+    "# Real list for the tests. Never commit this file.\n"
+    "/\\bacmeclient\\b/i\n"
+    "/\\bACME-\\d{3,5}\\b/\n"
+    "/\\bacme ?widgets\\b/i\n"
+)
+
+
+# Judge F1: a copy of the list reported its lines as "not shown", but the across-lines pass and its
+# comment line still printed fragments of it.
+def test_a_copy_of_the_list_prints_none_of_it(repo):
+    (repo / "privacy" / "forbidden-strings.txt").write_text(FULL_LIST, encoding="utf-8")
+    (repo / "docs").mkdir()
+    (repo / "docs" / "kept.txt").write_text(FULL_LIST, encoding="utf-8")
+    result = run(repo)
+    assert result.returncode == 1
+    assert result.stdout.count("docs/kept.txt:") == 4
+    assert result.stdout.count("a line of the real list (not shown)") == 4
+    assert "across lines" not in result.stdout
+    assert "acme" not in result.stdout.lower()
+
+
+# Judge F3: a rule not byte-equal to the list line (flag dropped, written in code) was missed for
+# rules with quantifiers or digit classes.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "/\\bacme ?widgets\\b/\n",
+        'X = re.compile(r"\\bacme ?widgets\\b")\n',
+        'TICKET = re.compile(r"\\bACME-\\d{3,5}\\b")\n',
+        "/\\bACME-\\d{3,5}\\b/i\n",
+    ],
+)
+def test_a_rule_written_another_way_is_found(repo, text):
+    (repo / "privacy" / "forbidden-strings.txt").write_text(FULL_LIST, encoding="utf-8")
+    (repo / "probe.py").write_text(text, encoding="utf-8")
+    result = run(repo)
+    assert result.returncode == 1
+    assert "probe.py:1" in result.stdout
+
+
+# Judge F2: pre-push checked a tag's message but not its tagger.
+def test_pre_push_checks_the_tagger(repo, tmp_path_factory):
+    g, _ = bare_remote(repo, tmp_path_factory)
+    named = g("-c", "user.name=AcmeClient Dev", "tag", "-a", "v-named", "-m", "chore: release")
+    assert named.returncode == 0
+    blocked = g("push", "origin", "v-named")
+    assert blocked.returncode != 0
+    assert "identity:1: matches" in blocked.stdout + blocked.stderr
+
+
+def test_identity_mode_skips_the_email_shape_only(repo):
+    ident = repo / "IDENT"
+    ident.write_text("Dev <dev@example.com>\n", encoding="utf-8")
+    assert run(repo, "--identity", "IDENT", ci=True).returncode == 0
+    ident.write_text("AcmeClient Dev <dev@example.com>\n", encoding="utf-8")
+    assert run(repo, "--identity", "IDENT").returncode == 1
+
+
+# Judge F4: Dependabot's Signed-off-by (support@github.com) and squash-merge noreply co-authors
+# tripped the generic email shape, so every Dependabot PR would fail pr-fast's history step. A real
+# name inside a noreply address is still found by its own rule.
+def test_github_trailer_addresses_pass_the_email_shape(repo):
+    commit(repo, "chore: base")
+    base = rev(repo)
+    commit(
+        repo,
+        "ci(deps): bump actions/checkout\n\n"
+        "Signed-off-by: dependabot[bot] <support@github.com>\n"
+        "Co-authored-by: Alice <12345678+alice@users.noreply.github.com>\n"
+        "Co-authored-by: GitHub <noreply@github.com>\n",
+    )
+    assert run(repo, "--history", f"{base}..HEAD", ci=True).returncode == 0
+    base = rev(repo)
+    commit(repo, "docs: x\n\nCo-authored-by: A <123+acmeclient@users.noreply.github.com>\n")
+    local = run(repo, "--history", f"{base}..HEAD")
+    assert local.returncode == 1
+    assert "message:" in local.stdout
