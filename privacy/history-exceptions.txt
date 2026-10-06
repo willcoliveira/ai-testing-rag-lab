@@ -1,0 +1,10 @@
+# Reviewed false positives in this repo's history, for `make privacy-history` and the pre-push
+# hook: one `<full commit id>:<path>:<line>` per line, as the history scan prints them (with the
+# full id). A commit cannot change without changing its id, so an entry covers that one line of
+# that commit only. Each entry needs its reason in a comment above it, and a reviewer's yes.
+#
+# 3f29c73 vendored the checker with two made-up example ids in a comment, of a shape a rule of the
+# maintainer's real list forbids. No real id; the comment was reworded in S0 fix round 3. Both
+# entries go away if the branch history is rewritten before its first push.
+3f29c7324f17e41e39e181e9b9e455beca909a61:scripts/check-forbidden.mjs:72
+3f29c7324f17e41e39e181e9b9e455beca909a61:scripts/check-forbidden.mjs:73

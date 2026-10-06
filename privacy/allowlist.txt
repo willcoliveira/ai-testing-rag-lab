@@ -1,0 +1,9 @@
+# Tokens that a generic pattern would flag but are public names. One per line, exact match.
+# Decision records in this repo (docs/decisions/).
+ADR-001
+ADR-002
+# A file path in .gitignore and the plans, not a hostname.
+.claude/settings.local.json
+# Reserved example domain used in tests.
+test@example.com
+dev@example.com

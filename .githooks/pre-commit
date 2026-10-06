@@ -1,0 +1,9 @@
+#!/bin/sh
+# Enable with: git config core.hooksPath .githooks
+# Checks what is staged, not the working tree.
+# CI=1 makes the checker use the example list only; a CI variable left in a developer's shell
+# must not switch the real list off here (S0 judge round 4, E2)
+unset CI
+scripts/check-staged-privacy.sh || { echo "pre-commit: forbidden strings in the staged changes"; exit 1; }
+gitleaks git --pre-commit --staged --redact --no-banner || { echo "pre-commit: gitleaks found a secret in the staged changes"; exit 1; }
+uv run --quiet --locked ruff format --check || { echo "pre-commit: run 'uv run ruff format'"; exit 1; }
