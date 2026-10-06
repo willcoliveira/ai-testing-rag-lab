@@ -54,7 +54,7 @@ and [Tesseract](https://github.com/tesseract-ocr/tesseract) for the scanned page
 ```bash
 uv sync
 make hooks     # required in every clone: commit-msg, pre-commit and pre-push hooks
-make check     # every gate that needs no model and no key
+make check     # every gate that needs no hosted model and no key
 uv run raglab --version
 uv run raglab ingest   # parse and chunk the policy pack into runs/tmp/inventory.json
 ```

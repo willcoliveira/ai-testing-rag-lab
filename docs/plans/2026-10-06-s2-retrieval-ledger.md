@@ -52,7 +52,7 @@ file, which the question author commits.
 | AC6 | partly met (decision below) | `tests/ingestion/test_chunk_boundaries.py`: at 600 the caption and Table 1 share a chunk with every row; F-17 holds; F-16 splits only on the note after the table; positive control at 250; three unit tests (over the budget, over twice the budget, a caption only right before a table). `make inventory-snapshot`: no diff (228 chunks, 0 changed); `chunk_experiment.py --chunk-size 600`: 249 chunks (was 250), 1 feature split (was 2) | (the 600 test is the S1b break turned into a check) |
 | AC7 | met | `make check`: deptry, vulture, pyright clean; architecture 0 violations; tests offline (`tests/unit/test_no_network.py` guard on, the model loaded from the cache) | `from raglab.adapters.fake import HashingEmbedder` and `import fastembed` in `retrieve/dense.py`: "raglab.adapters.fake is for the unit tests; no module imports it", "vendor SDK fastembed is imported outside raglab.adapters" |
 | AC8 | needs CI | `tests/unit/test_workflow_rules.py::test_pr_fast_restores_and_fetches_the_model_by_revision_before_the_tests`; zizmor: no findings. The gate step is not wired yet (see below) | `make model` step replaced: "assert 'echo skipped' == 'make model'" |
-| AC9 | met (unit and smoke) | `tests/unit/test_playground.py`: model.js renders a published index (run list, intervals, per-question hits and labelled ids) in Node; paths outside runs/published refused; CSP and no HTML writes; scripts parse; the local site holds only the playground and the published runs. Served from a scratch site, the page, scripts and index answered 200. No browser render this round (the browser extension was not connected); Playwright is Track B | |
+| AC9 | met (unit and smoke; browser in Track B) | `tests/unit/test_playground.py`: model.js renders a published index (run list, intervals, per-question hits and labelled ids) in Node; app.js itself runs against two published runs with a stand-in DOM and fetch (`tests/playground_dom.mjs`): run list newest first, metrics and question tables, a click on the other run, no error in the status line, only `runs/published/` fetched; paths outside it refused; CSP and no HTML writes; scripts parse; the local site holds only the playground and the published runs. Served from a scratch site, the page, scripts and index answered 200. No real browser render this round (the browser extension was not connected) | `fetchText` path prefixed with `../`: the app.js test fails (status line shows the fetch error) |
 | AC10 | pending | CHANGELOG line, this ledger, docs/TEST-PLAN.md rows L10, L11, R2, R3; the diagram moves to done when the stage closes | |
 
 ## Still to do in this stage
@@ -62,7 +62,8 @@ file, which the question author commits.
 2. From a clean commit: `raglab eval` with the three configs, `raglab compare` dense with hybrid
    and dense with dense-600 (result into AC5 above), `raglab publish <dense run> --baseline`
    (with the others published or not), commit `runs/published/`.
-3. Wire the gate: a pr-fast step `uv run raglab gate --config config/retrieval-dense.toml` after
+3. Measure the Mac-to-CI difference (dense, dev, in `ubuntu:24.04` with the pinned Tesseract)
+   and set the gate margin from it. Then wire the gate: a pr-fast step `uv run raglab gate --config config/retrieval-dense.toml` after
    the tests (and a `make gate` target in `check`), with its workflow test; break it once.
 4. Diagram and README: S2 done.
 
@@ -93,4 +94,7 @@ The developer built (a)'s state and recommends it: (b) is a rule fitted to one p
 6. **git_dirty counts untracked files**, so a run with an uncommitted dataset cannot be published.
 7. **Model files outside the checkout** (`~/.cache/raglab/models`), so the secret and privacy
    scans never read 67 MB of ONNX, and CI caches the same path.
-8. **The gate margin is one question** (docs/THRESHOLDS.md), for Mac-to-Linux ONNX differences.
+8. **The gate margin is one question, provisionally** (docs/THRESHOLDS.md): the scanned page's
+   OCR differs between the Mac (Tesseract 5.5.3) and CI (5.3.4), and one dev question labels that
+   page, besides ONNX last-bit differences. Before the gate is wired, the dense dev run is repeated
+   in the `ubuntu:24.04` image with the pinned Tesseract and the margin is set from what it shows.

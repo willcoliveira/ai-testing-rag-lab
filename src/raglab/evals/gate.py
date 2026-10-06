@@ -3,8 +3,9 @@
 A fresh run of the default configuration on the dev split is compared with the published baseline
 of the same suite, config and split (runs/published/index.json). It passes when recall@k is at
 least the baseline's minus a margin of one question (1 / n): the baseline is made on one machine
-and CI runs on another, and ONNX arithmetic can differ in the last bits, enough to swap two
-near-tied chunks at rank k. The margin absorbs that and nothing larger. A baseline made with a
+and CI runs on another, where the scanned page's OCR text (another Tesseract build) and ONNX
+arithmetic in the last bits can differ, enough to move a near-tied chunk across rank k. The
+margin is provisional until measured in the CI image (docs/THRESHOLDS.md). A baseline made with a
 different dataset or config is stale, and the gate fails until a new baseline is published in a
 reviewed pull request.
 """

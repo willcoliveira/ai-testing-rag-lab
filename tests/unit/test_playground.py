@@ -8,6 +8,7 @@ import json
 import re
 import shutil
 import subprocess
+from datetime import UTC, datetime
 
 import pytest
 
@@ -93,3 +94,38 @@ def test_the_local_site_serves_the_playground_next_to_the_published_runs(tmp_pat
 @pytest.mark.parametrize("name", ["app.js", "model.js"])
 def test_the_page_scripts_parse(name):
     subprocess.run([str(NODE), "--check", str(PLAYGROUND / name)], check=True, capture_output=True)
+
+
+@pytest.mark.skipif(NODE is None, reason="the page's script runs in node with a stand-in DOM")
+def test_the_page_script_renders_runs_metrics_and_questions(tmp_path):
+    """app.js itself (not only its model) against a published directory, with a minimal DOM and a
+    fetch that reads the files: the run list, the newest run's metrics and questions, a click on
+    the other run, no error in the status line, and only runs/published files fetched."""
+    root = lab_root(tmp_path)
+    older = fake_run(root, provenance="local")
+    newer = fake_run(
+        root,
+        name="retrieval-hybrid",
+        kind="hybrid",
+        provenance="local",
+        when=datetime(2026, 10, 7, tzinfo=UTC),
+    )
+    for run_dir in (older, newer):
+        publish.publish(run_dir, root, privacy=lambda d, r: [])
+    published = root / "runs" / "published"
+    done = subprocess.run(
+        [str(NODE), str(ROOT / "tests" / "playground_dom.mjs"), str(published)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = json.loads(done.stdout)
+    assert out["status"] == ""
+    assert out["runs"][0].startswith("retrieval-hybrid")  # newest first
+    assert out["runs"][1].startswith("retrieval-fake")
+    assert "recall@2" in out["runs"][0]
+    assert out["first"]["heading"] == ["retrieval-hybrid"]
+    assert out["first"]["tables"] == [4, 5]  # 3 metrics + header; 4 questions + header
+    assert out["second"]["heading"] == ["retrieval-fake"]
+    assert out["pressed"] == ["false", "true"]
+    assert all(path.startswith("runs/published/") for path in out["fetched"])

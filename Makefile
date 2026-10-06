@@ -1,4 +1,5 @@
-# One command for every gate that runs without a model or a key: `make check`.
+# One command for every gate that runs without a hosted model or a key: `make check` (the local
+# embedding model is fetched once by `make model`, then read from its cache).
 # CI (.github/workflows/pr-fast.yml) runs the same targets.
 SEMGREP_VERSION := 1.179.0
 ZIZMOR_VERSION := 1.30.1
