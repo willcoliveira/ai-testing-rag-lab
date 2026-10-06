@@ -80,7 +80,9 @@ def parse_line(line: str, where: str) -> Question:
     if not isinstance(raw, dict):
         raise DatasetError(f"{where}: a question is a JSON object")
     row = {str(k): v for k, v in cast(dict[object, object], raw).items()}
-    case_id, kind, split, tenant, question = (_text(row, f, where) for f in REQUIRED)
+    case_id = _text(row, "id", where)
+    where = f"{where} ({case_id})"  # every later error names the question as well as the line
+    kind, split, tenant, question = (_text(row, f, where) for f in REQUIRED[1:])
     if kind not in KINDS:
         raise DatasetError(f"{where}: kind {kind!r} is not one of {sorted(KINDS)}")
     if split not in SPLITS:

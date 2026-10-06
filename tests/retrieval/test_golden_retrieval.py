@@ -83,6 +83,42 @@ def test_a_wrong_question_is_refused(changes, match):
         golden.parse_line(line(**changes), "g:1")
 
 
+# S2 judge D2: once the id is read, every error names the question as well as the line, so a
+# retrieval question without its `relevant` field is reported as R-Qnn, like a label that does not
+# resolve (golden.resolve).
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"relevant": None}, "g:1 (Q1): a retrieval question needs at least one relevant section"),
+        ({"tenant": "shared"}, "g:1 (Q1): tenant 'shared' is not one of"),
+        ({"question": " "}, "g:1 (Q1): question must be a non-empty string"),
+        ({"relevant": [{"doc_id": "A-PWD"}]}, "g:1 (Q1): section_id must be"),
+    ],
+)
+def test_an_error_after_the_id_names_the_question(changes, message):
+    with pytest.raises(golden.DatasetError) as error:
+        golden.parse_line(line(**changes), "g:1")
+    assert str(error.value).startswith(message), str(error.value)
+
+
+@pytest.mark.unit
+def test_a_committed_question_without_relevant_is_named_by_its_id(tmp_path):
+    rows = DATASET.read_text(encoding="utf-8").splitlines()
+    number = next(n for n, text in enumerate(rows) if json.loads(text)["id"] == "R-Q24")
+    row = json.loads(rows[number])
+    del row["relevant"]
+    rows[number] = json.dumps(row)
+    path = tmp_path / DATASET.name
+    path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    with pytest.raises(golden.DatasetError) as error:
+        golden.load(path)
+    assert str(error.value) == (
+        f"golden.v1.jsonl:{number + 1} (R-Q24): "
+        "a retrieval question needs at least one relevant section"
+    )
+
+
 @pytest.mark.unit
 def test_load_refuses_a_repeated_id_and_bad_json(tmp_path):
     path = tmp_path / "g.jsonl"
