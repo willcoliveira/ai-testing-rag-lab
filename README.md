@@ -17,6 +17,8 @@ and [how-to 17](https://github.com/willcoliveira/ai-testing-handbook/blob/main/h
 
 Built in stages, one pull request each. Grey is todo, amber in progress, green done; the full
 diagrams are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the plans in [docs/plans/](docs/plans/).
+New to the repo? [docs/ONBOARDING.md](docs/ONBOARDING.md) lists what you can run, what you can break
+on purpose, and where each concept lives.
 
 ```mermaid
 flowchart TB

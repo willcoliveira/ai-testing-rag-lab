@@ -5,6 +5,9 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased (v0.1)
 
+- docs/ONBOARDING.md: what a new team member can run, ten break-it-on-purpose exercises, the
+  concepts built so far with their files and tests, and what is not testable yet; a test checks that
+  every path, make target and raglab command it names exists.
 - S2: retrieval without a judge: Embedder, VectorStore and Retriever ports; the local
   bge-small ONNX embedder from pinned, hash-checked files (`make model`, cached by revision in
   pr-fast); an in-memory store and dense, BM25 and hybrid (reciprocal rank fusion) retrievers,
