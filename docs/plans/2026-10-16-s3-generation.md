@@ -43,8 +43,8 @@ The message that opened S3 planning (2026-10-16): "continue on the plan for this
 
 ## Prerequisites on your Mac (your action, like the S3h sign-ups)
 
-1. **Ollama.** It is not installed. Install it (`brew install ollama`, or the app) and pull the
-   generator you choose below. I don't install software on your machine without your go.
+1. **Ollama.** It is not installed. Install a current version (`brew install ollama`, or the
+   app) and pull the generator chosen under "The generator". I don't install software on your machine without your go.
 2. **Docker.** Docker Desktop is installed but its daemon is not running. Start it for the
    container and ZAP criteria (AC10, AC11).
 
@@ -140,17 +140,41 @@ Evidence marked **live** runs on your Mac with Ollama, is excluded from `make ch
 
 **Hosted spend:** none. Everything runs on the fake model or Ollama.
 
-## Decisions needed
+## Decisions
 
-Asked separately; the answers are added here verbatim.
+Asked on 2026-10-16; the answers, verbatim:
 
-1. One PR or two (S3a generation and live run, S3b API, page, container and ZAP).
-2. The Ollama generator, leaving another model family free for the S5 judge.
-3. Whether FakeChat may be built by the factory at runtime when the config says `provider =
-   "fake"` (today rule 4 of `scripts/check_architecture.py` keeps every fake adapter out of
-   raglab's modules). The container and the CI smoke need it; the run's provenance would be
-   `fake`, and publish already refuses every fake run, so none reaches the playground.
+| Decision | Answer | What it means |
+|---|---|---|
+| One PR or two | "One PR" | all fourteen criteria land in `feat/s3-generation`, with one judge pass |
+| FakeChat at runtime | "Allow via factory only (Recommended)" | rule 4 of `scripts/check_architecture.py` becomes: the fake adapters are built only by `raglab.adapters.factory`, when the config says `provider = "fake"`, and by the unit tests; the run's provenance is `fake`, and publish refuses every fake run. The rule change and a test that fails on any other import are part of AC13 |
+| The generator | "is there any smaller and lightweight from the new models of nvidea that we can use, i reckon perhaps there are some better ooptions available for now" | see "The generator" below |
+| The plan | "Changes first" | the changes are this section and the generator; the plan comes back for approval |
+
+## The generator
+
+NVIDIA models on Ollama that run on an Apple Silicon Mac (checked 2026-10-16 on ollama.com and the
+Hugging Face model card; sizes are Ollama's download sizes):
+
+| Model | Size | Notes |
+|---|---|---|
+| **Nemotron 3.5 Lightning** `nemotron-3.5-lightning:30b-a3b-mlx` (recommended) | 23 GB, MLX build for Apple Silicon | released 2026-08-11; 30B parameters, 3B active per token (hybrid Mamba-2, MoE and attention), so it runs at about the speed of a 3B model; trained on structured output; thinking is on by default and switched off for generation; OpenMDW 1.1 licence, commercial use allowed |
+| Nemotron 3 Nano 4B `nemotron-3-nano:4b` | 2.8 GB | the truly light option, from about March 2026; expect weaker JSON and citation discipline |
+| Nemotron 3.5 Bolt | 25 GB | not usable here: Ollama's page says Apple Silicon is not supported |
+
+"Lightweight" means two things here. Lightning is light in compute (3B active) but takes 23 GB of
+memory; Nano 4B is light in both, at a cost in quality. On a 48 GB Mac, Lightning fits with room
+for the embedder and Docker. With a Nemotron generator, the S5 judge comes from another family
+(Qwen, Llama or Gemma), which keeps the main plan's "different family" rule.
+
+How it is pinned: the config names the tag and its digest, and the adapter turns thinking off
+and records that in the manifest. The adapter's contract test (AC5) confirms on your Mac that,
+with thinking off, the model returns output that fits the answer schema, before the live run.
+
+Second round (2026-10-16), verbatim: generator: "Nemotron 3.5 Lightning (Recommended)"; plan:
+"Changes first". So the generator is `nemotron-3.5-lightning:30b-a3b-mlx`, its digest pinned
+when it is pulled, and the plan waits for the changes.
 
 ## Approval
 
-Pending.
+Pending: the changes asked for on 2026-10-16.
