@@ -66,15 +66,16 @@ will not stop, a leftover process, and a session that fails or is interrupted.
   through the OpenAI-compatible endpoint did not: the model still produced reasoning text. The live
   contract test checks this again before every run.
 
-## The first live session (2026-10-18, a 48 GiB Apple M4 Pro, Docker Desktop running)
+## The live session of the S3 run (2026-10-18, a 48 GiB Apple M4 Pro, Docker Desktop running)
 
 `make eval-local`, read from its output and the run record
-`runs/tmp/20261018T132722Z-generation-local-ollama-dev-86bf537`:
+`runs/tmp/20261018T134910Z-generation-local-ollama-dev-d897052`:
 
-- memory available before the session (the preflight's reading): 34.1 GiB; after: 35.0 GiB;
-- the live contract test passed in 23.78 s (the model's first load included);
-- the generation suite: 75 case-trials (25 cases, 3 trials) in 109.882 s, so about 36.6 s per
-  trial of 25 cases; per request p50 1,392 ms and p95 2,725 ms;
-- the whole session, server start to postcheck: 2 min 44.9 s;
+- memory available before the session (the preflight's reading): 31.1 GiB; after: 37.8 GiB;
+- the live contract test passed in 23.40 s (its request is the first, so the model's load is in
+  it);
+- the generation suite: 75 case-trials (25 cases, 3 trials) in 106.15 s, so about 35.4 s per
+  trial of 25 cases; per request p50 1,331 ms and p95 2,623 ms;
+- the whole session, server start to postcheck: 2 min 40.8 s;
 - afterwards: "postcheck passed: port closed, no ollama process, no model loaded", and
   `lsof -iTCP:11434 -sTCP:LISTEN` found nothing.
