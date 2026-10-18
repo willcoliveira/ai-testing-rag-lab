@@ -33,6 +33,7 @@ Set in `config/local-ollama.toml` and recorded in every run's manifest (`ollama`
 | Keep-alive | 2 minutes after the last request (`OLLAMA_KEEP_ALIVE`); the session also unloads the model explicitly before it stops the server | `[ollama] keep_alive` |
 | Free memory to start | the model's size on disk plus 4 GiB, against the memory macOS reports available (free, inactive and speculative pages from `vm_stat`) | `[ollama] memory_margin_gb` |
 | Per request | 120 s timeout; 1,024 completion tokens at most | `[generator] timeout_s`, `max_tokens` |
+| Sampling | temperature 1.0 and top_p 0.95, the model card's recommended settings (for reasoning on and off), with a seed per trial | `[generator] temperature`, `top_p`; `[generation] seed` |
 | Whole run | 3,600 s wall-clock cap; a run that hits it, or meets a request timeout, is marked `partial` and is never published | `[generation] run_timeout_s` |
 | Server version | at least 0.40.6 (0.40.4 refused the pinned model: "requires a newer version of Ollama") | `raglab.runtime.ollama.MIN_VERSION` |
 
@@ -61,7 +62,7 @@ will not stop, a leftover process, and a session that fails or is interrupted.
   "structured output is unavailable": the server log says the MLX runner's grammar library is
   missing from this build. So `config/local-ollama.toml` sets `response_format = "none"`: the
   prompt asks for the JSON, and the strict parser refuses any reply that does not fit
-  (`invalid_output`).
+  (`invalid_output`). Re-test it on every Ollama upgrade (docs/COMPATIBILITY.md).
 - **Thinking off.** `reasoning_effort = "none"` gives replies with no reasoning text. `think: false`
   through the OpenAI-compatible endpoint did not: the model still produced reasoning text. The live
   contract test checks this again before every run.

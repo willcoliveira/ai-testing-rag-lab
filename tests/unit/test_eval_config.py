@@ -128,6 +128,7 @@ def test_the_committed_generation_configs():
     assert local.generator.base_url == "http://127.0.0.1:11434"
     assert local.generator.extra() == {"reasoning_effort": "none"}
     assert local.generator.response_format == "none"
+    assert (local.generator.temperature, local.generator.top_p) == (1.0, 0.95)
     assert local.ollama is not None
     assert (local.ollama.host, local.ollama.max_loaded_models, local.ollama.num_parallel) == (
         "127.0.0.1:11434",
@@ -178,8 +179,9 @@ def local_text() -> str:
             "not fake or",
         ),
         (lambda t: t.replace("max_tokens = 1024\n", ""), "needs \\['max_tokens'\\]"),
-        (lambda t: t.replace("temperature = 0.2", "temperature = 3"), "temperature"),
+        (lambda t: t.replace("temperature = 1.0", "temperature = 3"), "temperature"),
         (lambda t: t.replace("trials = 3", "trials = 0"), "trials"),
+        (lambda t: t.replace("top_p = 0.95", "top_p = 1.5"), "top_p"),
         (
             lambda t: t.replace('response_format = "none"', 'response_format = "json_object"'),
             "response_format",

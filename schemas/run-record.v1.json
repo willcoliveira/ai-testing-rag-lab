@@ -162,6 +162,7 @@
             "base_url": {"type": "string", "minLength": 1},
             "server_version": {"type": "string", "minLength": 1},
             "temperature": {"type": "number", "minimum": 0, "maximum": 2},
+            "top_p": {"type": "number", "minimum": 0, "maximum": 1},
             "max_tokens": {"type": "integer", "minimum": 1},
             "timeout_s": {"type": "number", "minimum": 0},
             "response_format": {"enum": ["json_schema", "none"]},

@@ -71,6 +71,7 @@ class OpenAICompatChat:
         temperature: float,
         max_tokens: int,
         timeout_s: float,
+        top_p: float | None = None,
         extra: Mapping[str, str] | None = None,
         response_format: str = "json_schema",
         client: httpx.Client | None = None,
@@ -87,6 +88,7 @@ class OpenAICompatChat:
         self._model = model
         self._digest = digest
         self._temperature = temperature
+        self._top_p = top_p
         self._max_tokens = max_tokens
         self._timeout_s = timeout_s
         self._extra = dict(extra or {})
@@ -136,6 +138,7 @@ class OpenAICompatChat:
             "base_url": self._base_url,
             "server_version": self._server_version,
             "temperature": self._temperature,
+            **({} if self._top_p is None else {"top_p": self._top_p}),
             "max_tokens": self._max_tokens,
             "timeout_s": self._timeout_s,
             "response_format": self._response_format,
@@ -148,6 +151,7 @@ class OpenAICompatChat:
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],
             "temperature": self._temperature,
             "seed": request.seed,
+            **({} if self._top_p is None else {"top_p": self._top_p}),
             "max_tokens": self._max_tokens,
             "stream": False,
             **self._extra,

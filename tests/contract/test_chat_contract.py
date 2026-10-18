@@ -10,6 +10,8 @@ Answer (status ok) whose citations are ids of the passages it was given, with no
 """
 
 import json
+import os
+from pathlib import Path
 
 import httpx
 import pytest
@@ -26,6 +28,9 @@ from tests.retrieval_support import PACK
 
 pytestmark = pytest.mark.contract
 LOCAL_CONFIG = ROOT / "config" / "local-ollama.toml"
+# the live test's config; another one (a copy with response_format = "json_schema", to re-test
+# schema mode after an Ollama upgrade) by RAGLAB_LIVE_CONFIG (docs/COMPATIBILITY.md)
+LIVE_CONFIG = Path(os.environ.get("RAGLAB_LIVE_CONFIG", str(LOCAL_CONFIG)))
 PASSAGES = [ScoredChunk(c, 0.9) for c in PACK[:3]]
 
 
@@ -107,6 +112,25 @@ def test_no_extra_field_is_sent_unless_the_config_names_it():
     seen: list[dict] = []
     stub_adapter(echoing_stub(seen)).complete(contract_request())
     assert "reasoning_effort" not in seen[0]
+    assert "top_p" not in seen[0]
+
+
+@pytest.mark.unit
+def test_top_p_is_sent_and_described_when_configured():
+    seen: list[dict] = []
+    chat = OpenAICompatChat(
+        "http://127.0.0.1:11434",
+        "stub-model:1b",
+        DIGEST,
+        temperature=1.0,
+        top_p=0.95,
+        max_tokens=256,
+        timeout_s=5,
+        client=stub_client(stub_ollama(echoing_stub(seen))),
+    )
+    chat.complete(contract_request())
+    assert (seen[0]["temperature"], seen[0]["top_p"]) == (1.0, 0.95)
+    assert chat.describe()["top_p"] == 0.95
 
 
 @pytest.mark.unit
@@ -251,7 +275,7 @@ def test_the_live_config_refuses_to_run_until_its_digest_is_pinned(tmp_path):
 
 @pytest.mark.live
 def test_the_adapter_passes_the_contract_against_the_local_server():
-    config = eval_config.load_generation(LOCAL_CONFIG, ROOT)
+    config = eval_config.load_generation(LIVE_CONFIG, ROOT)
     spec = config.generator
     chat, described, provenance = factory.chat(
         spec.provider,
@@ -259,6 +283,7 @@ def test_the_adapter_passes_the_contract_against_the_local_server():
         digest=spec.digest,
         base_url=spec.base_url,
         temperature=spec.temperature,
+        top_p=spec.top_p,
         max_tokens=spec.max_tokens,
         timeout_s=spec.timeout_s,
         extra=spec.extra(),

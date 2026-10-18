@@ -38,7 +38,8 @@ intervals at [generation] level), and:
 provider = "fake"               # fake (FakeChat, provenance fake) or openai-compat
 model = "fake-echo"
 # openai-compat also needs base_url (loopback only in S3), digest (64 hex, from the server's
-# /api/tags after the pull), temperature, max_tokens and timeout_s; reasoning_effort is optional
+# /api/tags after the pull), temperature, max_tokens and timeout_s; top_p and reasoning_effort
+# are optional
 # and is sent to the server as it is written; response_format is json_schema (the default) or none
 # (the prompt alone asks for the JSON; the parser still refuses anything off-schema)
 
@@ -90,6 +91,7 @@ SECTIONS: dict[str, dict[str, type | tuple[type, ...]]] = {
         "digest": str,
         "base_url": str,
         "temperature": (float, int),
+        "top_p": (float, int),
         "max_tokens": int,
         "timeout_s": (float, int),
         "reasoning_effort": str,
@@ -339,6 +341,7 @@ class GeneratorConfig:
     digest: str | None = None
     base_url: str | None = None
     temperature: float | None = None
+    top_p: float | None = None
     max_tokens: int | None = None
     timeout_s: float | None = None
     reasoning_effort: str | None = None
@@ -432,6 +435,9 @@ def _generator(table: dict[str, object], where: str, require_digest: bool) -> Ge
     temperature = float(cast(float, table["temperature"]))
     if not 0 <= temperature <= 2:
         raise ConfigError(f"{where}: temperature must be between 0 and 2")
+    top_p = table.get("top_p")
+    if top_p is not None and not 0 < float(cast(float, top_p)) <= 1:
+        raise ConfigError(f"{where}: top_p must be in (0, 1]")
     max_tokens = cast(int, table["max_tokens"])
     if max_tokens < 1:
         raise ConfigError(f"{where}: max_tokens must be at least 1")
@@ -445,6 +451,7 @@ def _generator(table: dict[str, object], where: str, require_digest: bool) -> Ge
         digest,
         str(table["base_url"]),
         temperature,
+        None if top_p is None else float(cast(float, top_p)),
         max_tokens,
         _positive(table["timeout_s"], where, "timeout_s"),
         None if effort is None else str(effort),

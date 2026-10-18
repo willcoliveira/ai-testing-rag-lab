@@ -43,6 +43,7 @@ def chat_from_config(spec: GeneratorConfig) -> tuple[ChatModel, Json, str]:
         digest=spec.digest,
         base_url=spec.base_url,
         temperature=spec.temperature,
+        top_p=spec.top_p,
         max_tokens=spec.max_tokens,
         timeout_s=spec.timeout_s,
         extra=spec.extra(),

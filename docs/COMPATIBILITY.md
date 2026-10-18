@@ -11,8 +11,17 @@ Tested against nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7dabacb401dec6440b4ec987
 
 Known limits of that combination (docs/LOCAL-MODEL.md):
 
-- no structured output: any `response_format` gets HTTP 501 on this build, so the config sends
-  none and the parser checks the reply against the answer schema;
+- **No structured output (JSON schema mode).** On Ollama 0.40.6 (Homebrew, MLX runner) with
+  `nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7dabacb401dec6440b4ec987ea053b9568b01f89fb3d54f8b2e71397be`,
+  any `response_format` (`json_schema` or `json_object`) gets HTTP 501, "structured output is
+  unavailable" (the server log: the MLX runner's grammar library is not in this build), checked
+  2026-10-18. So `config/local-ollama.toml` sets `response_format = "none"`: the prompt asks for
+  the JSON and the strict parser refuses any reply off the answer schema (`invalid_output`). The
+  user's decision of 2026-10-18, verbatim: "Accept, record the limit (Recommended)".
+  **Re-test schema mode on every Ollama upgrade**: copy `config/local-ollama.toml` with
+  `response_format = "json_schema"`, then run
+  `RAGLAB_LIVE_CONFIG=<the copy> uv run raglab ollama session --config config/local-ollama.toml --run "uv run pytest -m live tests/contract/test_chat_contract.py"`;
+  if it passes, switch the config back to `json_schema` and add a line here;
 - thinking is switched off with `reasoning_effort: "none"`; `think: false` is not honoured
   through the OpenAI-compatible endpoint;
 - Ollama 0.40.4 refuses the model ("requires a newer version of Ollama"); the session needs
