@@ -27,7 +27,7 @@ from typing import cast
 from raglab.core.types import visible_tenants
 from raglab.evals import generation_record, metrics
 from raglab.evals.schema import Validator
-from raglab.ingest import register
+from raglab.ingest import answer_key, register
 
 SCHEMA_VERSION = "run-record.v1"
 SCHEMA_PATH = "schemas/run-record.v1.json"
@@ -273,7 +273,7 @@ def validate(run_dir: Path, root: Path) -> list[str]:
         problems.append("a case id and trial appear twice in cases.jsonl")
     k = cast(int, as_json(manifest["retriever"])["k"])
     if manifest["suite"] == "generation":
-        problems.extend(generation_problems(manifest, cases, k))
+        problems.extend(generation_problems(manifest, cases, k, root))
     else:
         problems.extend(retrieval_problems(manifest, cases, k))
     try:
@@ -341,7 +341,7 @@ def retrieval_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[st
     return problems
 
 
-def generation_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[str]:
+def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Path) -> list[str]:
     """A generation run: its manifest fields, N trials of every case (fewer only in a partial
     run), every case's answer fields, a withheld answer for every status but ok, no cited id that
     was not retrieved, retrieval scores on the questions and none on the probes, and the checks
@@ -356,6 +356,10 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[s
     if problems:
         return problems
     trials = cast(int, manifest["trials"])
+    try:
+        canaries = answer_key.canaries(root)
+    except (OSError, ValueError) as error:  # fails closed, as the register does
+        return [f"the answer key's canaries cannot be read, so the probes are unchecked ({error})"]
     seen: dict[str, list[int]] = {}
     for case in cases:
         where = f"case {case['case_id']} trial {case['trial']}"
@@ -390,7 +394,7 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[s
             problems.extend(case_problems(case, k))
         elif any(as_json(r)["relevant"] for r in as_list(case["retrieved"])):
             problems.append(f"{where}: a probe has no labels, so no retrieved chunk is relevant")
-        if case["checks"] != generation_record.case_checks(case):
+        if case["checks"] != generation_record.case_checks(case, canaries):
             problems.append(f"{where}: checks {case['checks']} do not follow from the fields")
     for case_id, numbers in seen.items():
         full = list(range(1, trials + 1))

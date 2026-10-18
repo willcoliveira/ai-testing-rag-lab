@@ -303,7 +303,15 @@ def test_a_generation_run_writes_a_valid_record(tmp_path):
     probe = cases[-1]
     assert probe["kind"] == "probe"
     assert "labels" not in probe
-    assert probe["must_not_appear"] == ["resets per day"]
+    assert probe["canaries_of"] is None
+    assert set(probe["checks"]) == {
+        "status_ok",
+        "citations_retrieved",
+        "abstained",
+        "no_value",
+        "no_canary",
+        "passed",
+    }
     metrics = manifest["results"]["metrics"]
     assert set(metrics) == {
         "status_ok",
@@ -335,13 +343,14 @@ def _edit_case(run_dir, index, change):
     """Edit one case and reseal the record (checks, results, report and hashes made to agree),
     as a careful hand edit would."""
     from raglab.evals import generation_record
+    from raglab.ingest.answer_key import canaries
 
     manifest, cases = read_run(run_dir)
     change(cases[index])
     for case in cases:
         if "checks" in case and all(f in case for f in ("status", "kind", "cited_ids", "conflict")):
             with contextlib.suppress(KeyError):
-                case["checks"] = generation_record.case_checks(case)
+                case["checks"] = generation_record.case_checks(case, canaries(ROOT))
     with contextlib.suppress(KeyError, ValueError, TypeError):
         manifest["results"] = record.expected_results(manifest, cases)
     body = {k: v for k, v in manifest.items() if k != "files"}

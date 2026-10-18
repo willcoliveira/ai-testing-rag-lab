@@ -7,7 +7,10 @@ run stops early, and is marked partial, when its wall-clock cap (generation.run_
 a request that times out is status unavailable, and it marks the run partial too. A partial run is
 never published.
 
-No model judges anything here: the checks are counts (S5 adds judged metrics).
+No model judges anything here: the checks are counts (S5 adds judged metrics). The abstention
+probes are scored by the named oracle `abstention_oracle` (raglab.evals.generation_record, where
+the run record validator recomputes it): label abstain, no policy value in the text (R-18), and,
+for a tenant-isolation probe, no canary of the other tenant (R-16).
 """
 
 import time
@@ -21,30 +24,37 @@ from typing import cast
 from raglab.core.types import ScoredChunk
 from raglab.evals import generation_record, golden, record, retrieval
 from raglab.evals.config import GenerationConfig, canonical_sha256
+from raglab.evals.generation_record import abstention_oracle, policy_values
 from raglab.generate.assemble import Assembled
 from raglab.generate.pipeline import Outcome
 from raglab.generate.prompts import answer_v1 as prompt
+from raglab.ingest import answer_key
 
 type Json = dict[str, object]
+
+__all__ = ["abstention_oracle", "load_probes", "policy_values", "run"]
 
 
 def load_probes(path: Path) -> list[golden.Question]:
     """The abstention probes: behaviour questions that expect abstain, each with the features it
-    probes and the strings its answer must not contain."""
+    probes and, for a tenant-isolation probe, the tenant whose canaries its answer must not hold
+    (canaries_of; null otherwise)."""
     probes = golden.load(path)
     for probe in probes:
         where = f"{path.name} ({probe.case_id})"
         extra = probe.extra
         if probe.kind != "behaviour" or extra.get("expected") != "abstain":
             raise golden.DatasetError(f"{where}: a probe is a behaviour question expecting abstain")
-        for name in ("feature_ids", "must_not_appear"):
-            value = extra.get(name)
-            if not isinstance(value, list) or not all(
-                isinstance(v, str) and v for v in cast(list[object], value)
-            ):
-                raise golden.DatasetError(f"{where}: {name} must be a list of strings")
-        if not extra["feature_ids"]:
+        value = extra.get("feature_ids")
+        if (
+            not isinstance(value, list)
+            or not value
+            or not all(isinstance(v, str) and v for v in cast(list[object], value))
+        ):
             raise golden.DatasetError(f"{where}: a probe names the features it probes")
+        of = extra.get("canaries_of")
+        if of is not None and (of not in ("tenant-a", "tenant-b") or of == probe.tenant):
+            raise golden.DatasetError(f"{where}: canaries_of names the other tenant, or is null")
     return probes
 
 
@@ -101,6 +111,7 @@ def run(
         raise golden.DatasetError(f"no retrieval question or probe in split {config.split}")
     chunks = list(assembled.chunks)
     resolved = golden.resolve(questions, chunks)
+    canaries = answer_key.canaries(root)
     settings = config.generation
     cap = settings.run_timeout_s
     items: list[tuple[golden.Question, golden.Resolved | None]] = [
@@ -135,7 +146,7 @@ def run(
                     "kind": generation_record.PROBE,
                     "expected": question.extra["expected"],
                     "feature_ids": question.extra["feature_ids"],
-                    "must_not_appear": question.extra["must_not_appear"],
+                    "canaries_of": question.extra.get("canaries_of"),
                     "retrieved": _retrieved(outcome.retrieved, frozenset()),
                 }
             else:
@@ -154,7 +165,7 @@ def run(
                     "retrieved": _retrieved(outcome.retrieved, frozenset[str]().union(*sets)),
                     **record.case_scores(ids, sets, config.retriever.k),
                 }
-            case["checks"] = generation_record.case_checks(case)
+            case["checks"] = generation_record.case_checks(case, canaries)
             cases.append(case)
         if stopped:
             break

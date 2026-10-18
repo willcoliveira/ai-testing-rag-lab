@@ -34,6 +34,12 @@ provider = "openai-compat"
 model = "nemotron-3.5-lightning:30b-a3b-mlx"
 digest = "d1e17d7dabacb401dec6440b4ec987ea053b9568b01f89fb3d54f8b2e71397be"
 base_url = "http://127.0.0.1:11434"
+# Sampling: above 0, and each trial has its own seed ([generation] seed + trial - 1), so pass^3
+# measures consistency under sampling, not the runner's determinism. No recommendation for the
+# non-thinking mode was found (Ollama's library page gives none; the model's params layer ships
+# temperature 1 and top_p 0.95 without naming a mode), so a modest value: answers must quote values
+# exactly (R-11), which a low temperature favours, while 0.2 still samples (top_p stays the
+# model's 0.95).
 temperature = 0.2
 max_tokens = 1024
 timeout_s = 120

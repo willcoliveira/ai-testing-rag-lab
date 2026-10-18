@@ -269,7 +269,7 @@
         "kind": {"enum": ["retrieval", "probe"]},
         "feature_ids": {"type": "array", "items": {"type": "string", "pattern": "^F-[0-9]+$"}},
         "expected": {"enum": ["answer", "abstain", "flag-conflict", "refuse-and-help"]},
-        "must_not_appear": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "canaries_of": {"enum": ["tenant-a", "tenant-b", null]},
         "status": {"enum": ["ok", "refused", "blocked", "unavailable", "invalid_output"]},
         "label": {"enum": ["answer", "abstain", "flag-conflict", "refuse-and-help"]},
         "answer": {"type": "string"},
@@ -307,7 +307,8 @@
             "status_ok": {"type": "boolean"},
             "citations_retrieved": {"type": "boolean"},
             "abstained": {"type": "boolean"},
-            "forbidden_absent": {"type": "boolean"},
+            "no_value": {"type": "boolean"},
+            "no_canary": {"type": "boolean"},
             "answered": {"type": "boolean"},
             "cites_label": {"type": "boolean"},
             "passed": {"type": "boolean"}

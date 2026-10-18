@@ -8,8 +8,10 @@ set (kind "retrieval", with its labels and retrieval scores) or an abstention pr
 1. status_ok: the status is ok;
 2. citations_retrieved: every cited id, and every id of the conflict field, was retrieved for
    that answer (R-02);
-3. a probe: abstained (status ok, label abstain) and forbidden_absent (none of its must_not_appear
-   strings is in the answer, compared without letter case);
+3. a probe, by the abstention oracle (`abstention_oracle`): abstained (status ok, label
+   abstain), no_value (the answer states no policy value: R-18's acceptance, "omission questions
+   produce no number") and no_canary (for a tenant-isolation probe, no canary of the other tenant
+   from corpus/answer-key.yaml appears: R-16);
 4. a retrieval question: answered (status ok, label not abstain) and cites_label (it cites at
    least one chunk of a labelled section: a citation hit, which is not correctness: S5 judges
    that).
@@ -21,8 +23,9 @@ label in every trial; each probe's abstentions out of its trials; p50 and p95 la
 quantiles); and the token totals the server reported.
 """
 
+import re
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import cast
 
 from raglab.core.types import Status
@@ -49,7 +52,64 @@ ANSWER_FIELDS = (
     "checks",
 )
 RETRIEVAL_FIELDS = ("labels", "hit", "reciprocal_rank", "recall")
-PROBE_FIELDS = ("expected", "must_not_appear", "feature_ids")
+PROBE_FIELDS = ("expected", "canaries_of", "feature_ids")
+
+# ---------------------------------------------------------------- the abstention oracle (S3)
+
+# a number standing alone: not inside an id, a version or a citation (an exception id, v2.0,
+# 800-63B-4, A-PWD-V2@2.0/4.1/1), so "15", "15-character", "17:00", "2.5" and "90%" count
+NUMBER = re.compile(r"(?<![\w@./-])\d+(?:[.,:]\d+)*%?(?![\w@/]|-\d|\.\d)")
+# a number right after one of these words points at a place in a document, not a value
+REFERENCE_WORDS = frozenset(
+    {
+        "section",
+        "sections",
+        "version",
+        "versions",
+        "table",
+        "page",
+        "pages",
+        "step",
+        "steps",
+        "appendix",
+        "annex",
+        "chapter",
+        "part",
+        "q",
+        "faq",
+        "sp",
+        "figure",
+        "clause",
+    }
+)
+
+
+def policy_values(answer: str) -> list[str]:
+    """The numbers an answer states as values: every standalone number except one that follows a
+    reference word ("section 4.4", "version 2.0", "Table 1"). Number words ("eight") are not
+    counted: a known limit of this oracle, which S5's judged metrics cover."""
+    values: list[str] = []
+    for match in NUMBER.finditer(answer):
+        before = answer[: match.start()].split()
+        previous = before[-1].strip("(:,").lower() if before else ""
+        if previous not in REFERENCE_WORDS:
+            values.append(match.group())
+    return values
+
+
+def abstention_oracle(
+    status: str, label: str, answer: str, canaries: Sequence[str]
+) -> dict[str, bool]:
+    """The checks of an abstention probe's trial: (a) abstained, the label is abstain on an ok
+    answer; (b) no_value, the text states no policy value (R-18); (c) no_canary, none of the given
+    canaries (the other tenant's, for a tenant-isolation probe; none otherwise) is in the text
+    (R-16). An honest abstention may name the topic ("the documents do not say how many reset
+    attempts...") and passes; the words of the question are not banned, a value is."""
+    return {
+        "abstained": status == "ok" and label == "abstain",
+        "no_value": not policy_values(answer),
+        "no_canary": not [c for c in canaries if c in answer],
+    }
 
 
 def _obj(value: object) -> Json:
@@ -68,16 +128,20 @@ def referenced(case: Json) -> set[str]:
     return ids
 
 
-def case_checks(case: Json) -> Json:
-    """The checks of one trial, from its fields."""
+def case_checks(case: Json, canaries: Mapping[str, Sequence[str]]) -> Json:
+    """The checks of one trial, from its fields and the answer key's canaries by tenant."""
     ok = case["status"] == Status.OK.value
     retrieved = {str(_obj(r)["chunk_id"]) for r in cast(list[object], case["retrieved"])}
     checks: Json = {"status_ok": ok, "citations_retrieved": referenced(case) <= retrieved}
     if case["kind"] == PROBE:
-        answer = str(case["answer"]).lower()
-        forbidden = [p for p in _strings(case["must_not_appear"]) if p.lower() in answer]
-        checks["abstained"] = ok and case["label"] == "abstain"
-        checks["forbidden_absent"] = not forbidden
+        of = case["canaries_of"]
+        oracle = abstention_oracle(
+            str(case["status"]),
+            str(case["label"]),
+            str(case["answer"]),
+            canaries[str(of)] if of is not None else (),
+        )
+        checks |= oracle
     else:
         labelled = {
             i
@@ -117,7 +181,10 @@ def results(cases: Sequence[Json], trials: int, level: float) -> Json:
     if probes:
         out["probe_abstention"] = _rate(
             [c for c, _ in probes],
-            [bool(k["abstained"]) and bool(k["forbidden_absent"]) for _, k in probes],
+            [
+                bool(k["abstained"]) and bool(k["no_value"]) and bool(k["no_canary"])
+                for _, k in probes
+            ],
             level,
         )
     if questions:
@@ -174,6 +241,24 @@ def results(cases: Sequence[Json], trials: int, level: float) -> Json:
         },
     }
     return {"metrics": out, "generation": generation}
+
+
+def _pass_k_note(manifest: Json, generator: Json) -> str:
+    """What pass^N measures under the run's sampling settings."""
+    trials, seed = manifest["trials"], manifest["seed"]
+    head = (
+        f"pass^{trials}: a case passes only when all {trials} trials pass every check that "
+        f"applies; trial t uses seed {seed} + t - 1"
+    )
+    if "temperature" in generator:
+        return (
+            f"{head} at temperature {generator['temperature']}, so it measures whether the model "
+            "passes consistently while it samples at that temperature, not whether it is correct."
+        )
+    return (
+        f"{head}, but the {generator['provider']} model does not sample: its trials are "
+        f"identical, so pass^{trials} equals the single-trial pass rate."
+    )
 
 
 def _fmt(value: object) -> str:
@@ -239,6 +324,8 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
         f"Rates over every trial, with a {level}% Wilson interval at n = the number of cases. "
         "A citation hit means the answer cites a labelled chunk; it is not correctness (S5 "
         "judges that). Nothing here is gated.",
+        "",
+        _pass_k_note(manifest, generator),
         "",
         f"| Check | Rate | {level}% interval | n (cases) |",
         "|---|---|---|---|",

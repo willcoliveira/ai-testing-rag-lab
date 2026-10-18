@@ -1,13 +1,11 @@
 """S3: the abstention probes (datasets/probes.s3.jsonl) are written from the answer key: F-32 (an
-omission) for each tenant and F-40 (a tenant B abstention). Each one's must_not_appear list is
-derived, not chosen: the answer key's phrases for its feature, less any that the probe's own
-question or the feature's reference answer contains (an honest abstention may repeat those), plus,
-for a tenant-isolation feature, the other tenant's canaries (R-13, R-16): its name, document ids,
-titles and phrases. The contacts and the exception ids (EX-...) are left out: they are planted
-fakes the privacy check allows under corpus/ only, and a run record carries this list, so it would
-fail publish's privacy scan. tests/e2e/test_e2e_fake.py checks every canary, contacts included."""
+omission) for each tenant and F-40 (a tenant B abstention). Each expects abstain; a
+tenant-isolation probe names the other tenant as canaries_of, so the abstention oracle checks
+that none of that tenant's canaries (corpus/answer-key.yaml) appears in the answer (R-16). The
+answer key's must_not_appear lists are a guarantee about the documents (the phrases are absent
+from the pack), not a ban on words in an answer: they are not used here (plan correction,
+2026-10-18, S3 ledger)."""
 
-import re
 from typing import Any
 
 import pytest
@@ -21,15 +19,6 @@ KEY = yaml.safe_load((ROOT / "corpus" / "answer-key.yaml").read_text(encoding="u
 FEATURES = {f["id"]: f for f in KEY["features"]}
 
 
-EXCEPTION_ID = re.compile(r"\b[A-Z]{2,6}-\d{3,5}\b")
-
-
-def other_canaries(tenant: str) -> list[str]:
-    other = KEY["canaries"]["tenant-a" if tenant == "tenant-b" else "tenant-b"]
-    found = [other["tenant"], *other["documents"], *other["titles"], *other["phrases"]]
-    return [c for c in found if not EXCEPTION_ID.search(c)]
-
-
 def test_the_probes_are_f32_for_each_tenant_and_f40_for_tenant_b():
     probes = load_probes(ROOT / "datasets" / "probes.s3.jsonl")
     assert [(p.case_id, p.tenant, p.extra["feature_ids"]) for p in probes] == [
@@ -41,18 +30,16 @@ def test_the_probes_are_f32_for_each_tenant_and_f40_for_tenant_b():
         extra: Any = probe.extra
         [feature_id] = extra["feature_ids"]
         feature = FEATURES[feature_id]
-        assert feature["expected"] == "abstain" == probe.extra["expected"]
+        assert feature["expected"] == "abstain" == extra["expected"]
         assert probe.tenant in feature["tenants"]
         assert probe.split == "dev"
+        assert "must_not_appear" not in extra
 
 
-def test_each_must_not_appear_list_is_derived_from_the_answer_key():
+def test_a_tenant_isolation_probe_names_the_other_tenants_canaries():
     for probe in load_probes(ROOT / "datasets" / "probes.s3.jsonl"):
         extra: Any = probe.extra
         feature = FEATURES[extra["feature_ids"][0]]
-        said = (probe.question + " " + feature["reference_answer"]).lower()
-        expected = [p for p in feature["must_not_appear"]["phrases"] if p.lower() not in said]
-        if feature["kind"] == "tenant-isolation-abstain":
-            expected += other_canaries(probe.tenant)
-        assert probe.extra["must_not_appear"] == expected, probe.case_id
-        assert probe.extra["must_not_appear"], probe.case_id
+        other = "tenant-a" if probe.tenant == "tenant-b" else "tenant-b"
+        expected = other if feature["kind"] == "tenant-isolation-abstain" else None
+        assert extra["canaries_of"] == expected, probe.case_id
