@@ -55,7 +55,7 @@ def baseline_key(manifest: Json) -> str:
 def index_entry(manifest: Json) -> Json:
     embedder = as_json(manifest["embedder"])
     retriever = as_json(manifest["retriever"])
-    return {
+    entry: Json = {
         "run_id": manifest["run_id"],
         "path": f"{manifest['run_id']}/",
         "created_at": manifest["created_at"],
@@ -71,6 +71,11 @@ def index_entry(manifest: Json) -> Json:
         "n": as_json(manifest["totals"])["cases"],
         "metrics": as_json(manifest["results"])["metrics"],
     }
+    if "generator" in manifest:  # a generation run (S3): the model and its pinned digest
+        generator = as_json(manifest["generator"])
+        entry["generator"] = f"{generator['model']}@{str(generator['digest'])[:12]}"
+        entry["prompt"] = as_json(manifest["prompt"])["version"]
+    return entry
 
 
 def read_index(published: Path) -> Json:

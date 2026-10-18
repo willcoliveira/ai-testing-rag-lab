@@ -8,9 +8,9 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture model test gate hooks corpus inventory-snapshot playground
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local container container-run zap
 
-check: format lint types deps audit sast workflows secrets privacy architecture model test gate
+check: format lint types deps audit sast workflows secrets privacy architecture model test gate api-smoke
 
 format:
 	uv run ruff format --check
@@ -66,6 +66,42 @@ test:
 # published baseline in runs/published/index.json
 gate:
 	HF_HUB_OFFLINE=1 uv run raglab gate --config config/retrieval-dense.toml
+
+# S3: `raglab serve` with config/fake.toml (the fake model, the cached embedder) on 127.0.0.1, then
+# /healthz, /version, an /ask answer and a no-tenant refusal; offline, the server stopped after
+API_SMOKE_PORT ?= 8765
+api-smoke:
+	HF_HUB_OFFLINE=1 uv run python scripts/api_smoke.py --port $(API_SMOKE_PORT)
+
+# S3 AC15: the local model server for one session only, never a resident service
+# (docs/LOCAL-MODEL.md). ollama-up and ollama-down are the manual pair; eval-local starts the server,
+# runs the live contract test and the generation suite, and always stops it and runs the postcheck.
+LOCAL_CONFIG := config/local-ollama.toml
+ollama-up:
+	uv run raglab ollama up --config $(LOCAL_CONFIG)
+
+ollama-down:
+	uv run raglab ollama down --config $(LOCAL_CONFIG)
+
+ollama-status:
+	uv run raglab ollama status --config $(LOCAL_CONFIG)
+
+eval-local:
+	uv run raglab ollama session --config config/local-ollama.toml \
+		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
+		--run "uv run raglab eval --suite generation --config config/local-ollama.toml"
+
+# S3 AC10, AC11: the container with the fake model and the baked-in embedder (deploy/Dockerfile),
+# run on 127.0.0.1 only, and the ZAP baseline scan against it (deploy/zap/)
+IMAGE := raglab:local
+container:
+	docker build -f deploy/Dockerfile --build-arg GIT_SHA=$$(git rev-parse HEAD) -t $(IMAGE) .
+
+container-run:
+	docker run --rm --name raglab -p 127.0.0.1:8000:8000 $(IMAGE)
+
+zap:
+	sh deploy/zap/scan.sh $(IMAGE)
 
 # required once in every clone: commit-msg, pre-commit and pre-push
 hooks:

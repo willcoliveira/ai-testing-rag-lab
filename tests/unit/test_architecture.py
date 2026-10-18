@@ -266,27 +266,61 @@ def test_embedder_sdks_inside_adapters_pass(tmp_path):
     assert messages(package) == []
 
 
-# S2 rule 4: the fake adapters (HashingEmbedder) are for the unit tests only
+# Rule 4 (S2, changed in S3): the fake adapters are imported only by raglab.adapters.factory,
+# which builds FakeChat on provider = "fake"; every other module of the package is refused
 @pytest.mark.parametrize(
     ("path", "source"),
     [
         ("retrieve/dense.py", "from raglab.adapters.fake import HashingEmbedder\n"),
         ("evals/run.py", "from raglab.adapters import fake\n"),
         ("__main__.py", "import raglab.adapters.fake\n"),
-        ("adapters/factory.py", "from . import fake\n"),
-        ("adapters/factory.py", "from .fake import HashingEmbedder\n"),
+        ("api/app.py", "from raglab.adapters.fake import FakeChat\n"),
+        ("generate/pipeline.py", "from raglab.adapters.fake import FakeChat\n"),
+        ("adapters/openai_compat.py", "from . import fake\n"),
+        ("adapters/fastembed_embed.py", "from .fake import HashingEmbedder\n"),
         (
             "evals/run.py",
             "import importlib\nfake = importlib.import_module('raglab.adapters.fake')\n",
         ),
     ],
 )
-def test_the_fake_adapters_are_imported_by_no_module(tmp_path, path, source):
+def test_the_fake_adapters_are_imported_by_the_factory_only(tmp_path, path, source):
     package = make_package(tmp_path, {"adapters/fake.py": "import hashlib\n", path: source})
     found = messages(package)
     assert len(found) == 1, found
     assert path in found[0]
-    assert "raglab.adapters.fake is for the unit tests" in found[0]
+    assert "raglab.adapters.fake is built only by raglab.adapters.factory" in found[0]
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from . import fake\n",
+        "from .fake import FakeChat\n",
+        "from raglab.adapters import fake, fastembed_embed\n",
+    ],
+)
+def test_the_factory_may_import_the_fake_adapters(tmp_path, source):
+    package = make_package(
+        tmp_path, {"adapters/fake.py": "import hashlib\n", "adapters/factory.py": source}
+    )
+    assert messages(package) == []
+
+
+def test_a_planted_fake_import_in_a_copy_of_the_real_tree_fails(tmp_path):
+    import shutil
+
+    copy = tmp_path / "raglab"
+    shutil.copytree(ROOT / "src" / "raglab", copy, ignore=shutil.ignore_patterns("__pycache__"))
+    target = copy / "generate" / "pipeline.py"
+    target.write_text(
+        "from raglab.adapters.fake import FakeChat\n" + target.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    found = messages(copy)
+    assert len(found) == 1, found
+    assert "generate/pipeline.py:1" in found[0]
+    assert "built only by raglab.adapters.factory" in found[0]
 
 
 def test_the_fake_adapter_itself_and_other_adapters_pass(tmp_path):
@@ -296,6 +330,37 @@ def test_the_fake_adapter_itself_and_other_adapters_pass(tmp_path):
             "adapters/fake.py": "import hashlib\nfrom raglab.core import ports\n",
             "retrieve/dense.py": "from raglab.adapters import fastembed_embed\n",
             "adapters/fastembed_embed.py": "import fastembed\n",
+        },
+    )
+    assert messages(package) == []
+
+
+# Rule 5 (S3): HTTP clients only in raglab.adapters, the web framework only in raglab.api
+@pytest.mark.parametrize(
+    ("path", "source", "expected"),
+    [
+        ("generate/pipeline.py", "import httpx\n", "vendor SDK httpx is imported outside"),
+        ("api/app.py", "import httpx\n", "vendor SDK httpx is imported outside"),
+        ("evals/run.py", "import aiohttp\n", "HTTP client aiohttp is imported outside"),
+        ("generate/pipeline.py", "from fastapi import FastAPI\n", "web framework fastapi"),
+        ("__main__.py", "import uvicorn\n", "web framework uvicorn"),
+        ("adapters/openai_compat.py", "from starlette.responses import Response\n", "starlette"),
+    ],
+)
+def test_http_clients_and_the_web_framework_stay_in_their_layers(tmp_path, path, source, expected):
+    package = make_package(tmp_path, {path: source})
+    found = messages(package)
+    assert len(found) == 1, found
+    assert path in found[0]
+    assert expected in found[0]
+
+
+def test_httpx_in_adapters_and_fastapi_in_api_pass(tmp_path):
+    package = make_package(
+        tmp_path,
+        {
+            "adapters/openai_compat.py": "import httpx\n",
+            "api/app.py": "from fastapi import FastAPI\nimport uvicorn\nimport starlette\n",
         },
     )
     assert messages(package) == []

@@ -1,12 +1,22 @@
 """The ports every implementation plugs into. Standard library only; the implementations live in
-raglab.ingest and raglab.chunk (ingestion), raglab.adapters (embedders), raglab.index (stores)
-and raglab.retrieve (retrievers)."""
+raglab.ingest and raglab.chunk (ingestion), raglab.adapters (embedders and chat models),
+raglab.index (stores), raglab.retrieve (retrievers) and raglab.guard (guardrails)."""
 
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Protocol
 
-from raglab.core.types import Chunk, ChunkId, Document, Page, ScoredChunk
+from raglab.core.types import (
+    Answer,
+    ChatReply,
+    ChatRequest,
+    Chunk,
+    ChunkId,
+    Document,
+    GuardEvent,
+    Page,
+    ScoredChunk,
+)
 
 
 class Parser(Protocol):
@@ -70,3 +80,44 @@ class Retriever(Protocol):
         ...
 
     def retrieve(self, query: str, tenant: str, k: int) -> list[ScoredChunk]: ...
+
+
+class ChatModel(Protocol):
+    """A chat model behind one port: the fake one for tests and the fake container, an
+    OpenAI-compatible server (Ollama) for live runs. complete raises ChatUnavailable when no reply
+    came (timeout, connection error, HTTP error); a reply that does not fit the schema is returned
+    as it came, and the caller decides (status invalid_output)."""
+
+    @property
+    def model(self) -> str:
+        """The model as the run record names it: a pinned tag, or the fake's name."""
+        ...
+
+    def describe(self) -> dict[str, object]:
+        """What the run record and /version say about the model: provider, model, digest and the
+        request settings."""
+        ...
+
+    def complete(self, request: ChatRequest) -> ChatReply: ...
+
+
+class Guardrail(Protocol):
+    """One guard layer, with a check at each stage of a request (docs/GUARDRAILS.md). A check that
+    returns an event stops the request: at input it is refused before retrieval, after retrieval
+    or on the output the answer is withheld (status blocked)."""
+
+    @property
+    def name(self) -> str: ...
+
+    def check_input(
+        self, question: str, tenant: str | None, caller_tenants: frozenset[str] | None
+    ) -> GuardEvent | None:
+        """caller_tenants: the tenants the caller may use (the API's token), None for a local run
+        (CLI, eval) with no caller."""
+        ...
+
+    def check_retrieved(
+        self, tenant: str, retrieved: Sequence[ScoredChunk]
+    ) -> GuardEvent | None: ...
+
+    def check_output(self, answer: Answer, retrieved_ids: frozenset[str]) -> GuardEvent | None: ...

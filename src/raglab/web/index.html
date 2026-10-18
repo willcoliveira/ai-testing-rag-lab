@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>raglab: ask the policy pack</title>
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Ask the policy pack</h1>
+    <p>A lab assistant over a fictional company's identity and security policies. Answers come
+      only from the pack, with their citations. Lab practice: the page uses a public demo token
+      that may ask as either tenant; a production service takes the tenant from your sign-in.</p>
+  </header>
+  <main>
+    <form id="ask" novalidate>
+      <label for="tenant">Tenant</label>
+      <select id="tenant" name="tenant">
+        <option value="tenant-a">Tenant A</option>
+        <option value="tenant-b">Tenant B</option>
+      </select>
+      <label for="question">Question</label>
+      <textarea id="question" name="question" rows="4" maxlength="500" required></textarea>
+      <button id="submit" type="submit">Ask</button>
+    </form>
+    <section id="result" aria-live="polite" aria-labelledby="result-heading">
+      <h2 id="result-heading">Answer</h2>
+      <p>Decision: <span id="label"></span></p>
+      <p id="answer"></p>
+      <h3>Citations</h3>
+      <ul id="citations"></ul>
+    </section>
+  </main>
+  <p id="status" role="status"></p>
+</body>
+</html>

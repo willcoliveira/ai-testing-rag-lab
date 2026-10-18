@@ -22,6 +22,7 @@ import math
 import random
 from collections.abc import Sequence
 from dataclasses import dataclass
+from statistics import NormalDist
 
 DEFAULT_RESAMPLES = 2000
 DEFAULT_LEVEL = 0.95
@@ -124,3 +125,21 @@ def paired_difference(
 ) -> Interval:
     """The mean of B minus A over the same questions, with its bootstrap interval."""
     return bootstrap_interval(paired_differences(a, b), seed, resamples, level)
+
+
+def wilson_interval(rate: float, n: int, level: float = DEFAULT_LEVEL) -> Interval:
+    """The Wilson score interval of a rate observed over n units. In S3 the units are cases: a
+    rate over several trials of each case gets the width of n cases, not of n times the trials,
+    since the trials of one case are not independent. z is the normal quantile at
+    1 - (1 - level) / 2."""
+    if n < 1:
+        raise ValueError(f"a Wilson interval needs n of at least 1, not {n}")
+    if not 0.0 <= rate <= 1.0:
+        raise ValueError(f"a rate is between 0 and 1, not {rate}")
+    if not 0.0 < level < 1.0:
+        raise ValueError(f"level must be between 0 and 1, not {level}")
+    z = NormalDist().inv_cdf(1.0 - (1.0 - level) / 2.0)
+    denominator = 1.0 + z * z / n
+    centre = (rate + z * z / (2 * n)) / denominator
+    half = z * math.sqrt(rate * (1.0 - rate) / n + z * z / (4 * n * n)) / denominator
+    return Interval(rate, max(0.0, centre - half), min(1.0, centre + half), n)

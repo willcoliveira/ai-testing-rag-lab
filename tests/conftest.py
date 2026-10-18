@@ -22,9 +22,12 @@ def load_script(name: str) -> ModuleType:
 
 
 @pytest.fixture(autouse=True)
-def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
+def no_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Tests never use the network: a socket connection from the test process fails the test.
-    (Child processes, such as the CLI or git run by a test, are not covered.)"""
+    (Child processes, such as the CLI or git run by a test, are not covered.) A test marked
+    `live` talks to a local model server on purpose; `make check` and CI never select it."""
+    if request.node.get_closest_marker("live") is not None:
+        return
 
     def refuse(*args: object, **kwargs: object) -> None:
         raise RuntimeError("tests never use the network")

@@ -1,8 +1,9 @@
-"""Command line entry point: ingest, fetch-model, eval, compare, publish and gate. Later stages add
-ask."""
+"""Command line entry point: ingest, fetch-model, eval, compare, publish, gate, ask, serve and
+ollama (the local model server's session: up, down, status, session)."""
 
 import argparse
 import json
+import shlex
 import sys
 from pathlib import Path
 
@@ -13,7 +14,8 @@ from raglab.core.types import TenantError
 from raglab.evals import compare as compare_runs
 from raglab.evals import config as eval_config
 from raglab.evals import gate as retrieval_gate
-from raglab.evals import golden, publish, record, retrieval
+from raglab.evals import generation, golden, publish, record, retrieval
+from raglab.generate import assemble
 from raglab.ingest import inventory, pipeline
 
 INVENTORY = "runs/tmp/inventory.json"
@@ -81,6 +83,16 @@ def fetch_model(args: argparse.Namespace) -> int:
 
 def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]:
     root: Path = args.root
+    suite: str = getattr(args, "suite", "retrieval")
+    if eval_config.suite_of(args.config) != suite:
+        raise eval_config.ConfigError(f"{args.config} is not a {suite} config")
+    if suite == "generation":
+        gen = eval_config.load_generation(args.config, root)
+        split_: str | None = getattr(args, "split", None)
+        if split_ is not None:
+            raise eval_config.ConfigError("a generation run uses its config's split")
+        built = assemble.assemble(gen, root)
+        return generation.run(gen, root, built, gate=args.gate)
     config = eval_config.load(args.config, root)
     split: str | None = getattr(args, "split", None)
     if split is not None:
@@ -165,6 +177,80 @@ def gate(args: argparse.Namespace) -> int:
     return 0 if verdict.passed else 1
 
 
+def ask(args: argparse.Namespace) -> int:
+    """One question through the pipeline; the outcome as JSON. Exit 0 when the status is ok."""
+    root: Path = args.root
+    try:
+        config = eval_config.load_generation(args.config, root)
+        built = assemble.assemble(config, root)
+    except EVAL_ERRORS as error:
+        print(f"ask failed: {error}", file=sys.stderr)
+        return 1
+    outcome = built.pipeline.ask(args.question, args.tenant, None, config.generation.seed)
+    answer = outcome.answer
+    print(
+        json.dumps(
+            {
+                "status": answer.status.value,
+                "label": answer.label,
+                "answer": answer.text,
+                "cited_ids": list(answer.cited_ids),
+                "conflict": None
+                if answer.conflict is None
+                else {"chunk_ids": list(answer.conflict.chunk_ids), "note": answer.conflict.note},
+                "retrieved_ids": [r.chunk.chunk_id for r in outcome.retrieved],
+                "guard_events": [e.reason for e in outcome.events],
+                "error": outcome.error,
+                "provenance": built.provenance,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
+    return 0 if answer.status.value == "ok" else 1
+
+
+def serve(args: argparse.Namespace) -> int:
+    """The API and the page; the web framework is imported here only when serving."""
+    from raglab.api import server
+
+    try:
+        return server.serve(args.config, args.root, args.host, args.port)
+    except EVAL_ERRORS as error:
+        print(f"serve failed: {error}", file=sys.stderr)
+        return 1
+
+
+def ollama(args: argparse.Namespace) -> int:
+    """The local model server for one session (raglab.runtime.ollama; docs/LOCAL-MODEL.md)."""
+    from raglab.runtime import ollama as runtime
+
+    root: Path = args.root
+    try:
+        config = eval_config.load_generation(args.config, root, require_digest=False)
+        session = runtime.session_for(config, root)
+        if args.action == "up":
+            session.up()
+            return 0
+        if args.action == "down":
+            problems = session.down()
+            for problem in problems:
+                print(f"POSTCHECK FAILED: {problem}", file=sys.stderr)
+            if not problems:
+                print("postcheck passed: port closed, no ollama process, no model loaded")
+            return 1 if problems else 0
+        if args.action == "status":
+            print(json.dumps(session.status(), indent=2))
+            return 0
+        if not args.run:
+            print("ollama session: give at least one --run command", file=sys.stderr)
+            return 2
+        return session.run([shlex.split(c) for c in args.run], runtime.run_command)
+    except (eval_config.ConfigError, runtime.SessionError, OSError) as error:
+        print(f"ollama {args.action}: {error}", file=sys.stderr)
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="raglab", description=__doc__)
     parser.add_argument("--version", action="version", version=f"raglab {__version__}")
@@ -207,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     ):
         sub = commands.add_parser(name, help=text)
         if name == "eval":
-            sub.add_argument("--suite", choices=["retrieval"], required=True)
+            sub.add_argument("--suite", choices=["retrieval", "generation"], required=True)
             sub.add_argument(
                 "--split",
                 choices=eval_config.SPLITS,
@@ -229,6 +315,23 @@ def main(argv: list[str] | None = None) -> int:
         "--baseline", action="store_true", help="make it the baseline of its config and split"
     )
     pub.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    ask_ = commands.add_parser("ask", help="answer one question as a tenant, printed as JSON")
+    ask_.add_argument("question", help="the question")
+    ask_.add_argument("--tenant", required=True, help="tenant-a or tenant-b")
+    ask_.add_argument("--config", type=Path, required=True, help="a generation config/*.toml")
+    ask_.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    serve_ = commands.add_parser("serve", help="the API and the page (127.0.0.1 by default)")
+    serve_.add_argument("--config", type=Path, required=True, help="a generation config/*.toml")
+    serve_.add_argument("--host", default="127.0.0.1", help="interface (default 127.0.0.1)")
+    serve_.add_argument("--port", type=int, default=8000, help="port (default 8000)")
+    serve_.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    local = commands.add_parser("ollama", help="the local model server, for one session only")
+    local.add_argument("action", choices=["up", "down", "status", "session"])
+    local.add_argument("--config", type=Path, required=True, help="a config with an [ollama] table")
+    local.add_argument(
+        "--run", action="append", help="session: a command to run while the server is up"
+    )
+    local.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     args = parser.parse_args(argv)
     handlers = {
         "ingest": ingest,
@@ -237,6 +340,9 @@ def main(argv: list[str] | None = None) -> int:
         "compare": compare,
         "publish": publish_run,
         "gate": gate,
+        "ask": ask,
+        "serve": serve,
+        "ollama": ollama,
     }
     if args.command in handlers:
         return handlers[args.command](args)
