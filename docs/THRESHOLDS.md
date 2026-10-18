@@ -12,6 +12,17 @@ gate map).
 | hit@5, MRR@5 | reported | none | Reported with their 95% bootstrap intervals in every run record. recall@5 is the gated one because it counts every labelled section of a multi-hop question, where hit@5 is satisfied by one. |
 | Paired differences between configurations | reported (`raglab compare`) | none | With about 20 dev questions the intervals are wide; a comparison informs a choice, recorded in the stage ledger, and does not block a pull request. eval-on-change (main plan) gates on the paired interval once judged metrics exist. |
 
+## Generation (S3)
+
+Nothing is gated in S3: the main plan sets targets from the first real run, so the numbers of the
+first local run (S3 ledger) are S4's and S5's starting point.
+
+| Metric | Gate | Threshold | Reason |
+|---|---|---|---|
+| status_ok, citations_retrieved, probe_abstention, citation_hit, pass^3 (Wilson intervals at n = cases) | reported | none | One local run on 25 cases; S4 adds the behaviour cases and the consistency gate, S5 the judged metrics. A citation hit is not correctness, and citation_hit cannot exceed retrieval's hit@5 |
+| Citation integrity (R-02) | enforced in code, not by a threshold | every cited id was retrieved | The citation validator blocks any other answer, and the run record refuses a case that cites an unretrieved id |
+| Latency p50, p95 and tokens | reported | none | Q-01 and Q-02 get their baselines in S5 |
+
 The test split is never used to set a threshold or to choose a configuration; it runs in
 nightly, release and the capstone only.
 

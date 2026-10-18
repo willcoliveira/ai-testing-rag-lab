@@ -43,7 +43,8 @@ flowchart TB
   classDef wip fill:#fef3c7,stroke:#92400e
   classDef done fill:#dcfce7,stroke:#166534
   class S0,S1a,S1b,S2 done
-  class S3,S3h,S4,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
+  class S3 wip
+  class S3h,S4,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
 ```
 
 ## Quickstart
@@ -79,6 +80,20 @@ The questions are `datasets/golden.v1.jsonl` (34 retrieval questions, 22 dev and
 in `runs/published/`: recall@5 0.644, hit@5 0.773, MRR@5 0.564 (n 22, local provenance; intervals
 and the comparison with hybrid and chunk size 600 in the
 [S2 ledger](docs/plans/2026-10-06-s2-retrieval-ledger.md)).
+
+Generation (S3, in progress) turns the retrieved chunks into a structured answer (text, cited
+ids, decision label, conflict field, status) through a versioned prompt and three guard layers
+([docs/GUARDRAILS.md](docs/GUARDRAILS.md)). The fake model echoes what it retrieved, so everything
+runs offline; a live run uses a local model through Ollama, started for one session only
+([docs/LOCAL-MODEL.md](docs/LOCAL-MODEL.md)).
+
+```bash
+uv run raglab ask --config config/fake.toml --tenant tenant-a "How long must a password be?"
+uv run raglab serve --config config/fake.toml   # the API and the page on http://127.0.0.1:8000/
+uv run raglab eval --suite generation --config config/fake.toml   # a fake run record
+make eval-local    # the live run on Ollama: starts the server, runs, always stops it
+make container && make zap   # the fake-model container and its ZAP baseline scan (Docker)
+```
 
 A run is published only from a clean, committed tree, with its provenance (`local` for the ONNX
 embedder) in the manifest. Run record v1 is `schemas/run-record.v1.json`; thresholds and their
