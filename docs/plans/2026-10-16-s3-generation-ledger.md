@@ -66,7 +66,7 @@ the same check was green again after the restore (the git status was clean at th
 | AC4 | met | `tests/generation/test_fallback_contract.py` (19 tests, the real adapter against an in-process stub of Ollama, httpx.MockTransport, no socket): read and connect timeouts, connection errors, HTTP 500, 503, 404, a non-JSON body, an empty completion, prose, a fenced reply, an unknown label, an empty answer and missing fields each give unavailable or invalid_output with no text; a run record counts them (`status_counts` unavailable 2, invalid_output 3); a timeout or the wall-clock cap marks the run partial | the parser made to strip a code fence: 1 failed (the fenced reply became an answer) |
 | AC5 | met | `tests/contract/test_chat_contract.py`: the shared contract against the stub (pr-fast) and, marker `live`, against Ollama 0.40.6 in `make eval-local`: "1 passed, 12 deselected in 23.40s" (the reply parsed into an Answer, citations among the given ids, no reasoning text, tokens reported). A digest mismatch, an unpulled tag, a server that is down and a non-loopback URL refuse to start; the committed config with its digest replaced by the placeholder refuses to run ("refuses to start until the tag's digest is pinned"), and `raglab eval --suite generation` on it exits 1. Before the digest was pinned (commit `a3494f7`) the committed config itself refused | (the digest-mismatch and placeholder tests are the break) |
 | AC6 | met | `tests/generation/test_input_guards.py` and `tests/api/test_api.py`: over 500 characters, empty, U+0000, U+001B, U+202E, U+200B, U+E000, U+000D, U+007F refused (400) with 0 retriever calls; no tenant, null, empty, `shared`, unknown, a list, and the spoof (tenant-a-only token asking as tenant B) refused (403) with 0 retriever calls; no or unknown token 401 | the caller check in `guard/tenant.py` removed: 4 failed, among them `test_a_tenant_the_caller_may_not_use_is_403_and_never_retrieved[spoofed]` |
-| AC7 | met | `tests/e2e/test_e2e_fake.py`: the app built from config/fake.toml (real pack, real embedder, FakeChat echoing every chunk), all 22 dev questions asked as each tenant: no tenant B canary (all 16) in a tenant A answer or its citations, no tenant A canary (all 47) in a tenant B answer; positive control: each tenant's own canaries do appear | every tenant filter off (the store mask, both `check_visible` calls, the retrieved guard): 2 failed (both directions) |
+| AC7 | met | `tests/e2e/test_e2e_fake.py`: the app built from config/fake.toml (real pack, real embedder, FakeChat echoing every chunk), all 22 dev questions asked as each tenant: no tenant B canary (all 16) in a tenant A answer or its citations, no tenant A canary (all 47) in a tenant B answer; positive control: each tenant's own canaries do appear | every tenant filter off (the store mask, both `check_visible` calls, the retrieved guard): 2 failed (both directions). Removing one layer alone (only the retrieved guard, say) does not leak, by design: the S2 store filter masks before ranking and `check_visible` checks on the way out, so the e2e test fails only when all of them go; each layer has its own test (S2 `test_tenant_filter.py`; `test_input_guards.py::test_another_tenants_chunk_after_retrieval_blocks_the_answer_before_the_model`) |
 | AC8 | met | `tests/retrieval/test_run_record.py`: the three committed S2 runs validate by name; a generation run validates; refused: a case without label, status or checks, a citation or conflict id not retrieved, text on a withheld answer, an unknown label, retrieval fields on a probe, edited checks, a missing trial, generation fields in a retrieval run, a retrieval case without recall, a tenant B chunk cited by a tenant A case | the unretrieved-citation check in `record.generation_problems` disabled: 2 failed |
 | AC9 | met (run and evidence); **not published**: publish refused by the privacy check, decision 1 | the live run below: `runs/tmp/20261018T134910Z-generation-local-ollama-dev-d897052`, provenance local, git clean at `d897052`, not partial, model tag and digest, prompt version and every report field; `raglab publish` validated it and then refused it on the privacy scan (below) | n/a |
 | AC10 | met | `tests/api/test_api.py`, `tests/api/test_page.py`, `tests/unit/test_container.py`; `make container` built `raglab:local` (793,364,086 bytes at `d897052`); the container runs as uid 10001 with the fake model and answers `/healthz` (below) | `frame-ancestors 'none'` dropped from the CSP: 10 failed |
@@ -149,7 +149,14 @@ plan file is unchanged.
 lists. Its rates were the same as above (status_ok 1.000, citation_hit 0.773, probe_abstention
 0.000, pass^3 0.680; label agreement 25 of 25; p50 1,392.053 ms, p95 2,725.121 ms); its probes
 failed on (a) alone. It is superseded and not published (publish refused it on the same privacy
-scan).
+scan), and it is kept as history only: its probe cases carry `must_not_appear` and a
+`forbidden_absent` check, which the schema no longer has, so `record.validate` at `d897052`
+rejects it (18 problems, e.g. "$.cases[66]: unexpected property 'must_not_appear'"). The run above
+validates with no problem.
+
+**Where the records are.** Both live records are in this clone's `runs/tmp/` (gitignored) and
+nowhere else until one is published; a separate clone reproduces the run with `make eval-local`
+(about 3 minutes, with Ollama 0.40.6 and the pinned model).
 
 **Thinking off and the response format, verified on 0.40.6** (a probe session, exploratory, from
 a script in the developer's scratch space; each variant one request with the answer prompt, then
@@ -260,6 +267,9 @@ false positive: ZAP's GET of the form finds "tenant-b" in a static `<option>`). 
   the checkout; deptry and gitleaks scanned it and failed. It is now gitignored and skipped by
   gitleaks (`29689de`); it was not touched.
 - `host.docker.internal` is in `privacy/allowlist.txt`, as Docker's public host name.
+- `df523f8` (the container) was committed before `29689de` (the worktree ignore), so on this
+  machine, with the nested worktree present, `make check` at `df523f8` alone fails in deptry; in a
+  clean clone it passes.
 - Starlette 1.8 warns that its test client wants `httpx2`; a warning only.
 - A stray editor swap file of the plan (`docs/plans/.2026-10-16-s3-generation.md.swp`, untracked)
   was deleted by the developer at the start; if the plan was open in an editor, it will warn.
