@@ -508,9 +508,10 @@ Both go to a small follow-up pull request before S3h, or into S3h's branch.
 
 ## Still to do in this stage
 
-1. CI on the PR: pr-fast green with the API smoke (AC12).
-2. The user's review and merge, with a merge commit: the published run cites `3b66ea3` on this
+1. The user's review and merge, with a merge commit: the published run cites `3b66ea3` on this
    branch.
+
+AC12 is met on the PR (below).
 
 The live SIGTERM demonstration for S3-J2 is done: the judge's round 2 re-check (the verdict's
 7.4). The live double-signal check for S3-J8 is done: the orchestrator's check under
@@ -524,3 +525,21 @@ passes: the threshold is the baseline 0.644 (20261006T172928Z-retrieval-dense-de
 one question (1/22), 0.598"; "api-smoke: passed"; the privacy check "0 hits across 235 files"; no
 abort at exit. After fix round 1 it was "954 passed, 1 deselected", after fix round 2 "956
 passed".
+
+## CI on the PR (2026-10-18)
+
+PR #7, pr-fast run 39155967279 on ubuntu-24.04 (runner image 20261012.334), at commit `18e8306`
+merged into `main` by GitHub: `check` passed in 5m3s and `conventions` in 6s.
+
+- The model cache missed on this PR's first run ("Cache not found for input keys:
+  raglab-model-aa8f8b060edb00e03bfdd08813a2949946c8ba55"); `make model` fetched and checked the
+  files, and the job saved the cache under the same key.
+- Tests, offline: "966 passed, 1 deselected, 1 warning in 143.98s (0:02:23)", the Mac's count.
+- The gate: "retrieval no-regression gate (22 questions): recall@5 0.644 (n 22) passes: the
+  threshold is the baseline 0.644 (20261006T172928Z-retrieval-dense-dev-5f1d3a0) minus one
+  question (1/22), 0.598", the Mac's line.
+- **AC12:** the step "API smoke (offline, fake model)" ran after the tests and the gate, as
+  `HF_HUB_OFFLINE=1 uv run python scripts/api_smoke.py --port 8765`, and printed "ok /healthz is
+  200 ok", "ok /version names the prompt and the fake model", "ok /ask answers with citations",
+  "ok /ask without a tenant is 403 refused" and "api-smoke: passed". AC12 met: **all fifteen
+  criteria are met.**
