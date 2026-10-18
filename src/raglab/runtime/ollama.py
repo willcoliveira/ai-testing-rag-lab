@@ -140,8 +140,15 @@ class Host:
         return process.pid
 
     def signal_group(self, pid: int, sig: int) -> None:
-        with contextlib.suppress(ProcessLookupError):
+        """Signal the server's process group; where macOS refuses that (EPERM, seen with the MLX
+        runner on Ollama 0.40.6), signal the server itself, which stops its runner."""
+        try:
             os.killpg(pid, sig)
+        except ProcessLookupError:
+            return
+        except PermissionError:
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(pid, sig)
 
     def http(self, method: str, url: str, body: dict[str, object] | None = None) -> object:
         if not url.startswith("http://127.0.0.1:"):

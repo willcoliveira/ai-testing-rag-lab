@@ -110,6 +110,37 @@ def test_no_extra_field_is_sent_unless_the_config_names_it():
 
 
 @pytest.mark.unit
+def test_response_format_none_sends_no_response_format_and_still_parses():
+    """The local config's setting (Ollama 0.40.6's MLX runner refuses any response format with
+    HTTP 501): the schema is asked for by the prompt alone, and the reply is still parsed
+    strictly."""
+    seen: list[dict] = []
+    chat = OpenAICompatChat(
+        "http://127.0.0.1:11434",
+        "stub-model:1b",
+        DIGEST,
+        temperature=0.2,
+        max_tokens=256,
+        timeout_s=5,
+        response_format="none",
+        client=stub_client(stub_ollama(echoing_stub(seen))),
+    )
+    check_contract(chat, DIGEST)
+    assert "response_format" not in seen[0]
+    assert chat.describe()["response_format"] == "none"
+    with pytest.raises(ChatConfigError, match="response_format 'json_object'"):
+        OpenAICompatChat(
+            "http://127.0.0.1:11434",
+            "m",
+            DIGEST,
+            temperature=0,
+            max_tokens=1,
+            timeout_s=1,
+            response_format="json_object",
+        )
+
+
+@pytest.mark.unit
 def test_a_reply_with_reasoning_text_is_reported():
     def thinking(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -231,6 +262,7 @@ def test_the_adapter_passes_the_contract_against_the_local_server():
         max_tokens=spec.max_tokens,
         timeout_s=spec.timeout_s,
         extra=spec.extra(),
+        response_format=spec.response_format or "json_schema",
     )
     assert provenance == "local"
     assert described["extra"] == spec.extra()

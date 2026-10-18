@@ -46,6 +46,7 @@ def chat_from_config(spec: GeneratorConfig) -> tuple[ChatModel, Json, str]:
         max_tokens=spec.max_tokens,
         timeout_s=spec.timeout_s,
         extra=spec.extra(),
+        response_format=spec.response_format or "json_schema",
     )
 
 

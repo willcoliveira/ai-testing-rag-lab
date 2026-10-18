@@ -47,6 +47,7 @@ def chat(
     max_tokens: int | None = None,
     timeout_s: float | None = None,
     extra: Mapping[str, str] | None = None,
+    response_format: str = "json_schema",
     client: httpx.Client | None = None,
 ) -> tuple[ChatModel, Json, str]:
     """(chat model, what the run record says about it, provenance). fake builds FakeChat
@@ -70,6 +71,7 @@ def chat(
             max_tokens=int(max_tokens or 0),
             timeout_s=float(timeout_s or 0.0),
             extra=extra,
+            response_format=response_format,
             client=client,
         )
     except openai_compat.ChatConfigError as error:

@@ -39,7 +39,8 @@ provider = "fake"               # fake (FakeChat, provenance fake) or openai-com
 model = "fake-echo"
 # openai-compat also needs base_url (loopback only in S3), digest (64 hex, from the server's
 # /api/tags after the pull), temperature, max_tokens and timeout_s; reasoning_effort is optional
-# and is sent to the server as it is written
+# and is sent to the server as it is written; response_format is json_schema (the default) or none
+# (the prompt alone asks for the JSON; the parser still refuses anything off-schema)
 
 [generation]
 trials = 3
@@ -92,6 +93,7 @@ SECTIONS: dict[str, dict[str, type | tuple[type, ...]]] = {
         "max_tokens": int,
         "timeout_s": (float, int),
         "reasoning_effort": str,
+        "response_format": str,
     },
     "generation": {
         "trials": int,
@@ -340,6 +342,7 @@ class GeneratorConfig:
     max_tokens: int | None = None
     timeout_s: float | None = None
     reasoning_effort: str | None = None
+    response_format: str | None = None  # json_schema (the default) or none
 
     def extra(self) -> dict[str, str]:
         """The request fields sent only because the config names them."""
@@ -433,6 +436,9 @@ def _generator(table: dict[str, object], where: str, require_digest: bool) -> Ge
     if max_tokens < 1:
         raise ConfigError(f"{where}: max_tokens must be at least 1")
     effort = table.get("reasoning_effort")
+    response_format = str(table.get("response_format", "json_schema"))
+    if response_format not in ("json_schema", "none"):
+        raise ConfigError(f"{where}: response_format must be json_schema or none")
     return GeneratorConfig(
         provider,
         model,
@@ -442,6 +448,7 @@ def _generator(table: dict[str, object], where: str, require_digest: bool) -> Ge
         max_tokens,
         _positive(table["timeout_s"], where, "timeout_s"),
         None if effort is None else str(effort),
+        response_format,
     )
 
 

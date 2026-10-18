@@ -164,6 +164,7 @@
             "temperature": {"type": "number", "minimum": 0, "maximum": 2},
             "max_tokens": {"type": "integer", "minimum": 1},
             "timeout_s": {"type": "number", "minimum": 0},
+            "response_format": {"enum": ["json_schema", "none"]},
             "extra": {"type": "object", "additionalProperties": {"type": "string"}},
             "sha256": {"$ref": "#/$defs/sha256"}
           }

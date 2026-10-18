@@ -319,3 +319,15 @@ def test_the_makefile_has_the_session_targets():
     assert "raglab ollama session --config config/local-ollama.toml" in eval_local
     assert "-m live" in eval_local
     assert "raglab eval --suite generation --config config/local-ollama.toml" in eval_local
+
+
+def test_a_refused_group_signal_falls_back_to_the_server_itself(monkeypatch):
+    sent: list[tuple[str, int, int]] = []
+
+    def killpg(pid, sig):
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(ollama.os, "killpg", killpg)
+    monkeypatch.setattr(ollama.os, "kill", lambda pid, sig: sent.append(("kill", pid, sig)))
+    Host().signal_group(4242, signal.SIGTERM)
+    assert sent == [("kill", 4242, signal.SIGTERM)]

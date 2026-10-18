@@ -201,7 +201,7 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
     model += ")"
     settings = ", ".join(
         f"{key} {generator[key]}"
-        for key in ("temperature", "max_tokens", "timeout_s")
+        for key in ("temperature", "max_tokens", "timeout_s", "response_format")
         if key in generator
     )
     extra = _obj(generator.get("extra") or {})

@@ -37,9 +37,13 @@ base_url = "http://127.0.0.1:11434"
 temperature = 0.2
 max_tokens = 1024
 timeout_s = 120
-# Thinking off, sent as the OpenAI-compatible field; recorded in the manifest. Whether the
-# installed Ollama honours it is checked by the live contract test before the run.
+# Thinking off, sent as the OpenAI-compatible field; recorded in the manifest. Checked on Ollama
+# 0.40.6 (2026-10-18): reasoning_effort "none" gives no reasoning text, while "think": false still
+# thinks; the live contract test checks it again before every run.
 reasoning_effort = "none"
+# Ollama 0.40.6's MLX runner answers any response format with HTTP 501 ("structured output is
+# unavailable"), so the prompt alone asks for the JSON and the strict parser refuses anything else.
+response_format = "none"
 
 [generation]
 trials = 3

@@ -6,8 +6,12 @@ tag is not there, or is there with another digest: Ollama tags are not dated, so
 the tag and its digest, and a run never uses other weights than the ones it records. It also reads
 the server's version (/api/version) for the manifest.
 
-Each request asks for the answer schema as a JSON schema response format, with the config's
-temperature, the trial's seed and a max-tokens cap, and a per-request timeout. Optional extra
+Each request carries the config's temperature, the trial's seed, a max-tokens cap and a
+per-request timeout, and asks for the answer schema as a JSON schema response format unless the
+config says `response_format = "none"`: Ollama 0.40.6's MLX runner answers any response format
+with HTTP 501 ("structured output is unavailable": its build has no grammar library), so the local
+config relies on the prompt's instruction and the strict parser, which refuses every reply that
+does not fit the schema (status invalid_output). Optional extra
 fields (`reasoning_effort`, which switches the model's thinking off where the server supports it)
 are sent only because the config says so, and recorded with the model. A reply that does not
 come (timeout, connection error, HTTP error status) raises ChatUnavailable; a reply that comes is
@@ -28,6 +32,7 @@ from raglab.core.types import ChatReply, ChatRequest, ChatTimeout, ChatUnavailab
 CHAT_PATH = "/v1/chat/completions"
 TAGS_PATH = "/api/tags"
 VERSION_PATH = "/api/version"
+RESPONSE_FORMATS = ("json_schema", "none")
 
 
 class ChatConfigError(ValueError):
@@ -67,12 +72,18 @@ class OpenAICompatChat:
         max_tokens: int,
         timeout_s: float,
         extra: Mapping[str, str] | None = None,
+        response_format: str = "json_schema",
         client: httpx.Client | None = None,
     ) -> None:
         if not is_loopback(base_url):
             raise ChatConfigError(
                 f"{base_url}: S3 runs a local model only; hosted providers come in S5 (ADR-002)"
             )
+        if response_format not in RESPONSE_FORMATS:
+            raise ChatConfigError(
+                f"response_format {response_format!r} is not one of {RESPONSE_FORMATS}"
+            )
+        self._response_format = response_format
         self._model = model
         self._digest = digest
         self._temperature = temperature
@@ -127,6 +138,7 @@ class OpenAICompatChat:
             "temperature": self._temperature,
             "max_tokens": self._max_tokens,
             "timeout_s": self._timeout_s,
+            "response_format": self._response_format,
             "extra": dict(sorted(self._extra.items())),
         }
 
@@ -138,16 +150,17 @@ class OpenAICompatChat:
             "seed": request.seed,
             "max_tokens": self._max_tokens,
             "stream": False,
-            "response_format": {
+            **self._extra,
+        }
+        if self._response_format == "json_schema":
+            body["response_format"] = {
                 "type": "json_schema",
                 "json_schema": {
                     "name": request.schema_name,
                     "schema": request.schema,
                     "strict": True,
                 },
-            },
-            **self._extra,
-        }
+            }
         try:
             response = self._client.post(CHAT_PATH, json=body, timeout=self._timeout_s)
         except httpx.TimeoutException as error:
