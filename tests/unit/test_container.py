@@ -81,3 +81,9 @@ def test_zap_is_pinned_and_every_ignored_rule_has_a_reason():
             reason = rules[number - 1]
             assert reason.startswith(f"# {rule} ") or reason.startswith("# "), line
             assert any(r.startswith(f"# {rule} ") for r in rules[:number]), f"{rule} has no reason"
+
+
+def test_the_zap_script_makes_nothing_world_writable():
+    """Judge S3-S4: no chmod 777 (or any world-writable mode) on the report folder."""
+    scan = (ROOT / "deploy" / "zap" / "scan.sh").read_text(encoding="utf-8")
+    assert not re.search(r"chmod\s+(0?7[0-7]7|a\+w|o\+w|\S*777)", scan), scan

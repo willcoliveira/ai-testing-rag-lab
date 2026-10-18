@@ -16,7 +16,9 @@ TARGET_HOST="host.docker.internal"
 
 mkdir -p "$OUT"
 cp deploy/zap/rules.tsv "$OUT/rules.tsv"
-chmod 777 "$OUT"   # ZAP runs as its own user inside its container
+# nothing is made world-writable (judge S3-S4): the folder keeps the caller's default mode, and
+# Docker Desktop's file sharing lets ZAP's container user write into it. Lab practice: on a Linux
+# host, where a bind mount keeps the host's owner, chown the folder to ZAP's uid (1000) instead.
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 docker run -d --rm --name "$NAME" -p 127.0.0.1:8000:8000 "$IMAGE" >/dev/null
 trap 'docker stop "$NAME" >/dev/null 2>&1 || true' EXIT INT TERM
