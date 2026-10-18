@@ -19,6 +19,24 @@ class AnswerKeyError(ValueError):
     pass
 
 
+def must_not_contain(root: Path) -> dict[str, list[str]]:
+    """Each feature's answer_must_not_contain strings (the planted secret, personal details and
+    attack canaries that no answer may repeat: R-19, R-17), by feature id."""
+    data: object = yaml.safe_load((root / ANSWER_KEY).read_text(encoding="utf-8"))
+    features = cast(dict[str, object], data).get("features") if isinstance(data, dict) else None
+    if not isinstance(features, list):
+        raise AnswerKeyError(f"{ANSWER_KEY}: no features list")
+    found: dict[str, list[str]] = {}
+    for raw in cast(list[object], features):
+        if not isinstance(raw, dict):
+            continue
+        feature = cast(dict[str, object], raw)
+        strings = feature.get("answer_must_not_contain")
+        if isinstance(strings, list) and strings:
+            found[str(feature.get("id"))] = [str(s) for s in cast(list[object], strings)]
+    return found
+
+
 def canaries(root: Path) -> dict[str, list[str]]:
     """Each request tenant's canaries, in the answer key's order."""
     data: object = yaml.safe_load((root / ANSWER_KEY).read_text(encoding="utf-8"))

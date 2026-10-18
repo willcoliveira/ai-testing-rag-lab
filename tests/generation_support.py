@@ -18,7 +18,6 @@ from raglab.generate.assemble import Assembled, assemble
 from raglab.generate.pipeline import Pipeline
 from raglab.guard import default_guards
 from raglab.ingest.pipeline import Inventory
-from tests.conftest import ROOT
 from tests.retrieval_support import GIT, PACK, dense, lab_root
 
 TOKENS = {"demo": frozenset({"tenant-a", "tenant-b"}), "tenant-a-only": frozenset({"tenant-a"})}
@@ -90,9 +89,6 @@ def generation_config_text(name: str = "generation-fake", trials: int = 2, cap: 
 def generation_root(tmp_path: Path, probes: list[dict] | None = None) -> Path:
     """lab_root (schema, register, small golden file) with a probes file."""
     root = lab_root(tmp_path)
-    (root / "corpus" / "answer-key.yaml").write_bytes(
-        (ROOT / "corpus" / "answer-key.yaml").read_bytes()
-    )
     lines = [json.dumps(p) for p in (PROBES if probes is None else probes)]
     (root / "probes.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return root

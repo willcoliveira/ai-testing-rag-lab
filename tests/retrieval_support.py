@@ -178,6 +178,9 @@ def lab_root(tmp_path: Path, questions: list[dict] | None = None) -> Path:
     (root / "schemas").mkdir(parents=True)
     shutil.copyfile(ROOT / record.SCHEMA_PATH, root / record.SCHEMA_PATH)
     write_register(root, LAB_DOCS)
+    # the real answer key: publish refuses its answer_must_not_contain strings (S3), and the
+    # generation record reads its canaries
+    shutil.copyfile(ROOT / "corpus" / "answer-key.yaml", root / "corpus" / "answer-key.yaml")
     lines = [json.dumps(q) for q in (QUESTIONS if questions is None else questions)]
     (root / "golden.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return root

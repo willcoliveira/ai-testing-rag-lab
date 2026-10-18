@@ -1,0 +1,9 @@
+# Tokens that the generic patterns flag but that are planted fakes of the lab corpus, quoted by a
+# model in the answers of published runs. One per line, exact match, enumerated (never a pattern).
+# scripts/check-forbidden.mjs allows them ONLY in files whose path starts with runs/published/;
+# anywhere else they are still hits (corpus/ has its own list, privacy/allowlist-corpus.txt).
+# tests/unit/test_published_allowlist_scope.py checks the scope, and that every entry is one of
+# the exceptions-register ids the corpus plants. The user's decision of 2026-10-18 (S3 ledger):
+# "Allow those IDs only (Recommended)". Contacts, secrets and personal details never go here.
+EX-2025-003
+EX-2026-007
