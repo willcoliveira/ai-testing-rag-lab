@@ -466,9 +466,13 @@ now seen on the CLI.
   0 on `docker stop`, every `make eval-local` exit 0. Follow-up: `scripts/api_smoke.py` does not
   read the server's exit code, so an abort there would pass unseen (one assertion on the return
   code closes it); re-check on the next onnxruntime upgrade.
+  - Fixed in the pull request from `fix/s3-session-exit`: the smoke fails unless the server
+    stops gracefully on SIGTERM (exit -15); the re-check on the next upgrade stands.
 - **S3-J13 (info): Ctrl-C ends `raglab ollama session` with a `KeyboardInterrupt` traceback**
   after the clean stop (exit 130, case A). Expected: one line, "interrupted", and exit 130, with
   the judge's suggested test (the CLI signalled with SIGINT prints no "Traceback").
+  - Fixed in the pull request from `fix/s3-session-exit`: one "interrupted" line on stderr and
+    exit 130, no traceback; SIGTERM and SIGHUP keep 143 and 129.
 
 Both go to a small follow-up pull request before S3h, or into S3h's branch.
 

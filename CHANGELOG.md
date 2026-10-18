@@ -5,6 +5,10 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased (v0.1)
 
+- S3 follow-up (judge S3-J12, S3-J13): Ctrl-C ends `raglab ollama session`, after the stop and
+  the postcheck, with one line on stderr and exit 130 instead of a traceback; `make api-smoke`
+  fails unless the server stops gracefully on SIGTERM (exit -15), so an abort at exit (-6) no
+  longer passes unseen.
 - The repo is public (2026-10-18, after S3): docs/GO-PUBLIC.md records steps 1 to 7 as done
   (history and privacy scans, the flip, secret scanning, vulnerability reporting, Dependabot,
   branch protection on `main`); Environments (S5) and Pages are still to do.
