@@ -425,6 +425,53 @@ ollama process (`pgrep -fl ollama` empty), port 11434 closed (`lsof` empty, `cur
 after. No `make eval-local` was run in this round, and the published run of `3b66ea3` stands
 (S3-J10 changes how a run with unavailable trials is recorded; that run has none).
 
+## Verification (the judge, rounds 0 to 3, and the orchestrator's live check)
+
+The judge (Fable 5.1, its own worktree) re-ran the evidence and broke each gate, restoring every
+break (`git status` clean and `git diff <head>` empty after each round). Its verdict file stays
+outside the repo; the results below are copied from it.
+
+| Round | Head | Result |
+|---|---|---|
+| 0, the verdict | `20cd685` | 14 met, 1 needs CI (AC12); defects S3-J1 to J6 (2 medium, 3 low, 1 info) and security findings S3-S1 to S6 (2 medium, 2 low, 2 info): fix round 1 |
+| 1, re-check | `390aa63` | eight fixed; S3-J2 fixed in code with its live demonstration owed; S3-J7 new (low): fix round 2 |
+| 2, re-check | `4b9af7f` | S3-J7 fixed; S3-J2 shown live on both paths (SIGTERM to the session, SIGTERM to the group); S3-J8 (medium), S3-J9 (low), S3-J10 (medium) and S3-J11 (low) new: fix round 3, with the user's go |
+| 3, re-check | `92bd5b1` | S3-J8, J9, J10 and J11 fixed (the judge's own repros at the head, and each fix's tests red under a break); the stop 0.59 s live with the model, against 16.6 s before; the developer's choice on S3-J10 agreed; **final tally 14 met, 1 needs CI (AC12), nothing open at low severity or above**; S3-J12 and S3-J13 info |
+
+**The orchestrator's live double-signal check (2026-10-18, at `92bd5b1`).** The judge's round 3
+driver waited for the argv `sleep 60` while the command runs as `/bin/sleep 60`, so its three
+no-model sessions ended normally with no signal sent (verdict 8.4). The orchestrator then ran
+two sessions through the project's lifecycle, `uv run raglab ollama session --config
+config/local-ollama.toml --run "sleep 60"` (no model loaded), each started in its own process
+group as a terminal or a tool would start it, with a driver outside the repo that found the
+command by its process name:
+
+| Case | Signals to the session's group | The session's output | Exit | Ended | Afterwards |
+|---|---|---|---|---|---|
+| A, Ctrl-C pressed repeatedly | SIGINT at +0.00, +0.10 and +0.41 s | "a second signal (SIGINT) arrived; the stop continues" (five times), "stopped the server (pid 55123)", "postcheck passed: port closed, no ollama process, no model loaded" | 130 | +0.96 s | port 11434 closed, no ollama process, no `sleep 60`, no session process, no pid file |
+| B, a group SIGTERM sent twice | SIGTERM at +0.00 and +0.30 s | "a second signal (SIGTERM) arrived; the stop continues" (twice), "stopped the server (pid 55180)", the same postcheck line | 143 | +0.73 s | the same |
+
+There are more notes than signals sent because `uv run` forwards a signal to the session as well
+(the judge measured the forwarding in round 2, verdict 7.4); deliveries that arrive together can
+coalesce. Case A also printed a `KeyboardInterrupt` traceback after the postcheck line: S3-J13,
+now seen on the CLI.
+
+**Info, deferred (outside the three fix rounds):**
+
+- **S3-J12 (info): onnxruntime 1.30.0 can abort at interpreter exit on macOS after an idle
+  import.** It is a race, not a certainty: the developer's bare repro above aborted in 5 of 5
+  runs, the judge's in 2 of 6, and 0 of 3 with an inference session used (verdict 8.5), so the
+  paragraph above overstates it as written. Not seen on the real paths in any observed exit:
+  `raglab serve` SIGINT exit 0 and SIGTERM exit -15 after a graceful shutdown, the container exit
+  0 on `docker stop`, every `make eval-local` exit 0. Follow-up: `scripts/api_smoke.py` does not
+  read the server's exit code, so an abort there would pass unseen (one assertion on the return
+  code closes it); re-check on the next onnxruntime upgrade.
+- **S3-J13 (info): Ctrl-C ends `raglab ollama session` with a `KeyboardInterrupt` traceback**
+  after the clean stop (exit 130, case A). Expected: one line, "interrupted", and exit 130, with
+  the judge's suggested test (the CLI signalled with SIGINT prints no "Traceback").
+
+Both go to a small follow-up pull request before S3h, or into S3h's branch.
+
 ## Choices made in the build (for the review)
 
 1. **The schema's four retrieval case fields moved from `required` into `validate`** (by suite):
@@ -462,8 +509,12 @@ after. No `make eval-local` was run in this round, and the published run of `3b6
 ## Still to do in this stage
 
 1. CI on the PR: pr-fast green with the API smoke (AC12).
+2. The user's review and merge, with a merge commit: the published run cites `3b66ea3` on this
+   branch.
 
-The live SIGTERM demonstration for S3-J2 is done: the judge's round 2 re-check (the verdict's 7.4).
+The live SIGTERM demonstration for S3-J2 is done: the judge's round 2 re-check (the verdict's
+7.4). The live double-signal check for S3-J8 is done: the orchestrator's check under
+"Verification" above.
 
 ## make check at the final commit
 
