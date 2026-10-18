@@ -63,10 +63,16 @@ caller's ancestors.
 the session; from then on, until the postcheck, a further one (Ctrl-C pressed twice, a SIGTERM
 that both `uv run` and `make` forward) is only said ("a second signal ... arrived; the stop
 continues"), and the stop goes on; the signal handlers in place before the session are restored
-after it. Ignoring those signals cannot hang the session, because the stop is bounded: each of
-the unload's HTTP calls times out after 30 s (one model is loaded at most), the server gets
-SIGTERM and at most 15 s, then SIGKILL, and the postcheck's own reads time out. Only SIGKILL can
-cut the stop short.
+after it. Ignoring those signals cannot hang the session, because the stop is bounded: the
+command's process group gets SIGTERM and at most 5 s, then SIGKILL; each of the unload's HTTP
+calls times out after 30 s (one model is loaded at most); the server gets SIGTERM and at most
+15 s, then SIGKILL; and the postcheck's own reads time out. Only SIGKILL can cut the stop short.
+
+**A session command's whole process tree ends with the session.** Each command (the live test,
+the eval) runs in a process group of its own; when the session is interrupted (a signal, Ctrl-C,
+an error), that group gets SIGTERM, then SIGKILL after 5 s, before the server is stopped, so no
+eval runs on against a stopped server. A terminal's Ctrl-C reaches the session, not the command
+directly; the session then stops the command's group.
 
 Each guard is tested offline with a fake host (`tests/unit/test_ollama_session.py`): low memory, a
 registered service, a held port, a missing binary, an unpulled model, an old server, a server that

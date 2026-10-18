@@ -149,15 +149,8 @@ class Host:
         return process.pid
 
     def signal_group(self, pid: int, sig: int) -> None:
-        """Signal the server's process group; where macOS refuses that (EPERM, seen with the MLX
-        runner on Ollama 0.40.6), signal the server itself, which stops its runner."""
-        try:
-            os.killpg(pid, sig)
-        except ProcessLookupError:
-            return
-        except PermissionError:
-            with contextlib.suppress(ProcessLookupError):
-                os.kill(pid, sig)
+        """Signal the server's process group (signal_group below)."""
+        signal_group(pid, sig)
 
     def http(self, method: str, url: str, body: dict[str, object] | None = None) -> object:
         if not url.startswith("http://127.0.0.1:"):
@@ -483,9 +476,62 @@ def session_for(config: GenerationConfig, root: Path, host: Host | None = None) 
     return Session(config.ollama, config.generator.model, root, host or Host())
 
 
+def signal_group(pgid: int, sig: int) -> None:
+    """Signal a process group; where macOS refuses that (EPERM, seen with the MLX runner on
+    Ollama 0.40.6), signal its leader itself."""
+    try:
+        os.killpg(pgid, sig)
+    except ProcessLookupError:
+        return
+    except PermissionError:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pgid, sig)
+
+
+def group_alive(pgid: int) -> bool:
+    """True while any process of the group exists (a zombie counts until it is reaped)."""
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+# how long a session command's process group gets after SIGTERM, before SIGKILL
+COMMAND_GRACE_S = 5.0
+
+
+def stop_command(process: subprocess.Popen[bytes], grace_s: float = COMMAND_GRACE_S) -> None:
+    """End a session command's whole process tree: SIGTERM to its group, SIGKILL to whatever is
+    left after grace_s; the command itself reaped. Bounded by grace_s and the SIGKILL."""
+    signal_group(process.pid, signal.SIGTERM)
+    deadline = time.monotonic() + grace_s
+    while time.monotonic() < deadline:
+        process.poll()  # reap the command itself: an unreaped one still counts in its group
+        if not group_alive(process.pid):
+            return
+        time.sleep(0.1)
+    signal_group(process.pid, signal.SIGKILL)
+    process.wait()
+
+
 def run_command(command: Sequence[str]) -> int:
-    """A session command: run as given, no shell, offline for the model hub."""
+    """A session command: run as given (no shell, offline for the model hub, no stdin) in a
+    process group of its own (start_new_session), so the session can end the command's whole
+    tree, its grandchildren included (`uv run` starts the python that does the work): on any
+    interruption, a signal or Ctrl-C or an error, the group gets SIGTERM, then SIGKILL after
+    COMMAND_GRACE_S, before the session stops the server (judge S3-J11). A terminal's Ctrl-C no
+    longer reaches the command itself: it reaches the session, which stops the group."""
     executable = shutil.which(command[0]) or command[0]
     env = {**os.environ, "HF_HUB_OFFLINE": "1"}
     # commands come from the Makefile's eval-local target, never from a request
-    return subprocess.run([executable, *command[1:]], env=env, check=False).returncode  # noqa: S603  # nosec B603
+    process = subprocess.Popen(  # noqa: S603  # nosec B603
+        [executable, *command[1:]], env=env, stdin=subprocess.DEVNULL, start_new_session=True
+    )
+    try:
+        return process.wait()
+    except BaseException:
+        stop_command(process)
+        raise

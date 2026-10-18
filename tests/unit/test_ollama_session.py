@@ -594,3 +594,68 @@ def test_a_second_signal_during_the_stop_does_not_abort_it(tmp_path, first, seco
     assert "postcheck passed: port closed, no ollama process, no model loaded" in out["said"]
     assert out["pid_file"] is False
     assert any("the stop continues" in line for line in out["said"]), out["said"]
+
+
+GRANDCHILD = (
+    "import subprocess, sys\n"
+    "child = subprocess.Popen(['sleep', '30'])\n"
+    "open(sys.argv[1], 'w').write(str(child.pid))\n"
+    "child.wait()\n"
+)
+TREE_SESSION = """
+import signal, sys
+from pathlib import Path
+sys.path.insert(0, {root!r})
+from tests.unit.test_ollama_session import FakeHost, local_config, pulled
+from raglab.runtime import ollama
+signal.signal(signal.SIGINT, signal.default_int_handler)  # as in a terminal
+lab = Path({lab!r})
+pulled(lab)
+session = ollama.session_for(local_config(), lab, FakeHost(tmp=lab))
+command = [sys.executable, "-c", {grandchild!r}, {pids!r}]
+sys.exit(session.run([command], ollama.run_command))
+"""
+
+
+@pytest.mark.parametrize("sig", ["SIGTERM", "SIGINT"])
+def test_a_signal_to_the_session_ends_the_commands_whole_process_tree(tmp_path, sig):
+    """Judge S3-J11: a session command that starts a grandchild (`sleep 30`); a SIGTERM (a kill
+    of the session alone) or a SIGINT (Ctrl-C reaches the session, not the command, which runs
+    in its own process group) to the session ends the command's whole group: no sleep
+    survives."""
+    import contextlib
+    import os
+    import subprocess
+    import sys
+    import time
+
+    pids = tmp_path / "sleep.pid"
+    script = TREE_SESSION.format(
+        root=str(ROOT), lab=str(tmp_path / "lab"), grandchild=GRANDCHILD, pids=str(pids)
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-c", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+    sleep_pid = None
+    try:
+        _wait_for(pids, proc)
+        sleep_pid = int(pids.read_text(encoding="utf-8"))
+        os.kill(proc.pid, getattr(signal, sig))
+        proc.wait(timeout=60)
+        deadline = time.monotonic() + 5
+        alive = True
+        while alive and time.monotonic() < deadline:
+            try:
+                os.kill(sleep_pid, 0)
+            except ProcessLookupError:
+                alive = False
+            else:
+                time.sleep(0.1)
+        assert not alive, f"the command's grandchild sleep {sleep_pid} survived the session"
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+        if sleep_pid is not None:
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(sleep_pid, signal.SIGKILL)
