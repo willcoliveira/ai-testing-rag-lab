@@ -1,0 +1,16 @@
+# Only what deploy/Dockerfile copies enters the build context: never .git, .env files, runs/,
+# the virtualenv or the privacy lists.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!.github/ci-requirements.txt
+!src/
+!corpus/
+!config/
+!datasets/
+!schemas/
+**/__pycache__
+**/*.pyc
+**/.DS_Store

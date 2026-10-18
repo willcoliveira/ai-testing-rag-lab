@@ -7,3 +7,5 @@ ADR-002
 # Reserved example domain used in tests.
 test@example.com
 dev@example.com
+# Docker Desktop's public name for the host, from inside a container (deploy/zap/scan.sh).
+host.docker.internal
