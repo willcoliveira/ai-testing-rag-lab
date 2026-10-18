@@ -27,6 +27,7 @@ class FakeHost(Host):
     memory: int = 40 * GIB
     services: list[str] = field(default_factory=list[str])
     foreign_port: bool = False  # the port held by a process this project did not start
+    asked: list[tuple[str, int]] = field(default_factory=list)  # every (host, port) checked
     version: str = "0.40.6"
     loaded: list[str] = field(default_factory=list[str])
     stubborn: bool = False  # ignores SIGTERM and SIGKILL
@@ -46,6 +47,7 @@ class FakeHost(Host):
         return self.services
 
     def port_open(self, host, port):
+        self.asked.append((host, port))
         return self.running or self.foreign_port
 
     def ollama_processes(self):
@@ -331,3 +333,79 @@ def test_a_refused_group_signal_falls_back_to_the_server_itself(monkeypatch):
     monkeypatch.setattr(ollama.os, "kill", lambda pid, sig: sent.append(("kill", pid, sig)))
     Host().signal_group(4242, signal.SIGTERM)
     assert sent == [("kill", 4242, signal.SIGTERM)]
+
+
+def test_only_the_ollama_executable_counts_as_an_ollama_process(monkeypatch):
+    """Judge S3-J5: the postcheck matches the executable, not any command line that names ollama
+    (an editor on the config, a tail of the log, the session's own raglab command)."""
+    listing = (
+        "4593 /opt/homebrew/bin/ollama serve\n"
+        "4601 /opt/homebrew/Cellar/ollama/0.40.6/bin/ollama runner --mlx --model x\n"
+        "777 vim config/local-ollama.toml\n"
+        "778 tail -f runs/tmp/ollama/serve.log\n"
+        "779 /repo/.venv/bin/python /repo/.venv/bin/raglab ollama session --config x\n"
+    )
+    monkeypatch.setattr(ollama, "_run", lambda command: listing)
+    assert Host().ollama_processes() == [
+        "4593 /opt/homebrew/bin/ollama serve",
+        "4601 /opt/homebrew/Cellar/ollama/0.40.6/bin/ollama runner --mlx --model x",
+    ]
+    monkeypatch.setattr(ollama, "_run", lambda command: "777 vim config/local-ollama.toml\n")
+    assert Host().ollama_processes() == []
+
+
+def test_the_preflight_and_the_postcheck_ask_about_the_configured_port(tmp_path):
+    """Judge S3-J3: the fake host records which port is checked, so a guard that looks at another
+    port fails here."""
+    pulled(tmp_path)
+    s, fake, _ = session(tmp_path)
+    s.say = lambda text: None
+    assert s.preflight() == []
+    assert fake.asked == [("127.0.0.1", 11434)]
+    fake.asked.clear()
+    assert s.postcheck() == []
+    assert fake.asked == [("127.0.0.1", 11434)]
+
+
+SIGNALLED_SESSION = """
+import json, os, signal, sys
+from pathlib import Path
+sys.path.insert(0, {root!r})
+from tests.unit.test_ollama_session import FakeHost, local_config, pulled
+from raglab.runtime import ollama
+tmp = Path({tmp!r})
+pulled(tmp)
+host = FakeHost(tmp=tmp)
+said = []
+session = ollama.session_for(local_config(), tmp, host)
+session.say = said.append
+def runner(command):
+    os.kill(os.getpid(), signal.{sig})
+    return 0
+try:
+    session.run([["first"]], runner)
+finally:
+    out = {{"signals": host.signals, "said": said, "running": host.running}}
+    print(json.dumps(out), flush=True)
+"""
+
+
+@pytest.mark.parametrize("sig", ["SIGTERM", "SIGHUP"])
+def test_a_terminated_session_still_stops_the_server_and_runs_the_postcheck(tmp_path, sig):
+    """Judge S3-J2: `kill` (SIGTERM) or a closed terminal (SIGHUP) of the session process ends it
+    through its finally block: the server gets SIGTERM and the postcheck runs. SIGKILL cannot be
+    trapped (docs/LOCAL-MODEL.md: the pid-file guard then makes the next up refuse)."""
+    import subprocess
+    import sys
+
+    script = SIGNALLED_SESSION.format(root=str(ROOT), tmp=str(tmp_path), sig=sig)
+    done = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=60, check=False
+    )
+    lines = [line for line in done.stdout.splitlines() if line.startswith("{")]
+    assert lines, (done.returncode, done.stdout, done.stderr[-500:])
+    out = json.loads(lines[-1])
+    assert signal.SIGTERM.value in out["signals"]
+    assert out["running"] is False
+    assert "postcheck passed: port closed, no ollama process, no model loaded" in out["said"]
+    assert done.returncode != 0  # the session still ends as signalled

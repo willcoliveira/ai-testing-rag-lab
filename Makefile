@@ -75,7 +75,8 @@ api-smoke:
 
 # S3 AC15: the local model server for one session only, never a resident service
 # (docs/LOCAL-MODEL.md). ollama-up and ollama-down are the manual pair; eval-local starts the server,
-# runs the live contract test and the generation suite, and always stops it and runs the postcheck.
+# runs the live contract test and the generation suite, then stops it and runs the postcheck, also
+# on an error, Ctrl-C, SIGTERM or SIGHUP (a SIGKILL leaves it up: run make ollama-down).
 LOCAL_CONFIG := config/local-ollama.toml
 ollama-up:
 	uv run raglab ollama up --config $(LOCAL_CONFIG)

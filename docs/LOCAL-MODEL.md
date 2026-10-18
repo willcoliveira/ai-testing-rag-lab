@@ -12,7 +12,7 @@ safely.
 
 | Command | What it does |
 |---|---|
-| `make eval-local` | The live run: starts the server, runs the live contract test (`tests/contract/test_chat_contract.py -m live`) and the generation suite on `config/local-ollama.toml`, then always unloads the model, stops the server and runs the postcheck, on success, on failure and on Ctrl-C |
+| `make eval-local` | The live run: starts the server, runs the live contract test (`tests/contract/test_chat_contract.py -m live`) and the generation suite on `config/local-ollama.toml`, then unloads the model, stops the server and runs the postcheck, on success, on failure, on Ctrl-C (SIGINT), on `kill` (SIGTERM) and on a closed terminal (SIGHUP). A SIGKILL cannot be caught: the server and a loaded model then stay up (the model until the keep-alive ends), the postcheck does not run, and the pid file in `runs/tmp/ollama/` makes the next `up` or session refuse until `make ollama-down` stops it |
 | `make ollama-up` | Starts the server for manual work (after the preflight); stop it with `make ollama-down` |
 | `make ollama-down` | Unloads every loaded model, stops the server and runs the postcheck |
 | `make ollama-status` | This project's server pid, the port, the loaded models, any ollama process, any registered Ollama service, and the memory available |
@@ -48,9 +48,13 @@ Before the server starts (the preflight), the session refuses, and starts nothin
 - the pinned model is not pulled (no manifest under `~/.ollama/models`, or `OLLAMA_MODELS`);
 - the memory available is below the model's size plus the margin.
 
-After every session, the postcheck fails loudly (exit 1, `POSTCHECK FAILED`) unless port 11434 is
-closed and no ollama process runs. A loaded model lives in the server's runner process, so no
-process means no model is resident.
+After every session that ends normally, by an error, by Ctrl-C, by SIGTERM or by SIGHUP, the
+postcheck fails loudly (exit 1, `POSTCHECK FAILED`) unless port 11434 is closed and no ollama
+process runs. A loaded model lives in the server's runner process, so no process means no model
+is resident. A process counts when its executable is `ollama` (the server and its runners), not
+when only an argument names it (an editor on the config, a tail of the log, the session's own
+`raglab ollama session` command), so the check does not depend on BSD pgrep leaving out the
+caller's ancestors.
 
 Each guard is tested offline with a fake host (`tests/unit/test_ollama_session.py`): low memory, a
 registered service, a held port, a missing binary, an unpulled model, an old server, a server that

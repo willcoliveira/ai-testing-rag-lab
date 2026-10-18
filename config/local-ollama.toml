@@ -1,5 +1,6 @@
 # The generation suite on a local model through Ollama's OpenAI-compatible endpoint (the S3 live
-# run). Run it with `make eval-local`, which starts the server for the session and always stops it
+# run). Run it with `make eval-local`, which starts the server for the session and stops it at the
+# end, on an error, Ctrl-C, SIGTERM or SIGHUP (not on SIGKILL: then `make ollama-down`)
 # (docs/LOCAL-MODEL.md).
 #
 # The model is pinned by tag AND digest: Ollama tags are not dated, so after

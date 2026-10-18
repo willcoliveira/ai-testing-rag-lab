@@ -6,7 +6,9 @@ table as its environment: loopback only, one model loaded at a time, one request
 short keep-alive and a context window far below the model's default. `down` unloads every loaded
 model, stops the server (SIGTERM to its group, SIGKILL after a grace period), and runs the
 postcheck. `session` is up, the given commands, then down and the postcheck, in a finally block:
-on success, on failure and on Ctrl-C alike.
+on success, on failure, on Ctrl-C, and on SIGTERM and SIGHUP, which the session turns into
+SystemExit. A SIGKILL cannot be caught: the pid file then makes the next `up` refuse until
+`make ollama-down` stops the server.
 
 Usage guards (each refusal names its reason, and nothing is started):
 - the ollama binary is on PATH;
@@ -18,10 +20,10 @@ Usage guards (each refusal names its reason, and nothing is started):
 - once up, the server's version is at least MIN_VERSION (0.40.6: the first that runs the pinned
   model; 0.40.4 refused it with "requires a newer version of Ollama").
 
-The postcheck fails loudly unless the port is closed and no ollama process is running (a loaded
-model lives in a runner process, so none means no model is resident). The per-request timeout,
-the max-tokens cap and the run's wall-clock cap are the generator's and the generation suite's
-(raglab.adapters.openai_compat, raglab.evals.generation).
+The postcheck fails loudly unless the port is closed and no ollama executable is running (a
+loaded model lives in a runner process, so none means no model is resident). The per-request
+timeout, the max-tokens cap and the run's wall-clock cap are the generator's and the generation
+suite's (raglab.adapters.openai_compat, raglab.evals.generation).
 
 The OS reads go through `Host`, so the tests replace them with fakes.
 """
@@ -116,10 +118,16 @@ class Host:
             return sock.connect_ex((host, port)) == 0
 
     def ollama_processes(self) -> list[str]:
-        """Every running process whose command names ollama, as 'pid command'."""
-        return [
-            line.strip() for line in _run(["pgrep", "-fl", "ollama"]).splitlines() if line.strip()
-        ]
+        """Every running ollama executable (the server and its runners), as 'pid command'. A
+        process is matched by its executable's name, not by any argument that names ollama (an
+        editor on the config, a tail of the log, this session's own raglab command: judge S3-J5),
+        so the check does not rely on BSD pgrep leaving out the caller's ancestors."""
+        found: list[str] = []
+        for line in _run(["pgrep", "-fl", "ollama"]).splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and Path(parts[1]).name == "ollama":
+                found.append(line.strip())
+        return found
 
     def pid_alive(self, pid: int) -> bool:
         try:
@@ -371,11 +379,21 @@ class Session:
 
     def run(self, commands: Sequence[Sequence[str]], runner: Callable[[Sequence[str]], int]) -> int:
         """up, each command in turn (stopping at the first that fails), then down and the
-        postcheck, always. The exit code: the first failing command's, else 1 when the postcheck
-        fails, else 0."""
+        postcheck, in a finally block: on success, on failure, on Ctrl-C (SIGINT), on `kill`
+        (SIGTERM) and on a closed terminal (SIGHUP), which are turned into SystemExit for the
+        session's length (judge S3-J2). SIGKILL cannot be caught: the server then stays up until
+        `make ollama-down`, and the pid file makes the next `up` refuse until then. The exit
+        code: the first failing command's, else 1 when the postcheck fails, else 0."""
         code = 0
         problems: list[str] = []
-        self.up()
+        previous = _exit_on_signals()
+        try:
+            self.up()
+        except BaseException:
+            if self.our_pid() is not None:  # a signal while the server was starting
+                self.down()
+            _restore_signals(previous)
+            raise
         try:
             for command in commands:
                 self.say(f"session: {' '.join(command)}")
@@ -388,6 +406,7 @@ class Session:
                 self.say("POSTCHECK FAILED: " + "; ".join(problems))
             else:
                 self.say("postcheck passed: port closed, no ollama process, no model loaded")
+            _restore_signals(previous)
         return code or (1 if problems else 0)
 
 
@@ -396,6 +415,31 @@ def _field(data: object, name: str) -> object:
     if not isinstance(data, dict):
         return None
     return cast(dict[str, object], data).get(name)
+
+
+# the signals a session turns into SystemExit, so its finally block stops the server
+TRAPPED = (signal.SIGTERM, signal.SIGHUP)
+
+
+def _exit_on_signals() -> dict[int, object]:
+    """Install handlers that raise SystemExit(128 + signal) and return the previous ones (none
+    outside the main thread, where Python cannot install them)."""
+
+    def leave(number: int, _frame: object) -> None:
+        raise SystemExit(128 + number)
+
+    previous: dict[int, object] = {}
+    try:
+        for sig in TRAPPED:
+            previous[sig] = signal.signal(sig, leave)
+    except ValueError:  # not the main thread
+        return previous
+    return previous
+
+
+def _restore_signals(previous: dict[int, object]) -> None:
+    for sig, handler in previous.items():
+        signal.signal(sig, cast(signal.Handlers, handler))
 
 
 def parse_version(text: str) -> tuple[int, ...]:

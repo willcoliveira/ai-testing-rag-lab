@@ -90,7 +90,7 @@ runs offline; a live run uses a local model through Ollama, started for one sess
 uv run raglab ask --config config/fake.toml --tenant tenant-a "How long must a password be?"
 uv run raglab serve --config config/fake.toml   # the API and the page on http://127.0.0.1:8000/
 uv run raglab eval --suite generation --config config/fake.toml   # a fake run record
-make eval-local    # the live run on Ollama: starts the server, runs, always stops it
+make eval-local    # the live run on Ollama: starts the server, runs, stops it (docs/LOCAL-MODEL.md)
 make container && make zap   # the fake-model container and its ZAP baseline scan (Docker)
 ```
 
