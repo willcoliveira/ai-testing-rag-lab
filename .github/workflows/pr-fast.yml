@@ -113,6 +113,12 @@ jobs:
         env:
           HF_HUB_OFFLINE: "1"
         run: make gate
+      # S3: `raglab serve` with config/fake.toml on 127.0.0.1, then /healthz, /version, an /ask
+      # answer and a no-tenant refusal; offline (the fake model, the cached embedder, loopback only)
+      - name: API smoke (offline, fake model)
+        env:
+          HF_HUB_OFFLINE: "1"
+        run: make api-smoke
 
   conventions:
     name: conventions

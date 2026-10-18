@@ -241,3 +241,34 @@ def test_pr_fast_runs_the_retrieval_gate_offline_after_the_tests():
     assert target.group(1) == (
         "HF_HUB_OFFLINE=1 uv run raglab gate --config config/retrieval-dense.toml"
     )
+
+
+def test_pr_fast_smoke_tests_the_api_offline_after_the_tests():
+    """S3 AC12: pr-fast starts `raglab serve` with config/fake.toml and smoke-tests /healthz,
+    /version, an /ask answer and a no-tenant refusal, offline, after the model fetch and the
+    tests; `make check` runs the same target, and the script talks to loopback only."""
+    wf = load(WORKFLOW_DIR / "pr-fast.yml")
+    steps = wf["jobs"]["check"]["steps"]
+    names = [step.get("name") for step in steps]
+    smoke = names.index("API smoke (offline, fake model)")
+    assert names.index("Embedding model (download on a miss, hashes checked)") < smoke
+    assert names.index("Tests (offline)") < smoke
+    assert steps[smoke]["run"] == "make api-smoke"
+    assert steps[smoke]["env"] == {"HF_HUB_OFFLINE": "1"}
+    assert "uses" not in steps[smoke]
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    check = re.search(r"^check:(.*)$", makefile, flags=re.M)
+    assert check is not None
+    assert "api-smoke" in check.group(1).split()
+    target = re.search(r"^api-smoke:\n\t(.*)$", makefile, flags=re.M)
+    assert target is not None
+    assert target.group(1) == (
+        "HF_HUB_OFFLINE=1 uv run python scripts/api_smoke.py --port $(API_SMOKE_PORT)"
+    )
+    script = (ROOT / "scripts" / "api_smoke.py").read_text(encoding="utf-8")
+    assert 'CONFIG = "config/fake.toml"' in script
+    assert "http://127.0.0.1:" in script
+    for path in ("/healthz", "/version", "/ask"):
+        assert f'"{path}"' in script, path
+    assert 'call(base, "POST", "/ask", {"question": QUESTION})' in script  # the no-tenant refusal
+    assert "code == 403" in script
