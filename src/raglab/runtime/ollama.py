@@ -6,8 +6,9 @@ table as its environment: loopback only, one model loaded at a time, one request
 short keep-alive and a context window far below the model's default. `down` unloads every loaded
 model, stops the server (SIGTERM to its group, SIGKILL after a grace period), and runs the
 postcheck. `session` is up, the given commands, then down and the postcheck, in a finally block:
-on success, on failure, on Ctrl-C, and on SIGTERM and SIGHUP, which the session turns into
-SystemExit. A SIGKILL cannot be caught: the pid file then makes the next `up` refuse until
+on success, on failure, on Ctrl-C (SIGINT), on SIGTERM and on SIGHUP. Once the stop has begun, a
+further SIGINT, SIGTERM or SIGHUP is only said, and the stop runs to the postcheck (judge
+S3-J8). A SIGKILL cannot be caught: the pid file then makes the next `up` refuse until
 `make ollama-down` stops the server.
 
 Usage guards (each refusal names its reason, and nothing is started):
@@ -383,36 +384,60 @@ class Session:
             "available_gib": round(self.host.available_memory_bytes() / GIB, 1),
         }
 
+    def _first_signal(self, number: int, _frame: object) -> None:
+        """The first stop signal of a session (SIGINT, SIGTERM or SIGHUP): from here on a
+        further one is only said (_late_signal), then the session ends through its finally
+        block, SIGINT as KeyboardInterrupt and SIGTERM or SIGHUP as SystemExit (judge S3-J2)."""
+        _install_stop_handlers(self._late_signal)
+        if number == signal.SIGINT:
+            raise KeyboardInterrupt
+        raise SystemExit(128 + number)
+
+    def _late_signal(self, number: int, _frame: object) -> None:
+        """A signal during the stop: said, never raised, so the stop runs to the postcheck
+        whatever else arrives (Ctrl-C pressed twice, a SIGTERM forwarded by uv or make: judge
+        S3-J8). Ignoring it cannot hang the session, because the stop is bounded: the unload's
+        HTTP calls time out after 30 s each, the server gets SIGTERM, at most 15 s, then
+        SIGKILL, and the postcheck's own reads time out."""
+        with contextlib.suppress(Exception):  # a signal handler must never raise here
+            name = signal.Signals(number).name
+            self.say(f"a second signal ({name}) arrived; the stop continues")
+
     def run(self, commands: Sequence[Sequence[str]], runner: Callable[[Sequence[str]], int]) -> int:
         """up, each command in turn (stopping at the first that fails), then down and the
         postcheck, in a finally block: on success, on failure, on Ctrl-C (SIGINT), on `kill`
-        (SIGTERM) and on a closed terminal (SIGHUP), which are turned into SystemExit for the
-        session's length (judge S3-J2). SIGKILL cannot be caught: the server then stays up until
-        `make ollama-down`, and the pid file makes the next `up` refuse until then. The exit
-        code: the first failing command's, else 1 when the postcheck fails, else 0."""
+        (SIGTERM) and on a closed terminal (SIGHUP). The first such signal ends the session;
+        while the stop runs, further ones are only said (judge S3-J8), here and when a signal
+        arrives during `up`. The signal handlers in place before the session are restored after
+        it. SIGKILL cannot be caught: the server then stays up until `make ollama-down`, and the
+        pid file makes the next `up` refuse until then. The exit code: the first failing
+        command's, else 1 when the postcheck fails, else 0."""
         code = 0
         problems: list[str] = []
-        previous = _exit_on_signals()
+        previous = _install_stop_handlers(self._first_signal)
         try:
-            self.up()
-        except BaseException:
-            if self.our_pid() is not None:  # a signal while the server was starting
-                self.down()
-            _restore_signals(previous)
-            raise
-        try:
-            for command in commands:
-                self.say(f"session: {' '.join(command)}")
-                code = runner(command)
-                if code != 0:
-                    break
+            try:
+                self.up()
+            except BaseException:
+                _install_stop_handlers(self._late_signal)
+                if self.our_pid() is not None:  # a signal while the server was starting
+                    self.down()
+                raise
+            try:
+                for command in commands:
+                    self.say(f"session: {' '.join(command)}")
+                    code = runner(command)
+                    if code != 0:
+                        break
+            finally:
+                _install_stop_handlers(self._late_signal)
+                problems = self.down()
+                if problems:
+                    self.say("POSTCHECK FAILED: " + "; ".join(problems))
+                else:
+                    self.say("postcheck passed: port closed, no ollama process, no model loaded")
         finally:
-            problems = self.down()
-            if problems:
-                self.say("POSTCHECK FAILED: " + "; ".join(problems))
-            else:
-                self.say("postcheck passed: port closed, no ollama process, no model loaded")
-            _restore_signals(previous)
+            _restore_handlers(previous)
         return code or (1 if problems else 0)
 
 
@@ -423,29 +448,27 @@ def _field(data: object, name: str) -> object:
     return cast(dict[str, object], data).get(name)
 
 
-# the signals a session turns into SystemExit, so its finally block stops the server
-TRAPPED = (signal.SIGTERM, signal.SIGHUP)
+# the signals that end a session; the session's finally block then stops the server
+STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+type SignalHandler = Callable[[int, object], None]
 
 
-def _exit_on_signals() -> dict[int, object]:
-    """Install handlers that raise SystemExit(128 + signal) and return the previous ones (none
-    outside the main thread, where Python cannot install them)."""
-
-    def leave(number: int, _frame: object) -> None:
-        raise SystemExit(128 + number)
-
+def _install_stop_handlers(handler: SignalHandler) -> dict[int, object]:
+    """handler for every stop signal; the previous handlers (none outside the main thread, where
+    Python cannot install them)."""
     previous: dict[int, object] = {}
     try:
-        for sig in TRAPPED:
-            previous[sig] = signal.signal(sig, leave)
+        for sig in STOP_SIGNALS:
+            previous[sig] = signal.signal(sig, cast(signal.Handlers, handler))
     except ValueError:  # not the main thread
         return previous
     return previous
 
 
-def _restore_signals(previous: dict[int, object]) -> None:
+def _restore_handlers(previous: dict[int, object]) -> None:
     for sig, handler in previous.items():
-        signal.signal(sig, cast(signal.Handlers, handler))
+        if handler is not None:  # None: a handler not installed from Python, left as it is
+            signal.signal(sig, cast(signal.Handlers, handler))
 
 
 def parse_version(text: str) -> tuple[int, ...]:

@@ -59,6 +59,15 @@ when only an argument names it (an editor on the config, a tail of the log, the 
 `raglab ollama session` command), so the check does not depend on BSD pgrep leaving out the
 caller's ancestors.
 
+**Once the stop has begun, it runs to the postcheck.** The first SIGINT, SIGTERM or SIGHUP ends
+the session; from then on, until the postcheck, a further one (Ctrl-C pressed twice, a SIGTERM
+that both `uv run` and `make` forward) is only said ("a second signal ... arrived; the stop
+continues"), and the stop goes on; the signal handlers in place before the session are restored
+after it. Ignoring those signals cannot hang the session, because the stop is bounded: each of
+the unload's HTTP calls times out after 30 s (one model is loaded at most), the server gets
+SIGTERM and at most 15 s, then SIGKILL, and the postcheck's own reads time out. Only SIGKILL can
+cut the stop short.
+
 Each guard is tested offline with a fake host (`tests/unit/test_ollama_session.py`): low memory, a
 registered service, a held port, a missing binary, an unpulled model, an old server, a server that
 will not stop, a leftover process, and a session that fails or is interrupted.

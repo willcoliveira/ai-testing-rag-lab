@@ -56,6 +56,9 @@ class FakeHost(Host):
     def pid_alive(self, pid):
         return self.running and pid == 4242
 
+    def exited(self, pid):
+        return not self.pid_alive(pid)
+
     def start(self, command, env, log):
         self.started.append((command, env))
         self.running = True
@@ -271,40 +274,60 @@ def test_a_config_without_an_ollama_table_has_no_session():
         ollama.session_for(fake, ROOT)
 
 
+MANIFEST_RUN = """
+import json, sys
+from pathlib import Path
+sys.path.insert(0, {root!r})
+from raglab.adapters.fake import FakeChat, HashingEmbedder
+from raglab.chunk.sections import ChunkSettings
+from raglab.evals import config as eval_config
+from raglab.evals import generation
+from raglab.generate.assemble import assemble
+from raglab.ingest.pipeline import Inventory
+from tests.generation_support import generation_root
+from tests.retrieval_support import GIT, PACK
+
+repo = Path({root!r})
+root = generation_root(Path({tmp!r}))
+text = (repo / "config" / "local-ollama.toml").read_text(encoding="utf-8")
+text = text.replace("datasets/golden.v1.jsonl", "golden.jsonl")
+text = text.replace("datasets/probes.s3.jsonl", "probes.jsonl")
+path = root / "config" / "local.toml"
+path.parent.mkdir(exist_ok=True)
+path.write_text(text, encoding="utf-8")
+config = eval_config.load_generation(path, root, require_digest=False)
+embedder, chat = HashingEmbedder(), FakeChat()
+built = assemble(
+    config,
+    root,
+    embedder=(
+        embedder,
+        {{"provider": "fake", "model": "h", "revision": "f", "dimension": 256}},
+        "fake",
+    ),
+    chat=(chat, chat.describe(), "fake"),
+    inventory=Inventory(ChunkSettings(), {{}}, (), tuple(PACK)),
+)
+manifest, _ = generation.run(config, root, built, git=GIT)
+print(json.dumps(manifest["ollama"]))
+"""
+
+
 def test_the_manifest_records_the_session_settings(tmp_path):
     """A run of the local config records its [ollama] settings (here with fake components, so
-    nothing starts)."""
-    from raglab.adapters.fake import FakeChat, HashingEmbedder
-    from raglab.chunk.sections import ChunkSettings
-    from raglab.evals import generation
-    from raglab.generate.assemble import assemble
-    from raglab.ingest.pipeline import Inventory
-    from tests.generation_support import generation_root
-    from tests.retrieval_support import GIT, PACK
+    nothing starts). The run happens in a short subprocess, which keeps onnxruntime (imported
+    through the adapters' factory) out of this file's pytest process: onnxruntime 1.30.0 on macOS
+    aborts the process at exit (libc++ "recursive_mutex lock failed") when it lives about 10 s
+    after the import, and this file's signal tests take that long (S3 ledger, fix round 3)."""
+    import subprocess
+    import sys
 
-    root = generation_root(tmp_path)
-    text = (ROOT / "config" / "local-ollama.toml").read_text(encoding="utf-8")
-    text = text.replace("datasets/golden.v1.jsonl", "golden.jsonl").replace(
-        "datasets/probes.s3.jsonl", "probes.jsonl"
+    script = MANIFEST_RUN.format(root=str(ROOT), tmp=str(tmp_path))
+    done = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=120, check=False
     )
-    path = root / "config" / "local.toml"
-    path.parent.mkdir(exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-    config = eval_config.load_generation(path, root, require_digest=False)
-    embedder, chat = HashingEmbedder(), FakeChat()
-    built = assemble(
-        config,
-        root,
-        embedder=(
-            embedder,
-            {"provider": "fake", "model": "h", "revision": "f", "dimension": 256},
-            "fake",
-        ),
-        chat=(chat, chat.describe(), "fake"),
-        inventory=Inventory(ChunkSettings(), {}, (), tuple(PACK)),
-    )
-    manifest, _ = generation.run(config, root, built, git=GIT)
-    assert manifest["ollama"] == {
+    assert done.returncode == 0, done.stderr[-2000:]
+    assert json.loads(done.stdout.strip().splitlines()[-1]) == {
         "host": "127.0.0.1:11434",
         "keep_alive": "2m",
         "max_loaded_models": 1,
@@ -479,3 +502,95 @@ def test_the_makefile_session_targets_run_unbuffered():
     for target in ("ollama-up", "ollama-down", "ollama-status", "eval-local"):
         body = makefile.split(f"\n{target}:", 1)[1].split("\n\n", 1)[0]
         assert "PYTHONUNBUFFERED=1 " in body, target
+
+
+# ---------------------------------------------------------------- fix round 3 (judge S3-J8 to J11)
+
+DOUBLE_SIGNAL_SESSION = """
+import json, signal, sys, time
+from pathlib import Path
+sys.path.insert(0, {root!r})
+from tests.unit.test_ollama_session import FakeHost, local_config, pulled
+from raglab.runtime import ollama
+signal.signal(signal.SIGINT, signal.default_int_handler)  # as in a terminal
+lab = Path({lab!r})
+pulled(lab)
+
+
+class SlowUnloadHost(FakeHost):
+    def http(self, method, url, body=None):
+        if self.running and url.endswith("/api/ps"):
+            return {{"models": [{{"name": "nemotron-3.5-lightning:30b-a3b-mlx"}}]}}
+        if self.running and url.endswith("/api/generate"):
+            time.sleep(2)  # the model unloading
+            return {{}}
+        return super().http(method, url, body)
+
+
+host = SlowUnloadHost(tmp=lab)
+said = []
+session = ollama.session_for(local_config(), lab, host)
+session.say = said.append
+marker = Path({marker!r})
+def runner(command):
+    marker.write_text("running", encoding="utf-8")
+    time.sleep(60)
+    return 0
+try:
+    session.run([["first"]], runner)
+finally:
+    out = {{
+        "signals": host.signals,
+        "running": host.running,
+        "said": said,
+        "pid_file": (lab / "runs/tmp/ollama/serve.pid").exists(),
+    }}
+    Path({result!r}).write_text(json.dumps(out), encoding="utf-8")
+"""
+
+
+def _wait_for(path: Path, proc, seconds: float = 60) -> None:
+    import time
+
+    deadline = time.monotonic() + seconds
+    while not path.exists() or not path.read_text(encoding="utf-8").strip():
+        assert proc.poll() is None, f"the session ended early ({proc.returncode})"
+        assert time.monotonic() < deadline, f"{path.name} never appeared"
+        time.sleep(0.05)
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [("SIGTERM", "SIGTERM"), ("SIGINT", "SIGINT"), ("SIGHUP", "SIGHUP")],
+)
+def test_a_second_signal_during_the_stop_does_not_abort_it(tmp_path, first, second):
+    """Judge S3-J8: a session subprocess (the fake host, an unload that takes 2 s) gets a signal
+    while its runner sleeps, then a second one 1 s later, inside the stop. The stop runs to the
+    postcheck: the server got SIGTERM and is not running, the pid file is gone, and the second
+    signal was only said."""
+    import os
+    import subprocess
+    import sys
+    import time
+
+    marker, result = tmp_path / "running", tmp_path / "result.json"
+    script = DOUBLE_SIGNAL_SESSION.format(
+        root=str(ROOT), lab=str(tmp_path / "lab"), marker=str(marker), result=str(result)
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-c", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+    try:
+        _wait_for(marker, proc)
+        time.sleep(0.3)
+        os.kill(proc.pid, getattr(signal, first))
+        time.sleep(1.0)
+        os.kill(proc.pid, getattr(signal, second))
+    finally:
+        proc.wait(timeout=60)
+    out = json.loads(result.read_text(encoding="utf-8"))
+    assert signal.SIGTERM.value in out["signals"], out
+    assert out["running"] is False, out
+    assert "postcheck passed: port closed, no ollama process, no model loaded" in out["said"]
+    assert out["pid_file"] is False
+    assert any("the stop continues" in line for line in out["said"]), out["said"]
