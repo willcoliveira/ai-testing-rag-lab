@@ -74,13 +74,13 @@ will not stop, a leftover process, and a session that fails or is interrupted.
 ## The live session of the published S3 run (2026-10-18, a 48 GiB Apple M4 Pro, Docker Desktop running)
 
 `make eval-local`, read from its output and the run record
-`runs/published/20261018T145441Z-generation-local-ollama-dev-fa04154`:
+`runs/published/20261018T162604Z-generation-local-ollama-dev-3b66ea3`:
 
-- memory available before the session (the preflight's reading): 31.0 GiB; after: 37.1 GiB;
-- the live contract test passed in 30.57 s (its request is the first, so the model's load is in
+- memory available before the session (the preflight's reading): 30.8 GiB; after: 36.7 GiB;
+- the live contract test passed in 29.78 s (its request is the first, so the model's load is in
   it);
-- the generation suite: 75 case-trials (25 cases, 3 trials) in 112.109 s, so about 37.4 s per
-  trial of 25 cases; per request p50 1,470.501 ms and p95 2,487.696 ms;
-- the whole session, server start to postcheck: 2 min 54.2 s;
+- the generation suite: 75 case-trials (25 cases, 3 trials) in 110.896 s, so about 37.0 s per
+  trial of 25 cases; per request p50 1,378.811 ms and p95 2,434.308 ms;
+- the whole session, server start to postcheck: 2 min 52.1 s;
 - afterwards: "postcheck passed: port closed, no ollama process, no model loaded", and
   `lsof -iTCP:11434 -sTCP:LISTEN` found nothing.

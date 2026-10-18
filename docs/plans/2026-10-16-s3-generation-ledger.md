@@ -21,7 +21,8 @@ AC15 as built: the local model server runs for one session only, never as a resi
 request, a context length from config, a short keep-alive and an explicit unload; a preflight
 that refuses low memory, a registered launchd or brew service, or a port held by another process;
 a per-request timeout, a max-tokens cap and a wall-clock cap that marks a run partial; and a
-postcheck after every session that fails loudly unless the port is closed and no ollama process
+postcheck after every session (ended normally, by an error, Ctrl-C, SIGTERM or SIGHUP; a
+SIGKILL cannot be caught) that fails loudly unless the port is closed and no ollama process
 (so no model) is left. Lab practice: production runs the model on a managed endpoint, not on a
 laptop (docs/LOCAL-MODEL.md).
 
@@ -41,7 +42,7 @@ and size (19072744624 bytes) were read from the server's /api/tags at pull time.
 | Architecture | `scripts/check_architecture.py`: rule 4 now "the fake adapters are imported only by raglab.adapters.factory"; rule 5: httpx (and aiohttp, urllib3) only in adapters, FastAPI, Starlette and uvicorn only in `raglab.api` |
 | Suite and record | `evals/generation.py` (N trials, per-trial seed, wall-clock cap, partial), `evals/generation_record.py` (checks, the abstention oracle, results, report), `evals/metrics.wilson_interval`; `schemas/run-record.v1.json` extended additively; `evals/record.validate` by suite; `compare` refuses generation runs; `publish` indexes the generator; `ingest/answer_key.py` reads the canaries |
 | Configs and data | `config/fake.toml`, `config/local-ollama.toml`; `datasets/probes.s3.jsonl` (P-01 F-32 tenant A, P-02 F-32 tenant B, P-03 F-40 tenant B) |
-| API and page | `src/raglab/api/app.py` (/healthz, /version, /ask; 401, 403, 400, 413, 502, 503; security headers on every response; OpenAPI pages off), `api/server.py`; `src/raglab/web/` (index.html, app.js, app.css) |
+| API and page | `src/raglab/api/app.py` (/healthz, /version, /ask; 401, 403, 400, 413, 502, 503; security headers on every response, a 500 included since fix round 1; OpenAPI pages off), `api/server.py`; `src/raglab/web/` (index.html, app.js, app.css) |
 | CLI | `raglab ask`, `raglab serve`, `raglab eval --suite generation`, `raglab ollama up|down|status|session` |
 | Local model | `src/raglab/runtime/ollama.py` (Host, Session: preflight, up, down, postcheck, run); docs/LOCAL-MODEL.md |
 | CI | `scripts/api_smoke.py`, `make api-smoke` (in `make check`), pr-fast step "API smoke (offline, fake model)" |
@@ -64,23 +65,24 @@ the same check was green again after the restore (the git status was clean at th
 | AC2 | met | `tests/generation/test_prompt_snapshot.py`: the assembled prompt equals `tests/snapshots/answer-v1.txt`; the fingerprint of `answer-v1` is recorded (96f42d9b...); a chunk holding `</chunk>`, `</CHUNK>` and `</question>` stays in one frame; no developer comments in the text | "1. Use only the passages." made "passage": 2 failed (snapshot, and "changed without a new VERSION") |
 | AC3 | met | `tests/generation/test_citation_validator.py`: a scripted FakeChat citing B-PWD@1.0/3/1 for a tenant A question is blocked (abstain, status blocked, the event names the id); a conflict id not retrieved is blocked; 120 random citation sets (6 small questions, each tenant, 10 each): every ok answer's citations are retrieved | `check_output` returns None: 4 failed, including the scripted unretrieved citation |
 | AC4 | met | `tests/generation/test_fallback_contract.py` (19 tests, the real adapter against an in-process stub of Ollama, httpx.MockTransport, no socket): read and connect timeouts, connection errors, HTTP 500, 503, 404, a non-JSON body, an empty completion, prose, a fenced reply, an unknown label, an empty answer and missing fields each give unavailable or invalid_output with no text; a run record counts them (`status_counts` unavailable 2, invalid_output 3); a timeout or the wall-clock cap marks the run partial | the parser made to strip a code fence: 1 failed (the fenced reply became an answer) |
-| AC5 | met | `tests/contract/test_chat_contract.py`: the shared contract against the stub (pr-fast) and, marker `live`, against Ollama 0.40.6 in `make eval-local`: "1 passed, 12 deselected in 23.40s" (the reply parsed into an Answer, citations among the given ids, no reasoning text, tokens reported). A digest mismatch, an unpulled tag, a server that is down and a non-loopback URL refuse to start; the committed config with its digest replaced by the placeholder refuses to run ("refuses to start until the tag's digest is pinned"), and `raglab eval --suite generation` on it exits 1. Before the digest was pinned (commit `a3494f7`) the committed config itself refused | (the digest-mismatch and placeholder tests are the break) |
+| AC5 | met | `tests/contract/test_chat_contract.py`: the shared contract against the stub (pr-fast) and, marker `live`, against Ollama 0.40.6 in `make eval-local`: "1 passed, 13 deselected in 29.78s" at `3b66ea3` (an earlier commit's file had 12 deselected; correction 5) (the reply parsed into an Answer, citations among the given ids, no reasoning text, tokens reported). A digest mismatch, an unpulled tag, a server that is down and a non-loopback URL refuse to start; the committed config with its digest replaced by the placeholder refuses to run ("refuses to start until the tag's digest is pinned"), and `raglab eval --suite generation` on it exits 1. Before the digest was pinned (commit `a3494f7`) the committed config itself refused | (the digest-mismatch and placeholder tests are the break) |
 | AC6 | met | `tests/generation/test_input_guards.py` and `tests/api/test_api.py`: over 500 characters, empty, U+0000, U+001B, U+202E, U+200B, U+E000, U+000D, U+007F refused (400) with 0 retriever calls; no tenant, null, empty, `shared`, unknown, a list, and the spoof (tenant-a-only token asking as tenant B) refused (403) with 0 retriever calls; no or unknown token 401 | the caller check in `guard/tenant.py` removed: 4 failed, among them `test_a_tenant_the_caller_may_not_use_is_403_and_never_retrieved[spoofed]` |
 | AC7 | met | `tests/e2e/test_e2e_fake.py`: the app built from config/fake.toml (real pack, real embedder, FakeChat echoing every chunk), all 22 dev questions asked as each tenant: no tenant B canary (all 16) in a tenant A answer or its citations, no tenant A canary (all 47) in a tenant B answer; positive control: each tenant's own canaries do appear | every tenant filter off (the store mask, both `check_visible` calls, the retrieved guard): 2 failed (both directions). Removing one layer alone (only the retrieved guard, say) does not leak, by design: the S2 store filter masks before ranking and `check_visible` checks on the way out, so the e2e test fails only when all of them go; each layer has its own test (S2 `test_tenant_filter.py`; `test_input_guards.py::test_another_tenants_chunk_after_retrieval_blocks_the_answer_before_the_model`) |
 | AC8 | met | `tests/retrieval/test_run_record.py`: the three committed S2 runs validate by name; a generation run validates; refused: a case without label, status or checks, a citation or conflict id not retrieved, text on a withheld answer, an unknown label, retrieval fields on a probe, edited checks, a missing trial, generation fields in a retrieval run, a retrieval case without recall, a tenant B chunk cited by a tenant A case | the unretrieved-citation check in `record.generation_problems` disabled: 2 failed |
-| AC9 | met | the live run below, published: `runs/published/20261018T145441Z-generation-local-ollama-dev-fa04154`, provenance local, git clean at `fa04154`, not partial, the model tag and digest, the prompt version and every report field; `raglab publish` validated it, ran the privacy check at its published path and published it; the reset-attempts abstention count and pass^3 below are copied from the record | n/a (the publish refusals are tested in `tests/unit/test_published_allowlist_scope.py`) |
+| AC9 | met | the live run below, published: `runs/published/20261018T162604Z-generation-local-ollama-dev-3b66ea3`, provenance local, git clean at `3b66ea3`, not partial, the model tag and digest, the prompt version and every report field; `raglab publish` validated it, ran the privacy check at its published path and published it; the reset-attempts abstention count and pass^3 below are copied from the record | n/a (the publish refusals are tested in `tests/unit/test_published_allowlist_scope.py`) |
 | AC10 | met | `tests/api/test_api.py`, `tests/api/test_page.py`, `tests/unit/test_container.py`; `make container` built `raglab:local` (793,364,086 bytes at `d897052`); the container runs as uid 10001 with the fake model and answers `/healthz` (below) | `frame-ancestors 'none'` dropped from the CSP: 10 failed |
-| AC11 | met | `make zap`: "FAIL-NEW: 0 FAIL-INPROG: 0 WARN-NEW: 0 WARN-INPROG: 0 INFO: 0 IGNORE: 3 PASS: 64", 6 URLs; the three ignored rules are Informational, each with its reason in `deploy/zap/rules.tsv` | (the first scan without rules.tsv: 0 WARN, 66 PASS, the same three Informational alerts) |
+| AC11 | met | `make zap`: "FAIL-NEW: 0 FAIL-INPROG: 0 WARN-NEW: 0 WARN-INPROG: 0 INFO: 0 IGNORE: 3 PASS: 64", 6 URLs; the three ignored rules are Informational, each with its reason in `deploy/zap/rules.tsv` | without rules.tsv the same three Informational alerts count as WARN: the judge's scan with the pinned image read "WARN-NEW: 3 ... PASS: 64" (correction 3; the developer's first scan's "0 WARN, 66 PASS" was with ZAP's defaults before the pin was used and is withdrawn). Rerun after fix round 1 (no chmod 777): "FAIL-NEW: 0 ... WARN-NEW: 0 ... IGNORE: 3 PASS: 64", 6 URLs |
 | AC12 | needs CI; local evidence met | pr-fast step "API smoke (offline, fake model)" after the model fetch and the tests, `HF_HUB_OFFLINE=1`, `make api-smoke`; `tests/unit/test_workflow_rules.py::test_pr_fast_smoke_tests_the_api_offline_after_the_tests`; zizmor: no findings; locally four `ok` lines and "api-smoke: passed" | the step's `run` changed: 1 failed |
 | AC13 | met | `make check` as above (ruff, pyright strict, deptry, vulture, pip-audit, bandit, semgrep, zizmor, gitleaks, privacy, architecture); `tests/unit/test_architecture.py`: the factory may import the fakes, any other module may not (a planted import in a copy of the real tree fails), httpx outside adapters and FastAPI outside api fail | see AC1 |
 | AC14 | met; S3 `done` | TEST-PLAN R1, R4 and R7 name their tests (`tests/unit/test_test_plan.py` now requires it); traceability Test column for R-02, R-21, R-13 and R-16; docs/GUARDRAILS.md; docs/COMPATIBILITY.md "Tested against nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7d... on Ollama 0.40.6 on 2026-10-18"; ARCHITECTURE and README S3 `done` (AC9 published); CHANGELOG line; this ledger | n/a |
-| AC15 | met (added by the user, 2026-10-18) | `tests/unit/test_ollama_session.py` (22 tests, a fake host: the environment, the model size from its manifest, low memory, a registered service, a held port, no binary, an unpulled model, an old server, unload and stop, a server that will not stop, a leftover process, a session that succeeds, fails or is interrupted, a failed postcheck, the EPERM fallback); three live sessions and one probe session, each ending "postcheck passed: port closed, no ollama process, no model loaded" | with real OS reads, no server started: margin 100 GiB: "not enough memory: 26.7 GiB available, 117.8 GiB needed (model 17.8 GiB + margin 100 GiB)", exit 1; port 11434 held by `python3 -m http.server`: "127.0.0.1:11434 is already held by a process this project did not start", exit 1; `pgrep` found no ollama after either |
+| AC15 | met (added by the user, 2026-10-18) | `tests/unit/test_ollama_session.py` (22 tests, a fake host: the environment, the model size from its manifest, low memory, a registered service, a held port, no binary, an unpulled model, an old server, unload and stop, a server that will not stop, a leftover process, a session that succeeds, fails or is interrupted, a failed postcheck, the EPERM fallback); four live sessions and one probe session, each ending "postcheck passed: port closed, no ollama process, no model loaded"; since fix round 1 also SIGTERM and SIGHUP (judge S3-J2), the executable match (S3-J5) and the asked port (S3-J3) | with real OS reads, no server started: margin 100 GiB: "not enough memory: 26.7 GiB available, 117.8 GiB needed (model 17.8 GiB + margin 100 GiB)", exit 1; port 11434 held by `python3 -m http.server`: "127.0.0.1:11434 is already held by a process this project did not start", exit 1; `pgrep` found no ollama after either |
 
 ## The live run (AC9)
 
-`make eval-local` at `fa04154` on 2026-10-18, 14:53 to 14:56 UTC, at the model card's sampling
-settings (the user's decision 3, below), then `raglab publish`. Every number here is copied from
-`runs/published/20261018T145441Z-generation-local-ollama-dev-fa04154/manifest.json` and its
+`make eval-local` at `3b66ea3` (after fix round 1) on 2026-10-18, 16:25 to 16:28 UTC, at the
+model card's sampling settings (the user's decision 3, below), then `raglab publish`. Every
+number here is copied from
+`runs/published/20261018T162604Z-generation-local-ollama-dev-3b66ea3/manifest.json` and its
 report, or from the session's output.
 
 **Settings (manifest).** nemotron-3.5-lightning:30b-a3b-mlx at digest d1e17d7d... on Ollama
@@ -89,22 +91,22 @@ max_tokens 1024, timeout_s 120, response_format none, extra `reasoning_effort: n
 answer-v1 (sha256 96f42d9b...); guards tenant, input-limits, citations; dense retriever, k 5,
 chunks 1,200; 3 trials, seed 20261018 (trial t uses seed + t - 1); Wilson intervals at 95%,
 n = cases; ollama host 127.0.0.1:11434, keep_alive 2m, max_loaded_models 1, num_parallel 1,
-context_length 8192. 22 dev questions and 3 probes, 75 case-trials, 112.109 s; provenance local;
+context_length 8192. 22 dev questions and 3 probes, 75 case-trials, 110.896 s; provenance local;
 git clean; partial false.
 
 | Check (no judge) | Rate | 95% interval | n (cases) |
 |---|---|---|---|
-| status_ok | 0.960 | 0.805 to 0.993 | 25 |
-| citations_retrieved | 1.000 | 0.867 to 1.000 | 25 |
+| status_ok | 0.973 | 0.824 to 0.996 | 25 |
+| model_citations_retrieved | 0.973 | 0.824 to 0.996 | 25 |
 | probe_abstention | 0.000 | 0.000 to 0.561 | 3 |
-| citation_hit | 0.727 | 0.518 to 0.868 | 22 |
-| pass^3 | 0.600 | 0.407 to 0.766 | 25 |
+| citation_hit | 0.742 | 0.534 to 0.879 | 22 |
+| pass^3 | 0.640 | 0.445 to 0.798 | 25 |
 
-- Status counts: ok 72, refused 0, blocked 3, unavailable 0, invalid_output 0.
-- Label agreement: 22 of 25 cases gave the same label in every trial.
+- Status counts: ok 73, refused 0, blocked 2, unavailable 0, invalid_output 0.
+- Label agreement: 24 of 25 cases gave the same label in every trial.
 - **The reset-attempts abstention count (F-32): P-01 (tenant A) 0 of 3, P-02 (tenant B) 0 of 3**;
   P-03 (F-40, tenant B) 0 of 3.
-- Latency p50 1,470.501 ms, p95 2,487.696 ms (n 75); tokens 78,966 prompt and 7,667 completion
+- Latency p50 1,378.811 ms, p95 2,434.308 ms (n 75); tokens 78,966 prompt and 7,717 completion
   (all 75 case-trials reported them).
 - What pass^3 measures here (the report says it): a case passes only when all 3 trials pass, each
   with its own seed at temperature 1.0, so it measures consistency while the model samples, not
@@ -112,27 +114,27 @@ git clean; partial false.
 
 Reading (not judged; a citation hit is not correctness):
 
-- **The three blocked answers are the citation validator at work (R-02).** R-Q21 trial 1 and R-Q25
-  trials 1 and 2 cited document ids (`A-FAQ`, `A-PWD-V2`, `X-NCSC`, `A-EXC`) instead of chunk
-  ids; the validator withheld them (abstain, status blocked), which lowers status_ok and
-  citation_hit and is why those cases' labels differ across trials (R-Q04 is the third).
-- **The probes all failed.** Every probe trial was labelled `answer` and stated a value: P-01
-  "User passwords expire every 60 days" and "5 and 10 login attempts" (neighbouring rules, not
-  reset attempts); P-02 the lockout rule or the NCSC range; P-03 "within 24 hours" (tenant B's
-  factor revocation, not a leaver rule). No tenant A canary appeared in a tenant B answer (check c).
-- **Trials differ more at temperature 1.0.** 2 of 25 cases are byte-identical across their three
-  trials (9 of 25 at 0.2); labels changed in 3 cases.
-- Memory available before the session (preflight): 31.0 GiB; after: 37.1 GiB. Live contract test
-  30.57 s ("1 passed, 13 deselected"); the suite 112.109 s, about 37.4 s per trial of 25 cases;
-  the whole session 2 min 54.2 s.
+- **model_citations_retrieved now moves (judge S3-J1).** R-Q25 trials 1 and 3 cited document ids
+  (`A-DEVICE`, `A-EXC`, `A-FAQ`) instead of chunk ids; the validator withheld them (status
+  blocked), and the check reads its event, so 0.973 here is the model's reply, and it equals
+  status_ok because those two blocked trials are the only trials that are not ok. R-Q25 is also
+  the one case whose label changed across trials.
+- **The probes all failed.** Every probe trial was labelled `answer`: P-01 "User passwords expire
+  every 60 days" twice, and once "The documents do not specify a daily limit for password reset
+  attempts" (no value, check b passes, but labelled `answer`, check a fails); P-02 the lockout
+  rule or the NCSC range; P-03 "within 24 hours" (tenant B's factor revocation, not a leaver
+  rule). No tenant A canary appeared in a tenant B answer (check c).
+- **No case is byte-identical across its three trials** at temperature 1.0 (0 of 25).
+- Memory available before the session (preflight): 30.8 GiB; after: 36.7 GiB. Live contract test
+  29.78 s ("1 passed, 13 deselected"); the suite 110.896 s, about 37.0 s per trial of 25 cases;
+  the whole session 2 min 52.1 s.
 - Postcheck: "postcheck passed: port closed, no ollama process, no model loaded"; afterwards
   `pgrep -fl ollama` found nothing and `lsof -iTCP:11434 -sTCP:LISTEN` found nothing.
-- **Published.** `raglab publish 20261018T145441Z-generation-local-ollama-dev-fa04154`:
-  "published: .../runs/published/20261018T145441Z-generation-local-ollama-dev-fa04154"; the
-  privacy check ran on the files at their published path, where the two planted exception ids the
-  model quoted are allowed (decision 1), and no answer key `answer_must_not_contain` string is in
-  them. `tests/retrieval/test_publish.py::test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline`
-  now also checks every published run for those strings.
+- **Published.** `raglab publish 20261018T162604Z-generation-local-ollama-dev-3b66ea3`:
+  "published: .../runs/published/20261018T162604Z-generation-local-ollama-dev-3b66ea3"; the
+  privacy check ran on the files at their published path (decision 1), and no answer key
+  `answer_must_not_contain` string is in them (also checked for every published run by
+  `tests/retrieval/test_publish.py::test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline`).
 
 **Plan correction (2026-10-18).** The plan's check 3 read: "an abstention probe has label
 `abstain`, and none of its `must_not_appear` strings appears". In corpus/answer-key.yaml,
@@ -152,6 +154,7 @@ plan file is unchanged.
 
 | Run | When, commit | Settings | status_ok | citation_hit | probe_abstention | pass^3 | Label agreement | p50, p95 | Why superseded |
 |---|---|---|---|---|---|---|---|---|---|
+| `20261018T145441Z-generation-local-ollama-dev-fa04154` (was published, removed in `e628690`; it never left this branch) | 14:54 UTC, `fa04154` | temperature 1.0, top_p 0.95 | 0.960 (0.805 to 0.993) | 0.727 (0.518 to 0.868) | 0.000 (0.000 to 0.561) | 0.600 (0.407 to 0.766) | 22 of 25 | 1,470.501 ms, 2,487.696 ms | its `citations_retrieved` row read 1.000 (0.867 to 1.000) while 3 trials were blocked for unretrieved citations: the check could not fail (judge S3-J1); the record carries the old check name, so it no longer validates. Memory 31.0 GiB before, 37.1 GiB after; 112.109 s |
 | `20261018T134910Z-generation-local-ollama-dev-d897052` | 13:49 UTC, `d897052` | temperature 0.2 (top_p not sent: the server used the model's 0.95), seed per trial, the corrected oracle | 1.000 (0.867 to 1.000) | 0.773 (0.566 to 0.899) | 0.000 (0.000 to 0.561) | 0.680 (0.484 to 0.828) | 25 of 25 | 1,330.883 ms, 2,623.430 ms | temperature replaced by the card's values (decision 3); publish then refused it on the privacy scan (before decision 1) |
 | `20261018T132722Z-generation-local-ollama-dev-86bf537` | 13:27 UTC, `86bf537` | temperature 0.2, the plan's original check 3 | 1.000 | 0.773 | 0.000 | 0.680 | 25 of 25 | 1,392.053 ms, 2,725.121 ms | the abstention check was corrected; its probe cases carry `must_not_appear` and a `forbidden_absent` check, which the schema no longer has, so `record.validate` rejects it now (18 problems) |
 
@@ -163,7 +166,8 @@ number of password reset attempts allowed per day") but was labelled `answer`; P
 values.
 
 **Where the records are.** The published run is committed under `runs/published/`; the
-superseded ones are in this clone's `runs/tmp/` (gitignored) only. `make eval-local` reproduces a
+superseded ones are in this clone's `runs/tmp/` (gitignored) only (fa04154's also in git history at
+`20cd685`). `make eval-local` reproduces a
 run in about 3 minutes, with Ollama 0.40.6 and the pinned model.
 
 **Thinking off and the response format, verified on 0.40.6** (a probe session, exploratory, from
@@ -246,13 +250,74 @@ another id under runs/published, the real publish); restored from git: 10 passed
 The orchestrator relayed that these stand as chosen.
 
 1. **The memory margin is 4 GiB** (the model's 17.8 GiB plus 4 GiB, against free, inactive and
-   speculative pages). An 8 GiB margin would have refused the session with Docker Desktop running
-   (22.9 GiB available at the time).
+   speculative pages). It is the minimum that still runs on this Mac with Docker Desktop running:
+   the judge's preflight read 21.8 GiB available, exactly the 17.8 + 4 GiB needed (correction 7);
+   an 8 GiB margin would refuse. The live sessions read 30.8 to 34.1 GiB available.
 2. **Status codes:** no or unknown token 401, a tenant refusal 403, an input-limit refusal 400, a
    body over 4 KiB 413, invalid_output 502, unavailable 503.
 3. **`totals.cases` counts case-trials** (75); `dataset.questions` counts distinct cases (25).
 4. **compare refuses generation runs** until S4 defines a paired generation comparison.
 5. **The demo tokens are literals in config** (`demo`, `tenant-a-only`), labelled lab practice.
+
+## Fix round 1 (the judge's verdict, 2026-10-18)
+
+The judge (a separate clone, its scripts and logs in its own scratch space) found four medium and
+five low defects and three info items. For each, the test the judge suggested was written first
+and run against the code of `20cd685` (with `PYTHONDONTWRITEBYTECODE=1`): every one failed there,
+for the defect's reason, and passes after the fix. `make check` passed before each commit.
+
+| Defect | Severity | Fix | Test (fails at 20cd685) | Commit |
+|---|---|---|---|---|
+| S3-S2: publish trusted the provenance string: a fake-model run relabelled `local` and resealed was published | medium | `record.validate` refuses a run whose embedder or generator is a fake (provider fake, or a fake revision or digest) unless its provenance is fake; `publish` refuses any such run. The tests that publish now make honest local runs (the real cached embedder; the OpenAI-compatible adapter against the in-process stub) instead of relabelling fakes | `tests/retrieval/test_publish.py::test_a_fake_model_run_labelled_local_is_refused`, `::test_a_fake_chat_run_labelled_local_is_refused` (at 20cd685: no problem reported, the run published) | e628690 |
+| S3-J1: `citations_retrieved` could only be 1.000 (the validator withholds the answer before the check reads it) | medium | the check is now `model_citations_retrieved`: a trial fails it when the citation validator's event fired (the model's reply cited an unretrieved id); the blocked count stays; `validate` refuses a citations event on an answer that is not blocked | `tests/generation/test_citation_validator.py::test_the_record_counts_the_models_unretrieved_citations` (a FakeChat citing B-PWD@1.0/3/1: value below 1.0; at 20cd685 the metric did not exist and the old one read 1.000); `tests/retrieval/test_run_record.py::test_a_broken_generation_case_is_refused[a citations event on an ok answer...]` | e628690 |
+| S3-J2: SIGTERM or SIGKILL of the session left `ollama serve` running; the docs said "always" | medium | the session turns SIGTERM and SIGHUP into SystemExit, so its finally block unloads the model, stops the server and runs the postcheck (a server started before the signal is stopped too). SIGKILL cannot be caught: docs/LOCAL-MODEL.md says so, and the pid file makes the next `up` refuse until `make ollama-down`. "always stops it" removed from the docs, the config comment and the Makefile | `tests/unit/test_ollama_session.py::test_a_terminated_session_still_stops_the_server_and_runs_the_postcheck[SIGTERM]`, `[SIGHUP]` (a subprocess session whose runner signals itself; at 20cd685: exit -15 and -1, no output) | c7a354d |
+| S3-S1: a 500 carried no security headers (the middleware sits inside Starlette's error middleware) | medium | a catch-all exception handler answers a fixed 500 JSON body with every security header and logs the exception | `tests/api/test_api.py::test_a_server_error_carries_the_security_headers` (a FakeChat that raises; at 20cd685: a plain-text 500 without the headers) | 95b8cac |
+| S3-J3: the fake host ignored which port a check asked about | low | `FakeHost` records `(host, port)` | `tests/unit/test_ollama_session.py::test_the_preflight_and_the_postcheck_ask_about_the_configured_port` (it passes at 20cd685, whose code asks the right port; with the judge's sabotage, `port + 1` in the preflight, the old tests passed 22 and this test failed: "1 failed, 22 passed") | c7a354d |
+| S3-J4: a repeated citation was kept twice | low | the parser keeps each cited and conflict id once, in first-seen order | `tests/generation/test_prompt_snapshot.py::test_a_repeated_citation_is_kept_once` | 63c4485 |
+| S3-J5: the postcheck matched any command line naming "ollama" and relied on BSD pgrep leaving out the caller's ancestors | low | a process counts only when its executable's name is `ollama` | `tests/unit/test_ollama_session.py::test_only_the_ollama_executable_counts_as_an_ollama_process` (a `vim config/local-ollama.toml`, a `tail -f` of the log and the session's own raglab command are not ollama) | c7a354d |
+| S3-S3: error `reason` fields echoed adapter and parser text | low | `reason` is one of `raglab.api.app.REASONS`, a fixed vocabulary; the raw text goes to the server log (logger `raglab.api`) and, in a run, to the record's guard events and error field | `tests/api/test_api.py::test_an_error_reason_comes_from_a_fixed_vocabulary[script0-503]`, `[script1-502]` | 95b8cac |
+| S3-S4: `deploy/zap/scan.sh` made the report folder world-writable (`chmod 777`) | low | no chmod: the folder keeps the caller's mode (755 here) and Docker Desktop's file sharing lets ZAP's user write into it; a Linux host would chown it to ZAP's uid (noted in the script). Running ZAP as the caller's uid was tried and failed ("Failed to access summary file /tmp/zap_out.json"). `make zap` rerun: "FAIL-NEW: 0 ... WARN-NEW: 0 ... IGNORE: 3 PASS: 64" | `tests/unit/test_container.py::test_the_zap_script_makes_nothing_world_writable` | 3b66ea3 |
+
+At 20cd685 the new tests gave, in one run over the six files: "9 failed, 86 passed" (the S2, J1,
+S1, S3, J4, J5 and S4 tests), and separately the two signal tests failed (exit -15, exit -1). After
+the fixes `make check` passed with 954 tests at `3b66ea3`.
+
+**Info items, notes only (no code):**
+
+- **S3-J6, for S3h:** the container needs a writable `/tmp` (pytesseract writes its temporary
+  image there): with `docker run --read-only` it dies at start, with `--read-only --tmpfs /tmp` it
+  answers `/healthz` and `/ask` (the judge's run). A hosted deploy that sets a read-only root
+  filesystem must mount a tmpfs at `/tmp`.
+- **S3-S5, accepted:** the published-ids allowlist is scoped by path prefix (`runs/published/`),
+  not by validated record. Accepted with the judge's reasoning: only `publish` writes there, and
+  both ids are tenant A canaries, so R-16 still catches them in a tenant B answer
+  (`abstention_oracle`'s no_canary, `tests/e2e/test_e2e_fake.py`); the enumeration test refuses
+  a widened list.
+
+**Ledger corrections (the verdict's section 5).** Each corrected line, as it now reads:
+
+1. Security headers: "security headers on every response, a 500 included since fix round 1" (What
+   was built, API and page). Before fix round 1 a 500 had none (S3-S1); 200, 400, 401, 403, 404,
+   405, 413, 502 and 503 had them.
+2. The session's stop: "on success, on failure, on Ctrl-C (SIGINT), on `kill` (SIGTERM) and on a
+   closed terminal (SIGHUP). A SIGKILL cannot be caught: the server and a loaded model then stay
+   up (the model until the keep-alive ends), the postcheck does not run, and the pid file in
+   `runs/tmp/ollama/` makes the next `up` or session refuse until `make ollama-down` stops it"
+   (docs/LOCAL-MODEL.md); the AC15 scope above ("a postcheck after every session") holds for
+   every ending but SIGKILL.
+3. AC11's scan without rules: "without rules.tsv the same three Informational alerts count as
+   WARN: the judge's scan with the pinned image read "WARN-NEW: 3 ... PASS: 64"". The earlier
+   "0 WARN, 66 PASS" is withdrawn.
+4. `citations_retrieved 1.000 (0.867 to 1.000)` could not move (S3-J1); it is replaced by
+   `model_citations_retrieved`, which in the published run reads 0.973 (0.824 to 0.996).
+5. AC5: "1 passed, 13 deselected in 29.78s" at `3b66ea3`; the earlier "12 deselected" was from
+   an earlier commit of the test file.
+6. The postcheck's "no ollama process" now matches the ollama executable only (S3-J5), so it no
+   longer depends on BSD pgrep's ancestor exclusion; on Linux it would not count the session
+   itself.
+7. The memory margin: "It is the minimum that still runs on this Mac with Docker Desktop running:
+   the judge's preflight read 21.8 GiB available, exactly the 17.8 + 4 GiB needed" (Developer
+   choices, 1).
 
 ## Choices made in the build (for the review)
 
@@ -290,7 +355,7 @@ The orchestrator relayed that these stand as chosen.
 
 ## make check at the final commit
 
-With the published run committed: "941 passed, 1 deselected" (the live test); the gate "recall@5
-0.644 (n 22) passes: the threshold is the baseline 0.644
+After fix round 1, with the run of `3b66ea3` published: "954 passed, 1 deselected" (the live
+test); the gate "recall@5 0.644 (n 22) passes: the threshold is the baseline 0.644
 (20261006T172928Z-retrieval-dense-dev-5f1d3a0) minus one question (1/22), 0.598"; "api-smoke:
 passed"; the privacy check "0 hits across 235 files".
