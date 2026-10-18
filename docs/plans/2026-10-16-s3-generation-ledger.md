@@ -75,7 +75,7 @@ the same check was green again after the restore (the git status was clean at th
 | AC12 | needs CI; local evidence met | pr-fast step "API smoke (offline, fake model)" after the model fetch and the tests, `HF_HUB_OFFLINE=1`, `make api-smoke`; `tests/unit/test_workflow_rules.py::test_pr_fast_smoke_tests_the_api_offline_after_the_tests`; zizmor: no findings; locally four `ok` lines and "api-smoke: passed" | the step's `run` changed: 1 failed |
 | AC13 | met | `make check` as above (ruff, pyright strict, deptry, vulture, pip-audit, bandit, semgrep, zizmor, gitleaks, privacy, architecture); `tests/unit/test_architecture.py`: the factory may import the fakes, any other module may not (a planted import in a copy of the real tree fails), httpx outside adapters and FastAPI outside api fail | see AC1 |
 | AC14 | met; S3 `done` | TEST-PLAN R1, R4 and R7 name their tests (`tests/unit/test_test_plan.py` now requires it); traceability Test column for R-02, R-21, R-13 and R-16; docs/GUARDRAILS.md; docs/COMPATIBILITY.md "Tested against nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7d... on Ollama 0.40.6 on 2026-10-18"; ARCHITECTURE and README S3 `done` (AC9 published); CHANGELOG line; this ledger | n/a |
-| AC15 | met (added by the user, 2026-10-18) | `tests/unit/test_ollama_session.py` (22 tests, a fake host: the environment, the model size from its manifest, low memory, a registered service, a held port, no binary, an unpulled model, an old server, unload and stop, a server that will not stop, a leftover process, a session that succeeds, fails or is interrupted, a failed postcheck, the EPERM fallback); four live sessions and one probe session, each ending "postcheck passed: port closed, no ollama process, no model loaded"; since fix round 1 also SIGTERM and SIGHUP (judge S3-J2), the executable match (S3-J5) and the asked port (S3-J3) | with real OS reads, no server started: margin 100 GiB: "not enough memory: 26.7 GiB available, 117.8 GiB needed (model 17.8 GiB + margin 100 GiB)", exit 1; port 11434 held by `python3 -m http.server`: "127.0.0.1:11434 is already held by a process this project did not start", exit 1; `pgrep` found no ollama after either |
+| AC15 | met (added by the user, 2026-10-18) | `tests/unit/test_ollama_session.py` (22 tests, a fake host: the environment, the model size from its manifest, low memory, a registered service, a held port, no binary, an unpulled model, an old server, unload and stop, a server that will not stop, a leftover process, a session that succeeds, fails or is interrupted, a failed postcheck, the EPERM fallback); the four `make eval-local` sessions and the probe session, each ending "postcheck passed: port closed, no ollama process, no model loaded" (each ended normally). SIGTERM and SIGHUP (judge S3-J2): the evidence is the subprocess unit test with the fake host (`test_a_terminated_session_still_stops_the_server_and_runs_the_postcheck`); no live session has been ended by a signal, and the live demonstration is pending the judge. The executable match (S3-J5), the asked port (S3-J3) and the flushed lines (S3-J7): unit tests | with real OS reads, no server started: margin 100 GiB: "not enough memory: 26.7 GiB available, 117.8 GiB needed (model 17.8 GiB + margin 100 GiB)", exit 1; port 11434 held by `python3 -m http.server`: "127.0.0.1:11434 is already held by a process this project did not start", exit 1; `pgrep` found no ollama after either |
 
 ## The live run (AC9)
 
@@ -263,8 +263,10 @@ The orchestrator relayed that these stand as chosen.
 
 The judge (a separate clone, its scripts and logs in its own scratch space) found four medium and
 five low defects and three info items. For each, the test the judge suggested was written first
-and run against the code of `20cd685` (with `PYTHONDONTWRITEBYTECODE=1`): every one failed there,
-for the defect's reason, and passes after the fix. `make check` passed before each commit.
+and run against the code of `20cd685` (with `PYTHONDONTWRITEBYTECODE=1`): each failed there for
+the defect's reason, except S3-J3's, which passes at 20cd685 (that code asks the right port) and
+fails only under the judge's sabotage (`port + 1` in the preflight); all pass after the fix (fix
+round 2, correction 1). `make check` passed before each commit.
 
 | Defect | Severity | Fix | Test (fails at 20cd685) | Commit |
 |---|---|---|---|---|
@@ -319,11 +321,52 @@ the fixes `make check` passed with 954 tests at `3b66ea3`.
    the judge's preflight read 21.8 GiB available, exactly the 17.8 + 4 GiB needed" (Developer
    choices, 1).
 
+## Fix round 2 (the judge's round 1 re-check, 2026-10-18)
+
+The judge's re-check at `390aa63` confirmed eight round-1 items fixed (S3-J1, J3, J4, J5, S1, S2,
+S3, S4), found S3-J2 fixed in code and by its subprocess test with the live demonstration still
+owed (its trigger misfired on the buffered log, below), and one new low defect. The tally: 14 met,
+1 needs CI (AC12). The test was written first and run at `390aa63`, where it fails for the
+defect's reason; `make check` passed before each commit. No live session was run in this round,
+and the published run of `3b66ea3` stands: S3-J7 changes no record.
+
+| Defect | Severity | Fix | Test (fails at 390aa63) | Commit |
+|---|---|---|---|---|
+| S3-J7: the session's own lines were block-buffered off a terminal (`Session.say` defaulted to `print` without flush, and `raglab ollama` printed its postcheck line the same way), so under `make eval-local > log 2>&1` or CI they appeared only at exit, after the child commands' output and out of order, and a kill lost them; the judge's live SIGTERM trigger waited for such a line and fired after the session had ended | low | `say_now` prints flushed and is `Session.say`'s default; the postcheck lines in `raglab ollama` flush; `ollama-up`, `ollama-down`, `ollama-status` and `eval-local` set `PYTHONUNBUFFERED=1`; a note in docs/LOCAL-MODEL.md | `tests/unit/test_ollama_session.py::test_the_sessions_lines_reach_a_pipe_as_they_happen` (a session subprocess with stdout piped, the fake host and the default `say`, `PYTHONUNBUFFERED` removed from its environment; its runner marks a file and sleeps 2 s; at 390aa63: "no 'up' line within 1 s of the runner starting: b''"), `::test_the_makefile_session_targets_run_unbuffered` (at 390aa63 the ollama-up target had no `PYTHONUNBUFFERED=1`) | ab03be9 |
+
+At 390aa63 the two tests gave "2 failed, 26 deselected"; after the fix the session tests gave "28
+passed". **Break:** the flush removed from `say_now` in the committed file: "1 failed, 27 passed"
+(`test_the_sessions_lines_reach_a_pipe_as_they_happen`, "no 'up' line within 1 s of the runner
+starting: b''"); restored from git: "28 passed", the tree clean.
+
+**For the owed live check of S3-J2:** with the lines flushed, a trigger on the session's
+"session: uv run raglab eval ..." line now fires while the session runs; the judge's other
+suggestion, `pgrep -f "raglab eval --suite generation"`, does not depend on the log at all.
+
+**Ledger corrections (the re-check's section 6.4).** Each corrected line, as it now reads:
+
+1. Fix round 1's first paragraph: "each failed there for the defect's reason, except S3-J3's,
+   which passes at 20cd685 (that code asks the right port) and fails only under the judge's
+   sabotage (`port + 1` in the preflight); all pass after the fix".
+2. AC15's evidence: "SIGTERM and SIGHUP (judge S3-J2): the evidence is the subprocess unit test
+   with the fake host (`test_a_terminated_session_still_stops_the_server_and_runs_the_postcheck`);
+   no live session has been ended by a signal, and the live demonstration is pending the judge".
+3. Choices made in the build, 1: "fix round 1 renamed the check `citations_retrieved` to
+   `model_citations_retrieved` inside run-record v1, which is not additive ... That was acceptable
+   only because the record lived on this branch; a later rename of a v1 field needs run-record
+   v2".
+4. S3-J7 is the table above.
+
 ## Choices made in the build (for the review)
 
 1. **The schema's four retrieval case fields moved from `required` into `validate`** (by suite):
    a probe has no labels, and the subset validator has no conditional keywords. Every other
-   change to v1 is an added optional property; the three S2 runs validate unchanged.
+   change to v1 is an added optional property, with one exception: fix round 1 renamed the check
+   `citations_retrieved` to `model_citations_retrieved` inside run-record v1, which is not
+   additive (the plan promised that no reader of v1 breaks): it broke the one generation record
+   that existed (fa04154), which was removed from `runs/published/` and is listed as superseded.
+   That was acceptable only because the record lived on this branch; a later rename of a v1 field
+   needs run-record v2. The three S2 runs validate unchanged.
 2. **The stub server is in process** (httpx.MockTransport): the autouse no-network guard refuses
    every socket, including loopback. Tests marked `live` skip the guard on purpose.
 3. **The entitlement check lives in one place**, the tenant guard, so removing it fails the spoof
@@ -350,12 +393,13 @@ the fixes `make check` passed with 954 tests at `3b66ea3`.
 
 ## Still to do in this stage
 
-1. Verify: the judge re-runs the evidence and the breaks, and a `/security-review` pass.
+1. The live SIGTERM demonstration for S3-J2 (the judge, after fix round 2).
 2. CI on the PR: pr-fast green with the API smoke (AC12).
 
 ## make check at the final commit
 
-After fix round 1, with the run of `3b66ea3` published: "954 passed, 1 deselected" (the live
-test); the gate "recall@5 0.644 (n 22) passes: the threshold is the baseline 0.644
-(20261006T172928Z-retrieval-dense-dev-5f1d3a0) minus one question (1/22), 0.598"; "api-smoke:
-passed"; the privacy check "0 hits across 235 files".
+After fix round 2 (the run of `3b66ea3` still the published one): "956 passed, 1 deselected"
+(the live test); "0 architecture violations in src/raglab"; the gate "recall@5 0.644 (n 22)
+passes: the threshold is the baseline 0.644 (20261006T172928Z-retrieval-dense-dev-5f1d3a0) minus
+one question (1/22), 0.598"; "api-smoke: passed"; the privacy check "0 hits across 235 files".
+After fix round 1 it was "954 passed, 1 deselected".
