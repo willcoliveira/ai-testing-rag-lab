@@ -77,18 +77,19 @@ api-smoke:
 # (docs/LOCAL-MODEL.md). ollama-up and ollama-down are the manual pair; eval-local starts the server,
 # runs the live contract test and the generation suite, then stops it and runs the postcheck, also
 # on an error, Ctrl-C, SIGTERM or SIGHUP (a SIGKILL leaves it up: run make ollama-down).
+# PYTHONUNBUFFERED=1: every line (the session's and its commands') reaches a log as it happens.
 LOCAL_CONFIG := config/local-ollama.toml
 ollama-up:
-	uv run raglab ollama up --config $(LOCAL_CONFIG)
+	PYTHONUNBUFFERED=1 uv run raglab ollama up --config $(LOCAL_CONFIG)
 
 ollama-down:
-	uv run raglab ollama down --config $(LOCAL_CONFIG)
+	PYTHONUNBUFFERED=1 uv run raglab ollama down --config $(LOCAL_CONFIG)
 
 ollama-status:
-	uv run raglab ollama status --config $(LOCAL_CONFIG)
+	PYTHONUNBUFFERED=1 uv run raglab ollama status --config $(LOCAL_CONFIG)
 
 eval-local:
-	uv run raglab ollama session --config config/local-ollama.toml \
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config config/local-ollama.toml \
 		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
 		--run "uv run raglab eval --suite generation --config config/local-ollama.toml"
 

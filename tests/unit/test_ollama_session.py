@@ -409,3 +409,73 @@ def test_a_terminated_session_still_stops_the_server_and_runs_the_postcheck(tmp_
     assert out["running"] is False
     assert "postcheck passed: port closed, no ollama process, no model loaded" in out["said"]
     assert done.returncode != 0  # the session still ends as signalled
+
+
+PIPED_SESSION = """
+import sys, time
+from pathlib import Path
+sys.path.insert(0, {root!r})
+from tests.unit.test_ollama_session import FakeHost, local_config, pulled
+from raglab.runtime import ollama
+lab = Path({lab!r})
+pulled(lab)
+session = ollama.session_for(local_config(), lab, FakeHost(tmp=lab))
+marker = Path({marker!r})
+def runner(command):
+    marker.write_text("sleeping", encoding="utf-8")
+    time.sleep(2)
+    return 0
+sys.exit(session.run([["first"]], runner))
+"""
+
+
+def test_the_sessions_lines_reach_a_pipe_as_they_happen(tmp_path):
+    """Judge S3-J7: with stdout piped (a log file, CI), the session's own lines are flushed as
+    they are printed, not when the process exits. The session runs in a subprocess with the fake
+    host and the default say; its runner marks a file and sleeps 2 s; the "up" line must be
+    readable within 1 s of that mark, while the session still runs. PYTHONUNBUFFERED is removed
+    from the child's environment, so only the code's own flush can pass this."""
+    import os
+    import select
+    import subprocess
+    import sys
+    import time
+
+    marker = tmp_path / "sleeping"
+    script = PIPED_SESSION.format(root=str(ROOT), lab=str(tmp_path / "lab"), marker=str(marker))
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONUNBUFFERED"}
+    proc = subprocess.Popen(
+        [sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env
+    )
+    assert proc.stdout is not None
+    assert proc.stderr is not None
+    try:
+        deadline = time.monotonic() + 60
+        while not marker.exists():
+            assert proc.poll() is None, proc.stderr.read()
+            assert time.monotonic() < deadline, "the runner never started"
+            time.sleep(0.05)
+        seen = b""
+        until = time.monotonic() + 1.0
+        while b"ollama 0.40.6 up on http://127.0.0.1:11434" not in seen:
+            left = until - time.monotonic()
+            assert left > 0, f"no 'up' line within 1 s of the runner starting: {seen!r}"
+            ready, _, _ = select.select([proc.stdout], [], [], left)
+            if ready:
+                chunk = os.read(proc.stdout.fileno(), 65536)
+                assert chunk, f"the pipe closed before the 'up' line: {seen!r}"
+                seen += chunk
+        assert proc.poll() is None, "the line came only when the session ended"
+        assert b"memory: " in seen
+    finally:
+        proc.wait(timeout=60)
+    assert proc.returncode == 0
+
+
+def test_the_makefile_session_targets_run_unbuffered():
+    """Judge S3-J7: the session targets also set PYTHONUNBUFFERED=1, so the child commands'
+    output (the live test, the eval) interleaves with the session's lines in a log."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    for target in ("ollama-up", "ollama-down", "ollama-status", "eval-local"):
+        body = makefile.split(f"\n{target}:", 1)[1].split("\n\n", 1)[0]
+        assert "PYTHONUNBUFFERED=1 " in body, target

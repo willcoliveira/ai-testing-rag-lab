@@ -19,6 +19,9 @@ safely.
 
 `raglab ollama up|down|status|session --config config/local-ollama.toml` is the same from the CLI
 (`src/raglab/runtime/ollama.py`). The server's pid and log are in `runs/tmp/ollama/` (gitignored).
+The session flushes each of its lines, and the make targets set `PYTHONUNBUFFERED=1`, so a log of
+`make eval-local > log 2>&1` (or CI's) shows each line as it happens, in order with the commands'
+own output, and keeps the lines printed before a kill.
 
 ## Limits
 

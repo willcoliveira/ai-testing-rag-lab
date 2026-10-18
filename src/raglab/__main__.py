@@ -235,9 +235,11 @@ def ollama(args: argparse.Namespace) -> int:
         if args.action == "down":
             problems = session.down()
             for problem in problems:
-                print(f"POSTCHECK FAILED: {problem}", file=sys.stderr)
+                print(f"POSTCHECK FAILED: {problem}", file=sys.stderr, flush=True)
             if not problems:
-                print("postcheck passed: port closed, no ollama process, no model loaded")
+                print(
+                    "postcheck passed: port closed, no ollama process, no model loaded", flush=True
+                )
             return 1 if problems else 0
         if args.action == "status":
             print(json.dumps(session.status(), indent=2))

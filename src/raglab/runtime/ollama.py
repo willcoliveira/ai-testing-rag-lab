@@ -176,6 +176,12 @@ class Host:
         return Path(configured) if configured else Path.home() / ".ollama" / "models"
 
 
+def say_now(text: str) -> None:
+    """print, flushed: a session's lines reach a log file or a pipe as they happen, in order with
+    its child commands' output, and are not lost when the session is killed (judge S3-J7)."""
+    print(text, flush=True)
+
+
 @dataclass
 class Session:
     """One config's server: its settings, the model and where its pid and log live."""
@@ -184,7 +190,7 @@ class Session:
     model: str
     root: Path
     host: Host = field(default_factory=Host)
-    say: Callable[[str], None] = print
+    say: Callable[[str], None] = say_now
 
     @property
     def address(self) -> tuple[str, int]:
