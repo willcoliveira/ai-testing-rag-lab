@@ -4,6 +4,7 @@ and the provenance; cases.jsonl; and report.md generated from both. The validato
 record edited after the run (hashes, scores, results, report) and the schema validator refuses
 keywords it does not support."""
 
+import contextlib
 import json
 from datetime import UTC, datetime
 
@@ -256,3 +257,197 @@ def test_a_root_without_a_register_fails_closed(tmp_path):
     (root / "corpus" / "register.yaml").unlink()
     [problem] = record.validate(run_dir, root)
     assert problem.startswith("the register cannot be read, so the tenants are unchecked")
+
+
+# ---------------------------------------------------------------- S3 AC8: generation runs
+
+
+S2_RUNS = (
+    "20261006T172928Z-retrieval-dense-dev-5f1d3a0",
+    "20261006T172957Z-retrieval-hybrid-dev-5f1d3a0",
+    "20261006T173026Z-retrieval-dense-600-dev-5f1d3a0",
+)
+
+
+@pytest.mark.parametrize("run_id", S2_RUNS)
+def test_the_three_s2_runs_still_validate_under_the_extended_schema(run_id):
+    run_dir = ROOT / "runs" / "published" / run_id
+    assert record.validate(run_dir, ROOT) == []
+    manifest, _ = read_run(run_dir)
+    assert manifest["suite"] == "retrieval"
+    assert "generator" not in manifest
+
+
+def test_a_generation_run_writes_a_valid_record(tmp_path):
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root)
+    assert record.validate(run_dir, root) == []
+    manifest, cases = read_run(run_dir)
+    assert manifest["run_id"] == "20261018T120000Z-generation-fake-dev-0123456"
+    assert (manifest["suite"], manifest["provenance"], manifest["trials"]) == (
+        "generation",
+        "fake",
+        2,
+    )
+    assert manifest["prompt"]["version"] == "answer-v1"
+    assert manifest["guards"] == ["tenant", "input-limits", "citations"]
+    assert manifest["generator"]["model"] == "fake-echo"
+    assert manifest["intervals"] == {"method": "wilson", "level": 0.95, "unit": "case"}
+    assert "bootstrap" not in manifest
+    # four dev retrieval questions and one probe, two trials each
+    assert [(c["case_id"], c["trial"]) for c in cases] == [
+        (q, t) for q in ("Q1", "Q2", "Q3", "Q4", "P-01") for t in (1, 2)
+    ]
+    probe = cases[-1]
+    assert probe["kind"] == "probe"
+    assert "labels" not in probe
+    assert probe["must_not_appear"] == ["resets per day"]
+    metrics = manifest["results"]["metrics"]
+    assert set(metrics) == {
+        "status_ok",
+        "citations_retrieved",
+        "probe_abstention",
+        "citation_hit",
+        "pass^2",
+    }
+    assert metrics["probe_abstention"]["n"] == 1
+    assert metrics["citation_hit"]["n"] == 4
+    assert metrics["status_ok"]["value"] == 1.0
+    generation = manifest["results"]["generation"]
+    assert generation["probes"] == [
+        {
+            "case_id": "P-01",
+            "feature_ids": ["F-32"],
+            "tenant": "tenant-a",
+            "abstained": 0,
+            "trials": 2,
+        }
+    ]
+    assert generation["status_counts"]["ok"] == 10
+    report = (run_dir / record.REPORT).read_text(encoding="utf-8")
+    assert "it is not correctness" in report
+    assert all(c["answer"] not in report for c in cases if c["answer"])
+
+
+def _edit_case(run_dir, index, change):
+    """Edit one case and reseal the record (checks, results, report and hashes made to agree),
+    as a careful hand edit would."""
+    from raglab.evals import generation_record
+
+    manifest, cases = read_run(run_dir)
+    change(cases[index])
+    for case in cases:
+        if "checks" in case and all(f in case for f in ("status", "kind", "cited_ids", "conflict")):
+            with contextlib.suppress(KeyError):
+                case["checks"] = generation_record.case_checks(case)
+    with contextlib.suppress(KeyError, ValueError, TypeError):
+        manifest["results"] = record.expected_results(manifest, cases)
+    body = {k: v for k, v in manifest.items() if k != "files"}
+    cases_bytes = record.cases_text(cases).encode()
+    try:
+        report_bytes = record.render(body, cases).encode()
+    except (KeyError, ValueError, TypeError):
+        report_bytes = (run_dir / record.REPORT).read_bytes()
+    (run_dir / record.CASES).write_bytes(cases_bytes)
+    (run_dir / record.REPORT).write_bytes(report_bytes)
+    manifest["files"] = {
+        record.CASES: record.sha256_bytes(cases_bytes),
+        record.REPORT: record.sha256_bytes(report_bytes),
+    }
+    (run_dir / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+@pytest.mark.parametrize(
+    ("label", "change", "expected"),
+    [
+        ("no label", lambda c: c.pop("label"), "a generation case needs ['label']"),
+        ("no status", lambda c: c.pop("status"), "needs ['status']"),
+        ("no checks", lambda c: c.pop("checks"), "needs ['checks']"),
+        (
+            "unretrieved citation",
+            lambda c: c.update(cited_ids=["B-PWD@1.0/3/1"]),
+            "cites ids that were not retrieved: ['B-PWD@1.0/3/1']",
+        ),
+        (
+            "unretrieved conflict",
+            lambda c: c.update(conflict={"chunk_ids": ["A-MFA@1.0/4.1/1"], "note": "x"}),
+            "cites ids that were not retrieved",
+        ),
+        (
+            "text on a withheld answer",
+            lambda c: c.update(status="unavailable", label="abstain", cited_ids=[]),
+            "a unavailable answer is withheld",
+        ),
+        ("unknown label", lambda c: c.update(label="maybe"), "'maybe' is not one of"),
+        ("retrieval fields on a probe", lambda c: c.update(hit=1), "a probe case has no ['hit']"),
+    ],
+)
+def test_a_broken_generation_case_is_refused(tmp_path, label, change, expected):
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root)
+    index = -1 if "probe" in label else 0
+    _edit_case(run_dir, index, change)
+    problems = record.validate(run_dir, root)
+    assert any(expected in p for p in problems), (label, problems)
+
+
+def test_edited_checks_or_a_missing_trial_are_refused(tmp_path):
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root)
+    cases_path = run_dir / record.CASES
+    lines = cases_path.read_text(encoding="utf-8").splitlines()
+    case = json.loads(lines[0])
+    case["checks"]["passed"] = not case["checks"]["passed"]
+    cases_path.write_text("\n".join([json.dumps(case), *lines[1:]]) + "\n")
+    problems = record.validate(run_dir, root)
+    assert any("do not follow from the fields" in p for p in problems), problems
+    cases_path.write_text("\n".join(lines[1:]) + "\n")
+    problems = record.validate(run_dir, root)
+    assert any("case Q1: trials [2], not 1 to 2" in p for p in problems), problems
+
+
+def test_fields_of_one_suite_are_refused_in_the_other(tmp_path):
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    retrieval_dir = fake_run(root)
+    rewrite(retrieval_dir / record.MANIFEST, lambda m: m.update(guards=["tenant"]))
+    assert any("no generation fields" in p for p in record.validate(retrieval_dir, root))
+    generation_dir = fake_generation_run(root)
+    rewrite(generation_dir / record.MANIFEST, lambda m: m.pop("prompt"))
+    assert any(
+        "a generation run needs ['prompt']" in p for p in record.validate(generation_dir, root)
+    )
+
+
+def test_a_retrieval_case_without_its_scores_is_still_refused(tmp_path):
+    """The schema no longer requires the four retrieval fields (a probe has none); validate
+    requires them for every case of a retrieval run."""
+    root = lab_root(tmp_path)
+    run_dir = fake_run(root)
+    _edit_case(run_dir, 0, lambda c: c.pop("recall"))
+    problems = record.validate(run_dir, root)
+    assert any("a retrieval case needs ['recall']" in p for p in problems), problems
+
+
+def test_a_generation_answer_citing_another_tenants_chunk_is_refused(tmp_path):
+    """The register check (S2 judge D3) covers what a generation case cites: a tenant B chunk
+    cited by a tenant A case is refused even when it is also listed as retrieved."""
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root)
+
+    def cite_b(case):
+        case["retrieved"][0]["chunk_id"] = "B-PWD@1.0/3/1"
+        case["cited_ids"] = ["B-PWD@1.0/3/1"]
+
+    _edit_case(run_dir, 0, cite_b)
+    problems = record.validate(run_dir, root)
+    assert any("B-PWD@1.0/3/1 is tenant-b, which it cannot see" in p for p in problems), problems

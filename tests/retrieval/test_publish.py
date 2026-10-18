@@ -5,6 +5,7 @@ fake, invalid or private run is refused. And the no-regression gate against the 
 import json
 import shutil
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -198,3 +199,63 @@ def test_a_published_run_edited_to_show_another_tenants_chunk_is_refused(tmp_pat
     ]
     with pytest.raises(publish.PublishError, match=r"B-PWD@1\.0/3\.1/1 is tenant-b"):
         publish.publish(run_dir, ROOT, privacy=clean)
+
+
+# ---------------------------------------------------------------- S3: generation runs
+
+
+def test_a_fake_generation_run_is_never_published(tmp_path):
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root)
+    with pytest.raises(publish.PublishError, match="fake provenance"):
+        publish.publish(run_dir, root, privacy=clean)
+
+
+def test_a_partial_generation_run_is_never_published(tmp_path):
+    from tests.generation_support import (
+        fake_generation_run,
+        generation_config_text,
+        generation_root,
+    )
+
+    root = generation_root(tmp_path)
+    ticks = iter(range(0, 10_000, 100))
+    run_dir = fake_generation_run(
+        root,
+        config_text=generation_config_text(cap=250),
+        provenance="local",
+        monotonic=lambda: next(ticks),
+    )
+    with pytest.raises(publish.PublishError, match="is partial"):
+        publish.publish(run_dir, root, privacy=clean)
+
+
+def test_a_local_generation_run_is_published_with_its_model_in_the_index(tmp_path):
+    """The publishing mechanics only: a fake-made run labelled local."""
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root, provenance="local")
+    dest = publish.publish(run_dir, root, privacy=clean)
+    index: Any = publish.read_index(root / publish.PUBLISHED)
+    [entry] = index["runs"]
+    assert entry["run_id"] == dest.name
+    assert (entry["suite"], entry["generator"], entry["prompt"]) == (
+        "generation",
+        "fake-echo@fake",
+        "answer-v1",
+    )
+    assert "pass^2" in entry["metrics"]
+
+
+def test_compare_refuses_generation_runs(tmp_path):
+    from raglab.evals import compare
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    a = fake_generation_run(root)
+    b = fake_generation_run(root, when=datetime(2026, 10, 18, 13, 0, 0, tzinfo=UTC))
+    with pytest.raises(compare.CompareError, match="retrieval runs only"):
+        compare.compare(a, b, root)
