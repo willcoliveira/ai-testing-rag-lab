@@ -103,7 +103,11 @@ def echo_server(request: httpx.Request) -> httpx.Response:
 
 
 def small_assembled(
-    root: Path, chat: ChatModel | None = None, config_text: str | None = None, local: bool = False
+    root: Path,
+    chat: ChatModel | None = None,
+    config_text: str | None = None,
+    local: bool = False,
+    handler=None,
 ) -> tuple[eval_config.GenerationConfig, Assembled]:
     """The small pack's pipeline with the fake embedder and FakeChat, or (local=True) with the
     real local embedder and the OpenAI-compatible adapter against the in-process stub server: a
@@ -123,7 +127,7 @@ def small_assembled(
             temperature=1.0,
             max_tokens=256,
             timeout_s=5,
-            client=stub_client(stub_ollama(echo_server)),
+            client=stub_client(stub_ollama(handler or echo_server)),
         )
         built = assemble(
             config,
@@ -159,11 +163,12 @@ def fake_generation_run(
     when: datetime = datetime(2026, 10, 18, 12, 0, 0, tzinfo=UTC),
     monotonic=None,
     local: bool = False,
+    handler=None,
 ) -> Path:
     """A generation run record written under root/runs/tmp with the fake embedder and chat, or
     (local=True) a local run publish may accept. A given provenance overrides the label, so a
     test can forge a fake run's."""
-    config, built = small_assembled(root, chat, config_text, local)
+    config, built = small_assembled(root, chat, config_text, local, handler)
     if provenance is not None:
         built = Assembled(
             built.pipeline,

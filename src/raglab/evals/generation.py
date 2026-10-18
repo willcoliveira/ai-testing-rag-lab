@@ -3,9 +3,11 @@ probe (datasets/probes.s3.jsonl), each asked N times as its tenant through the p
 by the checks of raglab.evals.generation_record, and written as run record v1.
 
 Trial t of every case uses seed + t - 1, so the trials differ only where the model samples. The
-run stops early, and is marked partial, when its wall-clock cap (generation.run_timeout_s) is hit;
-a request that times out is status unavailable, and it marks the run partial too. A partial run is
-never published.
+run stops early, and is marked partial, when its wall-clock cap (generation.run_timeout_s) is hit.
+Any trial whose model gave no reply (status unavailable: a timeout, a connection error or an HTTP
+error) also marks the run partial, with the count in the manifest (judge S3-J10): a run with
+unanswered trials is never complete, and a partial run is never published. A reply outside the
+answer schema (invalid_output) does not: the model did answer.
 
 No model judges anything here: the checks are counts (S5 adds judged metrics). The abstention
 probes are scored by the named oracle `abstention_oracle` (raglab.evals.generation_record, where
@@ -21,7 +23,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import cast
 
-from raglab.core.types import ScoredChunk
+from raglab.core.types import ScoredChunk, Status
 from raglab.evals import generation_record, golden, record, retrieval
 from raglab.evals.config import GenerationConfig, canonical_sha256
 from raglab.evals.generation_record import abstention_oracle, policy_values
@@ -169,8 +171,13 @@ def run(
             cases.append(case)
         if stopped:
             break
-    if timed_out and not stopped:
-        stopped = f"{timed_out} request(s) timed out"
+    unavailable = sum(1 for case in cases if case["status"] == Status.UNAVAILABLE.value)
+    if unavailable:
+        reason = (
+            f"{unavailable} of {len(cases)} trial(s) unavailable, the model gave no reply "
+            f"({timed_out} timed out, {unavailable - timed_out} a connection or HTTP error)"
+        )
+        stopped = f"{stopped}; {reason}" if stopped else reason
     if not cases:
         raise golden.DatasetError(f"the run stopped before its first case: {stopped}")
     spec = config.retriever

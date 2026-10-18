@@ -37,7 +37,7 @@ Set in `config/local-ollama.toml` and recorded in every run's manifest (`ollama`
 | Free memory to start | the model's size on disk plus 4 GiB, against the memory macOS reports available (free, inactive and speculative pages from `vm_stat`) | `[ollama] memory_margin_gb` |
 | Per request | 120 s timeout; 1,024 completion tokens at most | `[generator] timeout_s`, `max_tokens` |
 | Sampling | temperature 1.0 and top_p 0.95, the model card's recommended settings (for reasoning on and off), with a seed per trial | `[generator] temperature`, `top_p`; `[generation] seed` |
-| Whole run | 3,600 s wall-clock cap; a run that hits it, or meets a request timeout, is marked `partial` and is never published | `[generation] run_timeout_s` |
+| Whole run | 3,600 s wall-clock cap; a run that hits it, or has any trial without a reply (a timeout, a connection error or an HTTP error: status `unavailable`), is marked `partial` and is never published | `[generation] run_timeout_s` |
 | Server version | at least 0.40.6 (0.40.4 refused the pinned model: "requires a newer version of Ollama") | `raglab.runtime.ollama.MIN_VERSION` |
 
 ## Guards

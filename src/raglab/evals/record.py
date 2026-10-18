@@ -386,6 +386,12 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
     if problems:
         return problems
     trials = cast(int, manifest["trials"])
+    unavailable = sum(1 for case in cases if case.get("status") == "unavailable")
+    if unavailable and not manifest["partial"]:  # judge S3-J10
+        problems.append(
+            f"{unavailable} trial(s) unavailable but partial is false: a run with unanswered "
+            "trials is never complete"
+        )
     try:
         canaries = answer_key.canaries(root)
     except (OSError, ValueError) as error:  # fails closed, as the register does

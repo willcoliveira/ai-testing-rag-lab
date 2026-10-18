@@ -285,3 +285,30 @@ def test_a_fake_chat_run_labelled_local_is_refused(tmp_path):
     assert any("generator.provider fake" in p for p in problems), problems
     with pytest.raises(publish.PublishError, match="fake"):
         publish.publish(run_dir, root, privacy=clean)
+
+
+# ---------------------------------------------------------------- S3 fix round 3 (judge S3-J10)
+
+
+def test_a_run_whose_model_never_answered_is_partial_and_never_published(tmp_path):
+    """A local run (the real embedder, the adapter against the stub server) whose every request
+    meets a connection error: every trial is unavailable, so the run is partial, with the count
+    in the manifest, and publish refuses it."""
+    import httpx
+
+    from tests.generation_support import fake_generation_run, generation_root
+
+    def refused(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root, local=True, handler=refused)
+    assert record.validate(run_dir, root) == []
+    manifest, cases = read_run(run_dir)
+    assert {c["status"] for c in cases} == {"unavailable"}
+    assert manifest["provenance"] == "local"
+    assert manifest["partial"] is True
+    assert manifest["results"]["generation"]["status_counts"]["unavailable"] == len(cases)
+    assert f"{len(cases)} of {len(cases)} trial(s) unavailable" in manifest["totals"]["stopped"]
+    with pytest.raises(publish.PublishError, match="is partial"):
+        publish.publish(run_dir, root, privacy=clean)

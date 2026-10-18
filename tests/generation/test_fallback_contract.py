@@ -136,7 +136,12 @@ def test_the_run_record_counts_every_status(tmp_path):
         assert case["answer"] == ""
         assert case["label"] == "abstain"
         assert case["error"]
-    assert manifest["partial"] is False  # an HTTP error is not a timeout
+    # any unanswered trial makes the run partial, whatever the cause (judge S3-J10)
+    assert manifest["partial"] is True
+    assert manifest["totals"]["stopped"] == (
+        "2 of 5 trial(s) unavailable, the model gave no reply (0 timed out, 2 a connection or "
+        "HTTP error)"
+    )
 
 
 def test_a_timeout_marks_the_run_partial(tmp_path):

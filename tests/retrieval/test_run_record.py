@@ -467,3 +467,33 @@ def test_a_generation_answer_citing_another_tenants_chunk_is_refused(tmp_path):
     _edit_case(run_dir, 0, cite_b)
     problems = record.validate(run_dir, root)
     assert any("B-PWD@1.0/3/1 is tenant-b, which it cannot see" in p for p in problems), problems
+
+
+def test_a_record_with_unavailable_trials_marked_complete_is_refused(tmp_path):
+    """Judge S3-J10: one trial without a reply (an HTTP error, not a timeout); the record, edited
+    to partial false and resealed, is refused."""
+    from raglab.adapters.fake import FakeChat, echo
+    from raglab.core.types import ChatUnavailable
+    from tests.generation_support import fake_generation_run, generation_root
+
+    calls: list[int] = []
+
+    def flaky(request):
+        calls.append(1)
+        if len(calls) == 1:
+            raise ChatUnavailable("HTTP 503 from /v1/chat/completions")
+        return echo(request)
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root, FakeChat(flaky))
+    manifest, cases = read_run(run_dir)
+    assert [c["status"] for c in cases].count("unavailable") == 1
+    manifest["partial"] = False
+    manifest["totals"].pop("stopped", None)
+    body = {k: v for k, v in manifest.items() if k != "files"}
+    report = record.render(body, cases).encode()
+    (run_dir / record.REPORT).write_bytes(report)
+    manifest["files"][record.REPORT] = record.sha256_bytes(report)
+    (run_dir / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
+    problems = record.validate(run_dir, root)
+    assert any("1 trial(s) unavailable but partial is false" in p for p in problems), problems
