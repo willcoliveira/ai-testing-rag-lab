@@ -41,7 +41,7 @@ CI.
 | `uv run raglab ask --config config/fake.toml --tenant tenant-a "How long must a password be?"` | One answer from the fake model, as JSON | Status `ok`, label `answer`, the retrieved chunks' text, and their ids in `cited_ids` |
 | `uv run raglab ask --config config/fake.toml --tenant shared "x"` | The tenant guard failing closed | Status `refused`, no answer, exit 1 |
 | `uv run raglab serve --config config/fake.toml` | The API and the page | http://127.0.0.1:8000/ asks as tenant A or B with the demo token |
-| `make api-smoke` | The API smoke test that pr-fast runs | Four `ok` lines, then `api-smoke: passed` |
+| `make api-smoke` | The API smoke test that pr-fast runs | Five `ok` lines (the last: the server stopped gracefully on SIGTERM, exit -15), then `api-smoke: passed` |
 | `uv run raglab eval --suite generation --config config/fake.toml` | A generation run record with the fake model | 25 cases, 75 case-trials; probe abstention 0 (the echo always answers) |
 | `make ollama-status` | Whether a local model server is up, and the memory available | No pid, port closed, no ollama process |
 | `make eval-local` | The live run on Ollama (needs Ollama and the pinned model; docs/LOCAL-MODEL.md) | The live contract test, the run record, then `postcheck passed` |
