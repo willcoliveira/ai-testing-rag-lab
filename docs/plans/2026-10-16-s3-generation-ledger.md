@@ -64,7 +64,7 @@ the same check was green again after the restore (the git status was clean at th
 | AC1 | met | `make architecture`: "0 architecture violations in src/raglab"; `tests/generation/test_answer_types.py` (8 tests: the ports are Protocols in core, the five Answer fields, a withheld answer carries no text, FakeChat in adapters/fake.py) | a planted `from raglab.adapters.fake import FakeChat` in `generate/pipeline.py`: "src/raglab/generate/pipeline.py:18: raglab.adapters.fake is built only by raglab.adapters.factory (provider fake) and the unit tests; no other module imports it" |
 | AC2 | met | `tests/generation/test_prompt_snapshot.py`: the assembled prompt equals `tests/snapshots/answer-v1.txt`; the fingerprint of `answer-v1` is recorded (96f42d9b...); a chunk holding `</chunk>`, `</CHUNK>` and `</question>` stays in one frame; no developer comments in the text | "1. Use only the passages." made "passage": 2 failed (snapshot, and "changed without a new VERSION") |
 | AC3 | met | `tests/generation/test_citation_validator.py`: a scripted FakeChat citing B-PWD@1.0/3/1 for a tenant A question is blocked (abstain, status blocked, the event names the id); a conflict id not retrieved is blocked; 120 random citation sets (6 small questions, each tenant, 10 each): every ok answer's citations are retrieved | `check_output` returns None: 4 failed, including the scripted unretrieved citation |
-| AC4 | met | `tests/generation/test_fallback_contract.py` (19 tests, the real adapter against an in-process stub of Ollama, httpx.MockTransport, no socket): read and connect timeouts, connection errors, HTTP 500, 503, 404, a non-JSON body, an empty completion, prose, a fenced reply, an unknown label, an empty answer and missing fields each give unavailable or invalid_output with no text; a run record counts them (`status_counts` unavailable 2, invalid_output 3); a timeout or the wall-clock cap marks the run partial | the parser made to strip a code fence: 1 failed (the fenced reply became an answer) |
+| AC4 | met | `tests/generation/test_fallback_contract.py` (19 tests, the real adapter against an in-process stub of Ollama, httpx.MockTransport, no socket): read and connect timeouts, connection errors, HTTP 500, 503, 404, a non-JSON body, an empty completion, prose, a fenced reply, an unknown label, an empty answer and missing fields each give unavailable or invalid_output with no text; a run record counts them (`status_counts` unavailable 2, invalid_output 3); a timeout or the wall-clock cap marks the run partial (since fix round 3, any unavailable trial does: judge S3-J10) | the parser made to strip a code fence: 1 failed (the fenced reply became an answer) |
 | AC5 | met | `tests/contract/test_chat_contract.py`: the shared contract against the stub (pr-fast) and, marker `live`, against Ollama 0.40.6 in `make eval-local`: "1 passed, 13 deselected in 29.78s" at `3b66ea3` (an earlier commit's file had 12 deselected; correction 5) (the reply parsed into an Answer, citations among the given ids, no reasoning text, tokens reported). A digest mismatch, an unpulled tag, a server that is down and a non-loopback URL refuse to start; the committed config with its digest replaced by the placeholder refuses to run ("refuses to start until the tag's digest is pinned"), and `raglab eval --suite generation` on it exits 1. Before the digest was pinned (commit `a3494f7`) the committed config itself refused | (the digest-mismatch and placeholder tests are the break) |
 | AC6 | met | `tests/generation/test_input_guards.py` and `tests/api/test_api.py`: over 500 characters, empty, U+0000, U+001B, U+202E, U+200B, U+E000, U+000D, U+007F refused (400) with 0 retriever calls; no tenant, null, empty, `shared`, unknown, a list, and the spoof (tenant-a-only token asking as tenant B) refused (403) with 0 retriever calls; no or unknown token 401 | the caller check in `guard/tenant.py` removed: 4 failed, among them `test_a_tenant_the_caller_may_not_use_is_403_and_never_retrieved[spoofed]` |
 | AC7 | met | `tests/e2e/test_e2e_fake.py`: the app built from config/fake.toml (real pack, real embedder, FakeChat echoing every chunk), all 22 dev questions asked as each tenant: no tenant B canary (all 16) in a tenant A answer or its citations, no tenant A canary (all 47) in a tenant B answer; positive control: each tenant's own canaries do appear | every tenant filter off (the store mask, both `check_visible` calls, the retrieved guard): 2 failed (both directions). Removing one layer alone (only the retrieved guard, say) does not leak, by design: the S2 store filter masks before ranking and `check_visible` checks on the way out, so the e2e test fails only when all of them go; each layer has its own test (S2 `test_tenant_filter.py`; `test_input_guards.py::test_another_tenants_chunk_after_retrieval_blocks_the_answer_before_the_model`) |
@@ -75,7 +75,7 @@ the same check was green again after the restore (the git status was clean at th
 | AC12 | needs CI; local evidence met | pr-fast step "API smoke (offline, fake model)" after the model fetch and the tests, `HF_HUB_OFFLINE=1`, `make api-smoke`; `tests/unit/test_workflow_rules.py::test_pr_fast_smoke_tests_the_api_offline_after_the_tests`; zizmor: no findings; locally four `ok` lines and "api-smoke: passed" | the step's `run` changed: 1 failed |
 | AC13 | met | `make check` as above (ruff, pyright strict, deptry, vulture, pip-audit, bandit, semgrep, zizmor, gitleaks, privacy, architecture); `tests/unit/test_architecture.py`: the factory may import the fakes, any other module may not (a planted import in a copy of the real tree fails), httpx outside adapters and FastAPI outside api fail | see AC1 |
 | AC14 | met; S3 `done` | TEST-PLAN R1, R4 and R7 name their tests (`tests/unit/test_test_plan.py` now requires it); traceability Test column for R-02, R-21, R-13 and R-16; docs/GUARDRAILS.md; docs/COMPATIBILITY.md "Tested against nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7d... on Ollama 0.40.6 on 2026-10-18"; ARCHITECTURE and README S3 `done` (AC9 published); CHANGELOG line; this ledger | n/a |
-| AC15 | met (added by the user, 2026-10-18) | `tests/unit/test_ollama_session.py` (22 tests, a fake host: the environment, the model size from its manifest, low memory, a registered service, a held port, no binary, an unpulled model, an old server, unload and stop, a server that will not stop, a leftover process, a session that succeeds, fails or is interrupted, a failed postcheck, the EPERM fallback); the four `make eval-local` sessions and the probe session, each ending "postcheck passed: port closed, no ollama process, no model loaded" (each ended normally). SIGTERM and SIGHUP (judge S3-J2): the evidence is the subprocess unit test with the fake host (`test_a_terminated_session_still_stops_the_server_and_runs_the_postcheck`); no live session has been ended by a signal, and the live demonstration is pending the judge. The executable match (S3-J5), the asked port (S3-J3) and the flushed lines (S3-J7): unit tests | with real OS reads, no server started: margin 100 GiB: "not enough memory: 26.7 GiB available, 117.8 GiB needed (model 17.8 GiB + margin 100 GiB)", exit 1; port 11434 held by `python3 -m http.server`: "127.0.0.1:11434 is already held by a process this project did not start", exit 1; `pgrep` found no ollama after either |
+| AC15 | met (added by the user, 2026-10-18) | `tests/unit/test_ollama_session.py` (22 tests, a fake host: the environment, the model size from its manifest, low memory, a registered service, a held port, no binary, an unpulled model, an old server, unload and stop, a server that will not stop, a leftover process, a session that succeeds, fails or is interrupted, a failed postcheck, the EPERM fallback); the four `make eval-local` sessions and the probe session, each ending "postcheck passed: port closed, no ollama process, no model loaded" (each ended normally). SIGTERM and SIGHUP (judge S3-J2): the subprocess unit test with the fake host (`test_a_terminated_session_still_stops_the_server_and_runs_the_postcheck`), and the judge's two live sessions of round 2 (a SIGTERM to the session, and a group SIGTERM to make's group), each ending "stopped the server" and the postcheck (the verdict's 7.4); none of the developer's sessions was ended by a signal. The executable match (S3-J5), the asked port (S3-J3) and the flushed lines (S3-J7): unit tests. Since fix round 3, a second signal during the stop (S3-J8), the command's process tree (S3-J11) and the stop ending on the server's exit (S3-J9): unit tests, and one live start-and-stop session whose stop took 0.56 s | with real OS reads, no server started: margin 100 GiB: "not enough memory: 26.7 GiB available, 117.8 GiB needed (model 17.8 GiB + margin 100 GiB)", exit 1; port 11434 held by `python3 -m http.server`: "127.0.0.1:11434 is already held by a process this project did not start", exit 1; `pgrep` found no ollama after either |
 
 ## The live run (AC9)
 
@@ -258,6 +258,12 @@ The orchestrator relayed that these stand as chosen.
 3. **`totals.cases` counts case-trials** (75); `dataset.questions` counts distinct cases (25).
 4. **compare refuses generation runs** until S4 defines a paired generation comparison.
 5. **The demo tokens are literals in config** (`demo`, `tenant-a-only`), labelled lab practice.
+6. **Any `unavailable` trial makes a run partial** (fix round 3, S3-J10), whatever the cause: a
+   timeout, a connection error or an HTTP error. A run with unanswered trials is then never a
+   complete record and never published. `invalid_output` does not, because the model did answer
+   (the reply is counted against it instead).
+7. **A session command's process group gets 5 s after SIGTERM** (`COMMAND_GRACE_S`, fix round 3,
+   S3-J11), then SIGKILL.
 
 ## Fix round 1 (the judge's verdict, 2026-10-18)
 
@@ -357,6 +363,68 @@ suggestion, `pgrep -f "raglab eval --suite generation"`, does not depend on the 
    v2".
 4. S3-J7 is the table above.
 
+## Fix round 3 (the user's go, 2026-10-18)
+
+The user's go, verbatim (2026-10-18): "Round 3, all four (Recommended)". The repo's stage loop
+allows two fix rounds without asking; this third round is the user's.
+
+The judge's round 2 re-check at `4b9af7f` (the verdict's section 7) found S3-J7 fixed,
+demonstrated S3-J2 live (a SIGTERM to the session, and a group SIGTERM to make's group: both
+sessions ended "stopped the server" and the postcheck, the server gone in 0.36 s), and filed four
+new defects, two medium and two low. Each test below was written first and run at `4b9af7f`,
+where it fails for the defect's reason: "8 failed" for the session tests (S3-J8 three, S3-J11
+two, S3-J9 three) and "2 failed" for the S3-J10 tests. The fixes went in the order the
+coordinator set (S3-J8, S3-J11, then S3-J9, then S3-J10), one commit each, with `make check`
+passing before each; each fix was then broken in its committed file, its test went red, and
+`git checkout` restored it.
+
+| Defect | Severity | Fix | Test (fails at 4b9af7f) | Commit |
+|---|---|---|---|---|
+| S3-J8: a second signal during the stop (Ctrl-C pressed twice, a SIGTERM forwarded by uv and make) aborted it: the server stayed up, the pid file stayed, the postcheck never ran | medium | the first stop signal switches SIGINT, SIGTERM and SIGHUP to a handler that only says "a second signal (...) arrived; the stop continues", for the whole stop and in the path for a signal during `up`; the handlers in place before the session are restored after it. The stop is bounded (the command group's 5 s, each unload call's 30 s, the server's 15 s grace, then SIGKILL): a comment in the code and docs/LOCAL-MODEL.md say so | `tests/unit/test_ollama_session.py::test_a_second_signal_during_the_stop_does_not_abort_it[SIGTERM-SIGTERM]`, `[SIGINT-SIGINT]`, `[SIGHUP-SIGHUP]` (a session subprocess with a 2 s unload, signalled twice 1 s apart; asserts the server's SIGTERM, the server not running, the postcheck line, the pid file gone and the second signal said; at 4b9af7f "assert 15 in []": the server never got SIGTERM) | e598a02 |
+| S3-J11: a signal to the session alone orphaned the command's python (`subprocess.run` SIGKILLs the uv wrapper only), which ran the suite against the stopped server | low | each session command runs with `start_new_session=True` and no stdin; on any interruption its group gets SIGTERM, then SIGKILL after 5 s (the EPERM fallback kept), before `down()`; a terminal's Ctrl-C reaches the session, which stops the group | `tests/unit/test_ollama_session.py::test_a_signal_to_the_session_ends_the_commands_whole_process_tree[SIGTERM]`, `[SIGINT]` (a command that starts a grandchild `sleep 30`; at 4b9af7f "the command's grandchild sleep ... survived the session") | 24be98c |
+| S3-J9: every stop waited the full 15 s grace, then sent SIGKILL to a zombie: the exited server was never reaped, and `kill(pid, 0)` finds a zombie | low | the host keeps the servers it started and `Host.exited` reaps them (`poll`); any other child is reaped with `waitpid`, and a server that is not this process's child (`make ollama-down` after `make ollama-up`) makes `waitpid` raise `ChildProcessError`, so `kill(pid, 0)` decides; `down()` waits on `exited()` | `test_a_stop_ends_when_the_server_has_exited` (the judge's zombie-modelling fake host: at 4b9af7f "assert 31 <= 2", 31 sleeps and a SIGKILL), `test_our_own_server_child_counts_as_exited_once_reaped` (a real child: the zombie still answers `kill 0`, `exited` reaps it), `test_a_server_that_is_not_our_child_is_judged_by_kill_0` (a real orphan); the last two failed at 4b9af7f on the missing `exited` | 229006a |
+| S3-J10: a run whose model never answered (connection errors: the judge's orphaned eval, 75 of 75 unavailable) was a complete, valid, publishable record: only a timeout or the cap marked a run partial | medium | any `unavailable` trial marks the run partial, whatever the cause, with the count in `totals.stopped` ("N of M trial(s) unavailable, the model gave no reply (T timed out, C a connection or HTTP error)") and in `status_counts`; `invalid_output` does not (Developer choices, 6); `record.validate` refuses unavailable trials with `partial: false`; publish refuses partial runs (unchanged). The published `3b66ea3` run has 0 unavailable trials and still validates | `tests/retrieval/test_publish.py::test_a_run_whose_model_never_answered_is_partial_and_never_published` (a local run against the stub server, a connection error on every request; at 4b9af7f "assert False is True": not partial, so publishable), `tests/retrieval/test_run_record.py::test_a_record_with_unavailable_trials_marked_complete_is_refused` (at 4b9af7f: no problem reported) | 22af8f4 |
+
+**Breaks (each in the committed file, restored from git):** S3-J8, the late-signal handler made
+to raise as before: "3 failed, 28 passed" (the three pairs) / "31 passed". S3-J11, the stop made
+to kill the command itself only: "2 failed, 31 passed" / "33 passed", no sleep left. S3-J9, the
+stop waiting on `pid_alive` again: "1 failed, 35 passed" ("assert 31 <= 2") / "36 passed". S3-J10,
+(a) the run's marking off: "3 failed, 18 passed" (the publish test and the two fallback tests that
+now expect partial runs), and (b) the validator's rule off: "1 failed, 20 passed" (the
+hand-edited record) / "21 passed".
+
+**A changed expectation.** `tests/generation/test_fallback_contract.py::test_the_run_record_counts_every_status`
+now expects `partial: true` for its two HTTP-error trials (it expected false, "an HTTP error is
+not a timeout"), with the message "2 of 5 trial(s) unavailable, the model gave no reply (0 timed
+out, 2 a connection or HTTP error)". The fallback contract row of docs/GUARDRAILS.md and the
+whole-run limit of docs/LOCAL-MODEL.md say the same.
+
+**Found on the way: onnxruntime 1.30.0 aborts at exit on this Mac.** With the S3-J8 tests, the
+session test file ran about 10 s, and its standalone run then ended with "31 passed" followed by
+"libc++abi: terminating due to uncaught exception of type std::__1::system_error: recursive_mutex
+lock failed: Invalid argument" and exit 134, in 4 of 5 runs. The cause is outside this code: a
+bare `import onnxruntime` followed by `time.sleep(10)` aborts the same way in 5 of 5 runs, and in
+0 of 3 at each of 0, 1, 3 and 6 s; with a real session and 10 s, 2 of 3. In this file only the
+manifest test imports onnxruntime (through the adapters' factory); with that test run last, 4 of
+4 runs exited cleanly. It now runs in a short subprocess, which keeps onnxruntime out of the
+file's process: 4 of 4 standalone runs then exited 0 ("31 passed"). The full `make check` never
+showed the abort, before or after (every run in this stage exited 0). Another standalone run of a
+file that imports onnxruntime and then runs about 10 s more may still abort after it has reported
+its result: a note for the next onnxruntime upgrade (Dependabot).
+
+**The live check (allowed in this round, through the project's lifecycle only).** At `22af8f4`,
+2026-10-18 18:07 UTC: `uv run raglab ollama session --config config/local-ollama.toml --run
+"true"`, each line timestamped: "memory: 29.5 GiB available; the model needs 17.8 GiB plus a
+margin of 4 GiB" (+0.000 s), "ollama 0.40.6 up on http://127.0.0.1:11434 (pid 92636, ...)" and
+"session: true" (+0.522 s), "stopped the server (pid 92636)" (+1.046 s), "postcheck passed: port
+closed, no ollama process, no model loaded" (+1.083 s), exit 0. **The stop, from the command's
+end to the postcheck, took 0.56 s** (the judge's round 2 sessions ended 16.6 s after the server
+did, the grace spent on a zombie). No model was loaded (no request was made). Afterwards: no
+ollama process (`pgrep -fl ollama` empty), port 11434 closed (`lsof` empty, `curl /api/ps` exit
+7, refused), `runs/tmp/ollama/` holds only `serve.log`; memory available 29.5 GiB before and
+after. No `make eval-local` was run in this round, and the published run of `3b66ea3` stands
+(S3-J10 changes how a run with unavailable trials is recorded; that run has none).
+
 ## Choices made in the build (for the review)
 
 1. **The schema's four retrieval case fields moved from `required` into `validate`** (by suite):
@@ -393,13 +461,15 @@ suggestion, `pgrep -f "raglab eval --suite generation"`, does not depend on the 
 
 ## Still to do in this stage
 
-1. The live SIGTERM demonstration for S3-J2 (the judge, after fix round 2).
-2. CI on the PR: pr-fast green with the API smoke (AC12).
+1. CI on the PR: pr-fast green with the API smoke (AC12).
+
+The live SIGTERM demonstration for S3-J2 is done: the judge's round 2 re-check (the verdict's 7.4).
 
 ## make check at the final commit
 
-After fix round 2 (the run of `3b66ea3` still the published one): "956 passed, 1 deselected"
+After fix round 3 (the run of `3b66ea3` still the published one): "966 passed, 1 deselected"
 (the live test); "0 architecture violations in src/raglab"; the gate "recall@5 0.644 (n 22)
 passes: the threshold is the baseline 0.644 (20261006T172928Z-retrieval-dense-dev-5f1d3a0) minus
-one question (1/22), 0.598"; "api-smoke: passed"; the privacy check "0 hits across 235 files".
-After fix round 1 it was "954 passed, 1 deselected".
+one question (1/22), 0.598"; "api-smoke: passed"; the privacy check "0 hits across 235 files"; no
+abort at exit. After fix round 1 it was "954 passed, 1 deselected", after fix round 2 "956
+passed".
