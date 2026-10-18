@@ -6,6 +6,8 @@
 # `ollama pull nemotron-3.5-lightning:30b-a3b-mlx`, copy the model's "digest" from the server's
 # /api/tags (curl -s http://127.0.0.1:11434/api/tags) into generator.digest below. Until then the
 # config refuses to run, and the adapter refuses a server whose copy of the tag has another digest.
+# Pinned 2026-10-18 from /api/tags after the pull on Ollama 0.40.6 (19072744624 bytes on disk,
+# format safetensors, runner mlx); 0.40.4 refused this model ("requires a newer version").
 # Read by raglab.evals.config.load_generation (strict: an unknown or missing key stops the run).
 name = "generation-local-ollama"
 suite = "generation"
@@ -30,7 +32,7 @@ k = 5
 [generator]
 provider = "openai-compat"
 model = "nemotron-3.5-lightning:30b-a3b-mlx"
-digest = "fill in from /api/tags after ollama pull"
+digest = "d1e17d7dabacb401dec6440b4ec987ea053b9568b01f89fb3d54f8b2e71397be"
 base_url = "http://127.0.0.1:11434"
 temperature = 0.2
 max_tokens = 1024
