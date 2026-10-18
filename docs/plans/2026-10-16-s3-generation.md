@@ -3,7 +3,7 @@ stage: S3
 name: generation
 nodes: [S3]
 date: 2026-10-16
-status: awaiting approval
+status: approved 2026-10-18
 ---
 
 # S3: Generation, a local live run, the API, a web page and a local container
@@ -177,4 +177,6 @@ when it is pulled, and the plan waits for the changes.
 
 ## Approval
 
-Pending: the changes asked for on 2026-10-16.
+The plan came back unchanged on 2026-10-18 and was approved. The answer, verbatim: "Approve and
+start". The developer builds the offline criteria first, then AC10 and AC11 (Docker is running),
+and AC9 once Ollama is installed and the generator is pulled.
