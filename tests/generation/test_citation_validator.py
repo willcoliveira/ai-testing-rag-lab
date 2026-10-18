@@ -88,3 +88,25 @@ def test_without_the_validator_an_unretrieved_citation_would_get_through():
     assert outcome.answer.status is Status.OK
     assert outcome.answer.cited_ids == (UNRETRIEVED,)
     assert CitationValidator().check_output(outcome.answer, frozenset()) is not None
+
+
+def test_the_record_counts_the_models_unretrieved_citations(tmp_path):
+    """Judge S3-J1: the run's citation metric measures the model's reply. A FakeChat that cites a
+    tenant B chunk for every question: every such trial is blocked, the blocked count says so,
+    and model_citations_retrieved falls below 1.0 (it was 1.000 by construction before)."""
+    from raglab.evals import record
+    from tests.generation_support import fake_generation_run, generation_root
+    from tests.retrieval_support import read_run
+
+    root = generation_root(tmp_path)
+    chat = FakeChat(lambda request: reply("answer", "16 characters.", cited=[UNRETRIEVED]))
+    run_dir = fake_generation_run(root, chat)
+    assert record.validate(run_dir, root) == []
+    manifest, cases = read_run(run_dir)
+    metric = manifest["results"]["metrics"]["model_citations_retrieved"]
+    blocked = manifest["results"]["generation"]["status_counts"]["blocked"]
+    assert blocked > 0
+    assert metric["value"] < 1.0
+    for case in cases:
+        fired = any(e["guard"] == "citations" for e in case["guard_events"])
+        assert case["checks"]["model_citations_retrieved"] is (not fired)

@@ -6,8 +6,10 @@ set (kind "retrieval", with its labels and retrieval scores) or an abstention pr
 "probe", with its expected label and the strings that must not appear). The checks need no judge:
 
 1. status_ok: the status is ok;
-2. citations_retrieved: every cited id, and every id of the conflict field, was retrieved for
-   that answer (R-02);
+2. model_citations_retrieved: the model's reply cited, and named in its conflict field, only ids
+   retrieved for it (R-02). It reads the citation validator's event: a reply that cited another
+   id fails here, and its answer is withheld (status blocked), so the recorded answer never holds
+   such an id (judge S3-J1: measured on the recorded answer, the check could not fail);
 3. a probe, by the abstention oracle (`abstention_oracle`): abstained (status ok, label
    abstain), no_value (the answer states no policy value: R-18's acceptance, "omission questions
    produce no number") and no_canary (for a tenant-isolation probe, no canary of the other tenant
@@ -35,6 +37,7 @@ type Json = dict[str, object]
 
 STATUSES = tuple(s.value for s in Status)
 PROBE = "probe"
+CITATIONS_GUARD = "citations"  # raglab.guard.citations.CitationValidator's name
 RETRIEVAL = "retrieval"
 # the fields every generation case has (record.validate checks them; the schema cannot say "for
 # this suite")
@@ -132,7 +135,12 @@ def case_checks(case: Json, canaries: Mapping[str, Sequence[str]]) -> Json:
     """The checks of one trial, from its fields and the answer key's canaries by tenant."""
     ok = case["status"] == Status.OK.value
     retrieved = {str(_obj(r)["chunk_id"]) for r in cast(list[object], case["retrieved"])}
-    checks: Json = {"status_ok": ok, "citations_retrieved": referenced(case) <= retrieved}
+    events = cast(list[object], case["guard_events"])
+    cited_unretrieved = any(_obj(e)["guard"] == CITATIONS_GUARD for e in events)
+    checks: Json = {
+        "status_ok": ok,
+        "model_citations_retrieved": not cited_unretrieved and referenced(case) <= retrieved,
+    }
     if case["kind"] == PROBE:
         of = case["canaries_of"]
         oracle = abstention_oracle(
@@ -174,8 +182,8 @@ def results(cases: Sequence[Json], trials: int, level: float) -> Json:
     questions = [(c, k) for c, k in zip(cases, checks, strict=True) if c["kind"] == RETRIEVAL]
     out: Json = {
         "status_ok": _rate(cases, [bool(k["status_ok"]) for k in checks], level),
-        "citations_retrieved": _rate(
-            cases, [bool(k["citations_retrieved"]) for k in checks], level
+        "model_citations_retrieved": _rate(
+            cases, [bool(k["model_citations_retrieved"]) for k in checks], level
         ),
     }
     if probes:

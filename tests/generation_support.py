@@ -8,17 +8,18 @@ from pathlib import Path
 
 import httpx
 
-from raglab.adapters.fake import FakeChat, HashingEmbedder
+from raglab.adapters import factory
+from raglab.adapters.fake import FakeChat, HashingEmbedder, echo
 from raglab.chunk.sections import ChunkSettings
 from raglab.core.ports import ChatModel, Guardrail, Retriever
-from raglab.core.types import ScoredChunk
+from raglab.core.types import ChatMessage, ChatRequest, ScoredChunk
 from raglab.evals import config as eval_config
 from raglab.evals import generation, record
 from raglab.generate.assemble import Assembled, assemble
 from raglab.generate.pipeline import Pipeline
 from raglab.guard import default_guards
 from raglab.ingest.pipeline import Inventory
-from tests.retrieval_support import GIT, PACK, dense, lab_root
+from tests.retrieval_support import GIT, PACK, dense, lab_root, local_embedder
 
 TOKENS = {"demo": frozenset({"tenant-a", "tenant-b"}), "tenant-a-only": frozenset({"tenant-a"})}
 DIGEST = "a" * 64
@@ -94,27 +95,58 @@ def generation_root(tmp_path: Path, probes: list[dict] | None = None) -> Path:
     return root
 
 
+def echo_server(request: httpx.Request) -> httpx.Response:
+    """The stub server's chat endpoint answering as FakeChat's echo would."""
+    body = json.loads(request.content)
+    user = ChatRequest((ChatMessage("user", body["messages"][-1]["content"]),), "s", {}, 0)
+    return completion(echo(user))
+
+
 def small_assembled(
-    root: Path, chat: ChatModel | None = None, config_text: str | None = None
+    root: Path, chat: ChatModel | None = None, config_text: str | None = None, local: bool = False
 ) -> tuple[eval_config.GenerationConfig, Assembled]:
+    """The small pack's pipeline with the fake embedder and FakeChat, or (local=True) with the
+    real local embedder and the OpenAI-compatible adapter against the in-process stub server: a
+    run publish may accept (its provenance is local, and no model field is fake)."""
     path = root / "config" / "generation.toml"
     path.parent.mkdir(exist_ok=True)
     path.write_text(config_text or generation_config_text(), encoding="utf-8")
     config = eval_config.load_generation(path, root)
-    embedder = HashingEmbedder()
-    description = {
+    inventory = Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(PACK))
+    if local:
+        embedder, description = local_embedder()
+        model, chat_description, provenance = factory.chat(
+            "openai-compat",
+            "stub-model:1b",
+            digest=DIGEST,
+            base_url="http://127.0.0.1:11434",
+            temperature=1.0,
+            max_tokens=256,
+            timeout_s=5,
+            client=stub_client(stub_ollama(echo_server)),
+        )
+        built = assemble(
+            config,
+            root,
+            embedder=(embedder, description, "local"),
+            chat=(model, chat_description, provenance),
+            inventory=inventory,
+        )
+        return config, built
+    hashing = HashingEmbedder()
+    fake_description = {
         "provider": "fake",
-        "model": embedder.model,
-        "revision": embedder.revision,
-        "dimension": embedder.dimension,
+        "model": hashing.model,
+        "revision": hashing.revision,
+        "dimension": hashing.dimension,
     }
-    model = chat or FakeChat()
+    fake_model = chat or FakeChat()
     built = assemble(
         config,
         root,
-        embedder=(embedder, description, "fake"),
-        chat=(model, model.describe(), "fake"),
-        inventory=Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(PACK)),
+        embedder=(hashing, fake_description, "fake"),
+        chat=(fake_model, fake_model.describe(), "fake"),
+        inventory=inventory,
     )
     return config, built
 
@@ -126,9 +158,12 @@ def fake_generation_run(
     provenance: str | None = None,
     when: datetime = datetime(2026, 10, 18, 12, 0, 0, tzinfo=UTC),
     monotonic=None,
+    local: bool = False,
 ) -> Path:
-    """A generation run record written under root/runs/tmp with the fake embedder and chat."""
-    config, built = small_assembled(root, chat, config_text)
+    """A generation run record written under root/runs/tmp with the fake embedder and chat, or
+    (local=True) a local run publish may accept. A given provenance overrides the label, so a
+    test can forge a fake run's."""
+    config, built = small_assembled(root, chat, config_text, local)
     if provenance is not None:
         built = Assembled(
             built.pipeline,

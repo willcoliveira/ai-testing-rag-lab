@@ -19,7 +19,7 @@ first local run (S3 ledger) are S4's and S5's starting point.
 
 | Metric | Gate | Threshold | Reason |
 |---|---|---|---|
-| status_ok, citations_retrieved, probe_abstention, citation_hit, pass^3 (Wilson intervals at n = cases) | reported | none | One local run on 25 cases; S4 adds the behaviour cases and the consistency gate, S5 the judged metrics. A citation hit is not correctness, and citation_hit cannot exceed retrieval's hit@5 |
+| status_ok, model_citations_retrieved, probe_abstention, citation_hit, pass^3 (Wilson intervals at n = cases) | reported | none | One local run on 25 cases; S4 adds the behaviour cases and the consistency gate, S5 the judged metrics. A citation hit is not correctness, and citation_hit cannot exceed retrieval's hit@5 |
 | Citation integrity (R-02) | enforced in code, not by a threshold | every cited id was retrieved | The citation validator blocks any other answer, and the run record refuses a case that cites an unretrieved id |
 | Latency p50, p95 and tokens | reported | none | Q-01 and Q-02 get their baselines in S5 |
 

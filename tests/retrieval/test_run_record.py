@@ -306,7 +306,7 @@ def test_a_generation_run_writes_a_valid_record(tmp_path):
     assert probe["canaries_of"] is None
     assert set(probe["checks"]) == {
         "status_ok",
-        "citations_retrieved",
+        "model_citations_retrieved",
         "abstained",
         "no_value",
         "no_canary",
@@ -315,7 +315,7 @@ def test_a_generation_run_writes_a_valid_record(tmp_path):
     metrics = manifest["results"]["metrics"]
     assert set(metrics) == {
         "status_ok",
-        "citations_retrieved",
+        "model_citations_retrieved",
         "probe_abstention",
         "citation_hit",
         "pass^2",
@@ -391,6 +391,13 @@ def _edit_case(run_dir, index, change):
         ),
         ("unknown label", lambda c: c.update(label="maybe"), "'maybe' is not one of"),
         ("retrieval fields on a probe", lambda c: c.update(hit=1), "a probe case has no ['hit']"),
+        (
+            "a citations event on an ok answer",
+            lambda c: c.update(
+                guard_events=[{"guard": "citations", "stage": "output", "reason": "cited X"}]
+            ),
+            "the citation validator fired, so the answer is blocked",
+        ),
     ],
 )
 def test_a_broken_generation_case_is_refused(tmp_path, label, change, expected):

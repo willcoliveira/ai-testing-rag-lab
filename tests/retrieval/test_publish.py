@@ -11,19 +11,13 @@ import pytest
 
 from raglab.evals import gate, publish, record, retrieval
 from tests.conftest import ROOT
-from tests.retrieval_support import fake_run, lab_root, read_run, reseal
+from tests.retrieval_support import fake_run, lab_root, local_run, read_run, reseal
 
 pytestmark = [pytest.mark.unit, pytest.mark.retrieval]
 
 
 def clean(run_dir, root):
     return []
-
-
-def local_run(root, **kwargs):
-    """A fake-embedder run labelled local, so publish's provenance rule lets it through: only for
-    testing the publishing mechanics."""
-    return fake_run(root, provenance="local", **kwargs)
 
 
 def test_publish_copies_the_run_and_builds_the_index(tmp_path):
@@ -51,7 +45,7 @@ def test_publish_copies_the_run_and_builds_the_index(tmp_path):
         "config": "retrieval-a",
         "provenance": "local",
         "git_sha": manifest["git_sha"],
-        "embedder": "hashing-256@fake",
+        "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
         "retriever": "dense",
         "k": 2,
         "chunk_size": 1200,
@@ -226,7 +220,7 @@ def test_a_partial_generation_run_is_never_published(tmp_path):
     run_dir = fake_generation_run(
         root,
         config_text=generation_config_text(cap=250),
-        provenance="local",
+        local=True,
         monotonic=lambda: next(ticks),
     )
     with pytest.raises(publish.PublishError, match="is partial"):
@@ -234,18 +228,18 @@ def test_a_partial_generation_run_is_never_published(tmp_path):
 
 
 def test_a_local_generation_run_is_published_with_its_model_in_the_index(tmp_path):
-    """The publishing mechanics only: a fake-made run labelled local."""
+    """A local run of the small pack (the real embedder, the adapter against the stub server)."""
     from tests.generation_support import fake_generation_run, generation_root
 
     root = generation_root(tmp_path)
-    run_dir = fake_generation_run(root, provenance="local")
+    run_dir = fake_generation_run(root, local=True)
     dest = publish.publish(run_dir, root, privacy=clean)
     index: Any = publish.read_index(root / publish.PUBLISHED)
     [entry] = index["runs"]
     assert entry["run_id"] == dest.name
     assert (entry["suite"], entry["generator"], entry["prompt"]) == (
         "generation",
-        "fake-echo@fake",
+        "stub-model:1b@aaaaaaaaaaaa",
         "answer-v1",
     )
     assert "pass^2" in entry["metrics"]
@@ -260,3 +254,34 @@ def test_compare_refuses_generation_runs(tmp_path):
     b = fake_generation_run(root, when=datetime(2026, 10, 18, 13, 0, 0, tzinfo=UTC))
     with pytest.raises(compare.CompareError, match="retrieval runs only"):
         compare.compare(a, b, root)
+
+
+# ---------------------------------------------------------------- S3 fix round 1 (judge S3-S2)
+
+
+def test_a_fake_model_run_labelled_local_is_refused(tmp_path):
+    """A run made with the fake embedder, its provenance edited to local and the record resealed
+    (hashes, report and results made to agree): validate and publish refuse it on the model
+    fields, whatever the provenance string says."""
+    root = lab_root(tmp_path)
+    run_dir = fake_run(root)  # the hashing embedder, provenance fake
+    manifest, cases = read_run(run_dir)
+    manifest["provenance"] = "local"
+    (run_dir / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
+    reseal(run_dir, cases)
+    problems = record.validate(run_dir, root)
+    assert any("embedder.provider fake" in p for p in problems), problems
+    with pytest.raises(publish.PublishError, match="fake"):
+        publish.publish(run_dir, root, privacy=clean)
+    assert not (root / publish.PUBLISHED).exists()
+
+
+def test_a_fake_chat_run_labelled_local_is_refused(tmp_path):
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root, provenance="local")
+    problems = record.validate(run_dir, root)
+    assert any("generator.provider fake" in p for p in problems), problems
+    with pytest.raises(publish.PublishError, match="fake"):
+        publish.publish(run_dir, root, privacy=clean)

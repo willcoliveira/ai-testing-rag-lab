@@ -16,7 +16,7 @@ import pytest
 from raglab.evals import publish, record
 from raglab.ingest.answer_key import must_not_contain
 from tests.conftest import ROOT
-from tests.retrieval_support import fake_run, lab_root, read_run, reseal
+from tests.retrieval_support import lab_root, local_run, read_run, reseal
 
 pytestmark = pytest.mark.unit
 NODE = shutil.which("node")
@@ -121,7 +121,7 @@ def plant(run_dir: Path, text: str) -> None:
 def test_publish_refuses_the_planted_secret_and_personal_details(tmp_path, feature):
     for n, planted in enumerate(must_not_contain(ROOT)[feature]):
         root = lab_root(tmp_path / feature / str(n))
-        run_dir = fake_run(root, provenance="local")
+        run_dir = local_run(root)
         plant(run_dir, f"leak {planted}")
         assert record.validate(run_dir, root) == []
         with pytest.raises(publish.PublishError, match=f"{feature}'s"):
@@ -138,10 +138,10 @@ def test_publish_scans_at_the_published_path_and_removes_a_refused_copy(tmp_path
     shutil.copytree(
         ROOT / "privacy", root / "privacy", ignore=shutil.ignore_patterns("forbidden-strings.txt")
     )
-    good = fake_run(root, provenance="local")
+    good = local_run(root)
     plant(good, f"see {entries(LIST)[0]}")
     assert publish.publish(good, root).is_dir()
-    bad = fake_run(root, name="retrieval-other", provenance="local")
+    bad = local_run(root, name="retrieval-other")
     plant(bad, f"see {OTHER_ID}")
     with pytest.raises(publish.PublishError, match="the privacy check found"):
         publish.publish(bad, root)

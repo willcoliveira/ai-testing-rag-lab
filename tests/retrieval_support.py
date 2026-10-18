@@ -3,12 +3,14 @@
 import json
 import shutil
 from datetime import UTC, datetime
+from functools import cache
 from pathlib import Path
 from typing import Any
 
+from raglab.adapters import factory, fastembed_embed
 from raglab.adapters.fake import HashingEmbedder
 from raglab.chunk.sections import ChunkSettings
-from raglab.core.ports import Retriever
+from raglab.core.ports import Embedder, Retriever
 from raglab.core.types import Chunk, ChunkId
 from raglab.evals import config as eval_config
 from raglab.evals import record, retrieval
@@ -195,20 +197,27 @@ def fake_run(
     when: datetime = datetime(2026, 10, 6, 12, 0, 0, tzinfo=UTC),
     git: retrieval.GitState = GIT,
     provenance: str = "fake",
+    embedder_kind: str = "hashing",
 ) -> Path:
-    """A run record written under root/runs/tmp with the fake embedder."""
+    """A run record written under root/runs/tmp with the fake embedder, or with the real local
+    one (embedder_kind="local", from the model cache) for a run that publish may accept. The
+    provenance is the given string, so a test can also forge a fake run's label."""
     path = root / "config" / f"{name}.toml"
     path.parent.mkdir(exist_ok=True)
     path.write_text(config_text(name, kind, k), encoding="utf-8")
     config = eval_config.load(path, root)
-    embedder = HashingEmbedder()
     inventory = Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(chunks or PACK))
-    description = {
-        "provider": "fake",
-        "model": embedder.model,
-        "revision": embedder.revision,
-        "dimension": embedder.dimension,
-    }
+    embedder: Embedder
+    if embedder_kind == "local":
+        embedder, description = local_embedder()
+    else:
+        embedder = HashingEmbedder()
+        description = {
+            "provider": "fake",
+            "model": embedder.model,
+            "revision": embedder.revision,
+            "dimension": embedder.dimension,
+        }
     manifest, cases = retrieval.run(
         config,
         root,
@@ -220,6 +229,20 @@ def fake_run(
         inventory=inventory,
     )
     return record.write(root / "runs" / "tmp", manifest, cases)
+
+
+@cache
+def local_embedder() -> tuple[Embedder, dict[str, object]]:
+    """The real local embedder (the pinned ONNX model from its cache) and its description."""
+    embedder, description, _ = factory.embedder(
+        "fastembed", fastembed_embed.MODEL, fastembed_embed.REVISION
+    )
+    return embedder, description
+
+
+def local_run(root: Path, **kwargs: Any) -> Path:
+    """A real local run of the small pack (the local embedder): what publish accepts."""
+    return fake_run(root, provenance="local", embedder_kind="local", **kwargs)
 
 
 def read_run(run_dir: Path) -> tuple[Any, list[Any]]:

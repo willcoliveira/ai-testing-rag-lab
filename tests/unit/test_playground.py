@@ -14,7 +14,7 @@ import pytest
 
 from raglab.evals import publish
 from tests.conftest import ROOT, load_script
-from tests.retrieval_support import fake_run, lab_root
+from tests.retrieval_support import lab_root, local_run
 
 pytestmark = pytest.mark.unit
 PLAYGROUND = ROOT / "playground"
@@ -24,7 +24,7 @@ NODE = shutil.which("node")
 @pytest.mark.skipif(NODE is None, reason="the smoke check runs the page's model in node")
 def test_the_page_model_renders_a_published_index(tmp_path):
     root = lab_root(tmp_path)
-    run_dir = fake_run(root, provenance="local")
+    run_dir = local_run(root)
     publish.publish(run_dir, root, baseline=True, privacy=lambda d, r: [])
     published = root / "runs" / "published"
     done = subprocess.run(
@@ -102,13 +102,9 @@ def test_the_page_script_renders_runs_metrics_and_questions(tmp_path):
     fetch that reads the files: the run list, the newest run's metrics and questions, a click on
     the other run, no error in the status line, and only runs/published files fetched."""
     root = lab_root(tmp_path)
-    older = fake_run(root, provenance="local")
-    newer = fake_run(
-        root,
-        name="retrieval-hybrid",
-        kind="hybrid",
-        provenance="local",
-        when=datetime(2026, 10, 7, tzinfo=UTC),
+    older = local_run(root)
+    newer = local_run(
+        root, name="retrieval-hybrid", kind="hybrid", when=datetime(2026, 10, 7, tzinfo=UTC)
     )
     for run_dir in (older, newer):
         publish.publish(run_dir, root, privacy=lambda d, r: [])

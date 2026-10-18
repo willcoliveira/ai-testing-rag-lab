@@ -302,11 +302,11 @@
         "completion_tokens": {"type": ["integer", "null"], "minimum": 0},
         "checks": {
           "type": "object",
-          "required": ["status_ok", "citations_retrieved", "passed"],
+          "required": ["status_ok", "model_citations_retrieved", "passed"],
           "additionalProperties": false,
           "properties": {
             "status_ok": {"type": "boolean"},
-            "citations_retrieved": {"type": "boolean"},
+            "model_citations_retrieved": {"type": "boolean"},
             "abstained": {"type": "boolean"},
             "no_value": {"type": "boolean"},
             "no_canary": {"type": "boolean"},

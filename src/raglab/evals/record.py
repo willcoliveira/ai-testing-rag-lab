@@ -9,6 +9,9 @@
   edited by hand, and the tenants: every retrieved and labelled chunk id names a document of the
   register (corpus/register.yaml) that the case's tenant may see, so a record that shows another
   tenant's chunk is refused even when its flags, scores, hashes and report agree (S2 judge D3).
+- The provenance against the models (S3 judge S3-S2): a run whose embedder or generator is a
+  fake (provider fake, or a fake revision or digest) has provenance fake, whatever else its label
+  says, so a fake run relabelled local is refused even when its hashes and report agree.
 - The suite (S3): a retrieval run has bootstrap intervals and every case its labels and scores; a
   generation run (raglab.evals.generation_record) has the generator, the prompt, the guards, the
   probes and Wilson intervals, one line per case and trial, and every case its answer fields, its
@@ -268,6 +271,7 @@ def validate(run_dir: Path, root: Path) -> list[str]:
     totals = as_json(manifest["totals"])
     if totals["cases"] != len(cases):
         problems.append(f"totals.cases {totals['cases']} but cases.jsonl has {len(cases)} lines")
+    problems.extend(provenance_problems(manifest))
     keys = [(str(c["case_id"]), c["trial"]) for c in cases]
     if len(set(keys)) != len(keys):
         problems.append("a case id and trial appear twice in cases.jsonl")
@@ -299,6 +303,32 @@ def validate(run_dir: Path, root: Path) -> list[str]:
 
 
 # ---------------------------------------------------------------- the suites (S3)
+
+
+def fake_models(manifest: Json) -> list[str]:
+    """The model fields that say a fake made this run: a fake provider, revision or digest."""
+    found: list[str] = []
+    for part, fields in (
+        ("embedder", ("provider", "revision")),
+        ("generator", ("provider", "digest")),
+    ):
+        if part not in manifest:
+            continue
+        described = as_json(manifest[part])
+        found += [f"{part}.{field} fake" for field in fields if described.get(field) == "fake"]
+    return found
+
+
+def provenance_problems(manifest: Json) -> list[str]:
+    """A run made with a fake model whose provenance is not fake."""
+    fake = fake_models(manifest)
+    if fake and manifest["provenance"] != "fake":
+        return [
+            f"provenance {manifest['provenance']} but {', '.join(fake)}: a run made with a fake "
+            "model has provenance fake"
+        ]
+    return []
+
 
 GENERATION_MANIFEST = ("generator", "prompt", "guards", "intervals", "probes")
 
@@ -388,6 +418,9 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
         ):
             problems.append(f"{where}: a {case['status']} answer is withheld (abstain, no text)")
         retrieved = {str(as_json(r)["chunk_id"]) for r in as_list(case["retrieved"])}
+        guards = [str(as_json(e)["guard"]) for e in as_list(case["guard_events"])]
+        if generation_record.CITATIONS_GUARD in guards and case["status"] != "blocked":
+            problems.append(f"{where}: the citation validator fired, so the answer is blocked")
         if unretrieved := sorted(generation_record.referenced(case) - retrieved):
             problems.append(f"{where}: cites ids that were not retrieved: {unretrieved}")
         if case["kind"] == generation_record.RETRIEVAL:

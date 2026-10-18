@@ -2,8 +2,9 @@
 runs/published/<run_id>/ and rebuild runs/published/index.json, which the playground reads.
 
 A run is refused when it is not a valid run record, when it was made from a dirty work tree
-(git_dirty: its commit would not reproduce it), when its provenance is fake, when it is partial,
-when one of its files holds a string the answer key says no answer may repeat (the planted secret,
+(git_dirty: its commit would not reproduce it), when its provenance is fake or any model field
+says fake (provider, revision or digest), when it is partial, when one of its files holds a
+string the answer key says no answer may repeat (the planted secret,
 personal details and attack canaries: `answer_must_not_contain`, R-19), or when the privacy check
 finds anything in its files. The privacy check reads the files at their published path
 (runs/published/<run_id>/), where privacy/allowlist-published.txt applies; a refused run's copy is
@@ -138,9 +139,11 @@ def publish(
         raise PublishError(
             f"{manifest['run_id']} was made from a dirty work tree: commit, then run it again"
         )
-    if manifest["provenance"] == "fake":
+    fake = record.fake_models(manifest)
+    if manifest["provenance"] == "fake" or fake:
         raise PublishError(
-            f"{manifest['run_id']} has fake provenance: fake runs are never published"
+            f"{manifest['run_id']} has fake provenance or a fake model "
+            f"({', '.join(fake) or 'provenance fake'}): fake runs are never published"
         )
     if manifest["partial"]:
         raise PublishError(f"{manifest['run_id']} is partial")
