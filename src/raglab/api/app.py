@@ -16,12 +16,19 @@ every refusal, and the status code says what happened:
 | the model gave no reply (unavailable) | 503 |
 
 Every response carries the security headers: a CSP without inline script, frame-ancestors none,
-nosniff, no referrer, and no caching. The OpenAPI pages are off (they load script from a CDN).
-One request runs at a time (a lock; lab scale).
+nosniff, no referrer, and no caching. The middleware adds them to every response the app makes;
+an exception that escapes a route is answered by a catch-all handler, outside the middleware, so
+that handler sets them itself (judge S3-S1). The OpenAPI pages are off (they load script from a
+CDN). One request runs at a time (a lock; lab scale).
+
+A response's `reason` is one of REASONS, a fixed vocabulary: never the adapter's, the parser's or
+a guard's own text (judge S3-S3), which goes to the server log (logger `raglab.api`) and, in a
+run, to the record's guard events and error field.
 """
 
 import hmac
 import json
+import logging
 import threading
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
@@ -57,6 +64,23 @@ PAGES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/app.css": ("app.css", "text/css; charset=utf-8"),
+}
+LOG = logging.getLogger("raglab.api")
+REASONS = {
+    "unauthorized": "a known bearer token is required",
+    "too_large": f"the request body is over {MAX_BODY_BYTES} bytes",
+    "bad_body": "the body must be a JSON object with a string question",
+    "tenant": "the request names no tenant the caller may use",
+    "input": "the question is empty, over 500 characters, or holds control characters",
+    "blocked": "a guard withheld the answer",
+    "unavailable": "the model is unavailable",
+    "invalid_output": "the model's reply did not fit the answer schema",
+    "error": "internal error",
+}
+STATUS_REASONS = {
+    Status.BLOCKED: "blocked",
+    Status.UNAVAILABLE: "unavailable",
+    Status.INVALID_OUTPUT: "invalid_output",
 }
 CODES = {
     Status.OK: 200,
@@ -139,6 +163,22 @@ def _citation(result: ScoredChunk) -> dict[str, object]:
     }
 
 
+def _reason(outcome: Outcome) -> str | None:
+    """The fixed reason for a refused or withheld answer (None for an answer); the outcome's own
+    text is logged."""
+    refused = outcome.refused_by()
+    key = (
+        ("tenant" if refused in ("tenant", "pipeline") else "input")
+        if refused is not None
+        else STATUS_REASONS.get(outcome.answer.status)
+    )
+    if key is None:
+        return None
+    detail = outcome.events[0].reason if outcome.events else outcome.error
+    LOG.info("ask %s: %s", key, detail)
+    return REASONS[key]
+
+
 def _payload(outcome: Outcome, prompt_version: str) -> dict[str, object]:
     answer = outcome.answer
     by_id: dict[str, ScoredChunk] = {r.chunk.chunk_id: r for r in outcome.retrieved}
@@ -150,14 +190,27 @@ def _payload(outcome: Outcome, prompt_version: str) -> dict[str, object]:
         "conflict": None
         if answer.conflict is None
         else {"chunk_ids": list(answer.conflict.chunk_ids), "note": answer.conflict.note},
-        "reason": outcome.events[0].reason if outcome.events else outcome.error,
+        "reason": _reason(outcome),
         "prompt_version": prompt_version,
     }
 
 
 def _refusal(code: int, status: str, reason: str) -> JSONResponse:
     headers = {"www-authenticate": "Bearer"} if code == 401 else None
-    return JSONResponse({"status": status, "reason": reason}, status_code=code, headers=headers)
+    return JSONResponse(
+        {"status": status, "reason": REASONS[reason]}, status_code=code, headers=headers
+    )
+
+
+async def _server_error(request: Request, error: Exception) -> JSONResponse:
+    """The answer to an exception that escaped a route: a fixed body with every security header
+    (this handler runs outside the middleware); the exception goes to the log."""
+    LOG.error("unhandled error on %s %s: %r", request.method, request.url.path, error)
+    return JSONResponse(
+        {"status": "error", "reason": REASONS["error"]},
+        status_code=500,
+        headers=SECURITY_HEADERS,
+    )
 
 
 def create_app(
@@ -165,6 +218,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(title="raglab", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(SecurityHeaders)
+    app.add_exception_handler(Exception, _server_error)
     lock = threading.Lock()
     pages = {path: ((WEB / name).read_bytes(), kind) for path, (name, kind) in PAGES.items()}
 
@@ -191,20 +245,20 @@ def create_app(
     async def ask(request: Request) -> JSONResponse:  # pyright: ignore[reportUnusedFunction]
         caller = _caller(request.headers.get("authorization"), tokens)
         if caller is None:
-            return _refusal(401, "unauthorized", "a known bearer token is required")
+            return _refusal(401, "unauthorized", "unauthorized")
         raw = await _body(request)
         if raw is None:
-            return _refusal(413, "refused", f"the body is over {MAX_BODY_BYTES} bytes")
+            return _refusal(413, "refused", "too_large")
         try:
             body: object = json.loads(raw)
         except (json.JSONDecodeError, UnicodeDecodeError):
-            return _refusal(400, "refused", "the body is not JSON")
+            return _refusal(400, "refused", "bad_body")
         if not isinstance(body, dict):
-            return _refusal(400, "refused", "the body is not a JSON object")
+            return _refusal(400, "refused", "bad_body")
         fields = {str(k): v for k, v in cast(dict[object, object], body).items()}
         question, tenant = fields.get("question"), fields.get("tenant")
         if not isinstance(question, str):
-            return _refusal(400, "refused", "question must be a string")
+            return _refusal(400, "refused", "bad_body")
         outcome = await run_in_threadpool(
             ask_locked, question, tenant if isinstance(tenant, str) else None, caller
         )

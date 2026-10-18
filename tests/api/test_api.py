@@ -94,7 +94,9 @@ def test_a_tenant_the_caller_may_not_use_is_403_and_never_retrieved(body, header
 def test_the_spoof_message_names_the_tenant():
     api, _ = client()
     response = api.post("/ask", json={"tenant": "tenant-b", "question": QUESTION}, headers=A_ONLY)
-    assert response.json()["reason"] == "the caller may not use tenant-b"
+    from raglab.api.app import REASONS
+
+    assert response.json()["reason"] == REASONS["tenant"]
     ok = api.post("/ask", json={"tenant": "tenant-a", "question": QUESTION}, headers=A_ONLY)
     assert ok.status_code == 200
 
@@ -173,3 +175,40 @@ def test_the_openapi_pages_are_off_and_other_methods_are_refused():
         assert api.get(path).status_code == 404
     assert api.get("/ask").status_code == 405
     assert api.delete("/healthz").status_code == 405
+
+
+# ---------------------------------------------------------------- S3 fix round 1
+
+
+def test_a_server_error_carries_the_security_headers():
+    """Judge S3-S1: an exception that escapes the route is answered with every security header."""
+
+    def boom(request):
+        raise RuntimeError("an unexpected failure at /Users/someone/secret/path")
+
+    pipeline, _ = small_pipeline(FakeChat(boom))
+    api = TestClient(create_app(pipeline, INFO, TOKENS), raise_server_exceptions=False)
+    response = api.post("/ask", json={"tenant": "tenant-a", "question": QUESTION}, headers=DEMO)
+    assert response.status_code == 500
+    for name, value in SECURITY_HEADERS.items():
+        assert response.headers.get(name) == value, name
+    assert "secret" not in response.text
+
+
+@pytest.mark.parametrize(
+    ("script", "code"),
+    [
+        ([ChatUnavailable("connection error (ConnectError: /Users/someone/secret/path)")], 503),
+        (['{"label": "answer", "secret_field": "/Users/someone/secret/path"}'], 502),
+    ],
+)
+def test_an_error_reason_comes_from_a_fixed_vocabulary(script, code):
+    """Judge S3-S3: the reason a client sees is one of REASONS, never the adapter's or the
+    parser's text (that stays in the server log and the run record's guard events)."""
+    from raglab.api.app import REASONS
+
+    api, _ = client(FakeChat(script))
+    response = api.post("/ask", json={"tenant": "tenant-a", "question": QUESTION}, headers=DEMO)
+    assert response.status_code == code
+    assert response.json()["reason"] in REASONS.values()
+    assert "secret" not in response.text
