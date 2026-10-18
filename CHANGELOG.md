@@ -5,6 +5,9 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased (v0.1)
 
+- The repo is public (2026-10-18, after S3): docs/GO-PUBLIC.md records steps 1 to 7 as done
+  (history and privacy scans, the flip, secret scanning, vulnerability reporting, Dependabot,
+  branch protection on `main`); Environments (S5) and Pages are still to do.
 - S3: generation: ChatModel and Guardrail ports and a structured Answer (text, cited
   ids, decision label, conflict, status); prompt answer-v1 with a reviewed snapshot and fingerprint;
   input limits, the tenant guard and the citation validator (docs/GUARDRAILS.md); FakeChat, built
