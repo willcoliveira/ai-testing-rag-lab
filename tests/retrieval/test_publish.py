@@ -167,6 +167,7 @@ def test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline():
         assert manifest["partial"] is False, run_dir.name
         assert manifest["split"] == "dev", run_dir.name
         assert {c["split"] for c in cases} == {"dev"}, run_dir.name
+        assert publish.planted_strings(run_dir, ROOT) == [], run_dir.name
     baselines = {str(k): str(v) for k, v in record.as_json(index["baselines"]).items()}
     assert index == publish.build_index(published, baselines)
     key = "retrieval/retrieval-dense/dev"

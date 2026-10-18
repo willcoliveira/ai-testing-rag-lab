@@ -42,8 +42,7 @@ flowchart TB
   classDef todo fill:#f3f4f6,stroke:#6b7280
   classDef wip fill:#fef3c7,stroke:#92400e
   classDef done fill:#dcfce7,stroke:#166534
-  class S0,S1a,S1b,S2 done
-  class S3 wip
+  class S0,S1a,S1b,S2,S3 done
   class S3h,S4,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
 ```
 
@@ -81,7 +80,7 @@ in `runs/published/`: recall@5 0.644, hit@5 0.773, MRR@5 0.564 (n 22, local prov
 and the comparison with hybrid and chunk size 600 in the
 [S2 ledger](docs/plans/2026-10-06-s2-retrieval-ledger.md)).
 
-Generation (S3, in progress) turns the retrieved chunks into a structured answer (text, cited
+Generation (S3) turns the retrieved chunks into a structured answer (text, cited
 ids, decision label, conflict field, status) through a versioned prompt and three guard layers
 ([docs/GUARDRAILS.md](docs/GUARDRAILS.md)). The fake model echoes what it retrieved, so everything
 runs offline; a live run uses a local model through Ollama, started for one session only

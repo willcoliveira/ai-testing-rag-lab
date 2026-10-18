@@ -5,7 +5,7 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased (v0.1)
 
-- S3 (in progress): generation: ChatModel and Guardrail ports and a structured Answer (text, cited
+- S3: generation: ChatModel and Guardrail ports and a structured Answer (text, cited
   ids, decision label, conflict, status); prompt answer-v1 with a reviewed snapshot and fingerprint;
   input limits, the tenant guard and the citation validator (docs/GUARDRAILS.md); FakeChat, built
   only by the factory on provider fake; the httpx OpenAI-compatible adapter (loopback only, tag and
@@ -13,8 +13,9 @@ One line per change, newest first, grouped by release. Each pull request adds it
   pass^3) in run record v1, extended additively; the API (/healthz, /version, /ask) and page,
   `raglab ask`, `serve` and `ollama`; an API smoke in pr-fast; the fake-model container and its
   ZAP baseline; the local model on Ollama for one session only, with usage guards
-  (docs/LOCAL-MODEL.md); one local live run on nemotron-3.5-lightning, not yet published (S3
-  ledger).
+  (docs/LOCAL-MODEL.md); the planted exception ids allowed in published runs only, and publish
+  refusing the answer key's planted secrets; one local live run on nemotron-3.5-lightning at the
+  model card's sampling settings, published in `runs/published/`.
 - docs/ONBOARDING.md: what a new team member can run, ten break-it-on-purpose exercises, the
   concepts built so far with their files and tests, and what is not testable yet; a test checks that
   every path, make target and raglab command it names exists.

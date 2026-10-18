@@ -1,7 +1,7 @@
 # Onboarding
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
-guards, and where each concept already lives. It is current as of S3, in progress (2026-10-18). Every stage
+guards, and where each concept already lives. It is current as of S3 (2026-10-18). Every stage
 that adds a command or a concept updates it, and `tests/unit/test_onboarding.py` checks that
 every path, `make` target and `raglab` command named here exists.
 

@@ -46,12 +46,12 @@ and size (19072744624 bytes) were read from the server's /api/tags at pull time.
 | Local model | `src/raglab/runtime/ollama.py` (Host, Session: preflight, up, down, postcheck, run); docs/LOCAL-MODEL.md |
 | CI | `scripts/api_smoke.py`, `make api-smoke` (in `make check`), pr-fast step "API smoke (offline, fake model)" |
 | Container | `deploy/Dockerfile`, `.dockerignore` (an allow list), `deploy/zap/rules.tsv`, `deploy/zap/scan.sh`; `make container`, `container-run`, `zap` |
-| Docs | docs/GUARDRAILS.md, docs/LOCAL-MODEL.md, docs/COMPATIBILITY.md; TEST-PLAN R1, R4, R7 and the traceability Test column; THRESHOLDS generation rows; ARCHITECTURE and README: S3 `wip`; ONBOARDING; CONTRIBUTING design rules |
+| Docs | docs/GUARDRAILS.md, docs/LOCAL-MODEL.md, docs/COMPATIBILITY.md; TEST-PLAN R1, R4, R7 and the traceability Test column; THRESHOLDS generation rows; ARCHITECTURE and README: S3 `done`; ONBOARDING; CONTRIBUTING design rules |
 | Dependencies | runtime `fastapi==0.144.0`, `starlette==1.8.0` (imported directly, so declared), `uvicorn==0.54.0`, `httpx==0.28.1` (was transitive); `uv.lock` updated with uv; pip-audit, deptry and vulture clean. Images by digest: `python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f` (Python 3.13.16, Debian 13.7), `ghcr.io/zaproxy/zaproxy:stable@sha256:5ccfff9a411743ab2615136a2edd7416bec9ce41572fa94e935df38c14adb2b6` (ZAP 2.17.0), both multi-arch index digests |
 
 ## Evidence per criterion (developer, 2026-10-18, macOS arm64, Apple M4 Pro, 48 GiB)
 
-`make check` exits 0 at `d897052`: 929 passed, 1 deselected (the live test); the gate printed
+`make check` exits 0 at the final commit: the count and the tail are in the last section; the gate printed
 "recall@5 0.644 (n 22) passes: the threshold is the baseline 0.644
 (20261006T172928Z-retrieval-dense-dev-5f1d3a0) minus one question (1/22), 0.598" (unchanged from
 S2: the retrieval configs resolve as before); then "api-smoke: passed". Each break below was made
@@ -68,67 +68,71 @@ the same check was green again after the restore (the git status was clean at th
 | AC6 | met | `tests/generation/test_input_guards.py` and `tests/api/test_api.py`: over 500 characters, empty, U+0000, U+001B, U+202E, U+200B, U+E000, U+000D, U+007F refused (400) with 0 retriever calls; no tenant, null, empty, `shared`, unknown, a list, and the spoof (tenant-a-only token asking as tenant B) refused (403) with 0 retriever calls; no or unknown token 401 | the caller check in `guard/tenant.py` removed: 4 failed, among them `test_a_tenant_the_caller_may_not_use_is_403_and_never_retrieved[spoofed]` |
 | AC7 | met | `tests/e2e/test_e2e_fake.py`: the app built from config/fake.toml (real pack, real embedder, FakeChat echoing every chunk), all 22 dev questions asked as each tenant: no tenant B canary (all 16) in a tenant A answer or its citations, no tenant A canary (all 47) in a tenant B answer; positive control: each tenant's own canaries do appear | every tenant filter off (the store mask, both `check_visible` calls, the retrieved guard): 2 failed (both directions). Removing one layer alone (only the retrieved guard, say) does not leak, by design: the S2 store filter masks before ranking and `check_visible` checks on the way out, so the e2e test fails only when all of them go; each layer has its own test (S2 `test_tenant_filter.py`; `test_input_guards.py::test_another_tenants_chunk_after_retrieval_blocks_the_answer_before_the_model`) |
 | AC8 | met | `tests/retrieval/test_run_record.py`: the three committed S2 runs validate by name; a generation run validates; refused: a case without label, status or checks, a citation or conflict id not retrieved, text on a withheld answer, an unknown label, retrieval fields on a probe, edited checks, a missing trial, generation fields in a retrieval run, a retrieval case without recall, a tenant B chunk cited by a tenant A case | the unretrieved-citation check in `record.generation_problems` disabled: 2 failed |
-| AC9 | met (run and evidence); **not published**: publish refused by the privacy check, decision 1 | the live run below: `runs/tmp/20261018T134910Z-generation-local-ollama-dev-d897052`, provenance local, git clean at `d897052`, not partial, model tag and digest, prompt version and every report field; `raglab publish` validated it and then refused it on the privacy scan (below) | n/a |
+| AC9 | met | the live run below, published: `runs/published/20261018T145441Z-generation-local-ollama-dev-fa04154`, provenance local, git clean at `fa04154`, not partial, the model tag and digest, the prompt version and every report field; `raglab publish` validated it, ran the privacy check at its published path and published it; the reset-attempts abstention count and pass^3 below are copied from the record | n/a (the publish refusals are tested in `tests/unit/test_published_allowlist_scope.py`) |
 | AC10 | met | `tests/api/test_api.py`, `tests/api/test_page.py`, `tests/unit/test_container.py`; `make container` built `raglab:local` (793,364,086 bytes at `d897052`); the container runs as uid 10001 with the fake model and answers `/healthz` (below) | `frame-ancestors 'none'` dropped from the CSP: 10 failed |
 | AC11 | met | `make zap`: "FAIL-NEW: 0 FAIL-INPROG: 0 WARN-NEW: 0 WARN-INPROG: 0 INFO: 0 IGNORE: 3 PASS: 64", 6 URLs; the three ignored rules are Informational, each with its reason in `deploy/zap/rules.tsv` | (the first scan without rules.tsv: 0 WARN, 66 PASS, the same three Informational alerts) |
 | AC12 | needs CI; local evidence met | pr-fast step "API smoke (offline, fake model)" after the model fetch and the tests, `HF_HUB_OFFLINE=1`, `make api-smoke`; `tests/unit/test_workflow_rules.py::test_pr_fast_smoke_tests_the_api_offline_after_the_tests`; zizmor: no findings; locally four `ok` lines and "api-smoke: passed" | the step's `run` changed: 1 failed |
 | AC13 | met | `make check` as above (ruff, pyright strict, deptry, vulture, pip-audit, bandit, semgrep, zizmor, gitleaks, privacy, architecture); `tests/unit/test_architecture.py`: the factory may import the fakes, any other module may not (a planted import in a copy of the real tree fails), httpx outside adapters and FastAPI outside api fail | see AC1 |
-| AC14 | met, with S3 `wip` (not done) by the orchestrator's instruction until AC9 is published | TEST-PLAN R1, R4 and R7 name their tests (`tests/unit/test_test_plan.py` now requires it); traceability Test column for R-02, R-21, R-13 and R-16; docs/GUARDRAILS.md; docs/COMPATIBILITY.md "Tested against nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7d... on Ollama 0.40.6 on 2026-10-18"; ARCHITECTURE and README S3 `wip`; CHANGELOG line; this ledger | n/a |
-| AC15 | met (added by the user, 2026-10-18) | `tests/unit/test_ollama_session.py` (22 tests, a fake host: the environment, the model size from its manifest, low memory, a registered service, a held port, no binary, an unpulled model, an old server, unload and stop, a server that will not stop, a leftover process, a session that succeeds, fails or is interrupted, a failed postcheck, the EPERM fallback); two live sessions and one probe session, each ending "postcheck passed: port closed, no ollama process, no model loaded" | with real OS reads, no server started: margin 100 GiB: "not enough memory: 26.7 GiB available, 117.8 GiB needed (model 17.8 GiB + margin 100 GiB)", exit 1; port 11434 held by `python3 -m http.server`: "127.0.0.1:11434 is already held by a process this project did not start", exit 1; `pgrep` found no ollama after either |
+| AC14 | met; S3 `done` | TEST-PLAN R1, R4 and R7 name their tests (`tests/unit/test_test_plan.py` now requires it); traceability Test column for R-02, R-21, R-13 and R-16; docs/GUARDRAILS.md; docs/COMPATIBILITY.md "Tested against nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7d... on Ollama 0.40.6 on 2026-10-18"; ARCHITECTURE and README S3 `done` (AC9 published); CHANGELOG line; this ledger | n/a |
+| AC15 | met (added by the user, 2026-10-18) | `tests/unit/test_ollama_session.py` (22 tests, a fake host: the environment, the model size from its manifest, low memory, a registered service, a held port, no binary, an unpulled model, an old server, unload and stop, a server that will not stop, a leftover process, a session that succeeds, fails or is interrupted, a failed postcheck, the EPERM fallback); three live sessions and one probe session, each ending "postcheck passed: port closed, no ollama process, no model loaded" | with real OS reads, no server started: margin 100 GiB: "not enough memory: 26.7 GiB available, 117.8 GiB needed (model 17.8 GiB + margin 100 GiB)", exit 1; port 11434 held by `python3 -m http.server`: "127.0.0.1:11434 is already held by a process this project did not start", exit 1; `pgrep` found no ollama after either |
 
 ## The live run (AC9)
 
-`make eval-local` at `d897052` on 2026-10-18, 13:48 to 13:51 UTC. Every number here is copied from
-`runs/tmp/20261018T134910Z-generation-local-ollama-dev-d897052/manifest.json` and its report, or
-from the session's output.
+`make eval-local` at `fa04154` on 2026-10-18, 14:53 to 14:56 UTC, at the model card's sampling
+settings (the user's decision 3, below), then `raglab publish`. Every number here is copied from
+`runs/published/20261018T145441Z-generation-local-ollama-dev-fa04154/manifest.json` and its
+report, or from the session's output.
 
 **Settings (manifest).** nemotron-3.5-lightning:30b-a3b-mlx at digest d1e17d7d... on Ollama
-0.40.6, provider openai-compat, base URL http://127.0.0.1:11434; temperature 0.2, max_tokens
-1024, timeout_s 120, response_format none, extra `reasoning_effort: none`; prompt answer-v1
-(sha256 96f42d9b...); guards tenant, input-limits, citations; dense retriever, k 5, chunks 1,200;
-3 trials, seed 20261018 (trial t uses seed + t - 1); Wilson intervals at 95%, n = cases; ollama
-host 127.0.0.1:11434, keep_alive 2m, max_loaded_models 1, num_parallel 1, context_length 8192.
-22 dev questions and 3 probes, 75 case-trials, 106.15 s; partial false.
+0.40.6, provider openai-compat, base URL http://127.0.0.1:11434; temperature 1.0, top_p 0.95,
+max_tokens 1024, timeout_s 120, response_format none, extra `reasoning_effort: none`; prompt
+answer-v1 (sha256 96f42d9b...); guards tenant, input-limits, citations; dense retriever, k 5,
+chunks 1,200; 3 trials, seed 20261018 (trial t uses seed + t - 1); Wilson intervals at 95%,
+n = cases; ollama host 127.0.0.1:11434, keep_alive 2m, max_loaded_models 1, num_parallel 1,
+context_length 8192. 22 dev questions and 3 probes, 75 case-trials, 112.109 s; provenance local;
+git clean; partial false.
 
 | Check (no judge) | Rate | 95% interval | n (cases) |
 |---|---|---|---|
-| status_ok | 1.000 | 0.867 to 1.000 | 25 |
+| status_ok | 0.960 | 0.805 to 0.993 | 25 |
 | citations_retrieved | 1.000 | 0.867 to 1.000 | 25 |
 | probe_abstention | 0.000 | 0.000 to 0.561 | 3 |
-| citation_hit | 0.773 | 0.566 to 0.899 | 22 |
-| pass^3 | 0.680 | 0.484 to 0.828 | 25 |
+| citation_hit | 0.727 | 0.518 to 0.868 | 22 |
+| pass^3 | 0.600 | 0.407 to 0.766 | 25 |
 
-- Status counts: ok 75, refused 0, blocked 0, unavailable 0, invalid_output 0.
-- Label agreement: 25 of 25 cases gave the same label in every trial.
+- Status counts: ok 72, refused 0, blocked 3, unavailable 0, invalid_output 0.
+- Label agreement: 22 of 25 cases gave the same label in every trial.
 - **The reset-attempts abstention count (F-32): P-01 (tenant A) 0 of 3, P-02 (tenant B) 0 of 3**;
   P-03 (F-40, tenant B) 0 of 3.
-- Latency p50 1,330.883 ms, p95 2,623.430 ms (n 75); tokens 78,966 prompt and 7,395 completion
+- Latency p50 1,470.501 ms, p95 2,487.696 ms (n 75); tokens 78,966 prompt and 7,667 completion
   (all 75 case-trials reported them).
 - What pass^3 measures here (the report says it): a case passes only when all 3 trials pass, each
-  with its own seed at temperature 0.2, so it measures consistency while the model samples, not
+  with its own seed at temperature 1.0, so it measures consistency while the model samples, not
   correctness.
 
 Reading (not judged; a citation hit is not correctness):
 
-- **citation_hit equals retrieval's hit@5 (0.773, the S2 baseline's), and pass^3 equals the fake
-  echo run's (0.680).** That is structural, not a copy: a model can cite only what was retrieved,
-  so citation_hit cannot exceed hit@5, and this model cited a labelled chunk on every question
-  where retrieval found one (17 of 22); with no probe passing, pass^3 is the same 17 of 25.
-- **The probes all failed (a).** P-01's text abstains ("The documents do not specify a number of
-  password reset attempts allowed per day") but its label is `answer`: a label and text mismatch,
-  S4's decision-label gate. P-02 answers a neighbouring rule ("8 failed sign-in attempts", the
-  lockout), failing (b) too; P-03 answers "MFA factors are revoked within 24 hours of the account
-  being disabled", tenant B's own rule, failing (b) but not (c): no tenant A canary appeared.
-- **Trials are not copies.** 16 of 25 cases differ across their three trials (answer text,
-  citations or label), and 9 of 25 are byte-identical; the labels never changed.
-- Memory available before the session (preflight): 31.1 GiB; after: 37.8 GiB. Live contract test
-  23.40 s; the suite 106.15 s, about 35.4 s per trial of 25 cases; the whole session 2 min 40.8 s.
+- **The three blocked answers are the citation validator at work (R-02).** R-Q21 trial 1 and R-Q25
+  trials 1 and 2 cited document ids (`A-FAQ`, `A-PWD-V2`, `X-NCSC`, `A-EXC`) instead of chunk
+  ids; the validator withheld them (abstain, status blocked), which lowers status_ok and
+  citation_hit and is why those cases' labels differ across trials (R-Q04 is the third).
+- **The probes all failed.** Every probe trial was labelled `answer` and stated a value: P-01
+  "User passwords expire every 60 days" and "5 and 10 login attempts" (neighbouring rules, not
+  reset attempts); P-02 the lockout rule or the NCSC range; P-03 "within 24 hours" (tenant B's
+  factor revocation, not a leaver rule). No tenant A canary appeared in a tenant B answer (check c).
+- **Trials differ more at temperature 1.0.** 2 of 25 cases are byte-identical across their three
+  trials (9 of 25 at 0.2); labels changed in 3 cases.
+- Memory available before the session (preflight): 31.0 GiB; after: 37.1 GiB. Live contract test
+  30.57 s ("1 passed, 13 deselected"); the suite 112.109 s, about 37.4 s per trial of 25 cases;
+  the whole session 2 min 54.2 s.
 - Postcheck: "postcheck passed: port closed, no ollama process, no model loaded"; afterwards
   `pgrep -fl ollama` found nothing and `lsof -iTCP:11434 -sTCP:LISTEN` found nothing.
-- **Publish refused.** `raglab publish 20261018T134910Z-generation-local-ollama-dev-d897052`
-  validated the record and then stopped on the privacy scan: the model quoted the planted
-  exception ids of the corpus (the exceptions-register ids, allowed by the privacy check under
-  `corpus/` only) in three cases.jsonl lines. Decision 1.
+- **Published.** `raglab publish 20261018T145441Z-generation-local-ollama-dev-fa04154`:
+  "published: .../runs/published/20261018T145441Z-generation-local-ollama-dev-fa04154"; the
+  privacy check ran on the files at their published path, where the two planted exception ids the
+  model quoted are allowed (decision 1), and no answer key `answer_must_not_contain` string is in
+  them. `tests/retrieval/test_publish.py::test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline`
+  now also checks every published run for those strings.
 
 **Plan correction (2026-10-18).** The plan's check 3 read: "an abstention probe has label
 `abstain`, and none of its `must_not_appear` strings appears". In corpus/answer-key.yaml,
@@ -144,19 +148,23 @@ honest abstention that names the topic passes; one that states a number fails; r
 such as "section 4.4" are not values; number words are not counted, a stated limit). The approved
 plan file is unchanged.
 
-**The first run, before the correction.** `runs/tmp/20261018T132722Z-generation-local-ollama-dev-86bf537`
-(13:27 UTC, git clean at `86bf537`) used the plan's check 3 through derived `must_not_appear`
-lists. Its rates were the same as above (status_ok 1.000, citation_hit 0.773, probe_abstention
-0.000, pass^3 0.680; label agreement 25 of 25; p50 1,392.053 ms, p95 2,725.121 ms); its probes
-failed on (a) alone. It is superseded and not published (publish refused it on the same privacy
-scan), and it is kept as history only: its probe cases carry `must_not_appear` and a
-`forbidden_absent` check, which the schema no longer has, so `record.validate` at `d897052`
-rejects it (18 problems, e.g. "$.cases[66]: unexpected property 'must_not_appear'"). The run above
-validates with no problem.
+**Superseded runs (not published, kept in this clone's `runs/tmp/` as history).**
 
-**Where the records are.** Both live records are in this clone's `runs/tmp/` (gitignored) and
-nowhere else until one is published; a separate clone reproduces the run with `make eval-local`
-(about 3 minutes, with Ollama 0.40.6 and the pinned model).
+| Run | When, commit | Settings | status_ok | citation_hit | probe_abstention | pass^3 | Label agreement | p50, p95 | Why superseded |
+|---|---|---|---|---|---|---|---|---|---|
+| `20261018T134910Z-generation-local-ollama-dev-d897052` | 13:49 UTC, `d897052` | temperature 0.2 (top_p not sent: the server used the model's 0.95), seed per trial, the corrected oracle | 1.000 (0.867 to 1.000) | 0.773 (0.566 to 0.899) | 0.000 (0.000 to 0.561) | 0.680 (0.484 to 0.828) | 25 of 25 | 1,330.883 ms, 2,623.430 ms | temperature replaced by the card's values (decision 3); publish then refused it on the privacy scan (before decision 1) |
+| `20261018T132722Z-generation-local-ollama-dev-86bf537` | 13:27 UTC, `86bf537` | temperature 0.2, the plan's original check 3 | 1.000 | 0.773 | 0.000 | 0.680 | 25 of 25 | 1,392.053 ms, 2,725.121 ms | the abstention check was corrected; its probe cases carry `must_not_appear` and a `forbidden_absent` check, which the schema no longer has, so `record.validate` rejects it now (18 problems) |
+
+In the 0.2 runs, citation_hit equalled retrieval's hit@5 (0.773): a model can cite only what was
+retrieved, so citation_hit cannot exceed hit@5, and that model cited a labelled chunk on every
+question where retrieval found one; 16 of 25 cases differed across trials and 9 were
+byte-identical. Their probes failed on (a): P-01's text abstained ("The documents do not specify a
+number of password reset attempts allowed per day") but was labelled `answer`; P-02 and P-03 gave
+values.
+
+**Where the records are.** The published run is committed under `runs/published/`; the
+superseded ones are in this clone's `runs/tmp/` (gitignored) only. `make eval-local` reproduces a
+run in about 3 minutes, with Ollama 0.40.6 and the pinned model.
 
 **Thinking off and the response format, verified on 0.40.6** (a probe session, exploratory, from
 a script in the developer's scratch space; each variant one request with the answer prompt, then
@@ -214,36 +222,37 @@ Non-Storable Content (`no-store` on purpose), 10031 User Controllable HTML Eleme
 false positive: ZAP's GET of the form finds "tenant-b" in a static `<option>`). Reasons in
 `deploy/zap/rules.tsv`. The container is stopped by the script's trap.
 
-## Decisions needed
+## The user's decisions (2026-10-18)
 
-1. **Publishing the live run (AC9).** The run is valid, but the privacy check refuses its
-   cases.jsonl: the answers quote the planted exceptions-register ids, which
-   `privacy/allowlist-corpus.txt` allows under `corpus/` only. Options: (a) allow those two ids
-   (the exceptions-register entries) in `runs/published/` as well, as the corpus-scoped list
-   already does for `corpus/`, and publish; (b) keep the scope and publish only runs whose answers
-   avoid them, which a real model cannot promise. The developer recommends (a), scoped to those
-   two ids only (never the planted contacts, which R-19 must keep out of answers), with a test in
-   `tests/unit/test_corpus_allowlist_scope.py`. Nothing was changed: the guard stays as it is
-   until you choose.
-2. **Structured output.** The plan chose "JSON schema response format". Ollama 0.40.6's MLX runner
-   refuses any response format (HTTP 501), so the local config asks for the JSON in the prompt
-   and the strict parser refuses anything off-schema (`response_format = "none"`, recorded in the
-   manifest). In the run every reply parsed (invalid_output 0). Recommend keeping it for S3; a
-   later Ollama build, or a GGUF variant of the model on the llama.cpp runner, could restore the
-   grammar.
-3. **Temperature 0.2.** No non-thinking recommendation was found: Ollama's library page gives
-   none, and the Hugging Face URL tried returned 401; the model's params layer ships temperature
-   1 and top_p 0.95 without naming a mode. Chosen 0.2 with a seed per trial, recorded; 16 of 25
-   cases varied across trials. Recommend confirming against the model card when you can read it.
-4. **The memory margin is 4 GiB** (the model's 17.8 GiB plus 4 GiB, against free, inactive and
+Asked as three questions after the first report; the answers, verbatim:
+
+| Decision | Answer | What was done |
+|---|---|---|
+| 1. Publishing: the planted exception ids in answers | "Allow those IDs only (Recommended)" | `privacy/allowlist-published.txt` enumerates the two exceptions-register ids the corpus plants (never a pattern), and the privacy check applies it only under `runs/published/`. publish now scans a run at its published path (a refused copy is removed) and refuses any run holding an answer key `answer_must_not_contain` string (the planted secret F-44, the personal details F-45, the attack canary), which no privacy pattern catches. `3207101` |
+| 3. Temperature | "Card values, re-run (Recommended)" | temperature 1.0 and top_p 0.95 from the model card, https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4 ("Recommended sampling settings are Temperature 1.0 and Top_P 0.95", the same for reasoning on and off; read 2026-10-18, as relayed by the orchestrator: the developer's own fetch of another URL of the card returned 401), cited in `config/local-ollama.toml`; the adapter sends top_p and the manifest records it; the run above. `fa04154` |
+| 2. JSON mode | "Accept, record the limit (Recommended)" | docs/COMPATIBILITY.md records the MLX runner's HTTP 501 on Ollama 0.40.6 with this tag and digest, the date, and how to re-test schema mode on every Ollama upgrade (`RAGLAB_LIVE_CONFIG` points the live contract test at a copy with `response_format = "json_schema"`). `fa04154` |
+
+Evidence for decision 1, `tests/unit/test_published_allowlist_scope.py` (10 tests): the list is
+exactly the corpus's exceptions-register ids; a published record holding one passes the real
+check; the same ids are hits under `runs/tmp/`, `docs/` and `src/`; another id of the same shape
+and a planted contact are hits under `runs/published/`; publish refuses the F-44 secret and both
+F-45 details and leaves nothing behind; a run quoting a planted id publishes through the real
+check while one quoting another id is refused and removed. **Break:** the list widened with the
+prefix of the 2026 id, its first two parts (a pattern in effect: the rule's match is that prefix): 3 failed (the enumeration,
+another id under runs/published, the real publish); restored from git: 10 passed.
+
+## Developer choices (standing; the judge may challenge them)
+
+The orchestrator relayed that these stand as chosen.
+
+1. **The memory margin is 4 GiB** (the model's 17.8 GiB plus 4 GiB, against free, inactive and
    speculative pages). An 8 GiB margin would have refused the session with Docker Desktop running
-   (22.9 GiB available at the time). Recommend 4 GiB, or 8 GiB with Docker Desktop stopped during
-   live runs.
-5. **Status codes:** no or unknown token 401, a tenant refusal 403, an input-limit refusal 400, a
-   body over 4 KiB 413, invalid_output 502, unavailable 503. Recommend keeping.
-6. **`totals.cases` counts case-trials** (75); `dataset.questions` counts distinct cases (25).
-7. **compare refuses generation runs** until S4 defines a paired generation comparison.
-8. **The demo tokens are literals in config** (`demo`, `tenant-a-only`), labelled lab practice.
+   (22.9 GiB available at the time).
+2. **Status codes:** no or unknown token 401, a tenant refusal 403, an input-limit refusal 400, a
+   body over 4 KiB 413, invalid_output 502, unavailable 503.
+3. **`totals.cases` counts case-trials** (75); `dataset.questions` counts distinct cases (25).
+4. **compare refuses generation runs** until S4 defines a paired generation comparison.
+5. **The demo tokens are literals in config** (`demo`, `tenant-a-only`), labelled lab practice.
 
 ## Choices made in the build (for the review)
 
@@ -276,6 +285,12 @@ false positive: ZAP's GET of the form finds "tenant-b" in a static `<option>`). 
 
 ## Still to do in this stage
 
-1. Decision 1, then `raglab publish` of the run (S3 becomes `done` with it).
-2. Verify: the judge re-runs the evidence and the breaks, and a `/security-review` pass.
-3. CI on the PR: pr-fast green with the API smoke (AC12).
+1. Verify: the judge re-runs the evidence and the breaks, and a `/security-review` pass.
+2. CI on the PR: pr-fast green with the API smoke (AC12).
+
+## make check at the final commit
+
+With the published run committed: "941 passed, 1 deselected" (the live test); the gate "recall@5
+0.644 (n 22) passes: the threshold is the baseline 0.644
+(20261006T172928Z-retrieval-dense-dev-5f1d3a0) minus one question (1/22), 0.598"; "api-smoke:
+passed"; the privacy check "0 hits across 235 files".
