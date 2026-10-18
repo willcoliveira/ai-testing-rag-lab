@@ -15,6 +15,9 @@ choice in `docs/decisions/ADR-001-host.md`.
 Go message: **not yet given.** No account is created, no card is added and nothing is deployed
 until your go is quoted here verbatim.
 
+Updated 2026-10-18, after S3 merged and the repo went public: the prerequisites, AC1, AC5, the
+image's visibility (now decision D4) and two risks. The research and its sources are unchanged.
+
 ## Goal
 
 - Deploy the **same** S3 container image, with the fake model and the baked-in bge-small ONNX
@@ -39,15 +42,16 @@ until your go is quoted here verbatim.
 
 ## Prerequisites
 
-1. **S3 merged.** The container (`deploy/Dockerfile`, digest-pinned Python 3.13 slim, non-root,
+1. **S3 merged** (PR #7, merge commit `fbba9c6`, 2026-10-18). The container (`deploy/Dockerfile`, digest-pinned Python 3.13 slim, non-root,
    embedder baked in with its sha256 checked, `/healthz`, `/version`) exists on `main`. S3h
    starts from that commit.
 2. **Your go, quoted here,** naming the hosts to sign up for, card or no card, and regions (see
    "Decisions needed"). Sign-ups, cards, billing accounts and CLI logins are your actions. I
    don't create accounts or add payment methods.
 3. **Docker** running on your Mac for the local baseline (the same image under `docker stats`).
-4. **The GitHub plan question** (decision D4) answered, because it decides whether the deploy job
-   can have required reviewers.
+4. **The repo is public** (since 2026-10-18, docs/GO-PUBLIC.md), so the deploy job can run in a
+   GitHub Environment with required reviewers and environment secrets. The deploy Environment is
+   the repo's first, and GO-PUBLIC.md step 8 notes it.
 
 ## Candidates (facts fetched 2026-10-18)
 
@@ -120,7 +124,7 @@ interval.
 | One image | built once in Actions for `linux/amd64` from the S3 Dockerfile, pushed to GHCR, then copied by digest to Artifact Registry and `registry.fly.io` (a manifest copy keeps the digest). The build turns off provenance and SBOM attestations so it pushes one plain single-platform manifest, not an index | "the same container" is checkable: AC2 compares digests, and an attestation index would change them for reasons unrelated to the hosts. Your Mac builds arm64, so the build is in Actions |
 | Lab probe | a lab-only route `/_lab/probe`, mounted only when `RAGLAB_LAB_PROBE=1`, returning the forwarded-IP family of headers and the process's resident memory (stdlib, `/proc/self/status`). Off by default, with a test that it is 404 when unset; off on the kept host before the ZAP scan | one comparable memory number and the raw headers on every host. Alternative: host metrics and logs only, with no code change, but memory is then read differently on each host and the headers are not visible |
 | Deploy auth | Cloud Run: OIDC (Workload Identity Federation, no key). Fly: app-scoped deploy token with a 30-day expiry, its expiry date in the ledger and rotated before it lapses if Fly is kept. Render: the deploy hook URL. All stored as GitHub secrets. Labelled **lab** where production would use OIDC everywhere | the narrowest credential each host offers |
-| Render pull credential | a GHCR read-only package credential stored in Render, revoked at teardown | the image stays private while the repo is |
+| Image visibility | decision D4: by default the GHCR package is public, like the repo. The image holds only the repo's code, the embedder files and the fake model, so no host needs a pull credential. The embedder files are MIT-licensed (`Qdrant/bge-small-en-v1.5-onnx-Q`, a quantised ONNX port of `BAAI/bge-small-en-v1.5`; both model cards read 2026-10-18), and MIT asks that its copyright and permission notice travel with copies, so the image carries that notice next to the model files | one credential fewer to create and revoke; the earlier choice, a read-only pull credential, assumed the repo stayed private |
 | Instance shape | Render Free (512 MB). Fly shared-cpu-1x 1 GB, `auto_stop_machines = "stop"`, `min_machines_running = 0`, one Machine. Cloud Run two arms: 1 GiB / 0.5 vCPU (first generation, concurrency 1) and 1 GiB / 1 vCPU; max instances 1. Each host is told the container listens on 8000 (Cloud Run's container port, Fly's `internal_port`, Render's port setting), so the image is not changed | the smallest shape that should hold the embedder, plus Render's free shape as the control |
 | Workflow | `.github/workflows/deploy-host.yml`, `workflow_dispatch` plus push to `main`, one job per host; actions pinned by SHA, `contents: read` at the top, `id-token: write` only on the Cloud Run job, `persist-credentials: false`, timeouts | the S0 hardening rules; zizmor and `test_workflow_rules.py` check it |
 | ZAP | `zaproxy/action-baseline` pinned by SHA, in the deploy workflow after the chosen host deploys, reusing `deploy/zap/` from S3 | the main plan's DAST row: "then against the host chosen in S3h" |
@@ -135,11 +139,11 @@ after you merge.
 
 | # | Criterion | Evidence |
 |---|---|---|
-| AC1 | Your go is quoted verbatim in this plan before any sign-up: hosts, card or not, regions, GitHub plan answer | this file |
-| AC2 | One image, built in Actions for `linux/amd64` from the S3 Dockerfile; the digest running on every host is recorded and they match (or the ADR says why not) | [CI] build job log; the measurements file; each host's deploy record |
+| AC1 | Your go is quoted verbatim in this plan before any sign-up: hosts, card or not, regions, the image's visibility | this file |
+| AC2 | One image, built in Actions for `linux/amd64` from the S3 Dockerfile; the digest running on every host is recorded and they match (or the ADR says why not); the image carries the embedder's MIT licence notice next to the model files | [CI] build job log; the measurements file; each host's deploy record; `test_container.py` (the Dockerfile copies the notice); **break:** drop the copy, the test fails |
 | AC3 | The same fake-model container is deployed to the 2–3 hosts in your go, with the fake model config, scale to zero, at most one instance, in the approved region; `/healthz` answers 200 and `/version` returns the SHA the image was built from, on each host | [hosted] `curl` output per host in the ledger |
 | AC4 | Deploy from Actions: Cloud Run with OIDC and no service-account key; Fly with an app-scoped deploy token with an expiry; Render with its deploy hook. No credential in the repo; the workflow passes zizmor and `test_workflow_rules.py` (SHA pins, `contents: read`, `id-token: write` only where used, `persist-credentials: false`, timeouts) | [CI] workflow run; `make check`; gitleaks |
-| AC5 | The deploy job runs in a GitHub Environment with required reviewers. If the repo is still private on a plan where GitHub offers required reviewers only for public repositories [GH1], the criterion is recorded as **blocked while private**: the job uses an Environment where the plan allows one, otherwise repository secrets, and the blocked note and GO-PUBLIC.md item 8 name what go-public or a plan change unlocks and the reviewers to add | repo settings; a run waiting for approval, or the blocked note |
+| AC5 | The deploy job runs in a GitHub Environment with required reviewers (you), and each host's deploy credential is an environment secret of that Environment, not a repository secret. A deploy from `main` waits for the approval before it runs | repo settings; a run waiting for approval in the Actions log; `test_workflow_rules.py` (the deploy job names the Environment) |
 | AC6 | Measurements per the method: cold start n = 10, warm latency n = 20, memory at idle and after the first `/ask`, deploy time over 3 deploys, image size, for every host, with the Mac baseline; every row has its provenance | `docs/decisions/ADR-001-host-measurements.csv`; ledger |
 | AC7 | Forwarded IP: on each host, the headers received for a plain request and for a spoofed `X-Forwarded-For` are recorded, and the ADR names the header S10 trusts on the chosen host and how a spoof appears | measurements file; ADR section "Client IP" |
 | AC8 | `docs/decisions/ADR-001-host.md`: context, options, the comparison with sources and dates, the measured numbers copied from the measurements file, the decision, consequences for S10 (client-IP header, persisted budget option, spend cap) and S11, monthly cost at the expected use with its arithmetic, and the teardown record | review; the judge re-reads every number against the measurements file |
@@ -180,13 +184,16 @@ after you merge.
   option is $25/month always on [R2].
 - **Fly trial limits** (2 VM hours, 7 days, auto-stop after 5 minutes) may end mid-spike [F2];
   the apps then stop until a card is added.
-- **Credential sprawl.** Three hosts mean a deploy hook, a deploy token, a GHCR pull credential
-  and a Workload Identity pool. Each is listed in the ledger when created and checked as revoked
+- **Credential sprawl.** Three hosts mean a deploy hook, a deploy token and a Workload Identity
+  pool, plus a GHCR pull credential if the image stays private (D4). Each is listed in the ledger when created and checked as revoked
   in AC10.
 - **Security testing policy.** ZAP baseline is a passive scan, but each host's policy is read
   before the first scan (AC11).
 - **Public URL.** The fake model answers from the planted corpus only, with the input guards
-  from S3. Nothing secret is served, but the URL is public until teardown.
+  from S3. Nothing secret is served, but the URL is public until teardown, and the fake config's
+  caller tokens are public demo values (`config/fake.toml`), so anyone can call `/ask`. Each call
+  runs the real embedder; the cost is bounded by one instance, scale to zero, the Cloud Run spend
+  cap and the spike budget. Rate limits arrive in S10.
 
 ## Decisions needed
 
@@ -195,7 +202,7 @@ after you merge.
 | D1 | Which hosts to sign up for | any 2 or 3 of Render Free, Fly.io, Cloud Run | **all three:** Cloud Run (the likely keeper on paper), Render Free (the card-free control) and Fly in its trial |
 | D2 | Card on file | Cloud Run needs a billing account; Fly needs a card after the trial or if kept; Render Free needs none | a card for Cloud Run only, with a Cloud Run spend cap budget; Fly stays card-free in its trial, and a card is added only if Fly is chosen |
 | D3 | Regions | Cloud Run: europe-west1 Belgium or europe-west4 Netherlands (Tier 1, domain mapping available) or europe-west2 London (Tier 2, no domain mapping). Fly: lhr, ams or fra. Render: Frankfurt (the only EU region) | Cloud Run europe-west1, Fly lhr, Render Frankfurt |
-| D4 | Required reviewers while private | (a) make the repo public before the deploy job lands (GO-PUBLIC.md first); (b) keep it private and mark AC5 blocked until go-public; (c) a GitHub plan that offers required reviewers on private repositories. Also: which GitHub plan is the account on? Environment secrets on a private repository need a paid plan [GH1] | (b), unless go-public is near |
+| D4 | The image's visibility on GHCR | public (no pull credential anywhere), or private (a read-only pull credential stored in each host that needs one, revoked at teardown) | **public**: the repo is public since 2026-10-18 and the image holds nothing that is not, with the embedder's MIT notice in the image. (The earlier D4, required reviewers while private, was settled by going public.) |
 | D5 | Lab probe | the probe route (AC13), or host metrics and logs only | the probe |
 | D6 | Spike budget | $10, or another figure | $10 |
 | D7 | The plan | approve, or changes first | — |
