@@ -72,6 +72,11 @@ def _run(command: Sequence[str]) -> str:
 class Host:
     """The OS reads and the process start of a session. Every method is replaced in the tests."""
 
+    # the servers this host started, kept so they can be reaped (judge S3-J9)
+    children: dict[int, subprocess.Popen[bytes]] = field(
+        default_factory=dict[int, "subprocess.Popen[bytes]"], repr=False
+    )
+
     def which_ollama(self) -> str | None:
         return shutil.which("ollama")
 
@@ -146,7 +151,24 @@ class Host:
             process = subprocess.Popen(  # noqa: S603  # nosec B603
                 command, env=env, stdout=out, stderr=subprocess.STDOUT, start_new_session=True
             )
+        self.children[process.pid] = process
         return process.pid
+
+    def exited(self, pid: int) -> bool:
+        """True once the process has exited. A server this host started is reaped here (poll):
+        an exited child that is not reaped is a zombie, which kill(pid, 0) still finds, so
+        pid_alive alone would wait the whole grace for it (judge S3-J9). Any other child is
+        reaped with waitpid; a process that is not this process's child (`make ollama-down` after
+        `make ollama-up`, a new process) makes waitpid raise ChildProcessError, and kill(pid, 0)
+        decides."""
+        child = self.children.get(pid)
+        if child is not None:
+            return child.poll() is not None
+        try:
+            reaped, _ = os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            return not self.pid_alive(pid)
+        return reaped == pid
 
     def signal_group(self, pid: int, sig: int) -> None:
         """Signal the server's process group (signal_group below)."""
@@ -340,12 +362,14 @@ class Session:
                 self.say(f"unloaded {', '.join(names)}")
             self.host.signal_group(pid, signal.SIGTERM)
             waited = 0.0
-            while self.host.pid_alive(pid) and waited < grace_s:
+            # ends as soon as the server has exited (reaped), not after the grace (judge S3-J9)
+            while not self.host.exited(pid) and waited < grace_s:
                 self.host.sleep(0.5)
                 waited += 0.5
-            if self.host.pid_alive(pid):
+            if not self.host.exited(pid):
                 self.host.signal_group(pid, signal.SIGKILL)
                 self.host.sleep(1)
+                self.host.exited(pid)  # reap it
             self.say(f"stopped the server (pid {pid})")
         self.pid_file.unlink(missing_ok=True)
         return self.postcheck()

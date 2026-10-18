@@ -67,6 +67,9 @@ after it. Ignoring those signals cannot hang the session, because the stop is bo
 command's process group gets SIGTERM and at most 5 s, then SIGKILL; each of the unload's HTTP
 calls times out after 30 s (one model is loaded at most); the server gets SIGTERM and at most
 15 s, then SIGKILL; and the postcheck's own reads time out. Only SIGKILL can cut the stop short.
+The wait for the server ends as soon as it has exited: the session reaps its own server child (an
+exited, unreaped child is a zombie that `kill(pid, 0)` still finds); `make ollama-down` in a new
+process, which is not the server's parent, decides with `kill(pid, 0)`.
 
 **A session command's whole process tree ends with the session.** Each command (the live test,
 the eval) runs in a process group of its own; when the session is interrupted (a signal, Ctrl-C,

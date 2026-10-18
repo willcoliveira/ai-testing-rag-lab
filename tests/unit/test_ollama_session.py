@@ -659,3 +659,89 @@ def test_a_signal_to_the_session_ends_the_commands_whole_process_tree(tmp_path, 
         if sleep_pid is not None:
             with contextlib.suppress(ProcessLookupError):
                 os.kill(sleep_pid, signal.SIGKILL)
+
+
+@dataclass
+class ZombieHost(FakeHost):
+    """The server exits on SIGTERM but is not reaped: kill(pid, 0) still finds it (a zombie), and
+    only exited(), which reaps, sees that it ended (judge S3-J9). sleep counts its calls."""
+
+    sleeps: int = 0
+    gone: bool = False
+
+    def signal_group(self, pid, sig):
+        super().signal_group(pid, sig)
+        if sig == signal.SIGTERM:
+            self.gone = True
+
+    def pid_alive(self, pid):
+        return pid == 4242 and (self.running or self.gone)
+
+    def exited(self, pid):
+        return self.gone
+
+    def sleep(self, seconds):
+        self.sleeps += 1
+
+
+def test_a_stop_ends_when_the_server_has_exited(tmp_path):
+    """Judge S3-J9: the stop's wait ends as soon as the server has exited (reaped), not after the
+    15 s grace on a zombie, and no SIGKILL is sent."""
+    pulled(tmp_path)
+    host = ZombieHost(tmp=tmp_path)
+    said: list[str] = []
+    s = ollama.session_for(local_config(), tmp_path, host)
+    s.say = said.append
+    s.up()
+    assert s.down() == []
+    assert "stopped the server (pid 4242)" in said
+    assert host.sleeps <= 2, host.sleeps
+    assert signal.SIGKILL not in host.signals
+
+
+def test_our_own_server_child_counts_as_exited_once_reaped(tmp_path):
+    """Judge S3-J9, the real host and a real child: after SIGTERM the child is a zombie, which
+    kill(pid, 0) still finds; exited() reaps it and says so."""
+    import contextlib
+    import os
+    import sys
+    import time
+
+    host = Host()
+    pid = host.start(
+        [sys.executable, "-c", "import time; time.sleep(30)"], dict(os.environ), tmp_path / "log"
+    )
+    try:
+        assert host.exited(pid) is False
+        os.kill(pid, signal.SIGTERM)
+        time.sleep(0.5)
+        assert host.pid_alive(pid) is True  # a zombie still answers kill(pid, 0)
+        assert host.exited(pid) is True
+        assert host.pid_alive(pid) is False  # reaped
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pid, signal.SIGKILL)
+
+
+def test_a_server_that_is_not_our_child_is_judged_by_kill_0(tmp_path):
+    """Judge S3-J9, `make ollama-down` after `make ollama-up`: the server is not this process's
+    child, so waitpid cannot reap it (ChildProcessError) and kill(pid, 0) decides."""
+    import contextlib
+    import os
+    import subprocess
+    import time
+
+    done = subprocess.run(
+        ["sh", "-c", "sleep 30 >/dev/null 2>&1 & echo $!"], capture_output=True, text=True
+    )
+    pid = int(done.stdout.strip())  # an orphan: its parent sh has exited
+    try:
+        assert Host().exited(pid) is False
+        os.kill(pid, signal.SIGKILL)
+        deadline = time.monotonic() + 5
+        while not Host().exited(pid):
+            assert time.monotonic() < deadline, "the orphan never counted as exited"
+            time.sleep(0.1)
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pid, signal.SIGKILL)
