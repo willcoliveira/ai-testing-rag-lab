@@ -665,6 +665,11 @@ Three kinds of security work, each with a stage and a gate.
 | SBOM | syft or CycloneDX at release | release |
 | Repo settings | branch protection with required checks, private vulnerability reporting, SECURITY.md | S0 |
 
+Decision (2026-10-18): branch protection could not be applied in S0, because a private repository
+on the free plan does not get it. The repository went public after S3 merged and the protection
+was applied then; the history and privacy scans ran first (docs/GO-PUBLIC.md). The system audit
+and the adversarial re-test before v0.3 still gate the public demo, not the code.
+
 **2. AI security: red team and threat model (S7, with re-runs at release).**
 - `docs/THREAT-MODEL.md` maps every OWASP Top 10 for LLM Applications 2026 class (the edition
   the handbook cites as superseding 2025) to an implemented test or to a "not applicable, because".
