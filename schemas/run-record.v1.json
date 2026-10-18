@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "run-record.v1.json",
   "title": "raglab run record v1",
-  "description": "A run directory read as one object: manifest.json and every line of cases.jsonl. report.md is generated from both and checked by raglab.evals.record.validate, as are the sha256 of each file and the results recomputed from the cases. Validated by raglab.evals.schema, which supports a subset of JSON Schema and refuses any other keyword.",
+  "description": "A run directory read as one object: manifest.json and every line of cases.jsonl. report.md is generated from both and checked by raglab.evals.record.validate, as are the sha256 of each file and the results recomputed from the cases. Validated by raglab.evals.schema, which supports a subset of JSON Schema and refuses any other keyword. S3 extends v1 additively with the generation suite: its manifest and case fields are optional here, and validate requires them for that suite and refuses them for retrieval, as it requires bootstrap and the retrieval case fields for retrieval (the subset has no conditional keywords).",
   "type": "object",
   "required": ["manifest", "cases"],
   "additionalProperties": false,
@@ -28,14 +28,14 @@
       "required": [
         "schema_version", "run_id", "created_at", "suite", "gate", "split", "trials", "seed",
         "provenance", "partial", "git_sha", "git_dirty", "config", "chunker", "embedder",
-        "retriever", "dataset", "corpus", "tools", "bootstrap", "results", "totals", "files"
+        "retriever", "dataset", "corpus", "tools", "results", "totals", "files"
       ],
       "additionalProperties": false,
       "properties": {
         "schema_version": {"const": "run-record.v1"},
         "run_id": {"type": "string", "pattern": "^[0-9]{8}T[0-9]{6}Z-[a-z0-9-]+-(dev|test|all)-[0-9a-f]{7}$"},
         "created_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
-        "suite": {"enum": ["retrieval"]},
+        "suite": {"enum": ["retrieval", "generation"]},
         "gate": {"enum": ["manual", "pr-fast", "eval-on-change", "nightly", "weekly", "release"]},
         "split": {"enum": ["dev", "test", "all"]},
         "trials": {"type": "integer", "minimum": 1},
@@ -137,7 +137,8 @@
             "metrics": {
               "type": "object",
               "additionalProperties": {"$ref": "#/$defs/interval"}
-            }
+            },
+            "generation": {"$ref": "#/$defs/generation_results"}
           }
         },
         "totals": {
@@ -146,7 +147,69 @@
           "additionalProperties": false,
           "properties": {
             "cases": {"type": "integer", "minimum": 1},
-            "duration_s": {"type": "number", "minimum": 0}
+            "duration_s": {"type": "number", "minimum": 0},
+            "stopped": {"type": "string", "minLength": 1}
+          }
+        },
+        "generator": {
+          "type": "object",
+          "required": ["provider", "model", "digest", "sha256"],
+          "additionalProperties": false,
+          "properties": {
+            "provider": {"enum": ["fake", "openai-compat"]},
+            "model": {"type": "string", "minLength": 1},
+            "digest": {"type": "string", "minLength": 1},
+            "base_url": {"type": "string", "minLength": 1},
+            "server_version": {"type": "string", "minLength": 1},
+            "temperature": {"type": "number", "minimum": 0, "maximum": 2},
+            "top_p": {"type": "number", "minimum": 0, "maximum": 1},
+            "max_tokens": {"type": "integer", "minimum": 1},
+            "timeout_s": {"type": "number", "minimum": 0},
+            "response_format": {"enum": ["json_schema", "none"]},
+            "extra": {"type": "object", "additionalProperties": {"type": "string"}},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "prompt": {
+          "type": "object",
+          "required": ["version", "sha256"],
+          "additionalProperties": false,
+          "properties": {
+            "version": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "guards": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "intervals": {
+          "type": "object",
+          "required": ["method", "level", "unit"],
+          "additionalProperties": false,
+          "properties": {
+            "method": {"const": "wilson"},
+            "level": {"type": "number", "minimum": 0, "maximum": 1},
+            "unit": {"const": "case"}
+          }
+        },
+        "probes": {
+          "type": "object",
+          "required": ["path", "sha256", "questions"],
+          "additionalProperties": false,
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "questions": {"type": "integer", "minimum": 0}
+          }
+        },
+        "ollama": {
+          "type": "object",
+          "required": ["host", "keep_alive", "max_loaded_models", "num_parallel", "context_length"],
+          "additionalProperties": false,
+          "properties": {
+            "host": {"type": "string", "pattern": "^(127\\.0\\.0\\.1|localhost):[0-9]{1,5}$"},
+            "keep_alive": {"type": "string", "minLength": 1},
+            "max_loaded_models": {"type": "integer", "minimum": 1},
+            "num_parallel": {"type": "integer", "minimum": 1},
+            "context_length": {"type": "integer", "minimum": 1}
           }
         },
         "files": {
@@ -162,10 +225,7 @@
     },
     "case": {
       "type": "object",
-      "required": [
-        "case_id", "trial", "split", "tenant", "question", "labels", "retrieved", "hit",
-        "reciprocal_rank", "recall", "latency_ms"
-      ],
+      "required": ["case_id", "trial", "split", "tenant", "question", "retrieved", "latency_ms"],
       "additionalProperties": false,
       "properties": {
         "case_id": {"type": "string", "minLength": 1},
@@ -206,7 +266,125 @@
         "hit": {"type": "integer", "enum": [0, 1]},
         "reciprocal_rank": {"type": "number", "minimum": 0, "maximum": 1},
         "recall": {"type": "number", "minimum": 0, "maximum": 1},
-        "latency_ms": {"type": "number", "minimum": 0}
+        "latency_ms": {"type": "number", "minimum": 0},
+        "kind": {"enum": ["retrieval", "probe"]},
+        "feature_ids": {"type": "array", "items": {"type": "string", "pattern": "^F-[0-9]+$"}},
+        "expected": {"enum": ["answer", "abstain", "flag-conflict", "refuse-and-help"]},
+        "canaries_of": {"enum": ["tenant-a", "tenant-b", null]},
+        "status": {"enum": ["ok", "refused", "blocked", "unavailable", "invalid_output"]},
+        "label": {"enum": ["answer", "abstain", "flag-conflict", "refuse-and-help"]},
+        "answer": {"type": "string"},
+        "cited_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "conflict": {
+          "type": ["object", "null"],
+          "required": ["chunk_ids", "note"],
+          "additionalProperties": false,
+          "properties": {
+            "chunk_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+            "note": {"type": "string"}
+          }
+        },
+        "guard_events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["guard", "stage", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "guard": {"type": "string", "minLength": 1},
+              "stage": {"enum": ["input", "retrieved", "output"]},
+              "reason": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "error": {"type": ["string", "null"]},
+        "prompt_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "completion_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "checks": {
+          "type": "object",
+          "required": ["status_ok", "model_citations_retrieved", "passed"],
+          "additionalProperties": false,
+          "properties": {
+            "status_ok": {"type": "boolean"},
+            "model_citations_retrieved": {"type": "boolean"},
+            "abstained": {"type": "boolean"},
+            "no_value": {"type": "boolean"},
+            "no_canary": {"type": "boolean"},
+            "answered": {"type": "boolean"},
+            "cites_label": {"type": "boolean"},
+            "passed": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "count": {"type": "integer", "minimum": 0},
+    "generation_results": {
+      "type": "object",
+      "required": [
+        "trials", "cases", "case_trials", "status_counts", "label_agreement", "probes",
+        "latency_ms", "tokens"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "trials": {"type": "integer", "minimum": 1},
+        "cases": {"type": "integer", "minimum": 1},
+        "case_trials": {"type": "integer", "minimum": 1},
+        "status_counts": {
+          "type": "object",
+          "required": ["ok", "refused", "blocked", "unavailable", "invalid_output"],
+          "additionalProperties": false,
+          "properties": {
+            "ok": {"$ref": "#/$defs/count"},
+            "refused": {"$ref": "#/$defs/count"},
+            "blocked": {"$ref": "#/$defs/count"},
+            "unavailable": {"$ref": "#/$defs/count"},
+            "invalid_output": {"$ref": "#/$defs/count"}
+          }
+        },
+        "label_agreement": {
+          "type": "object",
+          "required": ["cases", "unanimous"],
+          "additionalProperties": false,
+          "properties": {
+            "cases": {"$ref": "#/$defs/count"},
+            "unanimous": {"$ref": "#/$defs/count"}
+          }
+        },
+        "probes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["case_id", "feature_ids", "tenant", "abstained", "trials"],
+            "additionalProperties": false,
+            "properties": {
+              "case_id": {"type": "string", "minLength": 1},
+              "feature_ids": {"type": "array", "items": {"type": "string"}},
+              "tenant": {"enum": ["tenant-a", "tenant-b"]},
+              "abstained": {"$ref": "#/$defs/count"},
+              "trials": {"type": "integer", "minimum": 1}
+            }
+          }
+        },
+        "latency_ms": {
+          "type": "object",
+          "required": ["p50", "p95", "n"],
+          "additionalProperties": false,
+          "properties": {
+            "p50": {"type": "number", "minimum": 0},
+            "p95": {"type": "number", "minimum": 0},
+            "n": {"type": "integer", "minimum": 1}
+          }
+        },
+        "tokens": {
+          "type": "object",
+          "required": ["reported", "prompt", "completion"],
+          "additionalProperties": false,
+          "properties": {
+            "reported": {"$ref": "#/$defs/count"},
+            "prompt": {"$ref": "#/$defs/count"},
+            "completion": {"$ref": "#/$defs/count"}
+          }
+        }
       }
     }
   }

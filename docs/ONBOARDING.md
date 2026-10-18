@@ -1,13 +1,14 @@
 # Onboarding
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
-guards, and where each concept already lives. It is current as of S2 (2026-10-06). Every stage
+guards, and where each concept already lives. It is current as of S3 (2026-10-18). Every stage
 that adds a command or a concept updates it, and `tests/unit/test_onboarding.py` checks that
 every path, `make` target and `raglab` command named here exists.
 
 The lab is a policy Q&A assistant over a fictional company's identity and security policy pack.
 Up to S2 it ingests the pack, retrieves from it with a real local embedding model, and scores
-retrieval against labelled questions. No model writes an answer yet; that starts in S3.
+retrieval against labelled questions. From S3 a model writes a structured answer: the fake echo
+model offline, a local model through Ollama for live runs.
 
 ## Set up
 
@@ -37,6 +38,14 @@ CI.
 | The same with `config/retrieval-hybrid.toml`, then `uv run raglab compare <dense run> <hybrid run>` | A paired comparison with bootstrap intervals and the questions that flipped | Every interval contains 0; only hybrid finds R-Q10; only dense finds R-Q02 and R-Q14 |
 | `make gate` | The no-regression gate that pr-fast runs | The pass line above |
 | `make playground` | The published runs in a browser | http://127.0.0.1:8000/ listing three runs with per-question hits |
+| `uv run raglab ask --config config/fake.toml --tenant tenant-a "How long must a password be?"` | One answer from the fake model, as JSON | Status `ok`, label `answer`, the retrieved chunks' text, and their ids in `cited_ids` |
+| `uv run raglab ask --config config/fake.toml --tenant shared "x"` | The tenant guard failing closed | Status `refused`, no answer, exit 1 |
+| `uv run raglab serve --config config/fake.toml` | The API and the page | http://127.0.0.1:8000/ asks as tenant A or B with the demo token |
+| `make api-smoke` | The API smoke test that pr-fast runs | Four `ok` lines, then `api-smoke: passed` |
+| `uv run raglab eval --suite generation --config config/fake.toml` | A generation run record with the fake model | 25 cases, 75 case-trials; probe abstention 0 (the echo always answers) |
+| `make ollama-status` | Whether a local model server is up, and the memory available | No pid, port closed, no ollama process |
+| `make eval-local` | The live run on Ollama (needs Ollama and the pinned model; docs/LOCAL-MODEL.md) | The live contract test, the run record, then `postcheck passed` |
+| `make container`, then `make zap` | The fake-model container and its ZAP baseline scan (Docker) | No FAIL and no WARN; three Informational alerts, each ignored with its reason in `deploy/zap/rules.tsv` |
 | `make corpus` | Rebuilds the PDF, HTML and scanned PNG from the Markdown sources | No change in `git status` |
 
 Read next: [README.md](../README.md), [ARCHITECTURE.md](ARCHITECTURE.md) for the progress
@@ -62,6 +71,9 @@ break. Restore each file with `git checkout -- <file>`, and never commit a break
 | Shrink the chunk budget until rules lose their exceptions | `uv run python scripts/chunk_experiment.py --chunk-size 250` | 7 features split, each with the closest chunk and the sentence it lacks; F-15 shows the MFA rule cut from its break-glass exception |
 | Import `fastembed` in `src/raglab/retrieve/dense.py` | `make architecture` | Vendor SDK fastembed is imported outside `raglab.adapters` |
 | Disable the tenant check (`tenant_problems`) in `src/raglab/evals/record.py` | `uv run pytest tests/retrieval/test_publish.py` (it forges a copy of the baseline with a tenant B chunk in a tenant A case) | The forgery test fails: the forged record now validates and would publish |
+| Make `check_output` in `src/raglab/guard/citations.py` return `None` | `uv run pytest tests/generation/test_citation_validator.py` | An answer citing a tenant B chunk that was never retrieved gets through, and the test fails |
+| Remove the caller check (`caller_tenants`) in `src/raglab/guard/tenant.py` | `uv run pytest tests/api/test_api.py` | The spoof (a tenant-a-only token asking as tenant B) is answered instead of 403 |
+| Change one word of `SYSTEM` in `src/raglab/generate/prompts/answer_v1.py` | `uv run pytest tests/generation/test_prompt_snapshot.py` | The snapshot and the fingerprint tests fail: the prompt changed without a new VERSION |
 | Commit with a message like `updated stuff` | `git commit` | The commit-msg hook refuses it: not a Conventional Commit |
 | Change the chunker's default budget | `uv run pytest tests/ingestion/test_inventory_snapshot.py` | The snapshot test fails and prints the chunk diff; `make inventory-snapshot` regenerates it on purpose |
 
@@ -93,19 +105,22 @@ around them.
 | Engineering | Hardened CI: pinned actions; secret, dependency, SAST and workflow scans | `.github/workflows/pr-fast.yml` | `tests/unit/test_workflow_rules.py` |
 | Engineering | The privacy check, Conventional Commits and git hooks | `scripts/check-forbidden.mjs`, `.githooks/` | `tests/unit/test_privacy_check.py`, `tests/unit/test_conventions.py` |
 
+| Generation | A versioned prompt with chunks framed as data, and a strict parser | `src/raglab/generate/prompts/answer_v1.py` | `tests/generation/test_prompt_snapshot.py` |
+| Generation | Guard layers: input limits, the tenant guard, the citation validator | `src/raglab/guard/`, `docs/GUARDRAILS.md` | `tests/generation/test_input_guards.py`, `tests/generation/test_citation_validator.py` |
+| Generation | The fallback contract: no reply or a bad reply is never an answer | `src/raglab/generate/pipeline.py`, `src/raglab/adapters/openai_compat.py` | `tests/generation/test_fallback_contract.py`, `tests/contract/test_chat_contract.py` |
+| Generation | Checks without a judge, Wilson intervals and pass^k | `src/raglab/evals/generation_record.py`, `src/raglab/evals/generation.py` | `tests/retrieval/test_run_record.py` |
+| Engineering | An API that fails closed on tenant, with security headers, and a page with labels | `src/raglab/api/`, `src/raglab/web/` | `tests/api/test_api.py`, `tests/api/test_page.py`, `tests/e2e/test_e2e_fake.py` |
+| Engineering | A local model for one session only, with usage guards | `src/raglab/runtime/ollama.py`, `docs/LOCAL-MODEL.md` | `tests/unit/test_ollama_session.py` |
+
 Also worth a look: the progress diagram is itself tested (`tests/unit/test_diagram.py`), and the
 playground reads only published runs (`tests/unit/test_playground.py`).
 
 ## Not testable yet
 
-Anything that needs an answer from a model starts in S3.
+Judged quality starts in S5; S3 checks only what code can count.
 
 | Capability | Arrives in |
 |---|---|
-| Answers with citations, abstention ("the documents do not say") and conflict flags | S3 |
-| A live local model run on Ollama, repeated, with pass^k | S3 |
-| The API (`/healthz`, `/version`), web UI, container and a ZAP baseline scan | S3 |
-| The first guardrails: input limits and a citation validator | S3 |
 | A deployed demo: the fake model first, then a real model with rate and budget limits | S3h, then S10 |
 | Behaviour cases (abstain, flag a conflict, refuse but help) and the dataset consistency gate | S4 (40 cases), S4b (about 120) |
 | Judged metrics (faithfulness, relevancy), measured tokens, the provider and cost decision | S5 |

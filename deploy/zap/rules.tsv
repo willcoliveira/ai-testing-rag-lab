@@ -1,0 +1,17 @@
+# ZAP baseline rules for the raglab container (S3, AC11): read by deploy/zap/scan.sh as
+# `zap-baseline.py -c rules.tsv`. Every rule not listed keeps ZAP's default (WARN). A rule is
+# listed here only with the reason it is ignored. Scan of 2026-10-18 (ZAP 2.17.0, image
+# ghcr.io/zaproxy/zaproxy:stable pinned by digest in scan.sh): 66 rules passed, no WARN, no FAIL,
+# and the three Informational alerts below, each reviewed.
+#
+# 10109 Modern Web Application (Informational): the page is driven by its script (app.js), so the
+# classic spider sees little. Expected for this page; the API is covered by tests/api/test_api.py.
+10109	IGNORE	(Modern Web Application)
+# 10049 Non-Storable Content (Informational): every response carries `cache-control: no-store` on
+# purpose (raglab.api.app.SECURITY_HEADERS): answers are per tenant and must not be cached.
+10049	IGNORE	(Non-Storable Content)
+# 10031 User Controllable HTML Element Attribute (Informational): ZAP submitted the page's form as
+# GET /?question&tenant=tenant-b and found "tenant-b" in an <option value>. The page is a static
+# file that ignores query parameters (the value is in the file); a browser cannot submit the form
+# natively (CSP form-action 'none'), and app.js writes text only. A false positive.
+10031	IGNORE	(User Controllable HTML Element Attribute (Potential XSS))

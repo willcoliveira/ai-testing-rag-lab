@@ -213,7 +213,7 @@ map for gates).
 | R-id | Requirement (short) | Planted features | Golden case | Test | Gate |
 |---|---|---|---|---|---|
 | R-01 | Answer with citations | F-01, F-02, F-03, F-29, F-46, F-53 | tbd (S4) | tbd | tbd |
-| R-02 | Citation integrity | gap (see below) | tbd (S4) | tbd (S3) | tbd |
+| R-02 | Citation integrity | gap (see below) | tbd (S4) | `tests/generation/test_citation_validator.py` (S3) | tbd |
 | R-03 | Abstain when silent | F-32, F-40 | tbd (S4) | tbd | tbd |
 | R-04 | Newer version over older | F-04, F-05, F-06, F-07, F-58 | tbd (S4) | tbd | tbd |
 | R-05 | Approved exception over rule | F-16, F-17, F-51 | tbd (S4) | tbd | tbd |
@@ -224,15 +224,15 @@ map for gates).
 | R-10 | Multi-hop | F-22, F-23 | tbd (S4) | tbd | tbd |
 | R-11 | Exact numbers and units | F-01, F-02, F-10, F-12, F-19, F-24 to F-31, F-50, F-51, F-60 to F-85 | tbd (S4) | tbd | tbd |
 | R-12 | All formats count | F-07, F-09, F-10, F-11, F-12, F-15, F-24, F-33, F-56, F-60, F-61 | tbd (S4) | tbd (S1b parsing, OCR) | tbd |
-| R-13 | Tenant scope | F-34 to F-40, F-52 | tbd (S4b) | tbd (S3 tenant filter) | tbd |
+| R-13 | Tenant scope | F-34 to F-40, F-52 | tbd (S4b) | `tests/retrieval/test_tenant_filter.py` (S2), `tests/e2e/test_e2e_fake.py` (S3) | tbd |
 | R-14 | Refuse to weaken, still help; answer the sanctioned routes (must-not-block) | F-41, F-42, F-43, F-54, F-55, F-56 | tbd (S4) | tbd | tbd |
 | R-15 | Only the register is authoritative | F-48, F-49 | tbd (S4b) | tbd (S7) | tbd |
-| R-16 | Never another tenant's content | F-34 to F-40, F-52 | tbd (S4b) | tbd (S3, S7) | tbd |
+| R-16 | Never another tenant's content | F-34 to F-40, F-52 | tbd (S4b) | `tests/e2e/test_e2e_fake.py` (S3); tbd (S7) | tbd |
 | R-17 | Never follow document instructions | F-47, F-49 | tbd (S4b) | tbd (S7) | tbd |
 | R-18 | Never invent a value | F-13, F-22, F-32, F-48 | tbd (S4) | tbd | tbd |
 | R-19 | Never echo secrets or PII | F-44, F-45, F-46 | tbd (S4b) | tbd (S7) | tbd |
 | R-20 | Never reveal the system prompt | gap (see below) | — | tbd (S7) | tbd |
-| R-21 | Fail closed on tenant | gap (see below) | — | tbd (S3 API) | tbd |
+| R-21 | Fail closed on tenant | gap (see below) | — | `tests/api/test_api.py`, `tests/generation/test_input_guards.py` (S3) | tbd |
 | R-22 | Flag unresolved conflicts | gap (see below) | tbd (S4b) | tbd | tbd |
 | R-23 | Procedures whole and in order | F-57 | tbd (S4) | tbd | tbd |
 
@@ -310,13 +310,13 @@ flowchart LR
 
 | Id | Arrow | Named check | What it asserts (oracle) | Tests, or the stage that builds it | Gate |
 |---|---|---|---|---|---|
-| R1 | question + tenant → input guards | `tenant-required` | a request without a tenant, or with one the caller may not use, is refused before retrieval (R-21) | from S3 | pr-fast |
+| R1 | question + tenant → input guards | `tenant-required` | a request without a tenant, or with one the caller may not use, is refused before retrieval (R-21), and so is a question over the input limits; the retriever is never called | `tests/generation/test_input_guards.py::test_a_request_without_a_tenant_the_caller_may_use_is_refused_before_retrieval`, `tests/generation/test_input_guards.py::test_a_question_over_the_limits_is_refused_before_retrieval`, `tests/api/test_api.py::test_a_tenant_the_caller_may_not_use_is_403_and_never_retrieved`, `tests/api/test_api.py::test_no_known_token_is_401_before_anything_else` | pr-fast |
 | R2 | input guards → retrieve top k | `retrieval-against-labels` | hit rate, MRR and recall@k against labelled sections (each resolved to its chunk ids), no judge; every label resolves; recall@5 on dev does not fall below the baseline run (docs/THRESHOLDS.md) | `tests/unit/test_metrics.py::test_case_metrics_by_hand`, `tests/retrieval/test_golden_retrieval.py::test_every_label_resolves_to_existing_chunks`, `tests/retrieval/test_golden_retrieval.py::test_every_label_is_a_location_of_one_of_its_features`, `tests/retrieval/test_run_record.py::test_a_run_writes_a_valid_record_with_its_provenance`, `tests/retrieval/test_publish.py::test_the_gate_passes_within_one_question_and_fails_below`, `tests/retrieval/test_golden_retrieval.py::test_a_section_missing_from_the_real_inventory_fails_naming_its_questions`, `tests/retrieval/test_publish.py::test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline`, `tests/unit/test_workflow_rules.py::test_pr_fast_runs_the_retrieval_gate_offline_after_the_tests` | pr-fast |
 | R3 | retrieve → tenant filter | `no-cross-tenant-retrieval` | no retrieved chunk belongs to the other tenant (R-13, R-16); the filter fails closed | `tests/retrieval/test_tenant_filter.py::test_every_retriever_refuses_a_request_without_a_known_tenant`, `tests/retrieval/test_tenant_filter.py::test_no_chunk_of_the_other_tenant_is_returned_even_for_its_own_text`, `tests/retrieval/test_tenant_filter.py::test_no_cross_tenant_chunk_on_the_whole_pack`, `tests/retrieval/test_golden_retrieval.py::test_tenant_b_questions_label_only_tenant_b_or_shared_documents`, `tests/retrieval/test_run_record.py::test_a_record_that_shows_another_tenants_chunk_is_refused`, `tests/retrieval/test_publish.py::test_a_published_run_edited_to_show_another_tenants_chunk_is_refused` | pr-fast |
-| R4 | tenant filter → assemble prompt | `prompt-snapshot` | the assembled prompt for a fixed question and fixed chunks equals its reviewed snapshot | from S3 | pr-fast |
+| R4 | tenant filter → assemble prompt | `prompt-snapshot` | the assembled prompt for a fixed question and fixed chunks equals its reviewed snapshot; the prompt cannot change without a new version; chunk text is framed as data with its id and cannot close its frame | `tests/generation/test_prompt_snapshot.py::test_the_assembled_prompt_equals_its_reviewed_snapshot`, `tests/generation/test_prompt_snapshot.py::test_the_prompt_cannot_change_without_a_new_version`, `tests/generation/test_prompt_snapshot.py::test_a_chunk_cannot_close_its_frame_or_open_another` | pr-fast |
 | R5 | assemble prompt → generate | `generation-judged` | faithfulness, answer relevancy and contextual precision and recall on the dev slice, with a calibrated judge | from S5 | eval-on-change |
 | R6 | generate → decision label | `decision-label-and-abstention` | the structured label (`answer`, `abstain`, `flag-conflict`, `refuse-and-help`) matches the golden case; abstention is scored as its own check | from S4 | nightly |
-| R7 | generate → citations | `citations-subset-of-retrieved` | every cited chunk id was retrieved for that answer (R-02) | from S3 | pr-fast |
+| R7 | generate → citations | `citations-subset-of-retrieved` | every cited chunk id was retrieved for that answer (R-02): an answer citing another id is blocked (abstain, status blocked) and the run record refuses such a case | `tests/generation/test_citation_validator.py::test_an_answer_citing_an_unretrieved_id_is_blocked_and_recorded`, `tests/generation/test_citation_validator.py::test_cited_ids_are_a_subset_of_retrieved_on_every_answer`, `tests/retrieval/test_run_record.py::test_a_broken_generation_case_is_refused` | pr-fast |
 | R8 | generate → output guards | `secrets-and-pii-withheld` | an answer never repeats the planted secret or personal details (R-19), and must-not-block answers still pass | from S7 | release |
 | R9 | output guards → answer and report | `failure-cause-attributed` | every failing case carries a cause: ingestion, retrieval, generation or abstention | from S8 | nightly |
 
@@ -331,7 +331,8 @@ system: Halvenroot policy assistant (lab), corpus 18 register documents (15 Mark
   1,200 characters, overlap 1 paragraph, a table caption kept with its table, contextual
   prefix off; embedding BAAI/bge-small-en-v1.5 (ONNX through fastembed, pinned revision),
   store in memory (numpy cosine, tenant filter before ranking), top_k 5 (dense; hybrid with
-  BM25 by reciprocal rank fusion compared), generator <from S3>
+  BM25 by reciprocal rank fusion compared), generator nemotron-3.5-lightning:30b-a3b-mlx on
+  Ollama 0.40.6 (tag and digest pinned; the fake echo model in pr-fast and the container)
 ingestion (every commit): 18 documents parsed (4 formats), 135 answer-key locations (148 values)
   checked in the extracted text, OCR 1 page (CER <= 1.0% on Tesseract 5.3.4-1build5 in CI),
   chunk inventory snapshot (228 chunks), metadata on every chunk, tenant fails closed
@@ -339,6 +340,10 @@ retrieval (every commit, no judge): about 30 labelled questions (datasets/golden
   and test; labels are sections resolved to chunk ids), hit@5, MRR@5 and recall@5 with 95%
   bootstrap intervals in run record v1; pr-fast gates recall@5 on dev against the published
   baseline (docs/THRESHOLDS.md)
+generation (every commit with the fake model; live on demand, make eval-local): prompt answer-v1
+  (versioned, snapshot-tested), the decision label and a conflict field in a parsed JSON answer,
+  the citation validator, input limits and the tenant guard; run record v1 for generation runs
+  (citation integrity, citation hit, abstention probes, pass^3, no judge)
 golden set v1: <from S4: 40 cases, the 15/8/8/4/5 mix of the main plan, with expected behaviours>
 judges: <from S5 and S6: faithfulness, answer relevancy, contextual precision/recall; kappa on 30 labels>
 abstention: <from S4: pass if the system abstains on every abstain case; metric canary from S5>

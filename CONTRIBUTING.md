@@ -33,8 +33,11 @@ the example list only, so a maintainer's real names are enforced only where the 
 - `raglab.core` imports the standard library only. Ports and types live there.
 - Vendor SDKs (model providers, vector stores, guard libraries, and the local embedder's
   fastembed, onnxruntime and huggingface_hub) are imported only in `raglab.adapters`, which also
-  holds the only constructors for their clients. The fake adapters (`raglab.adapters.fake`,
-  HashingEmbedder) are imported by no module of raglab: they exist for the unit tests only.
+  holds the only constructors for their clients. The fake adapters (`raglab.adapters.fake`:
+  HashingEmbedder, FakeChat) are imported only by `raglab.adapters.factory`, which builds FakeChat
+  when a config says `provider = "fake"` (S3 decision); a fake run has provenance fake and is never
+  published. HashingEmbedder is built by the unit tests only. HTTP clients (httpx) are imported only
+  in `raglab.adapters`, and the web framework (FastAPI, Starlette, uvicorn) only in `raglab.api`.
   `scripts/check_architecture.py` enforces these rules.
 - File-format parsers (pypdf, pytesseract, pyyaml, Pillow) are not vendor SDKs; they are
   imported only in `raglab.ingest`, which turns files into parsed documents for the rest of

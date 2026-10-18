@@ -9,6 +9,14 @@
   edited by hand, and the tenants: every retrieved and labelled chunk id names a document of the
   register (corpus/register.yaml) that the case's tenant may see, so a record that shows another
   tenant's chunk is refused even when its flags, scores, hashes and report agree (S2 judge D3).
+- The provenance against the models (S3 judge S3-S2): a run whose embedder or generator is a
+  fake (provider fake, or a fake revision or digest) has provenance fake, whatever else its label
+  says, so a fake run relabelled local is refused even when its hashes and report agree.
+- The suite (S3): a retrieval run has bootstrap intervals and every case its labels and scores; a
+  generation run (raglab.evals.generation_record) has the generator, the prompt, the guards, the
+  probes and Wilson intervals, one line per case and trial, and every case its answer fields, its
+  checks recomputed, and no cited id that was not retrieved for it. Fields of one suite are
+  refused in the other.
 
 The report and the cases carry chunk ids and scores, never chunk text.
 """
@@ -20,9 +28,9 @@ from pathlib import Path
 from typing import cast
 
 from raglab.core.types import visible_tenants
-from raglab.evals import metrics
+from raglab.evals import generation_record, metrics
 from raglab.evals.schema import Validator
-from raglab.ingest import register
+from raglab.ingest import answer_key, register
 
 SCHEMA_VERSION = "run-record.v1"
 SCHEMA_PATH = "schemas/run-record.v1.json"
@@ -157,7 +165,7 @@ def write(parent: Path, manifest: Json, cases: Sequence[Json]) -> Path:
     run_dir.mkdir(parents=True)
     body = {k: v for k, v in manifest.items() if k != "files"}
     cases_bytes = cases_text(cases).encode("utf-8")
-    report_bytes = render_report(body, cases).encode("utf-8")
+    report_bytes = render(body, cases).encode("utf-8")
     (run_dir / CASES).write_bytes(cases_bytes)
     (run_dir / REPORT).write_bytes(report_bytes)
     full = {
@@ -224,8 +232,12 @@ def tenant_problems(case: Json, tenants: Mapping[str, str]) -> list[str]:
     visible = visible_tenants(case["tenant"])
     ids = [str(as_json(r)["chunk_id"]) for r in as_list(case["retrieved"])]
     ids += [
-        str(i) for label in as_list(case["labels"]) for i in as_list(as_json(label)["chunk_ids"])
+        str(i)
+        for label in as_list(case.get("labels", []))
+        for i in as_list(as_json(label)["chunk_ids"])
     ]
+    if "cited_ids" in case:  # a generation case: what it cites is checked too
+        ids += sorted(generation_record.referenced(case))
     problems: list[str] = []
     for chunk_id in ids:
         doc = chunk_id.split("@", 1)[0]
@@ -259,23 +271,174 @@ def validate(run_dir: Path, root: Path) -> list[str]:
     totals = as_json(manifest["totals"])
     if totals["cases"] != len(cases):
         problems.append(f"totals.cases {totals['cases']} but cases.jsonl has {len(cases)} lines")
-    ids = [str(c["case_id"]) for c in cases]
-    if len(set(ids)) != len(ids):
-        problems.append("a case id appears twice in cases.jsonl")
+    problems.extend(provenance_problems(manifest))
+    keys = [(str(c["case_id"]), c["trial"]) for c in cases]
+    if len(set(keys)) != len(keys):
+        problems.append("a case id and trial appear twice in cases.jsonl")
     k = cast(int, as_json(manifest["retriever"])["k"])
-    problems.extend(problem for case in cases for problem in case_problems(case, k))
+    if manifest["suite"] == "generation":
+        problems.extend(generation_problems(manifest, cases, k, root))
+    else:
+        problems.extend(retrieval_problems(manifest, cases, k))
     try:
         tenants = doc_tenants(root)
     except (OSError, ValueError) as error:  # the register fails closed: no check, no valid run
         problems.append(f"the register cannot be read, so the tenants are unchecked ({error})")
     else:
         problems.extend(problem for case in cases for problem in tenant_problems(case, tenants))
-    expected = results_from_cases(cases, k, as_json(manifest["bootstrap"]))
+    body = {k2: v for k2, v in manifest.items() if k2 != "files"}
+    try:
+        expected = expected_results(manifest, cases)
+        report = render(body, cases)
+    except (KeyError, ValueError, TypeError) as error:  # a field the suite needs is missing
+        problems.append(f"the results and report cannot be recomputed ({error!r})")
+        return problems
     if manifest["results"] != expected:
         problems.append(
             f"results do not match the cases: manifest {manifest['results']}, recomputed {expected}"
         )
-    body = {k2: v for k2, v in manifest.items() if k2 != "files"}
-    if (run_dir / REPORT).read_text(encoding="utf-8") != render_report(body, cases):
+    if (run_dir / REPORT).read_text(encoding="utf-8") != report:
         problems.append("report.md is not the report generated from the manifest and the cases")
+    return problems
+
+
+# ---------------------------------------------------------------- the suites (S3)
+
+
+def fake_models(manifest: Json) -> list[str]:
+    """The model fields that say a fake made this run: a fake provider, revision or digest."""
+    found: list[str] = []
+    for part, fields in (
+        ("embedder", ("provider", "revision")),
+        ("generator", ("provider", "digest")),
+    ):
+        if part not in manifest:
+            continue
+        described = as_json(manifest[part])
+        found += [f"{part}.{field} fake" for field in fields if described.get(field) == "fake"]
+    return found
+
+
+def provenance_problems(manifest: Json) -> list[str]:
+    """A run made with a fake model whose provenance is not fake."""
+    fake = fake_models(manifest)
+    if fake and manifest["provenance"] != "fake":
+        return [
+            f"provenance {manifest['provenance']} but {', '.join(fake)}: a run made with a fake "
+            "model has provenance fake"
+        ]
+    return []
+
+
+GENERATION_MANIFEST = ("generator", "prompt", "guards", "intervals", "probes")
+
+
+def render(manifest: Json, cases: Sequence[Json]) -> str:
+    """report.md for the run's suite."""
+    if manifest["suite"] == "generation":
+        return generation_record.render_report(manifest, cases)
+    return render_report(manifest, cases)
+
+
+def expected_results(manifest: Json, cases: Sequence[Json]) -> Json:
+    """The results block recomputed from the cases, for the run's suite."""
+    if manifest["suite"] == "generation":
+        level = cast(float, as_json(manifest["intervals"])["level"])
+        return generation_record.results(cases, cast(int, manifest["trials"]), level)
+    k = cast(int, as_json(manifest["retriever"])["k"])
+    return results_from_cases(cases, k, as_json(manifest["bootstrap"]))
+
+
+def retrieval_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[str]:
+    """A retrieval run: bootstrap intervals, one trial, every case its labels and scores, and no
+    field of a generation run."""
+    problems: list[str] = []
+    if "bootstrap" not in manifest:
+        problems.append("a retrieval run has bootstrap intervals: missing 'bootstrap'")
+    extra = [f for f in (*GENERATION_MANIFEST, "ollama") if f in manifest]
+    if extra or "generation" in as_json(manifest["results"]):
+        problems.append(
+            f"a retrieval run has no generation fields: {extra or ['results.generation']}"
+        )
+    for case in cases:
+        where = f"case {case['case_id']}"
+        if missing := [f for f in generation_record.RETRIEVAL_FIELDS if f not in case]:
+            problems.append(f"{where}: a retrieval case needs {missing}")
+            continue
+        if extra := [f for f in generation_record.ANSWER_FIELDS if f in case]:
+            problems.append(f"{where}: a retrieval case has no answer fields: {extra}")
+        problems.extend(case_problems(case, k))
+    return problems
+
+
+def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Path) -> list[str]:
+    """A generation run: its manifest fields, N trials of every case (fewer only in a partial
+    run), every case's answer fields, a withheld answer for every status but ok, no cited id that
+    was not retrieved, retrieval scores on the questions and none on the probes, and the checks
+    as the fields give them."""
+    problems: list[str] = []
+    if missing := [f for f in GENERATION_MANIFEST if f not in manifest]:
+        problems.append(f"a generation run needs {missing}")
+    if "bootstrap" in manifest:
+        problems.append("a generation run has Wilson intervals, not bootstrap ones")
+    if "generation" not in as_json(manifest["results"]):
+        problems.append("a generation run needs results.generation")
+    if problems:
+        return problems
+    trials = cast(int, manifest["trials"])
+    unavailable = sum(1 for case in cases if case.get("status") == "unavailable")
+    if unavailable and not manifest["partial"]:  # judge S3-J10
+        problems.append(
+            f"{unavailable} trial(s) unavailable but partial is false: a run with unanswered "
+            "trials is never complete"
+        )
+    try:
+        canaries = answer_key.canaries(root)
+    except (OSError, ValueError) as error:  # fails closed, as the register does
+        return [f"the answer key's canaries cannot be read, so the probes are unchecked ({error})"]
+    seen: dict[str, list[int]] = {}
+    for case in cases:
+        where = f"case {case['case_id']} trial {case['trial']}"
+        seen.setdefault(str(case["case_id"]), []).append(cast(int, case["trial"]))
+        if missing := [f for f in generation_record.ANSWER_FIELDS if f not in case]:
+            problems.append(f"{where}: a generation case needs {missing}")
+            continue
+        kind_fields = (
+            generation_record.PROBE_FIELDS
+            if case["kind"] == generation_record.PROBE
+            else generation_record.RETRIEVAL_FIELDS
+        )
+        other_fields = (
+            generation_record.RETRIEVAL_FIELDS
+            if case["kind"] == generation_record.PROBE
+            else generation_record.PROBE_FIELDS
+        )
+        if missing := [f for f in kind_fields if f not in case]:
+            problems.append(f"{where}: a {case['kind']} case needs {missing}")
+            continue
+        if extra := [f for f in other_fields if f in case]:
+            problems.append(f"{where}: a {case['kind']} case has no {extra}")
+            continue
+        if case["status"] != "ok" and (
+            case["answer"] or case["cited_ids"] or case["conflict"] or case["label"] != "abstain"
+        ):
+            problems.append(f"{where}: a {case['status']} answer is withheld (abstain, no text)")
+        retrieved = {str(as_json(r)["chunk_id"]) for r in as_list(case["retrieved"])}
+        guards = [str(as_json(e)["guard"]) for e in as_list(case["guard_events"])]
+        if generation_record.CITATIONS_GUARD in guards and case["status"] != "blocked":
+            problems.append(f"{where}: the citation validator fired, so the answer is blocked")
+        if unretrieved := sorted(generation_record.referenced(case) - retrieved):
+            problems.append(f"{where}: cites ids that were not retrieved: {unretrieved}")
+        if case["kind"] == generation_record.RETRIEVAL:
+            problems.extend(case_problems(case, k))
+        elif any(as_json(r)["relevant"] for r in as_list(case["retrieved"])):
+            problems.append(f"{where}: a probe has no labels, so no retrieved chunk is relevant")
+        if case["checks"] != generation_record.case_checks(case, canaries):
+            problems.append(f"{where}: checks {case['checks']} do not follow from the fields")
+    for case_id, numbers in seen.items():
+        full = list(range(1, trials + 1))
+        if sorted(numbers) != full and not (
+            manifest["partial"] and sorted(numbers) == full[: len(numbers)]
+        ):
+            problems.append(f"case {case_id}: trials {sorted(numbers)}, not 1 to {trials}")
     return problems

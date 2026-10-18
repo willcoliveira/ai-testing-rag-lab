@@ -10,6 +10,7 @@ paths = [
   '''(^|/)__pycache__/''',
   '''(^|/)\.(ruff|pytest)_cache/''',
   '''(^|/)privacy/forbidden-strings\.txt$''',
+  '''(^|/)\.claude/worktrees/''',
 ]
 
 [[allowlists]]

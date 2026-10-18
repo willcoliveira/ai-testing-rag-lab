@@ -1,0 +1,6 @@
+body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+form { display: grid; gap: 0.5rem; margin-bottom: 1.5rem; }
+textarea, select, button { font: inherit; padding: 0.4rem; }
+button { justify-self: start; }
+:focus-visible { outline: 3px solid #1e40af; outline-offset: 2px; }
+#answer { white-space: pre-wrap; }

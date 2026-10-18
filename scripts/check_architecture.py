@@ -5,8 +5,12 @@
    at run time.
 3. File-format parsers (pypdf, pytesseract, pyyaml, Pillow) are imported only inside
    `raglab.ingest`: they are not vendor SDKs, but the rest of raglab works on parsed documents.
-4. The fake adapters (`raglab.adapters.fake`: HashingEmbedder) are imported by no module of the
-   package: they exist for the unit tests, so no run, eval or published number can use them (S2).
+4. The fake adapters (`raglab.adapters.fake`: HashingEmbedder, FakeChat) are imported only by
+   `raglab.adapters.factory`, which builds FakeChat when a config says `provider = "fake"` (S3
+   decision; before S3 no module imported them). A fake run has provenance fake and is never
+   published; the unit tests import the module directly.
+5. HTTP clients (httpx and the like) are imported only inside `raglab.adapters`, and the web
+   framework (FastAPI, Starlette, uvicorn) only inside `raglab.api` (S3).
 
 A run-time import is found by the call, not by tracking what importlib is bound to (S0 judge round
 3: `importlib = __import__('importlib')`, `il, x = importlib, 1` or `sys.modules['importlib']`
@@ -44,6 +48,7 @@ VENDORS = frozenset(
         "deepeval",
         "fastembed",
         "guardrails",
+        "httpx",
         "huggingface_hub",
         "ollama",
         "onnxruntime",
@@ -56,8 +61,15 @@ VENDORS = frozenset(
 # file-format libraries, by import name: allowed only in raglab.ingest (rule 3)
 PARSERS = frozenset({"pypdf", "pytesseract", "yaml", "PIL"})
 
-# test-only adapters, by module name relative to the package: imported by no module of it (rule 4)
+# fake adapters, by module name relative to the package, and the one module that may import
+# them (rule 4)
 TEST_ONLY = frozenset({"adapters.fake"})
+FAKE_IMPORTER = "adapters.factory"
+
+# HTTP clients: only in raglab.adapters (rule 5); httpx is also in VENDORS
+HTTP_CLIENTS = frozenset({"httpx", "aiohttp", "urllib3"})
+# the web framework: only in raglab.api (rule 5)
+WEB = frozenset({"fastapi", "starlette", "uvicorn"})
 
 
 @dataclass(frozen=True)
@@ -336,6 +348,18 @@ def check(package_dir: Path) -> list[Violation]:
                             f" not {module}",
                         )
                     )
+            if layer != "adapters" and top in HTTP_CLIENTS - VENDORS:
+                violations.append(
+                    Violation(
+                        file, line, f"HTTP client {top} is imported outside {root_name}.adapters"
+                    )
+                )
+            if layer != "api" and top in WEB:
+                violations.append(
+                    Violation(
+                        file, line, f"web framework {top} is imported outside {root_name}.api"
+                    )
+                )
             if layer != "adapters" and top in VENDORS:
                 violations.append(
                     Violation(
@@ -368,7 +392,8 @@ def _from_import_names(tree: ast.Module, module_parts: list[str], is_package: bo
 def _test_only_violations(
     file: Path, tree: ast.Module, parts: list[str], root_name: str
 ) -> list[Violation]:
-    """Rule 4: no module of the package imports a test-only adapter (except the module itself)."""
+    """Rule 4: no module of the package imports a fake adapter, except the module itself and the
+    factory."""
     is_package = file.name == "__init__.py"
     dotted = ".".join(parts[1:])
     found: list[Violation] = []
@@ -380,12 +405,17 @@ def _test_only_violations(
     for line, module in names:
         for test_only in TEST_ONLY:
             target = f"{root_name}.{test_only}"
-            if dotted == test_only or (line, target) in seen:
+            if dotted in (test_only, FAKE_IMPORTER) or (line, target) in seen:
                 continue
             if module == target or module.startswith(f"{target}."):
                 seen.add((line, target))
                 found.append(
-                    Violation(file, line, f"{target} is for the unit tests; no module imports it")
+                    Violation(
+                        file,
+                        line,
+                        f"{target} is built only by {root_name}.{FAKE_IMPORTER} (provider fake) "
+                        "and the unit tests; no other module imports it",
+                    )
                 )
     return found
 

@@ -5,24 +5,19 @@ fake, invalid or private run is refused. And the no-regression gate against the 
 import json
 import shutil
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
 from raglab.evals import gate, publish, record, retrieval
 from tests.conftest import ROOT
-from tests.retrieval_support import fake_run, lab_root, read_run, reseal
+from tests.retrieval_support import fake_run, lab_root, local_run, read_run, reseal
 
 pytestmark = [pytest.mark.unit, pytest.mark.retrieval]
 
 
 def clean(run_dir, root):
     return []
-
-
-def local_run(root, **kwargs):
-    """A fake-embedder run labelled local, so publish's provenance rule lets it through: only for
-    testing the publishing mechanics."""
-    return fake_run(root, provenance="local", **kwargs)
 
 
 def test_publish_copies_the_run_and_builds_the_index(tmp_path):
@@ -50,7 +45,7 @@ def test_publish_copies_the_run_and_builds_the_index(tmp_path):
         "config": "retrieval-a",
         "provenance": "local",
         "git_sha": manifest["git_sha"],
-        "embedder": "hashing-256@fake",
+        "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
         "retriever": "dense",
         "k": 2,
         "chunk_size": 1200,
@@ -166,6 +161,7 @@ def test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline():
         assert manifest["partial"] is False, run_dir.name
         assert manifest["split"] == "dev", run_dir.name
         assert {c["split"] for c in cases} == {"dev"}, run_dir.name
+        assert publish.planted_strings(run_dir, ROOT) == [], run_dir.name
     baselines = {str(k): str(v) for k, v in record.as_json(index["baselines"]).items()}
     assert index == publish.build_index(published, baselines)
     key = "retrieval/retrieval-dense/dev"
@@ -198,3 +194,121 @@ def test_a_published_run_edited_to_show_another_tenants_chunk_is_refused(tmp_pat
     ]
     with pytest.raises(publish.PublishError, match=r"B-PWD@1\.0/3\.1/1 is tenant-b"):
         publish.publish(run_dir, ROOT, privacy=clean)
+
+
+# ---------------------------------------------------------------- S3: generation runs
+
+
+def test_a_fake_generation_run_is_never_published(tmp_path):
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root)
+    with pytest.raises(publish.PublishError, match="fake provenance"):
+        publish.publish(run_dir, root, privacy=clean)
+
+
+def test_a_partial_generation_run_is_never_published(tmp_path):
+    from tests.generation_support import (
+        fake_generation_run,
+        generation_config_text,
+        generation_root,
+    )
+
+    root = generation_root(tmp_path)
+    ticks = iter(range(0, 10_000, 100))
+    run_dir = fake_generation_run(
+        root,
+        config_text=generation_config_text(cap=250),
+        local=True,
+        monotonic=lambda: next(ticks),
+    )
+    with pytest.raises(publish.PublishError, match="is partial"):
+        publish.publish(run_dir, root, privacy=clean)
+
+
+def test_a_local_generation_run_is_published_with_its_model_in_the_index(tmp_path):
+    """A local run of the small pack (the real embedder, the adapter against the stub server)."""
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root, local=True)
+    dest = publish.publish(run_dir, root, privacy=clean)
+    index: Any = publish.read_index(root / publish.PUBLISHED)
+    [entry] = index["runs"]
+    assert entry["run_id"] == dest.name
+    assert (entry["suite"], entry["generator"], entry["prompt"]) == (
+        "generation",
+        "stub-model:1b@aaaaaaaaaaaa",
+        "answer-v1",
+    )
+    assert "pass^2" in entry["metrics"]
+
+
+def test_compare_refuses_generation_runs(tmp_path):
+    from raglab.evals import compare
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    a = fake_generation_run(root)
+    b = fake_generation_run(root, when=datetime(2026, 10, 18, 13, 0, 0, tzinfo=UTC))
+    with pytest.raises(compare.CompareError, match="retrieval runs only"):
+        compare.compare(a, b, root)
+
+
+# ---------------------------------------------------------------- S3 fix round 1 (judge S3-S2)
+
+
+def test_a_fake_model_run_labelled_local_is_refused(tmp_path):
+    """A run made with the fake embedder, its provenance edited to local and the record resealed
+    (hashes, report and results made to agree): validate and publish refuse it on the model
+    fields, whatever the provenance string says."""
+    root = lab_root(tmp_path)
+    run_dir = fake_run(root)  # the hashing embedder, provenance fake
+    manifest, cases = read_run(run_dir)
+    manifest["provenance"] = "local"
+    (run_dir / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
+    reseal(run_dir, cases)
+    problems = record.validate(run_dir, root)
+    assert any("embedder.provider fake" in p for p in problems), problems
+    with pytest.raises(publish.PublishError, match="fake"):
+        publish.publish(run_dir, root, privacy=clean)
+    assert not (root / publish.PUBLISHED).exists()
+
+
+def test_a_fake_chat_run_labelled_local_is_refused(tmp_path):
+    from tests.generation_support import fake_generation_run, generation_root
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root, provenance="local")
+    problems = record.validate(run_dir, root)
+    assert any("generator.provider fake" in p for p in problems), problems
+    with pytest.raises(publish.PublishError, match="fake"):
+        publish.publish(run_dir, root, privacy=clean)
+
+
+# ---------------------------------------------------------------- S3 fix round 3 (judge S3-J10)
+
+
+def test_a_run_whose_model_never_answered_is_partial_and_never_published(tmp_path):
+    """A local run (the real embedder, the adapter against the stub server) whose every request
+    meets a connection error: every trial is unavailable, so the run is partial, with the count
+    in the manifest, and publish refuses it."""
+    import httpx
+
+    from tests.generation_support import fake_generation_run, generation_root
+
+    def refused(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    root = generation_root(tmp_path)
+    run_dir = fake_generation_run(root, local=True, handler=refused)
+    assert record.validate(run_dir, root) == []
+    manifest, cases = read_run(run_dir)
+    assert {c["status"] for c in cases} == {"unavailable"}
+    assert manifest["provenance"] == "local"
+    assert manifest["partial"] is True
+    assert manifest["results"]["generation"]["status_counts"]["unavailable"] == len(cases)
+    assert f"{len(cases)} of {len(cases)} trial(s) unavailable" in manifest["totals"]["stopped"]
+    with pytest.raises(publish.PublishError, match="is partial"):
+        publish.publish(run_dir, root, privacy=clean)

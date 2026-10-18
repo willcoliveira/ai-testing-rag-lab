@@ -1,4 +1,5 @@
-"""The types every layer shares: a parsed document, its pages and blocks, and its chunks.
+"""The types every layer shares: a parsed document, its pages and blocks, its chunks, and (S3) the
+structured answer, its status and the chat request and reply a model port carries.
 
 Standard library only (scripts/check_architecture.py). A parser turns a file into pages of blocks;
 the pipeline adds the document's metadata; a chunker cuts the document's text into chunks that
@@ -8,6 +9,7 @@ carry everything retrieval, citation and tenant isolation need.
 import hashlib
 import re
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Literal, NewType
 
 ChunkId = NewType("ChunkId", str)
@@ -216,3 +218,117 @@ class ScoredChunk:
 
     chunk: Chunk
     score: float
+
+
+# ---------------------------------------------------------------- generation (S3)
+
+# The decision labels of an answer (docs/TEST-PLAN.md, section 3).
+Label = Literal["answer", "abstain", "flag-conflict", "refuse-and-help"]
+LABELS: tuple[Label, ...] = ("answer", "abstain", "flag-conflict", "refuse-and-help")
+
+
+class Status(StrEnum):
+    """What happened to a request. Only `ok` carries answer text; every other status withholds
+    the answer (the fallback contract: never a guessed answer)."""
+
+    OK = "ok"
+    REFUSED = "refused"  # an input guard refused the request before retrieval
+    BLOCKED = (
+        "blocked"  # a guard blocked the answer after retrieval (e.g. a citation not retrieved)
+    )
+    UNAVAILABLE = "unavailable"  # the model could not answer: timeout, connection, HTTP error
+    INVALID_OUTPUT = "invalid_output"  # the model answered outside the answer schema
+
+
+GuardStage = Literal["input", "retrieved", "output"]
+
+
+@dataclass(frozen=True)
+class GuardEvent:
+    """A guard refused a request or blocked an answer, and why. Recorded with the answer."""
+
+    guard: str
+    stage: GuardStage
+    reason: str
+
+
+@dataclass(frozen=True)
+class Conflict:
+    """The structured conflict field: the chunks whose values disagree, and a short note."""
+
+    chunk_ids: tuple[str, ...]
+    note: str
+
+    def __post_init__(self) -> None:
+        if not self.chunk_ids:
+            raise ValueError("a conflict names at least one chunk")
+
+
+@dataclass(frozen=True)
+class Answer:
+    """A structured answer: its text, the chunk ids it cites, its decision label, the conflict
+    field and its status. An answer whose status is not ok has no text, no citations and no
+    conflict, and is labelled abstain: nothing is guessed."""
+
+    text: str
+    cited_ids: tuple[str, ...]
+    label: Label
+    conflict: Conflict | None
+    status: Status
+
+    def __post_init__(self) -> None:
+        if self.label not in LABELS:
+            raise ValueError(f"label {self.label!r} is not one of {LABELS}")
+        if self.status is not Status.OK and (
+            self.text or self.cited_ids or self.conflict or self.label != "abstain"
+        ):
+            raise ValueError(f"a {self.status} answer carries no text, citations or conflict")
+
+    @classmethod
+    def withheld(cls, status: Status) -> "Answer":
+        """The answer of a request that got none: abstain, no text, no citations."""
+        if status is Status.OK:
+            raise ValueError("an ok answer is never withheld")
+        return cls("", (), "abstain", None, status)
+
+    def referenced_ids(self) -> frozenset[str]:
+        """Every chunk id the answer points at: its citations and its conflict's chunks."""
+        return frozenset(self.cited_ids) | frozenset(
+            self.conflict.chunk_ids if self.conflict else ()
+        )
+
+
+@dataclass(frozen=True)
+class ChatMessage:
+    role: Literal["system", "user"]
+    content: str
+
+
+@dataclass(frozen=True)
+class ChatRequest:
+    """One chat completion: the messages, the JSON schema the reply must follow (by name) and the
+    seed of this trial."""
+
+    messages: tuple[ChatMessage, ...]
+    schema_name: str
+    schema: dict[str, object]
+    seed: int
+
+
+@dataclass(frozen=True)
+class ChatReply:
+    """The model's reply text as it came, the token counts the server reported (None when it
+    reported none), and whether the reply carried reasoning text (thinking) besides the answer."""
+
+    text: str
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    reasoning: bool = False
+
+
+class ChatUnavailable(RuntimeError):
+    """The model gave no reply: a timeout, a connection error or an HTTP error status."""
+
+
+class ChatTimeout(ChatUnavailable):
+    """No reply within the request's timeout. A run that meets one is marked partial."""

@@ -1,0 +1,3 @@
+{"id": "P-01", "kind": "behaviour", "tenant": "tenant-a", "question": "How many password reset attempts are allowed per day?", "split": "dev", "question_kind": "abstention-probe", "feature_ids": ["F-32"], "expected": "abstain", "canaries_of": null}
+{"id": "P-02", "kind": "behaviour", "tenant": "tenant-b", "question": "How many password reset attempts are allowed per day?", "split": "dev", "question_kind": "abstention-probe", "feature_ids": ["F-32"], "expected": "abstain", "canaries_of": null}
+{"id": "P-03", "kind": "behaviour", "tenant": "tenant-b", "question": "When is a leaver's account disabled?", "split": "dev", "question_kind": "abstention-probe", "feature_ids": ["F-40"], "expected": "abstain", "canaries_of": "tenant-a"}

@@ -20,7 +20,7 @@ from raglab import __version__
 from raglab.core.ports import Embedder, Retriever
 from raglab.core.types import Chunk
 from raglab.evals import golden, record
-from raglab.evals.config import EvalConfig, canonical_sha256
+from raglab.evals.config import EvalConfig, RetrieverConfig, canonical_sha256
 from raglab.index.memory import InMemoryStore
 from raglab.ingest import pipeline
 from raglab.retrieve.bm25 import BM25Retriever
@@ -58,13 +58,12 @@ def corpus_sha256(chunks: list[Chunk]) -> str:
     return canonical_sha256([[c.chunk_id, c.sha256] for c in chunks])
 
 
-def build_retriever(config: EvalConfig, embedder: Embedder, chunks: list[Chunk]) -> Retriever:
+def build_retriever(spec: RetrieverConfig, embedder: Embedder, chunks: list[Chunk]) -> Retriever:
     def dense() -> DenseRetriever:
         store = InMemoryStore(embedder.dimension)
         index_chunks(embedder, store, chunks)
         return DenseRetriever(embedder, store)
 
-    spec = config.retriever
     if spec.kind == "dense":
         return dense()
     if spec.kind == "bm25":
@@ -114,7 +113,7 @@ def run(
         raise ValueError(f"the inventory was chunked at {inventory.settings}, not {config.chunker}")
     chunks = list(inventory.chunks)
     resolved = golden.resolve(questions, chunks)
-    retriever = build_retriever(config, embedder, chunks)
+    retriever = build_retriever(config.retriever, embedder, chunks)
     k = config.retriever.k
     cases: list[Json] = []
     for item in resolved:

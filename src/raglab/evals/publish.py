@@ -2,8 +2,13 @@
 runs/published/<run_id>/ and rebuild runs/published/index.json, which the playground reads.
 
 A run is refused when it is not a valid run record, when it was made from a dirty work tree
-(git_dirty: its commit would not reproduce it), when its provenance is fake, when it is partial,
-or when the privacy check finds anything in its files. An already published run is replaced only
+(git_dirty: its commit would not reproduce it), when its provenance is fake or any model field
+says fake (provider, revision or digest), when it is partial, when one of its files holds a
+string the answer key says no answer may repeat (the planted secret,
+personal details and attack canaries: `answer_must_not_contain`, R-19), or when the privacy check
+finds anything in its files. The privacy check reads the files at their published path
+(runs/published/<run_id>/), where privacy/allowlist-published.txt applies; a refused run's copy is
+removed again. An already published run is replaced only
 by identical files. `--baseline` makes the run the baseline of its suite, config and split, which
 the no-regression gate compares against.
 """
@@ -17,6 +22,7 @@ from typing import cast
 
 from raglab.evals import record
 from raglab.evals.record import Json, as_json
+from raglab.ingest import answer_key
 
 PUBLISHED = "runs/published"
 INDEX = "index.json"
@@ -48,6 +54,21 @@ def node_privacy_check(run_dir: Path, root: Path) -> list[str]:
     ]
 
 
+def planted_strings(run_dir: Path, root: Path) -> list[str]:
+    """Each run file line that holds one of the answer key's answer_must_not_contain strings."""
+    try:
+        banned = answer_key.must_not_contain(root)
+    except (OSError, ValueError) as error:  # fails closed: no check, no publish
+        return [f"the answer key cannot be read ({error})"]
+    found: list[str] = []
+    for name in FILES:
+        lines = (run_dir / name).read_text(encoding="utf-8").splitlines()
+        for number, line in enumerate(lines, start=1):
+            for feature, strings in sorted(banned.items()):
+                found += [f"{name}:{number}: {feature}'s {s!r}" for s in strings if s in line]
+    return found
+
+
 def baseline_key(manifest: Json) -> str:
     return f"{manifest['suite']}/{as_json(manifest['config'])['name']}/{manifest['split']}"
 
@@ -55,7 +76,7 @@ def baseline_key(manifest: Json) -> str:
 def index_entry(manifest: Json) -> Json:
     embedder = as_json(manifest["embedder"])
     retriever = as_json(manifest["retriever"])
-    return {
+    entry: Json = {
         "run_id": manifest["run_id"],
         "path": f"{manifest['run_id']}/",
         "created_at": manifest["created_at"],
@@ -71,6 +92,11 @@ def index_entry(manifest: Json) -> Json:
         "n": as_json(manifest["totals"])["cases"],
         "metrics": as_json(manifest["results"])["metrics"],
     }
+    if "generator" in manifest:  # a generation run (S3): the model and its pinned digest
+        generator = as_json(manifest["generator"])
+        entry["generator"] = f"{generator['model']}@{str(generator['digest'])[:12]}"
+        entry["prompt"] = as_json(manifest["prompt"])["version"]
+    return entry
 
 
 def read_index(published: Path) -> Json:
@@ -113,24 +139,35 @@ def publish(
         raise PublishError(
             f"{manifest['run_id']} was made from a dirty work tree: commit, then run it again"
         )
-    if manifest["provenance"] == "fake":
+    fake = record.fake_models(manifest)
+    if manifest["provenance"] == "fake" or fake:
         raise PublishError(
-            f"{manifest['run_id']} has fake provenance: fake runs are never published"
+            f"{manifest['run_id']} has fake provenance or a fake model "
+            f"({', '.join(fake) or 'provenance fake'}): fake runs are never published"
         )
     if manifest["partial"]:
         raise PublishError(f"{manifest['run_id']} is partial")
-    if found := privacy(run_dir, root):
-        raise PublishError("the privacy check found:\n" + "\n".join(found))
+    if found := planted_strings(run_dir, root):
+        raise PublishError("the run repeats strings no answer may hold:\n" + "\n".join(found))
     published = root / PUBLISHED
     dest = published / str(manifest["run_id"])
+    new_folder = not published.exists()
+    created = False
     if dest.exists():
         for name in FILES:
             if (dest / name).read_bytes() != (run_dir / name).read_bytes():
                 raise PublishError(f"{dest} is already published with different files")
     elif dest.resolve() != run_dir.resolve():
         dest.mkdir(parents=True)
+        created = True
         for name in FILES:
             shutil.copyfile(run_dir / name, dest / name)
+    if found := privacy(dest if dest.exists() else run_dir, root):
+        if created:
+            shutil.rmtree(dest)
+            if new_folder:
+                published.rmdir()
+        raise PublishError("the privacy check found:\n" + "\n".join(found))
     baselines = {
         str(k): str(v) for k, v in as_json(read_index(published).get("baselines", {})).items()
     }

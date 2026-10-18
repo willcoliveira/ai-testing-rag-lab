@@ -1,0 +1,40 @@
+# The generation suite and `raglab serve` with the fake chat model (FakeChat, which echoes the
+# retrieved chunks and cites them) and the real local embedder: what the container and the pr-fast
+# API smoke run. Its runs have provenance fake and are never published.
+# Read by raglab.evals.config.load_generation (strict: an unknown or missing key stops the run).
+name = "generation-fake"
+suite = "generation"
+
+[dataset]
+path = "datasets/golden.v1.jsonl"
+split = "dev"
+
+[chunker]
+chunk_size = 1200
+overlap = 1
+
+[embedder]
+provider = "fastembed"
+model = "BAAI/bge-small-en-v1.5"
+revision = "aa8f8b060edb00e03bfdd08813a2949946c8ba55"
+
+[retriever]
+kind = "dense"
+k = 5
+
+[generator]
+provider = "fake"
+model = "fake-echo"
+
+[generation]
+trials = 3
+seed = 20261018
+level = 0.95
+probes = "datasets/probes.s3.jsonl"
+run_timeout_s = 600
+
+# Lab: caller tokens are public demo values, not secrets. The page uses "demo"; the pr-fast smoke
+# and the tests also use "tenant-a-only" to show that a caller is refused a tenant it may not use.
+# Production takes the tenant from the identity provider's claims, never from a token map.
+[api]
+tokens = { demo = ["tenant-a", "tenant-b"], tenant-a-only = ["tenant-a"] }

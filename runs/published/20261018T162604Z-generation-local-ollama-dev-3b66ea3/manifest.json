@@ -1,0 +1,201 @@
+{
+  "schema_version": "run-record.v1",
+  "run_id": "20261018T162604Z-generation-local-ollama-dev-3b66ea3",
+  "created_at": "2026-10-18T16:26:04Z",
+  "suite": "generation",
+  "gate": "manual",
+  "split": "dev",
+  "trials": 3,
+  "seed": 20261018,
+  "provenance": "local",
+  "partial": false,
+  "git_sha": "3b66ea3e5109441f40ec58f67b097a45f049e0ea",
+  "git_dirty": false,
+  "config": {
+    "name": "generation-local-ollama",
+    "path": "config/local-ollama.toml",
+    "file_sha256": "b6b0369293a0bed6a063546db917662f9a87deb59ff032a97d705380f3e15783",
+    "sha256": "e991f7cfb166757dc5cdc655dac2229a888c7232dd620715cb084ad23cfbf408"
+  },
+  "chunker": {
+    "chunk_size": 1200,
+    "overlap": 1,
+    "sha256": "efc92723850c2cd1c95073b805b017abe506cc2d2d9cdd395211aea09f7f18a9"
+  },
+  "embedder": {
+    "provider": "fastembed",
+    "model": "BAAI/bge-small-en-v1.5",
+    "source": "Qdrant/bge-small-en-v1.5-onnx-Q",
+    "revision": "aa8f8b060edb00e03bfdd08813a2949946c8ba55",
+    "dimension": 384,
+    "onnx_sha256": "51f1bd0addd6e859e42c2c8021a5e5461385bb676a649f4b269aa445449f2431",
+    "fastembed": "0.8.1",
+    "onnxruntime": "1.30.0",
+    "sha256": "f7b7c2cefa01eabf7d207f1efeeb734deebb5315581fb4da5ef41215dd23ec3e"
+  },
+  "retriever": {
+    "kind": "dense",
+    "k": 5,
+    "sha256": "eee2d16a482337ea39c507718790e61a43897e6f356f06742188082b427c8bfb"
+  },
+  "generator": {
+    "provider": "openai-compat",
+    "model": "nemotron-3.5-lightning:30b-a3b-mlx",
+    "digest": "d1e17d7dabacb401dec6440b4ec987ea053b9568b01f89fb3d54f8b2e71397be",
+    "base_url": "http://127.0.0.1:11434",
+    "server_version": "0.40.6",
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "max_tokens": 1024,
+    "timeout_s": 120.0,
+    "response_format": "none",
+    "extra": {
+      "reasoning_effort": "none"
+    },
+    "sha256": "61294f6b58da11f342ffeef77426a00e4c86b6ea5cb4a51cb14505fb5eb10bbb"
+  },
+  "prompt": {
+    "version": "answer-v1",
+    "sha256": "96f42d9bc9c7969fcd30198d951b5bf47e2d07abda4f0885fa39e85c7c01c8ae"
+  },
+  "guards": [
+    "tenant",
+    "input-limits",
+    "citations"
+  ],
+  "intervals": {
+    "method": "wilson",
+    "level": 0.95,
+    "unit": "case"
+  },
+  "dataset": {
+    "path": "datasets/golden.v1.jsonl",
+    "sha256": "ffb8c5a54b2277bd90efd9bdebda4b91494eb472c3c604b6f057146b19436104",
+    "questions": 25
+  },
+  "probes": {
+    "path": "datasets/probes.s3.jsonl",
+    "sha256": "35b284750c3f62d7cd4ba2602f9280ff01ff9382b4a04cd4e2dd7e021bd4f827",
+    "questions": 3
+  },
+  "corpus": {
+    "documents": 18,
+    "chunks": 228,
+    "sha256": "8918d4f796732b6e11e0dd92b0844bdd2889e18a0660be26f3cc32484961936e"
+  },
+  "tools": {
+    "python": "3.13.12",
+    "raglab": "0.0.1",
+    "numpy": "2.5.3",
+    "rank-bm25": "0.2.2",
+    "pypdf": "6.19.0",
+    "pyyaml": "6.0.3",
+    "pytesseract": "0.3.13",
+    "tesseract": "5.5.3",
+    "httpx": "0.28.1"
+  },
+  "results": {
+    "metrics": {
+      "status_ok": {
+        "value": 0.973333,
+        "ci_low": 0.824082,
+        "ci_high": 0.996496,
+        "n": 25
+      },
+      "model_citations_retrieved": {
+        "value": 0.973333,
+        "ci_low": 0.824082,
+        "ci_high": 0.996496,
+        "n": 25
+      },
+      "probe_abstention": {
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.561497,
+        "n": 3
+      },
+      "citation_hit": {
+        "value": 0.742424,
+        "ci_low": 0.533974,
+        "ci_high": 0.878799,
+        "n": 22
+      },
+      "pass^3": {
+        "value": 0.64,
+        "ci_low": 0.445185,
+        "ci_high": 0.797521,
+        "n": 25
+      }
+    },
+    "generation": {
+      "trials": 3,
+      "cases": 25,
+      "case_trials": 75,
+      "status_counts": {
+        "ok": 73,
+        "refused": 0,
+        "blocked": 2,
+        "unavailable": 0,
+        "invalid_output": 0
+      },
+      "label_agreement": {
+        "cases": 25,
+        "unanimous": 24
+      },
+      "probes": [
+        {
+          "case_id": "P-01",
+          "feature_ids": [
+            "F-32"
+          ],
+          "tenant": "tenant-a",
+          "abstained": 0,
+          "trials": 3
+        },
+        {
+          "case_id": "P-02",
+          "feature_ids": [
+            "F-32"
+          ],
+          "tenant": "tenant-b",
+          "abstained": 0,
+          "trials": 3
+        },
+        {
+          "case_id": "P-03",
+          "feature_ids": [
+            "F-40"
+          ],
+          "tenant": "tenant-b",
+          "abstained": 0,
+          "trials": 3
+        }
+      ],
+      "latency_ms": {
+        "p50": 1378.811,
+        "p95": 2434.308,
+        "n": 75
+      },
+      "tokens": {
+        "reported": 75,
+        "prompt": 78966,
+        "completion": 7717
+      }
+    }
+  },
+  "totals": {
+    "cases": 75,
+    "duration_s": 110.896
+  },
+  "ollama": {
+    "host": "127.0.0.1:11434",
+    "keep_alive": "2m",
+    "max_loaded_models": 1,
+    "num_parallel": 1,
+    "context_length": 8192
+  },
+  "files": {
+    "cases.jsonl": "7e74b90b50a1bf8bd0d1dfb2a65360a0bd62fa8ae61f8706214aaf28f2ee5422",
+    "report.md": "e34b7dc4f54e7be5c97830090c010dcce98d6748af9f1d5470d2b62f92ddec33"
+  }
+}

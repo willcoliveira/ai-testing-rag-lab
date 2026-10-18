@@ -20,6 +20,9 @@
 // - a corpus-scoped allowlist, privacy/allowlist-corpus.txt: tokens allowed only in files under
 //   corpus/ (the lab corpus's planted fakes), never elsewhere, in a commit message or an identity
 //   (S1a, tests/unit/test_corpus_allowlist_scope.py)
+// - a published-runs allowlist, privacy/allowlist-published.txt: the exceptions-register ids a model
+//   quotes in answers, allowed only in files under runs/published/ (S3,
+//   tests/unit/test_published_allowlist_scope.py)
 // - --history <revisions>: every commit message, author and committer, and every line the commits added, so a string
 //   committed without the hooks and removed later is still found (S0 judge round 3); reviewed
 //   false positives in the history are listed in privacy/history-exceptions.txt by commit and line
@@ -136,6 +139,12 @@ const CORPUS_SCOPE = "corpus/";
 const CORPUS_ALLOWLIST = "privacy/allowlist-corpus.txt";
 const CORPUS_ALLOW_TOKENS = readTokens(CORPUS_ALLOWLIST);
 const inCorpus = (path) => typeof path === "string" && path.startsWith(CORPUS_SCOPE) && !path.split("/").includes("..");
+// the exceptions-register ids a model quotes in published answers, allowed only under
+// runs/published/ (S3, the user's decision of 2026-10-18; tests/unit/test_published_allowlist_scope.py)
+const PUBLISHED_SCOPE = "runs/published/";
+const PUBLISHED_ALLOWLIST = "privacy/allowlist-published.txt";
+const PUBLISHED_ALLOW_TOKENS = readTokens(PUBLISHED_ALLOWLIST);
+const inPublished = (path) => typeof path === "string" && path.startsWith(PUBLISHED_SCOPE) && !path.split("/").includes("..");
 // --history takes every argument after it; the other options come before it
 const histArg = process.argv.indexOf("--history");
 const historyRevs = histArg > 0 ? process.argv.slice(histArg + 1) : null;
@@ -194,7 +203,7 @@ const files = historyRevs ? new Map() : new Map((scanFile ? [resolve(root, scanF
 // into one is found (S0 judge round 3).
 const REAL_LABEL = "privacy/forbidden-strings.txt";
 // The corpus allowlist lists the planted example-shaped tokens on purpose, so it is one of them.
-const REAL_RULES_ONLY = new Set([EXAMPLE_LABEL, "scripts/check-forbidden.mjs", "uv.lock", CORPUS_ALLOWLIST]);
+const REAL_RULES_ONLY = new Set([EXAMPLE_LABEL, "scripts/check-forbidden.mjs", "uv.lock", CORPUS_ALLOWLIST, PUBLISHED_ALLOWLIST]);
 const rulesFor = (f) => (REAL_RULES_ONLY.has(f) ? realRules : rules);
 // The example list holds only comments, <placeholders> and /regex/ lines, and keeps at least one
 // placeholder. A plain-text line there is a name, in every mode (CI included); a list with no
@@ -247,7 +256,8 @@ const GITHUB_ADDRESS = [/^[\w.+[\]-]+@users\.noreply\.github\.com$/i, /^(?:norep
 const allowedMatch = (view, m, path) =>
   ALLOW_TOKENS.has(m[0]) || ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length)) ||
   GITHUB_ADDRESS.some((p) => p.test(m[0])) ||
-  (inCorpus(path) && (CORPUS_ALLOW_TOKENS.has(m[0]) || CORPUS_ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length))));
+  (inCorpus(path) && (CORPUS_ALLOW_TOKENS.has(m[0]) || CORPUS_ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length)))) ||
+  (inPublished(path) && (PUBLISHED_ALLOW_TOKENS.has(m[0]) || PUBLISHED_ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length))));
 function tokenAt(line, start, end) {
   let a = start, b = end;
   while (a > 0 && !DELIM.test(line[a - 1])) a--;

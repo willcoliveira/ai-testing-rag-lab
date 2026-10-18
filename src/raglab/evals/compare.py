@@ -1,7 +1,8 @@
 """Compare two runs on the same questions: per metric, B minus A with a paired bootstrap interval
 (raglab.evals.metrics), and the questions whose outcome flipped.
 
-Both runs must be valid run records of the same suite, split, dataset (sha256), k and case ids;
+Both runs must be valid run records of the retrieval suite (a generation run is refused: its
+comparison comes with S4's consistency gate), of the same split, dataset (sha256), k and case ids;
 anything else is not a paired comparison and is refused. The bootstrap uses run A's seed,
 resample count and level. `write` puts compare.json and compare.md (generated, never edited) in a
 directory of their own.
@@ -35,6 +36,10 @@ def compare(a_dir: Path, b_dir: Path, root: Path) -> Json:
             raise CompareError(f"{run_dir.name} is not a valid run record: " + "; ".join(problems))
     a, a_cases = record.read(a_dir)
     b, b_cases = record.read(b_dir)
+    if a["suite"] != "retrieval" or b["suite"] != "retrieval":
+        raise CompareError(
+            f"compare reads retrieval runs only (S3); got {a['suite']} and {b['suite']}"
+        )
     for path in (("suite",), ("split",), ("dataset", "sha256"), ("retriever", "k")):
         if not _same(a, b, *path):
             raise CompareError(f"not the same {'.'.join(path)}: the runs are not paired")
