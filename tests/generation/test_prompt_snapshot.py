@@ -81,3 +81,22 @@ def test_the_prompt_text_has_no_developer_comments():
 def test_no_passages_is_said_plainly():
     _, user = prompt.build(QUESTION, "tenant-b", [])
     assert user.endswith(prompt.NO_PASSAGES)
+
+
+def test_a_repeated_citation_is_kept_once():
+    """Judge S3-J4: a reply that cites an id twice gives one citation, in first-seen order."""
+    import json
+
+    text = json.dumps(
+        {
+            "label": "answer",
+            "answer": "15.",
+            "cited_ids": ["A@1/1/1", "B@1/1/1", "A@1/1/1"],
+            "conflict_ids": ["X@1/1/1", "X@1/1/1"],
+            "conflict_note": "n",
+        }
+    )
+    answer = prompt.parse(text)
+    assert answer.cited_ids == ("A@1/1/1", "B@1/1/1")
+    assert answer.conflict is not None
+    assert answer.conflict.chunk_ids == ("X@1/1/1",)

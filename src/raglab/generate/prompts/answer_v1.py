@@ -152,7 +152,8 @@ def parse(text: str) -> Answer:
         raise InvalidOutput("answer is not a non-empty string")
     if not isinstance(note, str):
         raise InvalidOutput("conflict_note is not a string")
-    cited = _strings(data["cited_ids"], "cited_ids")
-    conflict_ids = _strings(data["conflict_ids"], "conflict_ids")
+    # a repeated id is one citation (judge S3-J4), kept in first-seen order
+    cited = tuple(dict.fromkeys(_strings(data["cited_ids"], "cited_ids")))
+    conflict_ids = tuple(dict.fromkeys(_strings(data["conflict_ids"], "conflict_ids")))
     conflict = Conflict(conflict_ids, note) if conflict_ids else None
     return Answer(answer, cited, label, conflict, Status.OK)
