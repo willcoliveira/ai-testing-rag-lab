@@ -145,6 +145,9 @@ const inCorpus = (path) => typeof path === "string" && path.startsWith(CORPUS_SC
 const PUBLISHED_SCOPE = "runs/published/";
 const PUBLISHED_ALLOWLIST = "privacy/allowlist-published.txt";
 const PUBLISHED_ALLOW_TOKENS = readTokens(PUBLISHED_ALLOWLIST);
+// compared without letter case, as the email shape matches (S4 judge, S4-J3): a listed team address
+// in capitals is the same address, and any other address is a hit in any case
+const PUBLISHED_ALLOW_FOLDED = new Set([...PUBLISHED_ALLOW_TOKENS].map((t) => t.toLowerCase()));
 const inPublished = (path) => typeof path === "string" && path.startsWith(PUBLISHED_SCOPE) && !path.split("/").includes("..");
 // --history takes every argument after it; the other options come before it
 const histArg = process.argv.indexOf("--history");
@@ -258,7 +261,7 @@ const allowedMatch = (view, m, path) =>
   ALLOW_TOKENS.has(m[0]) || ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length)) ||
   GITHUB_ADDRESS.some((p) => p.test(m[0])) ||
   (inCorpus(path) && (CORPUS_ALLOW_TOKENS.has(m[0]) || CORPUS_ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length)))) ||
-  (inPublished(path) && (PUBLISHED_ALLOW_TOKENS.has(m[0]) || PUBLISHED_ALLOW_TOKENS.has(tokenAt(view, m.index, m.index + m[0].length))));
+  (inPublished(path) && (PUBLISHED_ALLOW_FOLDED.has(m[0].toLowerCase()) || PUBLISHED_ALLOW_FOLDED.has(tokenAt(view, m.index, m.index + m[0].length).toLowerCase())));
 function tokenAt(line, start, end) {
   let a = start, b = end;
   while (a > 0 && !DELIM.test(line[a - 1])) a--;

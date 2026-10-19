@@ -184,11 +184,13 @@ def checks(
     labelled = {i for label in _labels(case) for i in _strings(label["chunk_ids"])}
     if labelled:
         out["cites_label"] = bool(cited & labelled)
-    text = _text(case)
+    # in any letter case (the criteria judge's S4-J3), as check-dataset's rule 8 compares; the S3
+    # probes' oracle (raglab.evals.oracle) keeps its own comparison, so the S3 run still validates
+    text = _text(case).casefold()
     other = "tenant-b" if case["tenant"] == "tenant-a" else "tenant-a"
-    out["no_canary"] = not [c for c in canaries[other] if c in text]
+    out["no_canary"] = not [c for c in canaries[other] if c.casefold() in text]
     strings = [s for f in _strings(case["feature_ids"]) for s in banned.get(f, ())]
-    out["must_not_contain"] = not [s for s in strings if s in text]
+    out["must_not_contain"] = not [s for s in strings if s.casefold() in text]
     return out
 
 

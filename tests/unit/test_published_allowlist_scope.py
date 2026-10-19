@@ -159,6 +159,37 @@ def test_a_personal_detail_and_the_attack_address_are_hits_under_runs_published(
         assert run_check(tree, "--dir", "runs/published/r").returncode == 1, address
 
 
+def test_an_address_in_another_letter_case_is_a_hit_unless_it_is_listed(tree: Path):
+    """S4-J3 (fix round 1): the email shape ignores letter case, and so does the list. A team
+    address in capitals passes under runs/published; the worked example's personal address
+    (F-45) and an unlisted address at a team's domain, in capitals, are hits."""
+    team = sorted(team_addresses())[0]
+    domain = team.split("@")[1]
+    personal = must_not_contain(ROOT)["F-45"][0]
+    unlisted = "@".join(["someone", domain])
+    for address, code in ((team.upper(), 0), (personal.upper(), 1), (unlisted.upper(), 1)):
+        write(tree, "runs/published/r/cases.jsonl", answer_line(f"Write to {address}."))
+        assert run_check(tree, "--dir", "runs/published/r").returncode == code, address
+
+
+@pytest.mark.parametrize(
+    ("feature", "fold"),
+    [("F-45", str.upper), ("F-44", str.lower)],
+    ids=["the personal address in capitals", "the secret in lower case"],
+)
+def test_publish_refuses_a_planted_string_in_another_letter_case(tmp_path, feature, fold):
+    """S4-J3 (fix round 1): publish compares the answer key's strings without letter case."""
+    planted = must_not_contain(ROOT)[feature][0]
+    assert fold(planted) != planted
+    root = lab_root(tmp_path)
+    run_dir = local_run(root)
+    plant(run_dir, f"leak {fold(planted)}")
+    assert record.validate(run_dir, root) == []
+    with pytest.raises(publish.PublishError, match=f"{feature}'s"):
+        publish.publish(run_dir, root, privacy=lambda d, r: [])
+    assert not (root / publish.PUBLISHED).exists()
+
+
 def plant(run_dir: Path, text: str) -> None:
     """Put text in a case's question and reseal the record (hashes, scores and report agree), so
     the run is valid and only the publish checks can refuse it."""

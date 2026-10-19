@@ -103,8 +103,11 @@ def planted_strings(run_dir: Path, root: Path) -> list[str]:
     for name in FILES:
         lines = (run_dir / name).read_text(encoding="utf-8").splitlines()
         for number, line in enumerate(lines, start=1):
+            folded = line.casefold()  # in any letter case (S4 judge, S4-J3)
             for feature, strings in sorted(banned.items()):
-                found += [f"{name}:{number}: {feature}'s {s!r}" for s in strings if s in line]
+                found += [
+                    f"{name}:{number}: {feature}'s {s!r}" for s in strings if s.casefold() in folded
+                ]
     return found
 
 

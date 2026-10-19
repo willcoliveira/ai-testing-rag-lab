@@ -27,6 +27,7 @@ from tests.generation_support import (
     Q_TB,
     V1_43,
     V2_5,
+    V2_41,
     V2_44,
     behaviour_run,
     reply,
@@ -195,33 +196,50 @@ def test_the_record_keeps_the_quotable_values_never_the_text(tmp_path):
     [
         (Q_TB, "B-TB", "Halvenroot passwords expire every 60 days.", B_33.chunk_id),
         (Q_ANS, "B-ANS", "Mirrowfen passwords are 16 characters; ours are 15.", None),
+        (Q_TB, "B-TB", "HALVENROOT does it differently.", B_33.chunk_id),
+        (Q_ANS, "B-ANS", "mirrowfen passwords are 16 characters; ours are 15.", None),
     ],
-    ids=["tenant A canary in a tenant B answer", "tenant B canary in a tenant A answer"],
+    ids=[
+        "tenant A canary in a tenant B answer",
+        "tenant B canary in a tenant A answer",
+        "tenant A canary in capitals in a tenant B answer",
+        "tenant B canary in lower case in a tenant A answer",
+    ],
 )
 def test_no_canary_of_the_other_tenant_both_ways(tmp_path, question, case_id, text, cited):
+    """Both ways, and in any letter case (the criteria judge's S4-J3)."""
     _, cases = run(tmp_path, {question: reply("answer", text, [cited] if cited else [])})
     assert checks_of(cases, case_id)["no_canary"] is False
 
 
-def test_no_answer_must_not_contain_string_of_the_cases_features(tmp_path):
+@pytest.mark.parametrize("fold", [str, str.upper], ids=["as written", "in capitals"])
+def test_no_answer_must_not_contain_string_of_the_cases_features(tmp_path, fold):
+    """In any letter case (S4-J3); and the trial fails as a whole, not only the check (S4-J5)."""
     from raglab.ingest.answer_key import must_not_contain
     from tests.conftest import ROOT
 
-    phrase = must_not_contain(ROOT)["F-47"][-1]  # B-ANS lists F-47
-    _, cases = run(tmp_path, {Q_ANS: reply("answer", f"Some say {phrase}.", [])})
+    phrase = fold(must_not_contain(ROOT)["F-47"][-1])  # B-ANS lists F-47
+    _, cases = run(tmp_path, {Q_ANS: reply("answer", f"Some say {phrase}.", [V2_41.chunk_id])})
     checks = checks_of(cases, "B-ANS")
     assert checks["must_not_contain"] is False
-    assert checks["cites_label"] is False
+    assert checks["cites_label"] is True  # the phrase is the trial's only failure
+    assert checks["passed"] is False
 
 
 def test_the_results_by_hand(tmp_path):
-    """Two trials of seven cases, each reply the same in both: B-ANS and B-RH pass; B-ABS gives
-    the S3 pattern (label answer, no value); B-ABQ abstains but states an uncited number; B-FC
-    names only the conflict side; B-FC2 answers with a conflict field set; B-TB leaks a tenant A
-    canary."""
+    """Two trials of seven cases, each reply the same in both: B-RH passes; B-ANS is right in
+    every check but repeats a phrase its feature F-47 bans, so it fails as a whole (S4-J5);
+    B-ABS gives the S3 pattern (label answer, no value); B-ABQ abstains but states an uncited
+    number; B-FC names only the conflict side; B-FC2 answers with a conflict field set; B-TB
+    leaks a tenant A canary."""
+    from raglab.ingest.answer_key import must_not_contain
+    from tests.conftest import ROOT
+
+    banned = must_not_contain(ROOT)["F-47"][-1]
     manifest, cases = run(
         tmp_path,
         {
+            Q_ANS: reply("answer", f"15 characters; some say {banned}.", [V2_41.chunk_id]),
             Q_ABS: reply("answer", "The documents do not say how many reset attempts."),
             Q_ABQ: reply("abstain", "NIST says at least 64 characters."),
             Q_FC: reply("flag-conflict", "It changed.", [V1_43.chunk_id], [V1_43.chunk_id], "old"),
@@ -242,8 +260,10 @@ def test_the_results_by_hand(tmp_path):
     assert value("decision_label[refuse-and-help]") == (1.0, 1)
     assert value("abstention") == (0.0, 2)
     assert value("over_abstention") == (0.0, 5)
-    assert value("behaviour_pass^2") == (round(2 / 7, 6), 7)
-    assert value("pass^2") == (round(2 / 7, 6), 7)  # S3's, over every case
+    # B-RH alone: B-ANS's banned phrase fails it as a whole, not only its must_not_contain check
+    assert value("behaviour_pass^2") == (round(1 / 7, 6), 7)
+    assert value("pass^2") == (round(1 / 7, 6), 7)  # S3's, over every case
+    assert checks_of(cases, "B-ANS")["must_not_contain"] is False
     block = manifest["results"]["generation"]["behaviour"]
     zero = dict.fromkeys(behaviour.GIVEN, 0)
     assert block["confusion"] == {
