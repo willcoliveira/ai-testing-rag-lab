@@ -102,10 +102,10 @@ pr-fast); the generation suite reads the decision label of each behaviour case f
 field and scores abstention as its own check, without a judge; `make gate-local` gates behaviour
 pass^3 on dev against a local baseline (docs/THRESHOLDS.md), and `make nightly-local` runs every
 split under the nightly gate. Golden set v1.1 adds 40 behaviour cases (27 dev, 13 test) to the 34
-retrieval questions, and the user signed it off on 2026-10-19 ("Signed off as is"). The local
-generation baseline holds behaviour pass^3 0.519 (14 of the 27 dev cases) on
-nemotron-3.5-lightning; its four repeats held the same 14 cases, so the gate's margin is one case
-([docs/THRESHOLDS.md](docs/THRESHOLDS.md), the
+retrieval questions; asked for the sign-off in the question prompt on 2026-10-19, the user answered
+"Signed off as is" (the S4 ledger quotes the question). The local generation baseline holds
+behaviour pass^3 0.519 (14 of the 27 dev cases) on nemotron-3.5-lightning; its four repeats held
+the same 14 cases, so the gate's margin is one case ([docs/THRESHOLDS.md](docs/THRESHOLDS.md), the
 [S4 ledger](docs/plans/2026-10-19-s4-golden-set-ledger.md)).
 
 A run is published only from a clean, committed tree, with its provenance (`local` for the ONNX

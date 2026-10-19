@@ -15,9 +15,9 @@ One line per change, newest first, grouped by release. Each pull request adds it
   release (`make nightly-local`); D3: the team contacts allowed in published runs, the plain attack
   phrases blocking attack runs only. Golden set v1.1 (40 behaviour cases, seven regrouped retrieval
   questions, the answer-key additions F-86 and F-87, datasheet v1.1), reviewed by the labels judge
-  (blind agreement 40 of 40) and signed off by the user. Published, all made at 97011a7: the
-  retrieval baseline `20261019T180502Z-retrieval-dense-dev-97011a7` (recall@5 0.682) with
-  `20261019T180515Z-retrieval-hybrid-dev-97011a7` and
+  (blind agreement 40 of 40); the user's answer on its sign-off was "Signed off as is". Published,
+  all made at 97011a7: the retrieval baseline `20261019T180502Z-retrieval-dense-dev-97011a7`
+  (recall@5 0.682) with `20261019T180515Z-retrieval-hybrid-dev-97011a7` and
   `20261019T180529Z-retrieval-dense-600-dev-97011a7`; the local generation baseline
   `20261019T172035Z-generation-local-ollama-dev-97011a7` (behaviour pass^3 0.519, 14 of 27) with
   the repeats `20261019T172524Z-generation-local-ollama-dev-97011a7`,

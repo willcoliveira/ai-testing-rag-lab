@@ -493,7 +493,7 @@ On the final tree (the published runs, the margin, the docs and this ledger but 
     0 hits across 274 files (42 rules)
     0 architecture violations in src/raglab
     check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
-    ========== 1091 passed, 1 deselected, 1 warning in 125.25s (0:02:05) ===========
+    ========== 1091 passed, 1 deselected, 1 warning in 124.04s (0:02:04) ===========
     retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
     api-smoke: passed
 
