@@ -122,8 +122,11 @@ def test_the_margin_is_read_from_the_consistency_row():
     assert gate.consistency_margin(row.format("set from runs after the sign-off")) is None
     assert gate.consistency_margin("| recall@5 | pr-fast | margin: 9 cases | r |") is None
     committed = (ROOT / gate.THRESHOLDS).read_text(encoding="utf-8")
-    assert "| behaviour pass^3" in committed  # the row exists, and sets no number yet
-    assert gate.consistency_margin(committed) is None
+    assert "| behaviour pass^3" in committed
+    # set from the five runs after the golden set's sign-off (S4 ledger): at least one case
+    margin = gate.consistency_margin(committed)
+    assert margin is not None
+    assert margin >= 1
 
 
 # ---------------------------------------------------------------- the CLI, on real records
