@@ -366,29 +366,57 @@ def behaviour_run(
     trials: int = 2,
     split: str = "dev",
     gate: str = "manual",
+    local: bool = False,
+    root: Path | None = None,
+    when: datetime = datetime(2026, 10, 19, 12, 0, 0, tzinfo=UTC),
 ) -> tuple[Path, Path]:
-    """(root, run directory) of a fake generation run of the behaviour cases: the small pack
-    above, the scripted retriever and FakeChat answering with the given replies (GOOD by
-    default), no probes file. The record is written and left for the test to validate."""
-    root = lab_root(tmp_path, cases if cases is not None else behaviour_cases())
-    write_register(root, {c.doc_id: c.tenant for c in BEHAVIOUR_CHUNKS})
+    """(root, run directory) of a generation run of the behaviour cases: the small pack above,
+    the scripted retriever, and the given replies (GOOD by default) from FakeChat, or (local=True)
+    from the OpenAI-compatible adapter against the in-process stub server, described with the real
+    local embedder, so the record is not fake and publish and the gates may read it. No probes
+    file. The record is written and left for the test to validate. A given root is reused."""
+    if root is None:
+        root = lab_root(tmp_path, cases if cases is not None else behaviour_cases())
+        write_register(root, {c.doc_id: c.tenant for c in BEHAVIOUR_CHUNKS})
     path = root / "config" / "generation.toml"
     path.parent.mkdir(exist_ok=True)
     path.write_text(
         generation_config_text(trials=trials, probes=False, split=split), encoding="utf-8"
     )
     config = eval_config.load_generation(path, root)
-    chat = FakeChat(per_question({**GOOD, **(replies or {})}))
-    pipeline = Pipeline(ScriptedRetriever(RETRIEVED | (retrieved or {})), chat, default_guards(), 2)
-    hashing = HashingEmbedder()
-    description = {
-        "provider": "fake",
-        "model": hashing.model,
-        "revision": hashing.revision,
-        "dimension": hashing.dimension,
-    }
+    script = per_question({**GOOD, **(replies or {})})
+    retriever = ScriptedRetriever(RETRIEVED | (retrieved or {}))
     inventory = Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(BEHAVIOUR_CHUNKS))
-    built = Assembled(pipeline, inventory, description, chat.describe(), "fake")
-    when = datetime(2026, 10, 19, 12, 0, 0, tzinfo=UTC)
+    if local:
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            user = ChatRequest((ChatMessage("user", body["messages"][-1]["content"]),), "s", {}, 0)
+            return completion(script(user))
+
+        _, description = local_embedder()
+        model, chat_description, provenance = factory.chat(
+            "openai-compat",
+            "stub-model:1b",
+            digest=DIGEST,
+            base_url="http://127.0.0.1:11434",
+            temperature=1.0,
+            max_tokens=256,
+            timeout_s=5,
+            client=stub_client(stub_ollama(handler)),
+        )
+        pipeline = Pipeline(retriever, model, default_guards(), 2)
+        built = Assembled(pipeline, inventory, description, chat_description, provenance)
+    else:
+        chat = FakeChat(script)
+        hashing = HashingEmbedder()
+        description = {
+            "provider": "fake",
+            "model": hashing.model,
+            "revision": hashing.revision,
+            "dimension": hashing.dimension,
+        }
+        pipeline = Pipeline(retriever, chat, default_guards(), 2)
+        built = Assembled(pipeline, inventory, description, chat.describe(), "fake")
     manifest, rows = generation.run(config, root, built, gate=gate, git=GIT, clock=lambda: when)
     return root, record.write(root / "runs" / "tmp", manifest, rows)

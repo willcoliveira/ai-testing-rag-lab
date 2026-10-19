@@ -99,6 +99,15 @@ eval-local:
 		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
 		--run "uv run raglab eval --suite generation --config config/local-ollama.toml"
 
+# S4 AC7: the consistency gate (Q-05), by hand until keys exist. One session: the live contract
+# test, then a dev run of the generation suite x3, written to runs/tmp and gated against the
+# published local baseline with the margin of docs/THRESHOLDS.md, in one line. A pull request that
+# changes the prompt, the generation code, the chunker, the embedder or the model quotes that line.
+gate-local:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(LOCAL_CONFIG) \
+		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
+		--run "uv run raglab gate --config $(LOCAL_CONFIG)"
+
 # S4 AC9: the local nightly, by hand until keys exist. One session: the live contract test, then
 # every retrieval question and behaviour case of every split (dev and test) x3, gate nightly. The
 # test split runs only here and at a release: raglab eval refuses it under any other gate.

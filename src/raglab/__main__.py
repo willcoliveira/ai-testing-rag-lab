@@ -194,8 +194,68 @@ def publish_run(args: argparse.Namespace) -> int:
     return 0
 
 
+CONSISTENCY = "consistency gate (Q-05)"
+
+
+def _consistency(root: Path, run_dir: Path) -> int:
+    """The consistency gate on a finished generation run against the published local baseline of
+    its config, with the margin of docs/THRESHOLDS.md: one line, exit 0 only when it passes."""
+
+    def say(text: str, passed: bool = False) -> int:
+        print(f"{CONSISTENCY}: {text}", flush=True)
+        return 0 if passed else 1
+
+    if problems := record.validate(run_dir, root):
+        return say(f"refused: {run_dir.name} is not a valid run record: " + "; ".join(problems))
+    manifest, _ = record.read(run_dir)
+    key = publish.baseline_key(manifest)
+    baseline_dir = publish.baseline_run(root, key)
+    if baseline_dir is None:
+        return say(f"refused: no published baseline for {key} (run {run_dir.name})")
+    if problems := record.validate(baseline_dir, root):
+        return say("refused: the baseline is invalid: " + "; ".join(problems))
+    baseline, _ = record.read(baseline_dir)
+    thresholds = root / retrieval_gate.THRESHOLDS
+    text = thresholds.read_text(encoding="utf-8") if thresholds.is_file() else ""
+    verdict = retrieval_gate.consistency(
+        baseline, manifest, retrieval_gate.consistency_margin(text)
+    )
+    return say(verdict.message, verdict.passed)
+
+
 def gate(args: argparse.Namespace) -> int:
     root: Path = args.root
+    if (args.config is None) == (args.run is None):
+        print(
+            "gate: give --config (run, then gate) or --run (gate a finished run)", file=sys.stderr
+        )
+        return 2
+    if args.run is not None:
+        try:
+            run_dir = _run_dir(root, args.run)
+        except FileNotFoundError as error:
+            print(f"gate failed: {error}", file=sys.stderr)
+            return 1
+        return _consistency(root, run_dir)
+    try:
+        suite = eval_config.suite_of(args.config)
+    except (eval_config.ConfigError, OSError) as error:
+        print(f"gate failed: {error}", file=sys.stderr)
+        return 1
+    args.suite = suite
+    if args.gate is None:  # pr-fast runs the retrieval gate; the consistency gate runs by hand
+        args.gate = "manual" if suite == "generation" else "pr-fast"
+    if suite == "generation":
+        try:
+            if (split := eval_config.load_generation(args.config, root).split) != "dev":
+                raise eval_config.ConfigError(f"the gate runs on dev, not on {split}")
+            manifest, cases = _evaluate(args)
+        except EVAL_ERRORS as error:
+            print(f"gate failed: {error}", file=sys.stderr)
+            return 1
+        run_dir = record.write(root / RUNS, manifest, cases)
+        print(f"run record: {run_dir}", file=sys.stderr, flush=True)
+        return _consistency(root, run_dir)
     try:
         manifest, cases = _evaluate(args)
     except EVAL_ERRORS as error:
@@ -348,7 +408,11 @@ def main(argv: list[str] | None = None) -> int:
     checked.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     for name, text in (
         ("eval", "run an evaluation suite and write a run record under runs/tmp"),
-        ("gate", "retrieval no-regression gate: a fresh run against the published baseline"),
+        (
+            "gate",
+            "the retrieval no-regression gate (a retrieval config) or the consistency gate (a "
+            "generation config, or --run for a finished run) against the published baseline",
+        ),
     ):
         sub = commands.add_parser(name, help=text)
         if name == "eval":
@@ -358,9 +422,18 @@ def main(argv: list[str] | None = None) -> int:
                 choices=eval_config.SPLITS,
                 help="run on another split than the config's (the gate always uses the config's)",
             )
-        sub.add_argument("--config", type=Path, required=True, help="a config/*.toml file")
-        default_gate = "pr-fast" if name == "gate" else "manual"
-        sub.add_argument("--gate", choices=GATES, default=default_gate)
+            sub.add_argument("--config", type=Path, required=True, help="a config/*.toml file")
+            sub.add_argument("--gate", choices=GATES, default="manual")
+        else:
+            sub.add_argument("--config", type=Path, help="a config/*.toml file: run, then gate")
+            sub.add_argument(
+                "--run", type=Path, help="a finished generation run (a directory or a run id)"
+            )
+            sub.add_argument(
+                "--gate",
+                choices=GATES,
+                help="the run's gate (default pr-fast for retrieval, manual for generation)",
+            )
         sub.add_argument("--out", type=Path, default=Path(RUNS), help=f"(default {RUNS})")
         sub.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     cmp = commands.add_parser("compare", help="paired differences and flipped questions, B - A")
