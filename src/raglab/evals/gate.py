@@ -138,12 +138,15 @@ def consistency(baseline: Json, current: Json, margin: int | None) -> Verdict:
         return Verdict(False, f"refused: the margin in {THRESHOLDS} is at least one case")
     base, now = as_json(base_metrics[name]), as_json(now_metrics[name])
     n = cast(int, base["n"])
-    threshold = round(cast(float, base["value"]) - margin / n, 6)
-    value = cast(float, now["value"])
-    verdict = "passes" if value >= threshold else "fails"
+    base_value, value = cast(float, base["value"]), cast(float, now["value"])
+    # compared in cases, never in rates (S4 judge, S4-J1): a record keeps a rate to six places,
+    # so 13 of 27 (0.481481) fell below 14 of 27 minus one case computed in rates (0.481482)
+    threshold = round(base_value * n) - margin
+    passed = round(value * cast(int, now["n"])) >= threshold
+    verdict = "passes" if passed else "fails"
     return Verdict(
-        value >= threshold,
+        passed,
         f"{name} {value:.3f} (n {now['n']}) {verdict}: the threshold is the baseline "
-        f"{cast(float, base['value']):.3f} ({baseline['run_id']}) minus {margin} case(s) "
-        f"({margin}/{n}), {threshold:.3f}",
+        f"{base_value:.3f} ({baseline['run_id']}) minus {margin} case(s) "
+        f"({margin}/{n}), {threshold / n:.3f}",
     )

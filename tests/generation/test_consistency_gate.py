@@ -66,6 +66,24 @@ def test_it_passes_at_the_baseline_minus_the_margin_and_fails_below():
     assert not gate.consistency(BASELINE, manifest(0.5), margin=2).passed
 
 
+@pytest.mark.parametrize(("n", "k"), [(3, 2), (10, 8), (22, 15), (27, 14)])
+def test_the_margin_is_counted_in_cases_whatever_n(n, k):
+    """S4-J1 (fix round 1): the baseline at k of n cases, a run one case below passes with a
+    margin of one case and a run two below fails, the rates rounded to six places as a record
+    stores them. Compared as rates, 13 of 27 against 14 of 27 failed (0.481481 < 0.481482)."""
+
+    def at(cases: int, **changes: Any) -> dict[str, Any]:
+        return manifest(
+            round(cases / n, 6), **{"results__metrics__behaviour_pass^3__n": n}, **changes
+        )
+
+    base = at(k, run_id=BASELINE["run_id"])
+    one_below = gate.consistency(base, at(k - 1), margin=1)
+    assert one_below.passed, one_below.message
+    assert not gate.consistency(base, at(k - 2), margin=1).passed
+    assert gate.consistency(base, at(k - 2), margin=2).passed
+
+
 @pytest.mark.parametrize(
     ("change", "name"),
     [
