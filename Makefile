@@ -99,6 +99,15 @@ eval-local:
 		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
 		--run "uv run raglab eval --suite generation --config config/local-ollama.toml"
 
+# S4 AC9: the local nightly, by hand until keys exist. One session: the live contract test, then
+# every retrieval question and behaviour case of every split (dev and test) x3, gate nightly. The
+# test split runs only here and at a release: raglab eval refuses it under any other gate.
+NIGHTLY_CONFIG := config/local-ollama-nightly.toml
+nightly-local:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(NIGHTLY_CONFIG) \
+		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
+		--run "uv run raglab eval --suite generation --config $(NIGHTLY_CONFIG) --gate nightly"
+
 # S3 AC10, AC11: the container with the fake model and the baked-in embedder (deploy/Dockerfile),
 # run on 127.0.0.1 only, and the ZAP baseline scan against it (deploy/zap/)
 IMAGE := raglab:local

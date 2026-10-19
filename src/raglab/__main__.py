@@ -109,6 +109,12 @@ def _check_first(root: Path, dataset: str) -> None:
     print("\n".join(report.lines()), file=sys.stderr)  # the notes and the pass line
 
 
+def _held_out(split: str, gate: str) -> None:
+    """S4: a run that holds the test cases runs only under the nightly or release gate."""
+    if problem := eval_config.held_out_problem(split, gate):
+        raise eval_config.ConfigError(problem)
+
+
 def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]:
     root: Path = args.root
     suite: str = getattr(args, "suite", "retrieval")
@@ -120,6 +126,7 @@ def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]
         if split_ is not None:
             raise eval_config.ConfigError("a generation run uses its config's split")
         _check_first(root, gen.dataset)
+        _held_out(gen.split, args.gate)
         built = assemble.assemble(gen, root)
         return generation.run(gen, root, built, gate=args.gate)
     config = eval_config.load(args.config, root)
@@ -127,6 +134,7 @@ def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]
     if split is not None:
         config = eval_config.with_split(config, split)
     _check_first(root, config.dataset)
+    _held_out(config.split, args.gate)
     embedder, description, provenance = factory.embedder(
         config.embedder.provider, config.embedder.model, config.embedder.revision
     )

@@ -144,9 +144,10 @@ def test_the_gate_passes_within_one_question_and_fails_below(tmp_path):
 
 
 def test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline():
-    """runs/published holds real, clean, complete local runs on the dev split only (the test
-    split is never published), index.json is what publish builds from them, and the dense dev
-    baseline the gate reads was made with today's dataset and config (else the gate is stale)."""
+    """runs/published holds real, clean, complete local runs on the dev split (a run holding the
+    test cases only under the nightly or release gate: S4 AC9), index.json is what publish builds
+    from them, and the dense dev baseline the gate reads was made with today's dataset and config
+    (else the gate is stale)."""
     from raglab.evals import config as eval_config
 
     published = ROOT / publish.PUBLISHED
@@ -159,8 +160,10 @@ def test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline():
         assert manifest["provenance"] == "local", run_dir.name
         assert manifest["git_dirty"] is False, run_dir.name
         assert manifest["partial"] is False, run_dir.name
-        assert manifest["split"] == "dev", run_dir.name
-        assert {c["split"] for c in cases} == {"dev"}, run_dir.name
+        if manifest["split"] == "dev":
+            assert {c["split"] for c in cases} == {"dev"}, run_dir.name
+        else:
+            assert manifest["gate"] in eval_config.HELD_OUT_GATES, run_dir.name
         assert publish.planted_strings(run_dir, ROOT) == [], run_dir.name
     baselines = {str(k): str(v) for k, v in record.as_json(index["baselines"]).items()}
     assert index == publish.build_index(published, baselines)

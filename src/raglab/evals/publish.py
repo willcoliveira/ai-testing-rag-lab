@@ -3,7 +3,8 @@ runs/published/<run_id>/ and rebuild runs/published/index.json, which the playgr
 
 A run is refused when it is not a valid run record, when it was made from a dirty work tree
 (git_dirty: its commit would not reproduce it), when its provenance is fake or any model field
-says fake (provider, revision or digest), when it is partial, when one of its files holds a
+says fake (provider, revision or digest), when it is partial, when it holds the test cases
+(split test or all) under a gate other than nightly or release (S4), when one of its files holds a
 string the answer key says no answer may repeat (the planted secret,
 personal details and attack canaries: `answer_must_not_contain`, R-19), or when the privacy check
 finds anything in its files. The privacy check reads the files at their published path
@@ -21,6 +22,7 @@ from pathlib import Path
 from typing import cast
 
 from raglab.evals import record
+from raglab.evals.config import held_out_problem
 from raglab.evals.record import Json, as_json
 from raglab.ingest import answer_key
 
@@ -147,6 +149,8 @@ def publish(
         )
     if manifest["partial"]:
         raise PublishError(f"{manifest['run_id']} is partial")
+    if held_out := held_out_problem(str(manifest["split"]), str(manifest["gate"])):
+        raise PublishError(f"{manifest['run_id']}: {held_out}")
     if found := planted_strings(run_dir, root):
         raise PublishError("the run repeats strings no answer may hold:\n" + "\n".join(found))
     published = root / PUBLISHED

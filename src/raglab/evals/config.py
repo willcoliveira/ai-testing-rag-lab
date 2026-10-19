@@ -78,6 +78,23 @@ from raglab.core.types import REQUEST_TENANTS
 NAME = re.compile(r"^[a-z0-9-]+$")
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
 SPLITS = ("dev", "test", "all")
+# S4: the test split is held out. A run that holds test cases (split test or all) is made, and
+# published, only under the nightly or release gate (the capstone runs as a release), so no test
+# case is ever read to tune anything (datasets/DATASHEET.md, Split).
+HELD_OUT_SPLITS = ("test", "all")
+HELD_OUT_GATES = ("nightly", "release")
+
+
+def held_out_problem(split: str, gate: str) -> str | None:
+    """Why a run of this split may not run or be published under this gate, if it may not."""
+    if split in HELD_OUT_SPLITS and gate not in HELD_OUT_GATES:
+        return (
+            f"split {split} holds the test cases, which run only under the nightly or release "
+            f"gate, never under {gate}: give --gate nightly or --gate release, or run dev"
+        )
+    return None
+
+
 SUITES = ("retrieval", "generation")
 SECTIONS: dict[str, dict[str, type | tuple[type, ...]]] = {
     "": {"name": str, "suite": str},

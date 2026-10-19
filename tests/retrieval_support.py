@@ -198,13 +198,15 @@ def fake_run(
     git: retrieval.GitState = GIT,
     provenance: str = "fake",
     embedder_kind: str = "hashing",
+    split: str = "dev",
+    gate: str = "manual",
 ) -> Path:
     """A run record written under root/runs/tmp with the fake embedder, or with the real local
     one (embedder_kind="local", from the model cache) for a run that publish may accept. The
     provenance is the given string, so a test can also forge a fake run's label."""
     path = root / "config" / f"{name}.toml"
     path.parent.mkdir(exist_ok=True)
-    path.write_text(config_text(name, kind, k), encoding="utf-8")
+    path.write_text(config_text(name, kind, k, split), encoding="utf-8")
     config = eval_config.load(path, root)
     inventory = Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(chunks or PACK))
     embedder: Embedder
@@ -224,6 +226,7 @@ def fake_run(
         embedder,
         description,
         provenance,
+        gate=gate,
         git=git,
         clock=lambda: when,
         inventory=inventory,

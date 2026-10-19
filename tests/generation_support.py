@@ -185,6 +185,7 @@ def fake_generation_run(
     monotonic=None,
     local: bool = False,
     handler=None,
+    gate: str = "manual",
 ) -> Path:
     """A generation run record written under root/runs/tmp with the fake embedder and chat, or
     (local=True) a local run publish may accept. A given provenance overrides the label, so a
@@ -199,7 +200,9 @@ def fake_generation_run(
             provenance,
         )
     kwargs = {"monotonic": monotonic} if monotonic else {}
-    manifest, cases = generation.run(config, root, built, git=GIT, clock=lambda: when, **kwargs)
+    manifest, cases = generation.run(
+        config, root, built, gate=gate, git=GIT, clock=lambda: when, **kwargs
+    )
     return record.write(root / "runs" / "tmp", manifest, cases)
 
 
