@@ -17,11 +17,12 @@ set" (`how-to/02-build-a-golden-set.md` in willcoliveira/ai-testing-handbook).
 The message that opened S4 planning (2026-10-18), verbatim: "Draft S4 plan (Recommended)". The
 approval of this plan comes later and will be quoted under Approval.
 
-**S3h moves to the start of P3 (your choice, 2026-10-19).** The host spike now runs before S10.
-S4 follows S3 directly and closes P1 (v0.1) without a chosen host, so two P1 promises of the main
-plan are not met at the end of S4: "a host has been chosen" and the "fake-model deploy" of the
-phase table. D4 asks what that means for a v0.1 tag. A separate pull request records the deferral
-in the main plan and moves the S3h node; this stage edits neither.
+**S3h moves to the start of P3 (your choice, 2026-10-18).** The host spike now runs before S10.
+S4 follows S3 directly and closes P1 (v0.1) without a chosen host. Pull request #10 records the
+deferral: it moves the S3h node, and the two P1 promises that needed a host ("a host has been
+chosen" and the phase table's "fake-model deploy") move to P3 with it, so v0.1 closes with a
+container ready to deploy. D4 asks what that means for a v0.1 tag. This stage edits neither the
+main plan nor the phase map for it.
 
 ## Where S4 starts
 
@@ -576,7 +577,7 @@ release gate demands, against what exists at the end of S4:
 | gitleaks history scan, history privacy scan | available: `make secrets` (`gitleaks git`), `make privacy-history` |
 | upgrade replay | S8 |
 | deploy approval | S10; nothing is deployed |
-| P1's "a host has been chosen" and "fake-model deploy" | not met: S3h is at the start of P3 |
+| a chosen host and a fake-model deploy | moved to P3 with S3h (pull request #10); v0.1 promises a container ready to deploy |
 
 - **A (recommended): a lab release after S4.** A `chore(release): v0.1.0` pull request: the
   version to 0.1.0 (now 0.0.1), a CHANGELOG section, release notes that list every row above as
