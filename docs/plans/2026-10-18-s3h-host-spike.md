@@ -3,7 +3,7 @@ stage: S3h
 name: host-spike
 nodes: [S3h]
 date: 2026-10-18
-status: draft (not approved)
+status: draft, deferred to the start of P3 (before S10)
 ---
 
 # S3h: Host evaluation spike
@@ -17,6 +17,26 @@ until your go is quoted here verbatim.
 
 Updated 2026-10-18, after S3 merged and the repo went public: the prerequisites, AC1, AC5, the
 image's visibility (now decision D4) and two risks. The research and its sources are unchanged.
+
+## Deferred (2026-10-18)
+
+Asked which hosts to sign up for, the user answered, verbatim: "is it possible to skip this step
+for now and come back on next phase?" Nothing in S4 to S9 needs a host; the first stage that does
+is S10. Asked where S3h should come back, the user chose, verbatim: "Before S10, start of P3
+(Recommended)". So S3h moves from P1 to the start of P3, and the main plan, the phase map and
+the README record it.
+
+Answers already given, kept for when S3h resumes:
+
+| Decision | Answer, verbatim | Meaning |
+|---|---|---|
+| D3 Regions | "EU (Recommended)" | Cloud Run europe-west1, Fly lhr, Render Frankfurt |
+| D4 The image's visibility | "Public (Recommended)" | a public GHCR package, with the embedder's MIT notice in the image |
+| D7 The plan | "check the whole plan before" | not approved: the user reviews the whole plan when S3h resumes |
+
+Still open: D1 (hosts), D2 (card), D5 (lab probe), D6 (budget). When S3h resumes, every price,
+free tier and limit in "Candidates" is fetched again and dated, because the figures here are from
+2026-10-18.
 
 ## Goal
 

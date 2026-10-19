@@ -1,6 +1,6 @@
 ---
 stage: main
-nodes: [S0, S1a, S1b, S2, S3, S3h, S4, S4b, S5, S6, S7, S8, S9, S10, S11, S12, B]
+nodes: [S0, S1a, S1b, S2, S3, S4, S4b, S5, S6, S7, S8, S9, S3h, S10, S11, S12, B]
 date: 2026-10-05
 ---
 
@@ -197,8 +197,7 @@ measuring would be guessing.
   - ingestion and retrieval are fully tested, with real local numbers;
   - the golden set exists;
   - CI and security scans are green;
-  - a container is ready;
-  - a host has been chosen.
+  - a container is ready to deploy.
 - **After P2 (v0.2):**
   - judged quality numbers with intervals;
   - a judge you've checked against your own labels;
@@ -207,6 +206,7 @@ measuring would be guessing.
   - a suite audit;
   - the provider and cost decision made from measured tokens.
 - **After P3 (v0.3):**
+  - a host chosen by the S3h spike;
   - tracing and a perf gate;
   - a public demo with cost controls;
   - the teaching playground;
@@ -352,13 +352,13 @@ flowchart LR
 ```mermaid
 flowchart TB
   subgraph P1[P1 Lab core, v0.1]
-    S0[S0 Skeleton, hygiene, security CI] --> S1a[S1a Requirements, corpus pack, answer key] --> S1b[S1b Ingestion, chunking, test plan] --> S2[S2 Retrieval, run record, playground v0] --> S3[S3 Generation, local live run, API/UI, local container] --> S3h[S3h Host evaluation spike] --> S4[S4 Golden set, consistency gate]
+    S0[S0 Skeleton, hygiene, security CI] --> S1a[S1a Requirements, corpus pack, answer key] --> S1b[S1b Ingestion, chunking, test plan] --> S2[S2 Retrieval, run record, playground v0] --> S3[S3 Generation, local live run, API/UI, local container] --> S4[S4 Golden set, consistency gate]
   end
   subgraph P2[P2 Evaluation rigour, v0.2]
     S4b[S4b Golden set v2, ~120] --> S5[S5 Local judged metrics, token measurement, provider decision] --> S6[S6 Judge calibration] --> S7[S7 Attack, guardrails, red team] --> S8[S8 Gates, causes, suite audit]
   end
   subgraph P3[P3 Production practices, v0.3]
-    S9[S9 Observability, perf] --> S10[S10 Real demo, path to prod] --> S11[S11 Teaching playground, system audit, capstone]
+    S9[S9 Observability, perf] --> S3h[S3h Host evaluation spike] --> S10[S10 Real demo, path to prod] --> S11[S11 Teaching playground, system audit, capstone]
   end
   subgraph EXT[Extensions]
     S12[S12 Handbook corpus]
@@ -423,7 +423,7 @@ Each stage is one PR, run as planner, then developer, then an independent judge 
 model. It has numbered acceptance criteria, with **[CI]** marking criteria only CI can verify.
 Each PR is reviewed by the user before the next stage starts, and none is attributed to Claude.
 
-**v0.1 (S0–S4).** A working, tested, deployed lab with real local results. A reader gets value here.
+**v0.1 (S0–S4).** A working, tested lab with real local results and a container ready to deploy. A reader gets value here.
 
 | # | Stage | Build project / how-to step | Key acceptance criteria |
 |---|---|---|---|
@@ -432,8 +432,14 @@ Each PR is reviewed by the user before the next stage starts, and none is attrib
 | S1b | Ingestion and chunking | 1 / step 2 | the rest of TEST-PLAN.md from the how-to 17 template (one named check per pipeline arrow); per-page text matches; table-only rules survive PDF parsing; OCR within a stated CER on a pinned tesseract image; HTML export parsed; metadata (doc, version, page, tenant, source licence) on every chunk; rule and exception test names the boundary; inventory snapshot with the halved-size diff recorded |
 | S2 | Retrieval, run record v1, minimal playground | 2 / step 3 | 20 labelled questions (`kind: retrieval` in the golden file); hit, MRR, recall@k, unit-tested against hand-computed values; baseline is a small local ONNX embedder cached in CI (HashingEmbedder only for unit tests); compare dense against dense+BM25 and one chunk setting, with the paired diff, a bootstrap interval and flipped cases; `eval` writes a schema-valid record; minimal static playground renders `runs/published/index.json`; [CI] no regression against the baseline |
 | S3 | Generation, local live run, API, UI, local container | 3 / step 6 | `openai_compat.py` with contract tests (Ollama, no keys); cited ids are a subset of retrieved ids; abstention is a structured field; prompt snapshot; one live local run published (reset-attempts abstention count reported, pass^k); Dockerfile, `/healthz`, `/version`; [CI] API smoke; the container runs locally with the **fake** model and a ZAP baseline scans it (no host account yet); first guardrail layers (input limits, tenant filter, citation validator) |
-| S3h | Host evaluation spike | — | the same fake-model container deployed to 2–3 hosts (candidates: Render free, Fly.io, Cloud Run). Compared on: cold start, memory fit with the ONNX embedder, cost at scale-to-zero, secrets, logs, deploy from Actions with OIDC or a token, and rate-limit header handling. Outcome: `docs/decisions/ADR-001-host.md`, the chosen host kept, the others torn down. Sign-ups happen here, with your go |
 | S4 | Golden set and consistency gate | 4 / step 4 | 40 cases (15/8/8/4/5) with `split: dev|test` and a datasheet (source, mix, version, licence); `check-dataset` is a hard stop (chunk ids in the inventory, abstain and conflict shapes); the test slice runs only in nightly, release and the capstone; [CI] dataset check in pr-fast |
+
+Decision (2026-10-18): S3h, the host evaluation spike, moved from P1 to the start of P3, before
+S10. Asked which hosts to sign up for, the user answered, verbatim: "is it possible to skip this
+step for now and come back on next phase?"; asked where it should come back, the user chose,
+verbatim: "Before S10, start of P3 (Recommended)". No stage from S4 to S9 needs a host, so v0.1
+closes with S4 and a container ready to deploy, without a chosen host. The S3h draft plan
+(`docs/plans/2026-10-18-s3h-host-spike.md`) keeps the answers already given.
 
 **v0.2 (S4b–S8).** Judged, calibrated, attacked, gated.
 
@@ -445,11 +451,12 @@ Each PR is reviewed by the user before the next stage starts, and none is attrib
 | S7 | Attack, guardrails, red team | 7 / step 9 | THREAT-MODEL.md (OWASP LLM Top 10 2026 mapping); promptfoo red-team run with findings turned into cases; planted instruction (including "nothing is sent out"), two tenants, poisoned duplicate: each fails without the defence and passes with it; must-block and must-not-block suites per filter, both error rates and latency; Guardrails AI extra (see below) |
 | S8 | Gates, failure causes, suite audit | 8 / step 11 | suite audit (how-to 09 B) in `docs/audits/`; GATES.md with how-to 08 columns; THRESHOLDS.md gives a reason for every gated and every reported metric; every failure tagged with a cause (ingestion, retrieval, generation, abstention); embedder-swap branch shows what moved; upgrade record (how-to 10); flake policy |
 
-**v0.3 (S9–S11).** Production practices and the public demo.
+**v0.3 (S9, S3h, S10, S11).** Production practices and the public demo.
 
 | # | Stage | Build project / how-to step | Key acceptance criteria |
 |---|---|---|---|
 | S9 | Observability and perf | — | gen_ai spans; message content off by default, redaction proven by a test; optional Langfuse via a collector; API refuses `PERF_TEST_MODE` in prod; [CI] k6 smoke against the stub, gating the median and reporting p95 |
+| S3h | Host evaluation spike (moved from P1; starts P3, before S10) | — | the same fake-model container deployed to 2–3 hosts (candidates: Render free, Fly.io, Cloud Run). Compared on: cold start, memory fit with the ONNX embedder, cost at scale-to-zero, secrets, logs, deploy from Actions with OIDC or a token, and rate-limit header handling. Outcome: `docs/decisions/ADR-001-host.md`, the chosen host kept, the others torn down. Sign-ups happen here, with your go |
 | S10 | Real-model demo and path to prod on AWS | — | demo controls (below) implemented and tested; `path-to-prod-aws.md` (Bedrock inference profiles, Terraform, Bedrock Guardrails or Guardrails AI behind the same port, ECS/EKS, OTel to Langfuse or Datadog, Secrets Manager, approval-gated prod, PII redaction at the collector, prod-sample online evals, what stays the same and why); [CI] deploy behind required reviewers |
 | S11 | Teaching playground and capstone | — | Pages renders only `runs/published`; each run shows SHA, config, provider, fake or live, and intervals; a step-by-step teaching flow; [CI] schema and sha256 checks; system audit (how-to 09 A) and adversarial re-test before going public; trivy image scan; one-page capstone on the test slice with the five-row demo table, a "not covered" list (how-to 11) and SYSTEM-CARD.md; SBOM at release |
 
@@ -471,9 +478,9 @@ labelled as lab in the README.
 
 | Phase | Releases | Nature | You can stop here with |
 |---|---|---|---|
-| **P1 Lab core** | v0.1 (S0–S4) | Experimental. Fake and local models; numbers are real but local. | A tested RAG starter: corpus, ingestion, retrieval metrics, abstention, golden set, CI and a fake-model deploy. This closes the roadmap row in its minimum form. |
+| **P1 Lab core** | v0.1 (S0–S4) | Experimental. Fake and local models; numbers are real but local. | A tested RAG starter: corpus, ingestion, retrieval metrics, abstention, golden set, CI and a container ready to deploy. This closes the roadmap row in its minimum form. |
 | **P2 Evaluation rigour** | v0.2 (S4b–S8) | Experimental system, production-grade evaluation. | Judged runs with intervals (local, plus hosted if ADR-002 picks a provider), a calibrated judge, a red team, gates with reasons, and a suite audit. This is the interview-grade evidence. |
-| **P3 Production practices** | v0.3 (S9–S11) | Production-shaped on a cheap host. | Tracing with redaction, perf gate, demo controls, real-model demo, system audit, teaching playground, capstone. |
+| **P3 Production practices** | v0.3 (S9, S3h, S10, S11) | Production-shaped on a cheap host. | Tracing with redaction, perf gate, the host spike, demo controls, real-model demo, system audit, teaching playground, capstone. |
 | **P4 Path to prod** | doc only, inside S10 | Not built. | `path-to-prod-aws.md`: what would change and why. |
 
 How each practice matures, with lab (L), production-shaped (P) and documented only (D):
@@ -486,7 +493,7 @@ How each practice matures, with lab (L), production-shaped (P) and documented on
 | Guardrails | L: input limits, tenant filter, citation validator | P: layered + Guardrails AI, suites both ways | P: on in the demo | Bedrock Guardrails or Guardrails server behind the same port |
 | Security | P: secrets, SAST, deps, workflow hardening | P: threat model, red team, suite audit | P: ZAP, trivy, SBOM, system audit, adversarial re-test | WAF, IAM least privilege, Secrets Manager, pen test |
 | Observability | L: logs | L: run records | P: OTel gen_ai, redaction, optional Langfuse | collector routing to Langfuse or Datadog, PII redaction at the collector |
-| Deploy | L: fake model, scale to zero | — | P: real model, rate and budget limits, kill switch | ECS or EKS, Terraform, staging and prod environments, approval gates |
+| Deploy | L: the fake-model container, run locally | — | P: the host chosen in S3h; real model, rate and budget limits, kill switch | ECS or EKS, Terraform, staging and prod environments, approval gates |
 | Data | L: planted corpus | P: test split, datasheet | P: handbook corpus (S12) | ingestion pipeline, retention and deletion policy |
 
 ## Per-stage workflow phases
@@ -843,7 +850,7 @@ measured in S3. A 1–2 GB machine price is UNCONFIRMED.
 |---|---|
 | Repo name | S0 |
 | Local ONNX embedder choice; Qdrant local or cloud free tier | S2 |
-| Host, chosen by the S3h spike (Render, Fly.io, Cloud Run) | S3h |
+| Host, chosen by the S3h spike (Render, Fly.io, Cloud Run) | S3h (start of P3) |
 | Hosted providers and models, chosen from measured tokens (ADR-002); nightly cadence | S5 |
 | Budget scenario A, B or C, and monthly spend caps: nightly, manual, demo | S5 / S10 |
 | Your review time: requirements and answer key (S1a, about 2–4 h), golden set v1 and v2 (S4 and S4b, about 2–3 h each) | S1a / S4 / S4b |

@@ -5,6 +5,9 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased (v0.1)
 
+- S3h, the host spike, moves from P1 to the start of P3, before S10 (the user's decision of
+  2026-10-18): the main plan, the phase map in ARCHITECTURE and the README, and ONBOARDING say so;
+  the S3h draft plan is committed as deferred, with the answers already given.
 - S3 follow-up (judge S3-J12, S3-J13): Ctrl-C ends `raglab ollama session`, after the stop and
   the postcheck, with one line on stderr and exit 130 instead of a traceback; `make api-smoke`
   fails unless the server stops gracefully on SIGTERM (exit -15), so an abort at exit (-6) no
