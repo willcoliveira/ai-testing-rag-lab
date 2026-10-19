@@ -436,7 +436,7 @@ v3.0), as listed in `corpus/SOURCES.md`.
 | Version | Date | Stage | What changed | sha256 of golden.v1.jsonl |
 |---|---|---|---|---|
 | v1 | 2026-10-06 | S2 | 34 retrieval questions | `ffb8c5a54b2277bd90efd9bdebda4b91494eb472c3c604b6f057146b19436104` |
-| v1.1 | 2026-10-19 | S4 | 40 behaviour cases; label groups on seven retrieval questions, whose feature ids gain F-53; after the labels judge's review, G-33's reference answer trimmed to the route (not yet signed off, so still v1.1) | `5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a` |
+| v1.1 | 2026-10-19 | S4 | 40 behaviour cases; label groups on seven retrieval questions, whose feature ids gain F-53; after the labels judge's review, G-33's reference answer trimmed to the route (made before the sign-off, so still v1.1) | `5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a` |
 
 - A dataset version is a build input like the model and the prompt: every run manifest records
   the file's sha256, so a run names its version. The latest row above carries the sha256 of the
