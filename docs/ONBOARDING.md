@@ -33,15 +33,15 @@ CI.
 
 | Command | What it shows | What you should see |
 |---|---|---|
-| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 ... passes`. While S4 is in progress the golden file is v1.1 and the published retrieval baseline is still S2's, so the committed-runs test and the gate report that baseline stale until it is republished after the sign-off |
+| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 ... passes`. Since S4 the retrieval baseline is the dense dev run on golden set v1.1 (recall@5 0.682) |
 | `make check-dataset` (or `uv run raglab check-dataset`) | The golden file against its ten rules before any run: labels, features, the answer, abstain, conflict and refusal shapes, planted strings, the mix, the datasheet's sha256 line | One `check-dataset: datasets/golden.v1.jsonl passes (...)` line; a broken case is named with its rule, and every `raglab eval` and `raglab gate` stops on it |
 | `uv run raglab ingest` | The pack parsed and chunked into `runs/tmp/inventory.json` | 228 chunks from 21 documents |
 | `uv run raglab ingest --chunk-size 600 --compare corpus/inventory.snapshot.json` | A chunking change as a reviewable diff | 249 chunks, with the changed ids listed |
 | `uv run python scripts/chunk_experiment.py --chunk-size 600` | Which planted features a smaller chunk breaks | 0 split at 1,200 and 1 split at 600 (F-16) |
-| `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml` | One retrieval run, written as a run record | A folder in `runs/tmp/` with `manifest.json`, `cases.jsonl` and `report.md`; recall@5 0.644 |
-| The same with `config/retrieval-hybrid.toml`, then `uv run raglab compare <dense run> <hybrid run>` | A paired comparison with bootstrap intervals and the questions that flipped | Every interval contains 0; only hybrid finds R-Q10; only dense finds R-Q02 and R-Q14 |
+| `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml` | One retrieval run, written as a run record | A folder in `runs/tmp/` with `manifest.json`, `cases.jsonl` and `report.md`; recall@5 0.682 |
+| The same with `config/retrieval-hybrid.toml`, then `uv run raglab compare <dense run> <hybrid run>` | A paired comparison with bootstrap intervals and the questions that flipped | Every interval contains 0; only hybrid finds R-Q10 and R-Q33; only dense finds R-Q02 |
 | `make gate` | The no-regression gate that pr-fast runs | The pass line above |
-| `make playground` | The published runs in a browser | http://127.0.0.1:8000/ listing three runs with per-question hits |
+| `make playground` | The published runs in a browser | http://127.0.0.1:8000/ listing the published runs with per-question hits |
 | `uv run raglab ask --config config/fake.toml --tenant tenant-a "How long must a password be?"` | One answer from the fake model, as JSON | Status `ok`, label `answer`, the retrieved chunks' text, and their ids in `cited_ids` |
 | `uv run raglab ask --config config/fake.toml --tenant shared "x"` | The tenant guard failing closed | Status `refused`, no answer, exit 1 |
 | `uv run raglab serve --config config/fake.toml` | The API and the page | http://127.0.0.1:8000/ asks as tenant A or B with the demo token |
@@ -73,7 +73,7 @@ break. Restore each file with `git checkout -- <file>`, and never commit a break
 |---|---|---|
 | Remove the tenant mask in `src/raglab/index/memory.py` | `uv run pytest tests/retrieval/test_tenant_filter.py` | 7 failures; the second check, on the way out, raises `TenantError` |
 | Score reciprocal rank as 1/(rank + 1) in `src/raglab/evals/metrics.py` | `make test` | 5 failures across the metrics, run record and compare tests |
-| Make dense retrieval drop its best hit (return ranks 2 to 6) in `src/raglab/retrieve/dense.py` | `make gate` | `recall@5 0.318 (n 22) fails: the threshold is ... 0.598` |
+| Make dense retrieval drop its best hit (return ranks 2 to 6) in `src/raglab/retrieve/dense.py` | `make gate` | `recall@5 0.356 (n 22) fails: the threshold is ... 0.636` |
 | Reword one question in `datasets/golden.v1.jsonl`, keeping its labels | `make gate` | The baseline has another `dataset.sha256`: publish a new baseline in a reviewed pull request |
 | Point R-Q02's label at a section that does not exist (A-LIFE 6.2) | `make gate` | `R-Q02: A-LIFE section 6.2 has no chunk` |
 | The same label edit | `make check-dataset` | `R-Q02: rule 2 (labels and features): labelled section A-LIFE 6.2 has no chunk in the inventory`, before any run |

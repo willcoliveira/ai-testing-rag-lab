@@ -42,8 +42,7 @@ flowchart TB
   classDef todo fill:#f3f4f6,stroke:#6b7280
   classDef wip fill:#fef3c7,stroke:#92400e
   classDef done fill:#dcfce7,stroke:#166534
-  class S0,S1a,S1b,S2,S3 done
-  class S4 wip
+  class S0,S1a,S1b,S2,S3,S4 done
   class S3h,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
 ```
 
@@ -77,9 +76,11 @@ make playground                            # the published runs at http://127.0.
 
 The questions are `datasets/golden.v1.jsonl` (34 retrieval questions, 22 dev and 12 test; see
 [datasets/DATASHEET.md](datasets/DATASHEET.md)). The baseline is the dense configuration's dev run
-in `runs/published/`: recall@5 0.644, hit@5 0.773, MRR@5 0.564 (n 22, local provenance; intervals
-and the comparison with hybrid and chunk size 600 in the
-[S2 ledger](docs/plans/2026-10-06-s2-retrieval-ledger.md)).
+in `runs/published/`, republished on golden set v1.1 in S4: recall@5 0.682, hit@5 0.818, MRR@5
+0.625 (n 22, local provenance; intervals and the comparison with hybrid and chunk size 600 in the
+[S4 ledger](docs/plans/2026-10-19-s4-golden-set-ledger.md)). The rise from S2's 0.644 comes from
+the dataset, whose label groups count a restated rule once, not from retrieval
+([S2 ledger](docs/plans/2026-10-06-s2-retrieval-ledger.md) for golden set v1).
 
 Generation (S3) turns the retrieved chunks into a structured answer (text, cited
 ids, decision label, conflict field, status) through a versioned prompt and three guard layers
@@ -95,13 +96,17 @@ make eval-local    # the live run on Ollama: starts the server, runs, stops it (
 make container && make zap   # the fake-model container and its ZAP baseline scan (Docker)
 ```
 
-The golden set and the consistency gate (S4, in progress): `make check-dataset` holds the golden
+The golden set and the consistency gate (S4): `make check-dataset` holds the golden
 file to ten rules before any run (every `raglab eval` and `raglab gate` runs it first, and so does
 pr-fast); the generation suite reads the decision label of each behaviour case from the structured
 field and scores abstention as its own check, without a judge; `make gate-local` gates behaviour
 pass^3 on dev against a local baseline (docs/THRESHOLDS.md), and `make nightly-local` runs every
 split under the nightly gate. Golden set v1.1 adds 40 behaviour cases (27 dev, 13 test) to the 34
-retrieval questions; it awaits the user's sign-off, and the baselines are republished after it.
+retrieval questions, and the user signed it off on 2026-10-19 ("Signed off as is"). The local
+generation baseline holds behaviour pass^3 0.519 (14 of the 27 dev cases) on
+nemotron-3.5-lightning; its four repeats held the same 14 cases, so the gate's margin is one case
+([docs/THRESHOLDS.md](docs/THRESHOLDS.md), the
+[S4 ledger](docs/plans/2026-10-19-s4-golden-set-ledger.md)).
 
 A run is published only from a clean, committed tree, with its provenance (`local` for the ONNX
 embedder) in the manifest. Run record v1 is `schemas/run-record.v1.json`; thresholds and their
