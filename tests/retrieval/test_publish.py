@@ -248,14 +248,16 @@ def test_a_local_generation_run_is_published_with_its_model_in_the_index(tmp_pat
     assert "pass^2" in entry["metrics"]
 
 
-def test_compare_refuses_generation_runs(tmp_path):
+def test_compare_refuses_generation_runs_without_behaviour_cases(tmp_path):
+    """S3 refused every generation pair; S4 compares their behaviour cases (tests/retrieval/
+    test_compare.py), so a pair with none, as S3's runs, is still refused."""
     from raglab.evals import compare
     from tests.generation_support import fake_generation_run, generation_root
 
     root = generation_root(tmp_path)
     a = fake_generation_run(root)
     b = fake_generation_run(root, when=datetime(2026, 10, 18, 13, 0, 0, tzinfo=UTC))
-    with pytest.raises(compare.CompareError, match="retrieval runs only"):
+    with pytest.raises(compare.CompareError, match="no behaviour cases to compare"):
         compare.compare(a, b, root)
 
 

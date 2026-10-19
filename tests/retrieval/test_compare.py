@@ -1,7 +1,9 @@
 """AC5: `raglab compare` gives, per metric, B minus A with a paired bootstrap interval, and lists
-the flipped questions by id; runs that are not paired are refused."""
+the flipped questions by id; runs that are not paired are refused. S4 AC8: two generation runs
+are paired by behaviour case id (behaviour pass^N and the decision-label rate)."""
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -146,3 +148,98 @@ def test_different_case_ids_are_refused(tmp_path):
     edit_cases(b, lambda case: case.update(case_id=case["case_id"].replace("Q4", "Q9")))
     with pytest.raises(compare.CompareError, match="same case ids"):
         compare.compare(a, b, root)
+
+
+# ---------------------------------------------------------------- S4 AC8: generation runs
+
+LATER = datetime(2026, 10, 19, 13, 0, 0, tzinfo=UTC)
+
+
+def reversed_record(run_dir) -> None:
+    """The run's case lines in reverse order, resealed (results, report, hashes): the same run, so
+    a comparison that pairs by position instead of case id reads it wrong."""
+    manifest, cases = read_run(run_dir)
+    cases.reverse()
+    manifest["results"] = record.expected_results(manifest, cases)
+    body = {k: v for k, v in manifest.items() if k != "files"}
+    cases_bytes = record.cases_text(cases).encode()
+    report_bytes = record.render(body, cases).encode()
+    (run_dir / record.CASES).write_bytes(cases_bytes)
+    (run_dir / record.REPORT).write_bytes(report_bytes)
+    manifest["files"] = {
+        record.CASES: record.sha256_bytes(cases_bytes),
+        record.REPORT: record.sha256_bytes(report_bytes),
+    }
+    (run_dir / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def test_paired_generation_differences_and_flipped_cases_by_hand(tmp_path):
+    """A passes every check on all seven behaviour cases; in B, B-FC2 answers with a conflict
+    field, B-ABS gives the S3 pattern (decisions wrong) and B-TB leaks a tenant A canary (decision
+    right, a check failed). B's lines are reversed, so only pairing by case id gets this right."""
+    from tests.generation_support import Q_ABS, Q_FC2, Q_TB, V2_44, behaviour_run, reply
+
+    root, a = behaviour_run(tmp_path)
+    worse = {
+        Q_FC2: reply("answer", "60 days.", [V2_44.chunk_id], [V2_44.chunk_id], "x"),
+        Q_ABS: reply("answer", "The documents do not say."),
+        Q_TB: reply("answer", "Halvenroot does it too.", []),
+    }
+    _, b = behaviour_run(tmp_path, worse, root=root, when=LATER)
+    reversed_record(b)
+    assert record.validate(b, root) == []
+    result: Any = compare.compare(a, b, root)
+    assert (result["suite"], result["trials"], result["n"]) == ("generation", 2, 7)
+    ids = ["B-ANS", "B-FC", "B-FC2", "B-ABS", "B-ABQ", "B-RH", "B-TB"]  # A's order
+    passes_b = [1, 1, 0, 0, 1, 1, 0]
+    right_b = [1, 1, 0, 0, 1, 1, 1]
+    m = result["metrics"]
+    assert (m["behaviour_pass^2"]["a"], m["behaviour_pass^2"]["b"]) == (1.0, round(4 / 7, 6))
+    assert m["behaviour_pass^2"]["diff"] == round(-3 / 7, 6)
+    assert (m["decision_label"]["a"], m["decision_label"]["b"]) == (1.0, round(5 / 7, 6))
+    assert m["decision_label"]["diff"] == round(-2 / 7, 6)
+    for name, values in (("behaviour_pass^2", passes_b), ("decision_label", right_b)):
+        expected = metrics.paired_difference([1.0] * 7, values, seed=7, resamples=2000)
+        assert (m[name]["ci_low"], m[name]["ci_high"], m[name]["n"]) == (
+            round(expected.low, 6),
+            round(expected.high, 6),
+            7,
+        ), name
+    assert result["bootstrap"] == {
+        "resamples": 2000,
+        "seed": 7,
+        "level": 0.95,
+        "method": "percentile",
+    }
+    assert result["flipped"] == {"gained": [], "lost": ["B-FC2", "B-ABS", "B-TB"]}
+    assert result["changed"]["decision_label"] == {"better": [], "worse": ["B-FC2", "B-ABS"]}
+    assert [i for i in ids if i in result["flipped"]["lost"]] == result["flipped"]["lost"]
+    text = compare.render(result)
+    assert "- 7 paired behaviour cases (by case id), split dev" in text
+    assert "| behaviour_pass^2 | 1.000 | 0.571 | -0.429 |" in text
+    assert "Passed every trial in A only (3): B-FC2, B-ABS, B-TB" in text
+    assert "decision_label: better in B for none; worse in B for B-FC2, B-ABS" in text
+
+
+def test_unpaired_generation_runs_are_refused(tmp_path):
+    from tests.generation_support import behaviour_run
+
+    root, a = behaviour_run(tmp_path)
+    _, three = behaviour_run(tmp_path, root=root, trials=3, when=LATER)
+    with pytest.raises(compare.CompareError, match="not the same trials"):
+        compare.compare(a, three, root)
+    golden = root / "golden.jsonl"
+    golden.write_text(golden.read_text() + "\n")
+    _, other = behaviour_run(tmp_path, root=root, when=datetime(2026, 10, 19, 14, 0, tzinfo=UTC))
+    with pytest.raises(compare.CompareError, match=r"not the same dataset\.sha256"):
+        compare.compare(a, other, root)
+    # a retrieval run beside it: the small pack's documents registered too, a retrieval question
+    from tests.generation_support import BEHAVIOUR_CHUNKS
+    from tests.retrieval_support import LAB_DOCS, QUESTIONS, write_register
+
+    write_register(root, {**LAB_DOCS, **{c.doc_id: c.tenant for c in BEHAVIOUR_CHUNKS}})
+    golden.write_text(golden.read_text() + json.dumps(QUESTIONS[0]) + "\n")
+    retrieval_run = fake_run(root, name="retrieval-a")
+    assert record.validate(retrieval_run, root) == []
+    with pytest.raises(compare.CompareError, match="a generation run and a retrieval run"):
+        compare.compare(a, retrieval_run, root)
