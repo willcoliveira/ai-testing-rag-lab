@@ -36,10 +36,8 @@ behaviour cases, and rules 9 and 10 for the file:
    probe (P-01 to P-03) is missing or not in dev.
 10. **version**: the datasheet's latest version line does not carry the file's sha256.
 
-**Until the S4 cases land.** Golden set v1 as S2 left it (34 retrieval questions, no behaviour
-case, `S2_V1_SHA256`) predates rules 9 and 10: its datasheet has no sha256 line and it has no mix.
-For that file, and only while its bytes are those, rules 9 and 10 wait, and the report says so in
-a note; any change to the file applies them. The note goes away with the cases.
+A section may sit in several groups of one question (a FAQ entry that restates two rules); the
+loader refuses it twice as a label of its own, twice in one group, or as both (raglab.evals.golden).
 
 `raglab eval` and `raglab gate` run this first and stop on any problem (`raglab.__main__`).
 """
@@ -83,8 +81,6 @@ S3_PROBES = ("P-01", "P-02", "P-03")
 CONFLICTS = frozenset({"version", "external"})
 GOVERNING_SIDES = frozenset({"new", "company"})
 CONFLICT_SIDES = frozenset({"old", "external"})
-# golden set v1 as S2 left it: rules 9 and 10 wait for the S4 cases while the file is these bytes
-S2_V1_SHA256 = "ffb8c5a54b2277bd90efd9bdebda4b91494eb472c3c604b6f057146b19436104"
 # a version line of the datasheet: a list item or a table row that starts with a version
 VERSION_LINE = re.compile(r"^\s*(?:[-*]\s+|\|\s*)(?:\*\*)?v(\d+(?:\.\d+)*)(?:\*\*)?(?![\w.])")
 
@@ -110,21 +106,20 @@ class Report:
     retrieval: int
     behaviour: int
     problems: tuple[Problem, ...]
-    notes: tuple[str, ...]
 
     @property
     def passed(self) -> bool:
         return not self.problems
 
     def lines(self) -> list[str]:
-        """What `raglab check-dataset` prints: every problem, the notes, then one verdict."""
+        """What `raglab check-dataset` prints: every problem, then one verdict."""
         verdict = (
             f"check-dataset: {self.dataset} passes ({self.retrieval} retrieval questions, "
             f"{self.behaviour} behaviour cases, sha256 {self.sha256[:12]})"
             if self.passed
             else f"check-dataset: {self.dataset} fails {len(self.problems)} check(s)"
         )
-        return [*(str(p) for p in self.problems), *self.notes, verdict]
+        return [*(str(p) for p in self.problems), verdict]
 
 
 def slot(mix: str) -> str:
@@ -394,16 +389,8 @@ def check(root: Path, dataset: Path) -> Report:
         else:
             checker.behaviour(q, b)
             behaviour.append((q, b))
-    notes: list[str] = []
-    if sha == S2_V1_SHA256 and not behaviour:
-        notes.append(
-            "note: rules 9 (mix) and 10 (version) wait for the S4 behaviour cases: this file is "
-            f"golden set v1 as S2 left it (sha256 {sha[:12]}), before S4's mix and the "
-            "datasheet's sha256 line; any change to the file applies them"
-        )
-    else:
-        mix(checker, dataset.name, behaviour)
-        version(checker, dataset, sha)
+    mix(checker, dataset.name, behaviour)
+    version(checker, dataset, sha)
     try:
         shown = dataset.resolve().relative_to(root.resolve()).as_posix()
     except ValueError:
@@ -414,7 +401,6 @@ def check(root: Path, dataset: Path) -> Report:
         retrieval=len(retrieval),
         behaviour=len(behaviour),
         problems=tuple(checker.problems),
-        notes=tuple(notes),
     )
 
 

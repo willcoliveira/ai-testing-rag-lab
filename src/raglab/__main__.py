@@ -106,7 +106,7 @@ def _check_first(root: Path, dataset: str) -> None:
         raise dataset_check.CheckError(
             "check-dataset stopped the run:\n" + "\n".join(report.lines())
         )
-    print("\n".join(report.lines()), file=sys.stderr)  # the notes and the pass line
+    print("\n".join(report.lines()), file=sys.stderr)  # the pass line
 
 
 def _held_out(split: str, gate: str) -> None:

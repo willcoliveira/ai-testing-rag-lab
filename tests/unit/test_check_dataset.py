@@ -4,6 +4,7 @@ behaviour cases from the plan's draft) and the check exits 1 naming the case and
 valid copy and the committed file exit 0. Every `raglab eval` and `raglab gate` runs it first and
 stops before any model, embedder or ingestion starts."""
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -32,29 +33,36 @@ def test_the_valid_copy_and_the_committed_file_pass(tmp_path, capsys):
     path = write_dataset(tmp_path)
     report = dataset_check.check(ROOT, path)
     assert report.problems == ()
-    assert (report.retrieval, report.behaviour, report.notes) == (34, 40, ())
+    assert (report.retrieval, report.behaviour) == (34, 40)
     assert main(["check-dataset", "--dataset", str(path), "--root", str(ROOT)]) == 0
     assert "passes (34 retrieval questions, 40 behaviour cases" in capsys.readouterr().out
     assert main(["check-dataset", "--root", str(ROOT)]) == 0
-    out = capsys.readouterr().out
-    assert (
-        "check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 0 behaviour" in out
+    out = capsys.readouterr().out.splitlines()
+    assert len(out) == 1
+    assert out[0].startswith(
+        "check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour"
     )
-    assert "rules 9 (mix) and 10 (version) wait for the S4 behaviour cases" in out
 
 
-def test_the_s2_file_exemption_lifts_on_any_change(tmp_path):
-    """Rules 9 and 10 wait only while the golden file is S2's bytes: one added newline applies
-    them, and the S2 datasheet has no sha256 line."""
+def test_the_committed_datasheet_records_the_committed_file():
+    """Rule 10 on the committed pair: the datasheet's latest version line is v1.1 and carries the
+    golden file's sha256; one byte more in the file and the rule fails (the next test's copy)."""
+    text = (ROOT / "datasets" / "DATASHEET.md").read_text(encoding="utf-8")
+    latest = dataset_check.latest_version(text)
+    assert latest is not None
+    assert latest[0] == "v1.1"
+    assert hashlib.sha256(COMMITTED.read_bytes()).hexdigest() in latest[1]
+
+
+def test_a_golden_file_edited_without_a_new_version_line_fails_rule_10(tmp_path):
     copy = tmp_path / COMMITTED.name
-    copy.write_bytes(COMMITTED.read_bytes())
-    (tmp_path / "DATASHEET.md").write_bytes((ROOT / "datasets" / "DATASHEET.md").read_bytes())
-    assert problems(copy) == []
     copy.write_bytes(COMMITTED.read_bytes() + b"\n")
+    (tmp_path / "DATASHEET.md").write_bytes((ROOT / "datasets" / "DATASHEET.md").read_bytes())
     found = problems(copy)
-    assert has(found, copy.name, 9, "0 single-chunk case(s), the mix asks for 15")
-    assert has(found, copy.name, 9, "the S3 probe P-01 is not a behaviour case of the set")
-    assert has(found, copy.name, 10, "(v1) does not carry the file's sha256")
+    assert found == [
+        f"{copy.name}: rule 10 (version): the latest version line of DATASHEET.md (v1.1) does "
+        f"not carry the file's sha256 {hashlib.sha256(copy.read_bytes()).hexdigest()}"
+    ]
 
 
 def check_planted(tmp_path: Path, cases: list[dict[str, Any]], case: str, rule: int, text: str):
@@ -108,12 +116,12 @@ def test_rule_2_labels_and_features(tmp_path):
     cases = edited(
         "G-01",
         cases=cases,
-        relevant=[{"any_of": [sec("A-PWD-V2", "4.1"), sec("A-FAQ", "Q5")]}],
+        relevant=[{"any_of": [sec("A-PWD-V2", "4.1"), sec("A-FAQ", "Q12")]}],
     )
     found = check_planted(tmp_path, cases, "G-03", 2, "A-LIFE 6.2 has no chunk in the inventory")
     assert has(found, "G-14", 2, "A-MFA 7.1 is tenant-a, which tenant-b cannot see")
     assert has(found, "G-06", 2, "feature F-99 is not in the answer key")
-    assert has(found, "G-01", 2, "group member A-FAQ Q5 is not an answer-key location of F-01")
+    assert has(found, "G-01", 2, "group member A-FAQ Q12 is not an answer-key location of F-01")
 
 
 # ---------------------------------------------------------------- rules 3 and 4
