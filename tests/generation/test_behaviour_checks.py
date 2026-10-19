@@ -122,6 +122,37 @@ def test_a_conflict_side_not_retrieved_expects_answer_without_a_conflict_field(t
         assert checks_of(cases, "B-FC2")["decision_label"] is False, n
 
 
+def test_an_answer_case_with_a_conflict_field_set_fails_the_decision(tmp_path):
+    """TEST-PLAN section 3 as written (the labels judge's S4-L6; the user's answer on D-d): an
+    `answer` case, here a current value like G-04's whose superseded version 1.0 states it
+    differently, retrieved version 1.0 anyway. Naming 1.0 as superseded in the text passes;
+    setting the conflict field fails the decision."""
+    from tests.dataset_support import case, sec
+    from tests.generation_support import Q_CUR, V1_44, behaviour_cases
+
+    current = case(
+        "B-CUR", "single-chunk", "answer", "dev", ["F-10"], [sec("A-PWD-V2", "5")], question=Q_CUR
+    )
+    cases = [*behaviour_cases(), current]
+    flagged = reply(
+        "answer",
+        "It unlocks after 30 minutes; version 1.0 said otherwise.",
+        [V2_5.chunk_id],
+        [V2_5.chunk_id, V1_44.chunk_id],
+        "version 1.0 is superseded",
+    )
+    _, rows = run(tmp_path, {Q_CUR: flagged}, cases=cases)
+    checks = checks_of(rows, "B-CUR")
+    assert checks["decision_label"] is False
+    assert checks["cites_label"] is True
+    assert "conflict" not in checks  # no conflict check applies to an answer case
+    named = reply(
+        "answer", "30 minutes (version 1.0, superseded, said otherwise).", [V2_5.chunk_id]
+    )
+    _, rows = run(tmp_path / "b", {Q_CUR: named}, cases=cases)
+    assert checks_of(rows, "B-CUR")["decision_label"] is True
+
+
 def test_an_abstention_may_quote_only_a_cited_chunk_of_its_may_quote_section(tmp_path):
     """D-03: the number is allowed when a cited chunk of the may_quote section (X-NIST 3.1.1.2)
     states it; not when that chunk is uncited, and not from a cited chunk of another section."""

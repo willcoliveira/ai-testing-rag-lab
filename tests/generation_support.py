@@ -257,6 +257,9 @@ V2_44 = make_chunk("A-PWD-V2@2.0/4.4/1", "tenant-a", "User passwords expire ever
 V2_46 = make_chunk("A-PWD-V2@2.0/4.6/1", "tenant-a", "Never share your password.", "4.6")
 V2_5 = make_chunk("A-PWD-V2@2.0/5/1", "tenant-a", "Accounts lock after 10 failures.", "5")
 V1_43 = make_chunk("A-PWD-V1@1.0/4.3/1", "tenant-a", "Passwords expire every 90 days.", "4.3")
+V1_44 = make_chunk(
+    "A-PWD-V1@1.0/4.4/1", "tenant-a", "Accounts stay locked until the desk unlocks them.", "4.4"
+)
 FAQ_Q2 = make_chunk("A-FAQ@1.0/Q2/1", "tenant-a", "Q2 Passwords expire every 60 days.", "Q2")
 NIST = make_chunk(
     "X-NIST@4/3.1.1.2/1",
@@ -267,7 +270,7 @@ NIST = make_chunk(
 B_33 = make_chunk(
     "B-PWD@1.0/3.3/1", "tenant-b", "Passwords do not expire; a reset link lasts 30 minutes.", "3.3"
 )
-BEHAVIOUR_CHUNKS = [V2_41, V2_44, V2_46, V2_5, V1_43, FAQ_Q2, NIST, B_33]
+BEHAVIOUR_CHUNKS = [V2_41, V2_44, V2_46, V2_5, V1_43, V1_44, FAQ_Q2, NIST, B_33]
 
 Q_ANS = "How long must a password be?"
 Q_FC = "Has the expiry period changed?"
@@ -276,6 +279,7 @@ Q_ABS = "How many reset attempts a day?"
 Q_ABQ = "What is the longest password allowed?"
 Q_RH = "Can my colleague use my password?"
 Q_TB = "Do our passwords expire?"
+Q_CUR = "How long does my locked account stay locked?"  # a current value, like G-04
 
 
 def behaviour_cases() -> list[dict]:
@@ -307,6 +311,7 @@ RETRIEVED = {
     Q_ABQ: [NIST, B_33],
     Q_RH: [V2_46],
     Q_TB: [B_33],
+    Q_CUR: [V2_5, V1_44],  # the superseded 1.0 section retrieved outside the labels
 }
 # replies that pass every check that applies
 GOOD = {

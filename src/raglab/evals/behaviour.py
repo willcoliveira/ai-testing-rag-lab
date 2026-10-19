@@ -15,9 +15,11 @@ The checks of a trial (with S3's status_ok and model_citations_retrieved; a tria
 every check that applies passes):
 
 - **decision_label**: the structured label field equals the expected label on an ok answer. The
-  field, never the text. One rule of TEST-PLAN section 3 applies: a flag-conflict case whose
-  conflict side was not retrieved expects `answer` with no conflict field, and the miss counts
-  against retrieval (the report counts those trials), not against the decision.
+  field, never the text. TEST-PLAN section 3 applies: an expected `answer` leaves the conflict
+  field unset (a superseded chunk retrieved outside the labels may be named in the text, never
+  flagged); and a flag-conflict case whose conflict side was not retrieved expects `answer` with no
+  conflict field, the miss counting against retrieval (the report counts those trials), not
+  against the decision.
 - **abstained** and **no_value** (abstain cases): S3's abstention oracle (raglab.evals.oracle),
   where a number is allowed when a cited chunk of the case's may_quote section states it (D-03).
 - **conflict** (flag-conflict cases whose conflict side was retrieved): the conflict field names a
@@ -153,9 +155,10 @@ def checks(
     ok = case["status"] == Status.OK.value
     expected = expected_label(case)
     nominal = str(case["expected"])
-    no_conflict_field = not (nominal == "flag-conflict" and expected == "answer") or (
-        case["conflict"] is None
-    )
+    # TEST-PLAN section 3: an answer leaves the conflict field unset, on an answer case (a
+    # superseded chunk retrieved outside its labels may be named in the text, never flagged) as on
+    # a flag-conflict case whose conflict side was not retrieved (the user's answer on D-d)
+    no_conflict_field = expected != "answer" or case["conflict"] is None
     out: Json = {"decision_label": ok and case["label"] == expected and no_conflict_field}
     cited = set(_strings(case["cited_ids"]))
     if nominal == "abstain":
