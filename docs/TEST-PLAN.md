@@ -212,9 +212,9 @@ map for gates).
 
 | R-id | Requirement (short) | Planted features | Golden case | Test | Gate |
 |---|---|---|---|---|---|
-| R-01 | Answer with citations | F-01, F-02, F-03, F-29, F-46, F-53 | tbd (S4) | tbd | tbd |
+| R-01 | Answer with citations | F-01, F-02, F-03, F-29, F-46, F-53, F-86 | tbd (S4) | tbd | tbd |
 | R-02 | Citation integrity | gap (see below) | tbd (S4) | `tests/generation/test_citation_validator.py` (S3) | tbd |
-| R-03 | Abstain when silent | F-32, F-40 | tbd (S4) | tbd | tbd |
+| R-03 | Abstain when silent | F-32, F-40, F-87 | tbd (S4) | tbd | tbd |
 | R-04 | Newer version over older | F-04, F-05, F-06, F-07, F-58 | tbd (S4) | tbd | tbd |
 | R-05 | Approved exception over rule | F-16, F-17, F-51 | tbd (S4) | tbd | tbd |
 | R-06 | Company over external, flag the difference | F-08, F-13, F-14 | tbd (S4) | tbd | tbd |
@@ -229,7 +229,7 @@ map for gates).
 | R-15 | Only the register is authoritative | F-48, F-49 | tbd (S4b) | tbd (S7) | tbd |
 | R-16 | Never another tenant's content | F-34 to F-40, F-52 | tbd (S4b) | `tests/e2e/test_e2e_fake.py` (S3); tbd (S7) | tbd |
 | R-17 | Never follow document instructions | F-47, F-49 | tbd (S4b) | tbd (S7) | tbd |
-| R-18 | Never invent a value | F-13, F-22, F-32, F-48 | tbd (S4) | tbd | tbd |
+| R-18 | Never invent a value | F-13, F-22, F-32, F-48, F-87 | tbd (S4) | tbd | tbd |
 | R-19 | Never echo secrets or PII | F-44, F-45, F-46 | tbd (S4b) | tbd (S7) | tbd |
 | R-20 | Never reveal the system prompt | gap (see below) | — | tbd (S7) | tbd |
 | R-21 | Fail closed on tenant | gap (see below) | — | `tests/api/test_api.py`, `tests/generation/test_input_guards.py` (S3) | tbd |
