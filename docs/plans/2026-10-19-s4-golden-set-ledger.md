@@ -93,7 +93,7 @@ numbers below are copied from its log and the records.
 | Test slice (AC9) | `raglab.evals.config.held_out_problem`, called by `raglab eval` (both suites) and `publish`; `config/local-ollama-nightly.toml`; `make nightly-local` |
 | D3 | `privacy/allowlist-published.txt`; `publish.banned_strings`, `publish.blocks_clean_runs`; `scripts/check-forbidden.mjs` (comments only) |
 | After the labels review | `behaviour.checks`: an expected `answer` with the conflict field set fails the decision (D-d). `record.behaviour_field_problems` and `record.current_golden`: for a generation record of the golden file's current bytes, each behaviour case's expected label, mix and features, labels with groups and sides, and may_quote chunks and values are derived again and compared; `raglab.ingest.pipeline.section_chunks` chunks one section of one register document as the inventory does |
-| Docs | TEST-PLAN R6 (tests and gate), R2, Q-05, section 10's abstention line; THRESHOLDS consistency section; ONBOARDING; LOCAL-MODEL; ARCHITECTURE and README: S4 `wip`; README quickstart; CHANGELOG |
+| Docs | TEST-PLAN R6 (tests and gate), R2, Q-05, section 10's abstention line; THRESHOLDS consistency section; ONBOARDING; LOCAL-MODEL; ARCHITECTURE and README: S4 `done` (marked after the runs, `a91c74a`; `wip` until then); README quickstart; CHANGELOG |
 | Test support | `tests/dataset_support.py` (a valid 40-case golden set built from the plan's draft and the answer key, for the tests only); `tests/generation_support.py` (a scripted retriever, a per-question FakeChat script, a small pack with the real document ids, local runs through the in-process stub server) |
 
 ## Evidence per criterion (developer, 2026-10-19, macOS arm64)
@@ -113,15 +113,15 @@ check was green again after the restore and the tree clean.
 | AC4 | met (the sign-off: "Signed off as is", above) | The question author's additions are in (`7005d90`, and the SPEC and traceability rows of F-86 and F-87 in `c46e3e8`): group-member locations (FAQ entries on F-53, Device Policy 6.2 on F-17), F-40's silence phrases extended for the new tenant B topics, F-86 (the FAQ Q6 café case) and F-87 (an omission); additions only: the only removed line is F-40's old phrase list, and no canary and no `answer_must_not_contain` string changed. After the labels review (D-c, `311d643`) F-53's FAQ Q1 location gains one value, "blocklist of common and breached passwords": the line's list keeps its value and adds one, so it stays additions only. `tests/unit/test_answer_key.py` passes | |
 | AC5 | met | `tests/generation/test_behaviour_checks.py` (11 tests, scripted FakeChat replies on a small pack with the real document ids, so the answer key's sides and canaries apply; every run validated): good replies pass every check that applies; "text abstains, label answer" fails the decision; a conflict side retrieved expects the flag with both sides named (a group member stands for the governing side), and not retrieved expects answer with no conflict field; a may_quote value passes only from a cited chunk of that section; canaries both ways; a must-not-contain phrase; the results by hand (decision rate 10/14 at n 7, per label, abstention 0 of 2 cases, over-abstention 0, behaviour pass^2 2/7, the confusion and four-way tables, agreement, label failures 2 missed and 2 without labels, 2 conflict-side misses); a withheld trial. After the labels review (D-d, `ea416a6`), a twelfth: `test_an_answer_case_with_a_conflict_field_set_fails_the_decision` (a current-value case like G-04, version 1.0's section retrieved outside its labels: the conflict field set fails the decision, the text naming 1.0 as superseded passes) | (1) the label read from the text: "2 failed, 9 passed"; (2) the conflict rule's retrieval condition removed: "3 failed, 8 passed"; (3) may_quote widened to every retrieved chunk: "2 failed, 9 passed" (the out-of-section quote passes: `assert True is False`); each restored: "11 passed". (4) After D-d, the old rule back (the conflict field checked only under the conflict rule): "1 failed, 11 passed", restored "12 passed" |
 | AC6 | met | `tests/e2e/test_e2e_golden_suite.py` (after the integration): the generation suite through the CLI on the real golden file, the real pack and embedder and FakeChat, one trial: check-dataset first, exit 0, the record validates and holds every dev case (the 22 retrieval questions and the 27 behaviour cases, P-01 to P-03 among them), no probes block, the behaviour results and report section, the may_quote case's chunks with values only, and both sides on every flag-conflict case; its numbers measure the plumbing, never Q-05, so none is asserted. `tests/retrieval/test_run_record.py`: the three S2 runs and the S3 run validate unchanged (`test_the_s3_run_still_validates_unchanged`; the committed-runs test); a behaviour case without `expected` or `mix`, with labels on an abstain case, may_quote on a labelled case, a side on a case that does not flag a conflict, an unretrieved citation or `canaries_of` is refused; checks that do not follow from the fields are refused. After the labels review (`802c1c9`, the orchestrator's decision): `test_a_forged_record_of_the_current_golden_file_is_refused` (a conflict side flipped, a quotable value added, an expected label changed, each resealed with its checks, results, report and hashes: refused; the same record validates once the golden file has other bytes, as history); the behaviour fixture now carries the real NIST excerpt, whose section 3.1.1.2 is chunked again, and `test_the_record_keeps_the_quotable_values_never_the_text` reads its two real chunks' values | The probes' oracle changed (a quotable value passed for probes): the committed-runs test and `test_the_s3_run_still_validates_unchanged` "2 failed" ("case P-01 trial 1: checks {...} do not follow from the fields"), restored "2 passed". The re-derivation not called (`behaviour_field_problems`): "3 failed" (the three forged records validate), restored "3 passed" |
-| AC7 | met (code, scripted runs, and live: AC11) | `tests/generation/test_consistency_gate.py` (17 tests): pass, at the margin, below, with a margin of 2; stale on each of dataset.sha256, config.sha256, prompt.sha256, generator.digest and trials, and not on a new server version; a fake run (by provenance or by the generator's provider), a partial run and another split refused; no margin, a zero margin and no behaviour cases refused; the margin read from the consistency row, and none from the committed row; through the CLI on real records (the stub server, the real embedder's description): one line, exit 0 or 1, no baseline, no margin and a fake run refused; `make gate-local` | (1) the prompt fingerprint dropped from the stale fields: "1 failed, 16 passed"; (2) the margin doubled: "2 failed, 15 passed"; each restored: "17 passed" |
+| AC7 | not met at `5fd4bf1` (the criteria judge's S4-J1: on the published baseline, n 27, the margin case failed); met after fix round 1 (`fe3b435`) | `tests/generation/test_consistency_gate.py` (17 tests at `5fd4bf1`, whose margin case was tested at n 10 only, where the arithmetic is exact; since fix round 1 also `test_the_margin_is_counted_in_cases_whatever_n` at n 3, 10, 22 and 27): pass, at the margin, below, with a margin of 2; stale on each of dataset.sha256, config.sha256, prompt.sha256, generator.digest and trials, and not on a new server version; a fake run (by provenance or by the generator's provider), a partial run and another split refused; no margin, a zero margin and no behaviour cases refused; the margin read from the consistency row, and none from the committed row; through the CLI on real records (the stub server, the real embedder's description): one line, exit 0 or 1, no baseline, no margin and a fake run refused; `make gate-local` | (1) the prompt fingerprint dropped from the stale fields: "1 failed, 16 passed"; (2) the margin doubled: "2 failed, 15 passed"; each restored: "17 passed" |
 | AC8 | met | `tests/retrieval/test_compare.py`: two generation runs, B's case lines reversed: behaviour pass^2 1.000 to 0.571 (diff -0.429), decision label 1.000 to 0.714 (diff -0.286), the bounds equal to `metrics.paired_difference` over A's order (seed 7, 2,000 resamples), lost B-FC2, B-ABS and B-TB; other trials, another dataset and a retrieval against a generation run refused; `tests/retrieval/test_publish.py`: a pair without behaviour cases refused | Pairing by position: "1 failed, 5 passed", restored "6 passed" |
 | AC9 | met | `tests/unit/test_held_out_split.py` (11 tests): `raglab eval` refuses split test or all under manual, pr-fast, eval-on-change and weekly (both suites) before the run; nightly and release reach the run; publish refuses a test run (retrieval) and an all run (generation) under manual and publishes them under release and nightly; a FakeChat nightly run of every split validates; the nightly config is the local config but its name and split; `make nightly-local`. The committed-runs test allows a test or all run under nightly or release only | The refusal removed (`held_out_problem` returns nothing): "5 failed, 6 passed", restored "11 passed". Every run S4 made is listed under "Runs S4 made": all on dev under gate manual; no test-split run and no nightly run |
-| AC10 | met | The three S2 configurations on dev at F, run by the orchestrator (above): dense `20261019T180502Z-retrieval-dense-dev-97011a7` (recall@5 0.682), hybrid `20261019T180515Z-retrieval-hybrid-dev-97011a7` (0.720), dense-600 `20261019T180529Z-retrieval-dense-600-dev-97011a7` (0.659), all published, dense as the baseline; the paired comparisons and the S2-to-S4 reading are below. `make gate`: "recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636"; the committed-runs test passes | S2's plant (dense returning ranks 2 to 6, `k + 1` then `[1:]` in `retrieve/dense.py`) with `make gate`: "recall@5 0.356 (n 22) fails: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636"; restored with `git checkout` |
+| AC10 | met locally; needs CI (the pull request's gate line) | The three S2 configurations on dev at F, run by the orchestrator (above): dense `20261019T180502Z-retrieval-dense-dev-97011a7` (recall@5 0.682), hybrid `20261019T180515Z-retrieval-hybrid-dev-97011a7` (0.720), dense-600 `20261019T180529Z-retrieval-dense-600-dev-97011a7` (0.659), all published, dense as the baseline; the paired comparisons and the S2-to-S4 reading are below. `make gate`: "recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636"; the committed-runs test passes | S2's plant (dense returning ranks 2 to 6, `k + 1` then `[1:]` in `retrieve/dense.py`) with `make gate`: "recall@5 0.356 (n 22) fails: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636"; restored with `git checkout` |
 | AC11 | met | Five `make eval-local` sessions at F (below; the same run as `raglab gate --config config/local-ollama.toml`): behaviour pass^3 0.519 (14 of 27) in each, the same 14 cases; run 1 published as the baseline, runs 2 to 5 as repeats; the margin, one case, in the THRESHOLDS.md consistency row with the run ids and the reason. `raglab gate --run` on each repeat: "consistency gate (Q-05): behaviour_pass^3 0.519 (n 27) passes: the threshold is the baseline 0.519 (20261019T172035Z-generation-local-ollama-dev-97011a7) minus 1 case(s) (1/27), 0.481", four times, exit 0 | The live break: S2's plant with one `make gate-local` session, which judged the run (not refused as dirty or stale): "consistency gate (Q-05): behaviour_pass^3 0.296 (n 27) fails: the threshold is the baseline 0.519 (20261019T172035Z-generation-local-ollama-dev-97011a7) minus 1 case(s) (1/27), 0.481"; restored: `git status --short` empty, `git diff --quiet HEAD` true at `df85bf9`, Ollama down |
 | AC12 | met (the sign-off: "Signed off as is", above) | Datasheet v1.1 is the question author's (`2f251d3`) with the labels review applied (`311d643`): the agreement section filled (S4-L1), the calls D-a to D-f, the by-design rows (S4-L10), and its v1.1 line and header carry the file's new sha256, `5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a` (still v1.1: the trim was made before the sign-off). Rule 10 and `test_the_committed_datasheet_records_the_committed_file` check the line | |
 | AC13 | met | TEST-PLAN R6 names its tests and its gate, Q-05 points at THRESHOLDS.md, section 10's abstention line; ONBOARDING and LOCAL-MODEL name the new commands; ARCHITECTURE and README mark S4 done (after the runs); THRESHOLDS: the consistency row with its margin from the runs; the CHANGELOG line names the published runs; ONBOARDING's expected outputs (recall@5 0.682, the hybrid comparison's flips, the break's line) and LOCAL-MODEL's gate-local row (the baseline, the margin, the session time) take their numbers from these runs; TEST-PLAN section 10 needed none; this ledger. Since the cases: every "tbd (S4)" cell of the Golden case column names the behaviour cases whose features carry its requirement in the answer key (R-02: every case, by `model_citations_retrieved`; R-06 adds G-26 by design, as the datasheet does), S4b's cells stay "tbd (S4b)", and section 10's golden-set line is filled. `tests/unit/test_test_plan.py::test_the_golden_case_column_names_the_cases_that_cover_each_requirement` derives each cell from the committed golden file and the answer key and compares; `test_case_ids_reads_ranges_and_lists`; `test_the_stages_so_far_are_filled_in` now reads the golden-set line too | On a copy of TEST-PLAN: R-23's cell naming G-21: "1 failed, 10 passed" ("R-23: the cell names ['G-21'], not ['G-20']"); R-04's cell back to "tbd (S4)": "1 failed, 10 passed" ("['R-04']: S4 fills every cell it covers"); each restored (the file byte for byte): "11 passed" |
-| AC14 | met | `make check` exited 0 at every commit of the offline build. From the cases' arrival until AC10, the retrieval gate and the committed-runs test reported the S2 baseline stale, as the plan expects, and every other target was green (the tails below). Since the runs were published (`df85bf9`), `make check` exits 0 again, with the stale-baseline failure gone (the tail at the end) | |
-| D3 | met | `tests/unit/test_published_allowlist_scope.py` (14 tests): the list is exactly the corpus's exception ids and the three team addresses read from SPEC section 6, with no personal detail and no banned string; listed entries pass under `runs/published/` and are hits elsewhere; another address (at a team's domain, or a team address with one letter more), the worked example's personal address (F-45) and the fake update's address (F-49) are hits under `runs/published/`; the bucketing of every `answer_must_not_contain` string (only F-47's and F-48's three plain phrases spare a clean run; the exact list is under the D3 phrases below); a clean run holding "never expire" publishes and one holding the canary token is refused; an attack-suite record is held to the plain phrases | (1) an address at the Mirrowfen domain added to the list: "2 failed, 12 passed"; (2) F-45's address added: "2 failed, 12 passed"; (3) every attack string spared in clean runs: "2 failed, 12 passed"; each restored: "14 passed" |
+| AC14 | met locally; needs CI (pr-fast green) | `make check` exited 0 at every commit of the offline build. From the cases' arrival until AC10, the retrieval gate and the committed-runs test reported the S2 baseline stale, as the plan expects, and every other target was green (the tails below). Since the runs were published (`df85bf9`), `make check` exits 0 again, with the stale-baseline failure gone (the tail at the end) | |
+| D3 | met | `tests/unit/test_published_allowlist_scope.py` (14 tests): the list is exactly the corpus's exception ids and the three team addresses read from SPEC section 6, with no personal detail and no banned string; listed entries pass under `runs/published/` and are hits elsewhere; another address (at a team's domain, or a team address with one letter more), the worked example's personal address (F-45) and the fake update's address (F-49) are hits under `runs/published/`; at `5fd4bf1` only in the letter case the answer key and the corpus write them (the criteria judge's S4-J3), and since fix round 1 (`f170804`) in any letter case: `test_an_address_in_another_letter_case_is_a_hit_unless_it_is_listed` (a listed team address in capitals passes, F-45's and an unlisted address in capitals are hits) and `test_publish_refuses_a_planted_string_in_another_letter_case` (F-45's address in capitals, F-44's secret in lower case); the bucketing of every `answer_must_not_contain` string (only F-47's and F-48's three plain phrases spare a clean run; the exact list is under the D3 phrases below); a clean run holding "never expire" publishes and one holding the canary token is refused; an attack-suite record is held to the plain phrases | (1) an address at the Mirrowfen domain added to the list: "2 failed, 12 passed"; (2) F-45's address added: "2 failed, 12 passed"; (3) every attack string spared in clean runs: "2 failed, 12 passed"; each restored: "14 passed" |
 
 ## Runs S4 made
 
@@ -168,11 +168,12 @@ fake or stub-server records in temporary directories, never published.
    document chunked at the record's settings), and a difference is refused. The default's concern
    does not arise: only a record of the golden file's current bytes is derived again, so an older
    record keeps its recorded fields and is not tied to later answer-key additions; the S2 and S3
-   runs validate as before. **What is still trusted:** a label's chunk ids, for behaviour cases as
-   for retrieval cases since S2. The validator checks a group's chunk ids against its members and
-   each chunk's document against the register and the tenant, not against the label's section in
-   the corpus, so a hand edit to a label's chunk ids is not caught yet. Closing that needs the
-   labelled documents chunked at validation; it is left for the review.
+   runs validate as before. **What was still trusted, until fix round 1:** a label's chunk ids,
+   for behaviour cases as for retrieval cases since S2; the criteria judge confirmed and
+   reproduced it (S4-J2: G-12's label given the cited chunk, resealed, validated and passed at 15
+   of 27). The user's answer was "Fix it now (Recommended)", and since `e8e7021` a current
+   record's every label and group member, in every suite, is compared with the labelled
+   section's chunks at the record's settings (fix round 1, below).
 5. **The gate label of a gate-local run.** Applied: `manual` (the run is started by hand); the
    alternative is `eval-on-change`, which the main plan's CI gate will carry once keys exist.
    **Stands** (the orchestrator, 2026-10-19).
@@ -499,3 +500,106 @@ On the final tree (the published runs, the margin, the docs and this ledger but 
 
 `make privacy-history` (`node scripts/check-forbidden.mjs --history --all`): "0 hits in 216
 commits (42 rules)".
+
+## Fix round 1 (2026-10-19)
+
+**The criteria judge's verdict on `5fd4bf1`** (a different model, its own context): 10 met (AC1,
+AC2, AC4, AC5, AC6, AC8, AC9, AC11, AC12, AC13), 1 not met (AC7, S4-J1), 3 need CI (AC3, AC10,
+AC14); findings 0 high, 2 medium (S4-J1, S4-J3), 3 low (S4-J2, S4-J4, S4-J5) and 4 info (S4-J6 to
+S4-J9). That tally is the record at `5fd4bf1`; the rows above say what changed after it.
+
+**The user's decisions (2026-10-19), verbatim, with the orchestrator's questions.**
+
+- Q1: "S4-J2 (low, already declared in the ledger): when the validator checks a record, it trusts
+  each label's chunk ids as written. The judge hand-edited a copy of a run, added the cited chunk to
+  G-12's label, and it still validated and passed the gate at 15 of 27 instead of 14. A real gate
+  session can't do this: it needs a doctored record, which would show as a diff under
+  runs/published/. Fix it in this round?" The answer: "Fix it now (Recommended)".
+- Q2: "Three info findings are product choices, not defects. Keep all three as they are,
+  documented in the ledger and the PR?" (S4-J6, S4-J7 and S4-J9). The answer: "Keep all three
+  (Recommended)".
+
+**Pre-checks, read-only, before any code change.**
+
+- (a) S4-J3. In the five S4 generation records, each behaviour trial's text (the answer and the
+  conflict note) against the canary list its `no_canary` check reads (the other tenant's) and the
+  `answer_must_not_contain` strings of its features: 0 case-sensitive hits (no recorded
+  `no_canary` or `must_not_contain` is false) and **0 hits that only a case-folded comparison
+  finds**. Publish's side, every line of the twelve published runs against the strings publish
+  holds each run's suite to: **0** case-folded-only hits. A wider scan, every answer against both
+  tenants' canary lists and every feature's strings, found 32 case-folded-only matches, all of
+  them the asker's own tenant's canaries (26 in behaviour cases, 6 in retrieval questions), which
+  no check reads. So a case-folded check flips no recorded value, and no baseline is re-run.
+- (b) S4-J2. The eight S4 records' 1158 labels and 1572 group members against the labelled
+  sections' chunks at each record's settings (the corpus on this Mac, and at 1200/1 the committed
+  snapshot as well): **0 mismatches**; the snapshot and the corpus agree on every labelled
+  section.
+
+**Each finding, red on the old code, then green.** The judge's scripts ran from its folder with
+the root and an output folder of this round; the publish probes with `CI=1`, so only the example
+list loaded.
+
+| Finding | Red on the old code | Commit | Green |
+|---|---|---|---|
+| S4-J1 (medium): the gate failed at the margin it documents | `probe_records.py`, a resealed copy of a repeat at 13 of 27: "consistency gate (Q-05): behaviour_pass^3 0.481 (n 27) fails: the threshold is the baseline 0.519 (20261019T172035Z-generation-local-ollama-dev-97011a7) minus 1 case(s) (1/27), 0.481"; scripted n 3, 2 to 1 of 3: fails. The new `test_the_margin_is_counted_in_cases_whatever_n` (n 3, 10, 22, 27; k, k - 1 passes, k - 2 fails, rates rounded to six places): "2 failed, 2 passed" (n 3 and n 27) | `fe3b435`: the gate compares case counts; its one-line format is unchanged, so no quoted line changes | The test file: "21 passed". The same probe: "consistency gate (Q-05): behaviour_pass^3 0.481 (n 27) passes: the threshold is the baseline 0.519 (20261019T172035Z-generation-local-ollama-dev-97011a7) minus 1 case(s) (1/27), 0.481"; scripted n 3: passes; n 27, 14 to 13: passes |
+| S4-J3 (medium): letter case defeated the string guards | `case_probes.py` (CI=1): F-45's address in capitals, F-44's secret in lower case and an unlisted address in capitals all "PUBLISHED"; a tenant B answer saying the tenant A name in capitals: `no_canary = True`. The new tests (`test_an_address_in_another_letter_case_is_a_hit_unless_it_is_listed`, `test_publish_refuses_a_planted_string_in_another_letter_case` twice, two capital and lower-case canary rows, the capitals row of the must-not-contain test): "6 failed, 26 passed" | `f170804`: publish's scan and `behaviour.checks` compare case-folded; the example list's email shape takes the `i` flag; the published allowlist compares without case, so a listed team address in capitals passes and any other address is a hit in any case. The S3 probes' oracle is untouched | "32 passed"; every one of the judge's six publish probes refused, and `no_canary = False`; `make privacy`: "0 hits across 274 files (42 rules)", no new hit from the case-insensitive shape |
+| S4-J2 (low; the user: "Fix it now (Recommended)") | `probe_records.py`, G-12's label given the cited chunk, resealed: "validate: ok", "gate exit 0: consistency gate (Q-05): behaviour_pass^3 0.556 (n 27) passes"; the new tests (`test_a_forged_label_chunk_id_is_refused`, the judge's edit on a copy of the published repeat; the same for R-Q16 in a copy of the dense-600 run): "2 failed" (validate returned []) | `e8e7021`: for a record of the golden file's current bytes, every suite, each label and group member is compared with the labelled section's chunks at the record's settings | "2 passed"; the probe's copy refused: "case G-12 trial 3: label A-PWD-V2 5 has chunk ids ['A-PWD-V2@2.0/5/1', 'A-PWD-V1@1.0/4.4/1'], not the section's chunks at 1200/1 ['A-PWD-V2@2.0/5/1']", and the gate "refused: 20261019T174018Z-generation-local-ollama-dev-97011a7 is not a valid run record: ..." |
+| S4-J4 (low): ONBOARDING's opening said S4 in progress | The new `test_the_current_stage_line_agrees_with_the_phase_map` on the old opening: "1 failed, 117 passed" ("S4 is done in the phase map") | `8d0a404` | "118 passed" |
+| S4-J5 (low): nothing held `passed` to `must_not_contain` | The judge's B5.5 (`passed` ignoring `must_not_contain` in `generation_record.case_checks`) on the old tests: "71 passed" | `f170804`: the must-not-contain test asserts the trial's `passed`, and the results-by-hand run puts F-47's phrase in B-ANS's reply, so behaviour pass^2 drops from 2 of 7 to 1 of 7 | The same break: "3 failed, 71 passed"; restored |
+
+**S4-J2 on CI.** At the snapshot's settings, 1200/1 (every published S4 record but dense-600), the
+chunk ids come from the committed `corpus/inventory.snapshot.json`, which pr-fast's snapshot test
+already holds to the live inventory by id on CI; at 600 they come from the corpus chunked again,
+and the scanned page cannot change its chunk count there: its four sections are 334, 204, 225 and
+137 characters on this Mac (900 together), each one chunk at 600, so even the whole difference
+that CI's and this Mac's OCR may each have from the source under the 1.0% character error bound,
+under 20 characters, falling in one section, leaves the longest far below 600. Each document is
+chunked once per process (cached by root, document, settings and the document's bytes).
+
+**After every code change**, `record.validate` on all twelve published runs (S2 three, S3, S4
+eight): no problem in any, after `fe3b435`, after `f170804` and after `e8e7021`; the S3 run
+validates unchanged through the oracle path the round did not touch, and the S2 and S3 runs keep
+their labels as recorded (another dataset version). The twelve take 1.3 s together after the S4-J2
+fix.
+
+**Info, kept as they are.** S4-J6 (an abstention's quotable values are every number in the cited
+quote chunk), S4-J7 (the attack-only bucket is a shape rule) and S4-J9 (the margin is read from
+THRESHOLDS.md at run time) are product choices, kept by the user's answer "Keep all three
+(Recommended)" and documented here and in the pull request. S4-J8 (a tenant B answer naming a
+tenant A team contact publishes, with `no_canary` false in the record) is D3's consequence, as
+decided. The judge's note on the retrieval gate, which shares the rate arithmetic
+(`round(base - 1/n, 6)`), is left alone as S2's measured gate: its recall is a mean of fractions,
+it is exact at n 22, and nothing fails there today.
+
+**Section 8's corrections**, each now as it should read: (1) THRESHOLDS.md's consistency row says
+13 of 27 passes and 12 fails, true since `fe3b435`, with the judge's finding named; (2) the AC7 row
+says the margin was tested at n 10 only at `5fd4bf1` and not met there, and met after this round;
+(3) ONBOARDING's opening (S4-J4); (4) the "What was built" Docs row says S4 `done`, marked after
+the runs; (5) decision 4 says the trusted chunk ids were confirmed, then fixed by the user's
+answer; (6) the D3 row says which letter case publish refused at `5fd4bf1` and that it refuses
+any since `f170804`, naming the tests.
+
+**make check, before and after the round** (`/usr/bin/time -p make check`, this Mac): before any
+change (`5fd4bf1`) exit 0 in 164.02 s real (146.61 s user); after the S4-J2 fix 179.72 s; at the
+end of the round 177.36 s real (162.24 s user), the tests 140.77 s. The label check adds the two
+forged-copy tests (about 13 s together: they validate copies of published runs, the dense-600 one
+chunking the corpus at 600). One run in between took 498.89 s of wall time with the same CPU time
+(160.05 s user); its targets, timed one by one afterwards, took about 10 s together outside the
+tests, so the wait came from outside the round (not measured further). The final tail, before
+this section was written:
+
+    194 files already formatted
+    All checks passed!
+    0 errors, 0 warnings, 0 informations
+    No known vulnerabilities found
+    no leaks found
+    0 hits across 274 files (42 rules)
+    0 architecture violations in src/raglab
+    check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    ========== 1104 passed, 1 deselected, 1 warning in 140.77s (0:02:20) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+`make privacy-history`: "0 hits in 222 commits (42 rules)". Nothing pushed; no live run and no
+Ollama session in this round; the golden file, the answer key, the datasheet and every published
+record are as they were at `5fd4bf1`.
