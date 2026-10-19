@@ -100,8 +100,8 @@ file to ten rules before any run (every `raglab eval` and `raglab gate` runs it 
 pr-fast); the generation suite reads the decision label of each behaviour case from the structured
 field and scores abstention as its own check, without a judge; `make gate-local` gates behaviour
 pass^3 on dev against a local baseline (docs/THRESHOLDS.md), and `make nightly-local` runs every
-split under the nightly gate. The behaviour cases, their datasheet and the republished baselines
-come with the golden set's sign-off.
+split under the nightly gate. Golden set v1.1 adds 40 behaviour cases (27 dev, 13 test) to the 34
+retrieval questions; it awaits the user's sign-off, and the baselines are republished after it.
 
 A run is published only from a clean, committed tree, with its provenance (`local` for the ONNX
 embedder) in the manifest. Run record v1 is `schemas/run-record.v1.json`; thresholds and their

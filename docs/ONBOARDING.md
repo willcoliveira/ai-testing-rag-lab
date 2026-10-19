@@ -2,8 +2,9 @@
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
 guards, and where each concept already lives. It is current as of S4, in progress (2026-10-19):
-the code is built, and the 40 behaviour cases and the republished baselines wait for the golden
-set's sign-off. Every stage that adds a command or a concept updates it, and
+the code is built and golden set v1.1 (40 behaviour cases) is in the file, awaiting the user's
+sign-off, after which the baselines are republished. Every stage that adds a command or a concept
+updates it, and
 `tests/unit/test_onboarding.py` checks that every path, `make` target and `raglab` command named
 here exists.
 
@@ -32,7 +33,7 @@ CI.
 
 | Command | What it shows | What you should see |
 |---|---|---|
-| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 0.644 (n 22) passes ... 0.598` |
+| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 ... passes`. While S4 is in progress the golden file is v1.1 and the published retrieval baseline is still S2's, so the committed-runs test and the gate report that baseline stale until it is republished after the sign-off |
 | `make check-dataset` (or `uv run raglab check-dataset`) | The golden file against its ten rules before any run: labels, features, the answer, abstain, conflict and refusal shapes, planted strings, the mix, the datasheet's sha256 line | One `check-dataset: datasets/golden.v1.jsonl passes (...)` line; a broken case is named with its rule, and every `raglab eval` and `raglab gate` stops on it |
 | `uv run raglab ingest` | The pack parsed and chunked into `runs/tmp/inventory.json` | 228 chunks from 21 documents |
 | `uv run raglab ingest --chunk-size 600 --compare corpus/inventory.snapshot.json` | A chunking change as a reviewable diff | 249 chunks, with the changed ids listed |

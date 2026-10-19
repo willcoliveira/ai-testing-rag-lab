@@ -13,8 +13,9 @@ One line per change, newest first, grouped by release. Each pull request adds it
   additively; the consistency gate (Q-05, `make gate-local`, its margin to be set from runs); a
   paired comparison of generation runs; the test split held out of every run but nightly and
   release (`make nightly-local`); D3: the team contacts allowed in published runs, the plain attack
-  phrases blocking attack runs only. The 40 cases, datasheet v1.1 and the republished baselines
-  come with the golden set's sign-off.
+  phrases blocking attack runs only. Golden set v1.1 (40 behaviour cases, seven regrouped retrieval
+  questions, the answer-key additions F-86 and F-87, datasheet v1.1) awaits the labels judge and
+  the user's sign-off; the baselines are republished after it.
 - S3h, the host spike, moves from P1 to the start of P3, before S10 (the user's decision of
   2026-10-18): the main plan, the phase map in ARCHITECTURE and the README, and ONBOARDING say so;
   the S3h draft plan is committed as deferred, with the answers already given.
