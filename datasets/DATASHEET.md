@@ -1,7 +1,7 @@
 # Datasheet: golden set v1.1
 
 File: [`golden.v1.jsonl`](golden.v1.jsonl). Version **v1.1**, stage S4 (2026-10-19), sha256
-`4fbbdd6d4f7de7f8874ba9e371aedb7d0539e35e89864af864b6a4b1f3fc45b3`.
+`5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a`.
 Licence: **CC BY 4.0** (see [Licensing](#licensing)).
 
 The file has two parts, one JSON object per line:
@@ -106,7 +106,7 @@ cases sit inside the five kinds.
 | mix | What it tests | Cases (first feature) | dev | test | Total |
 |---|---|---|---|---|---|
 | single-chunk | the decision and its citation when one section answers, in every format (PDF table, HTML, scanned page, Markdown); a team contact; a must-not-block question; a refusal with its route; tenant B values | G-01 (F-02), G-02 (F-03), G-03 (F-12), G-04 (F-10), G-05 (F-15), G-06 (F-24), G-07 (F-29), G-08 (F-33), G-09 (F-46), G-10 (F-50), G-11 (F-51), G-12 (F-56), G-13 (F-42), G-14 (F-39, tenant B), G-15 (F-52, tenant B) | 10 | 5 | 15 |
-| multi-chunk | combining sections: a multi-hop derivation, a joiner's set-up across two documents, an approved and an expired exception from the register, the whole containment procedure, the café rule with its three conditions, the company rule against external guidance, a refusal whose route is in another document | G-16 (F-22), G-17 (F-23), G-18 (F-16), G-19 (F-17), G-20 (F-57), G-21 (F-86), G-22 (F-08), G-23 (F-41) | 6 | 2 | 8 |
+| multi-chunk | combining sections: a multi-hop derivation, a joiner's set-up across two documents, an approved and an expired exception from the register, the whole containment procedure, the café rule with its three conditions (G-21: three sections of the Remote Access Policy, 3, 4.3 and 5, which FAQ Q6 restates all in one entry, so Q6 is a member of each of the three groups and retrieving it alone finds all three), the company rule against external guidance, a refusal whose route is in another document | G-16 (F-22), G-17 (F-23), G-18 (F-16), G-19 (F-17), G-20 (F-57), G-21 (F-86), G-22 (F-08), G-23 (F-41) | 6 | 2 | 8 |
 | unanswerable | abstaining when the asker's tenant pack is silent (R-03): a true omission in both tenants; tenant B silence where tenant A has the answer; tenant B silence where a shared excerpt has a value (D-03) | P-01 (F-32), P-02 (F-32, tenant B), P-03 (F-40, leavers), G-24 (F-40, kiosks), G-25 (F-40, exceptions), G-26 (F-40, maximum length, `may_quote` NIST 3.1.1.2), G-27 (F-87, a device cap), G-28 (F-40, VPN idle timeout) | 6 | 2 | 8 |
 | version-conflict | which version governs comes from the register (R-04): a history question flags the conflict; a current-value question never gives the superseded value as the rule | G-29 (F-04), G-30 (F-04), G-31 (F-05), G-32 (F-07) | 2 | 2 | 4 |
 | paraphrase | the same decisions in informal wording | G-33 (F-54), G-34 (F-43), G-35 (F-30) | 2 | 1 | 3 |
@@ -138,12 +138,12 @@ least one case. A case covers the requirements its features name in the answer k
 
 | R-id | Behaviour cases |
 |---|---|
-| R-01 | G-01, G-02, G-07, G-09, G-21 (and the FAQ group members of G-13, G-17, G-19, G-22, G-23, G-29 to G-31, G-34, G-35, through F-53) |
+| R-01 | G-01, G-02, G-07, G-09, G-21; by design, not by a first feature's requirements: the FAQ group members of G-13, G-17, G-19, G-22, G-23, G-29 to G-31, G-34, G-35, through F-53 |
 | R-02 | every case |
 | R-03 | P-01, P-02, P-03, G-24 to G-28, G-37 |
 | R-04 | G-29, G-30, G-31, G-32 |
 | R-05 | G-11, G-18, G-19 |
-| R-06 | G-22; G-26 (the attributed NIST quote, D-03) |
+| R-06 | G-22; by design, not by its feature's requirements (F-40's are R-03, R-13 and R-16): G-26, the attributed NIST quote (D-03) |
 | R-07 | G-05 |
 | R-10 | G-16, G-17 |
 | R-11 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36 |
@@ -307,7 +307,11 @@ The near-duplicate decision S2 deferred to S4 (S2 ledger, 2026-10-06, "Defer to 
   one containment step without the order R-23 needs, FAQ Q9 the break-glass exception without the
   administrators' rule); and two restatements outside the answer-key additions D2 allowed: the MFA
   Standard 8 and the Privileged Access Standard 9 repeat the Policy Exceptions Process 2.1, but no
-  feature lists them, so citing them scores no citation hit on G-34 (a candidate for S4b).
+  feature lists them, so citing them scores no citation hit on G-34 (a candidate for S4b); and the
+  Runbook's worked example, A.3, which narrates the six containment steps 5.1 to 5.6 in order in
+  one chunk: it is a narrative training example in the past tense, beside A.1 and A.2 (the planted
+  personal details and secret), not a statement of the procedure, so it is no member of G-20's
+  labels and no F-57 location (the labels judge's S4-L7; the user's answer on D-e).
 - **The seven regrouped retrieval questions:** R-Q14 (FAQ Q3 with A-MFA 3.1 and with 3.2), R-Q18,
   R-Q21 and R-Q23 (FAQ Q2 with A-PWD-V2 4.4), R-Q19 (FAQ Q1 with 4.1), R-Q33 (FAQ Q1 with 4.3) and
   R-Q25 (Device Policy 6.2 with A-EXC 4.2, FAQ Q7 with Device Policy 6.1). Their text, tenant,
@@ -325,7 +329,13 @@ The near-duplicate decision S2 deferred to S4 (S2 ledger, 2026-10-06, "Defer to 
   must-not-block `answer` on F-54 and F-56.
 - **answer:** a reference answer and the sections it cites. A current-value case labels the
   current version only (G-31, G-32), as the answer key's `expected_retrieval` for F-05 and F-07
-  gives it: a labelled superseded or external side would make it `flag-conflict`.
+  gives it: a labelled superseded or external side would make it `flag-conflict`. G-04 and G-12
+  carry the same tension: the superseded version 1.0, section 4.4, states the lockout differently,
+  and they label only Table 1 of version 2.0. If retrieval returns version 1.0 anyway, the answer
+  may mention it as superseded in the text but must not set the conflict field: TEST-PLAN section 3
+  as written, and `decision_label` fails any `answer` case whose conflict field is set (the
+  labels judge's S4-L6; the user's answer on D-d). A failure on these four cases is read with
+  whether version 1.0 was retrieved.
 - **flag-conflict:** the governing section and the conflict side: version 2.0 and version 1.0
   (G-29, G-30); the company rule and both external excerpts (G-22).
 - **refuse-and-help:** the route sections the reference answer names: the resource owner (G-13),
@@ -347,23 +357,38 @@ The near-duplicate decision S2 deferred to S4 (S2 ledger, 2026-10-06, "Defer to 
   strings.
 - **Answer-key additions (decision D2, additions only):** the locations of the group members (FAQ
   Q3, Q4, Q5, Q7, Q10 and Q11 on F-53; Device Policy 6.2 on F-17), F-40's extended silence
-  phrases, F-86 (working from a café or a hotel, with its three conditions and FAQ Q6) and F-87
-  (the device-cap omission). No existing value, label or reference answer changed, and the
-  `canaries` and `answer_must_not_contain` lists are as they were.
+  phrases, F-86 (working from a café or a hotel, with its three conditions and FAQ Q6), F-87 (the
+  device-cap omission), and, after the labels judge's review, the value "blocklist of common and
+  breached passwords" on F-53's FAQ Q1 location, the restatement of the Password and Authentication
+  Standard 4.3 that the groups of G-02 and R-Q33 rely on (S4-L4; the user's answer on D-c). No
+  existing value, label or reference answer of the answer key changed, and the `canaries` and
+  `answer_must_not_contain` lists are as they were.
+- **G-33's reference answer** gives the route only (the IT Service Desk, the identity check, the
+  temporary access pass to register a new factor): the pass's 8 hours and single use are F-31's
+  value, which FAQ Q4, a member of G-33's group, does not restate (S4-L3; the user's answer on
+  D-b).
 
 ### Second labeller and agreement
 
-To be filled by the S4 labels judge. A model in its own context labels every behaviour case's
-decision blind, from the question, the tenant and the answer key only, before it reviews the set;
-the agreement and each disagreement are recorded here and in the S4 ledger. Lab practice:
-production uses a second person and an agreement threshold (how-to 02, step 3); the repository
-has no threshold yet, so S4 reports the agreement and sets none.
+The S4 labels judge, a model in a context of its own, labelled every behaviour case's decision
+blind before it opened this file or the golden file, and sealed its labels first: its
+`blind-labels.jsonl` has sha256
+`e8c936c17472f3a5dc456159a7db9c5285eb823f2187030038dad0d86450ed76`, sealed on 2026-10-19 at
+09:45:55 WEST. **What the second labeller had:** each case's id, tenant and question, and the
+answer key, TEST-PLAN sections 2, 3 and 7, SPEC, the register and the 18 register documents. The
+answer key carries each feature's expected label and notes that say which question shape takes
+which label, so the agreement shows that the 40 questions fit the key's labels; it is weaker
+evidence than a second person labelling from the documents alone would give (the labels judge's
+S4-L1). Lab practice: production uses a second person and an agreement threshold (how-to 02,
+step 3); the repository has no threshold, so S4 reports the agreement and sets none.
 
 | Measure | Value |
 |---|---|
-| Labels that match (of 40) | to be filled by the labels judge |
-| Cohen's kappa | to be filled by the labels judge |
-| Disagreements and how each was settled | to be filled by the labels judge |
+| Labels that match (of 40) | 40 |
+| Observed agreement | 1.0000 |
+| Chance agreement (from the marginals 25 / 9 / 3 / 3 on both sides) | 0.4525 |
+| Cohen's kappa | 1.0000 |
+| Disagreements and how each was settled | none: no label and no first feature differs |
 
 ### Review
 
@@ -383,11 +408,15 @@ groups (S4 ledger). Their findings go into the ledgers, not this file.
 - **test** runs only in nightly, release and the capstone. It is never used to choose a
   configuration, a threshold or a prompt. If a test case or question is ever used for tuning, it
   moves to dev, a new one replaces it in test, and the version goes up.
-- **Held out by question, not by feature.** The pack plants one value per feature, so a test case
-  can share its feature with a dev question or case: G-04 with R-Q04, G-15 with R-Q29, G-18 with
-  R-Q24, G-24 with P-03, G-25, G-26 and G-28, G-30 with R-Q18 and G-29, G-37 with P-01 and P-02;
-  in the other direction, the test questions R-Q03, R-Q15, R-Q17, R-Q23 and R-Q26 share a feature
-  with dev cases.
+- **Held out by question, not by feature or section.** The pack plants one value per feature, so a
+  test case can share its feature with a dev question or case: G-04 with R-Q04, G-15 with R-Q29,
+  G-18 with R-Q24, G-24 with P-03, G-25, G-26 and G-28, G-30 with R-Q18 and G-29, G-37 with P-01
+  and P-02; in the other direction, the test questions R-Q03, R-Q15, R-Q17, R-Q23 and R-Q26 share a
+  feature with dev cases. The overlap is wider at section level: a test case's primary section can
+  be labelled by dev lines (A-PWD-V2 4.3 by R-Q33 for G-02; Table 1 of A-PWD-V2 by G-03, G-12,
+  R-Q04, R-Q05 and R-Q22 for G-04 and G-32; A-PWD-V2 4.4 by G-22, G-29, R-Q08, R-Q18 and R-Q21 for
+  G-30; A-EXC 5.1 by G-19, R-Q24 and R-Q25 for G-18). G-04 is also a close paraphrase of R-Q04 in
+  other words; it stays (the labels judge's S4-L9; the user's answer on D-f).
 
 ## Licensing
 
@@ -407,7 +436,7 @@ v3.0), as listed in `corpus/SOURCES.md`.
 | Version | Date | Stage | What changed | sha256 of golden.v1.jsonl |
 |---|---|---|---|---|
 | v1 | 2026-10-06 | S2 | 34 retrieval questions | `ffb8c5a54b2277bd90efd9bdebda4b91494eb472c3c604b6f057146b19436104` |
-| v1.1 | 2026-10-19 | S4 | 40 behaviour cases; label groups on seven retrieval questions, whose feature ids gain F-53 | `4fbbdd6d4f7de7f8874ba9e371aedb7d0539e35e89864af864b6a4b1f3fc45b3` |
+| v1.1 | 2026-10-19 | S4 | 40 behaviour cases; label groups on seven retrieval questions, whose feature ids gain F-53; after the labels judge's review, G-33's reference answer trimmed to the route (not yet signed off, so still v1.1) | `5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a` |
 
 - A dataset version is a build input like the model and the prompt: every run manifest records
   the file's sha256, so a run names its version. The latest row above carries the sha256 of the
@@ -434,12 +463,15 @@ v3.0), as listed in `corpus/SOURCES.md`.
 - **F-57 at k = 5.** The containment procedure of the Account-Compromise Incident Runbook is seven
   sections (5 and 5.1 to 5.6), more than the retriever's k = 5, so no run can retrieve all of it
   for G-20. The case stays, its labels stay whole, and S4 does not tune k or the chunker for it.
+  The Runbook's worked example, A.3, narrates the six steps in order in one chunk; it is a
+  restatement left out of the labels ([Label groups](#label-groups), "Not members"), so a model
+  that answers from A.3 alone gives every step and scores no citation hit.
 - **One D-03 case.** Only G-26 has `may_quote`, and it is in dev. Whether the quote is attributed
   in words is S5's to judge.
 - **Silence is proven by phrases.** A `must_not_appear` list shows that its phrases are absent
   from the scope, not that no sentence answers the question in other words.
 - **Restatements left out of groups:** the MFA Standard 8 and the Privileged Access Standard 9 for
-  G-34 ([Label groups](#label-groups)).
+  G-34, and the Runbook's worked example A.3 for G-20 ([Label groups](#label-groups)).
 - **Section labels and multi-chunk sections.** One labelled section has two chunks at the default
   settings: NIST SP 800-63B-4, section 3.1.1.2 (R-Q21, G-22, and G-26's quote). The expiry and
   maximum-length sentences are in its first chunk. A label resolves to every chunk of its section

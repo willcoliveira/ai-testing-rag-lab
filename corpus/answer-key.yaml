@@ -1289,7 +1289,7 @@ features:
     path: corpus/tenant-a/faq.md
     version: '1.0'
     section: Q1
-    values: [at least 15 characters]
+    values: [at least 15 characters, blocklist of common and breached passwords]
   - doc: A-FAQ
     path: corpus/tenant-a/faq.md
     version: '1.0'
