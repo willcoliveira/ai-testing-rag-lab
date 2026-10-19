@@ -121,7 +121,7 @@ Judged quality starts in S5; S3 checks only what code can count.
 
 | Capability | Arrives in |
 |---|---|
-| A deployed demo: the fake model first, then a real model with rate and budget limits | S3h, then S10 |
+| A deployed demo: the fake model first, then a real model with rate and budget limits | S3h (start of P3), then S10 |
 | Behaviour cases (abstain, flag a conflict, refuse but help) and the dataset consistency gate | S4 (40 cases), S4b (about 120) |
 | Judged metrics (faithfulness, relevancy), measured tokens, the provider and cost decision | S5 |
 | A judge calibrated against human labels (kappa) | S6 |

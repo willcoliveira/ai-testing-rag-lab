@@ -103,13 +103,13 @@ flowchart LR
 ```mermaid
 flowchart TB
   subgraph P1[P1 Lab core, v0.1]
-    S0[S0 Skeleton, hygiene, security CI] --> S1a[S1a Requirements, corpus pack, answer key] --> S1b[S1b Ingestion, chunking, test plan] --> S2[S2 Retrieval, run record, playground v0] --> S3[S3 Generation, local live run, API/UI, local container] --> S3h[S3h Host evaluation spike] --> S4[S4 Golden set, consistency gate]
+    S0[S0 Skeleton, hygiene, security CI] --> S1a[S1a Requirements, corpus pack, answer key] --> S1b[S1b Ingestion, chunking, test plan] --> S2[S2 Retrieval, run record, playground v0] --> S3[S3 Generation, local live run, API/UI, local container] --> S4[S4 Golden set, consistency gate]
   end
   subgraph P2[P2 Evaluation rigour, v0.2]
     S4b[S4b Golden set v2, ~120] --> S5[S5 Local judged metrics, token measurement, provider decision] --> S6[S6 Judge calibration] --> S7[S7 Attack, guardrails, red team] --> S8[S8 Gates, causes, suite audit]
   end
   subgraph P3[P3 Production practices, v0.3]
-    S9[S9 Observability, perf] --> S10[S10 Real demo, path to prod] --> S11[S11 Teaching playground, system audit, capstone]
+    S9[S9 Observability, perf] --> S3h[S3h Host evaluation spike] --> S10[S10 Real demo, path to prod] --> S11[S11 Teaching playground, system audit, capstone]
   end
   subgraph EXT[Extensions]
     S12[S12 Handbook corpus]
