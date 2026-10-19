@@ -198,6 +198,34 @@ def test_a_wrong_group_is_refused(relevant, match):
 
 
 @pytest.mark.unit
+def test_a_section_may_sit_in_several_groups():
+    """A FAQ entry that restates two rules is a member of the group of each (FAQ Q3 with A-MFA 3.1
+    and with 3.2 in R-Q14): one retrieved chunk of it finds both, and it is listed once among the
+    question's sections."""
+    faq = {"doc_id": "X-NIST", "section_id": "3.1"}
+    q = golden.parse_line(
+        line(
+            relevant=[
+                {"any_of": [{"doc_id": "A-PWD", "section_id": "4.1"}, faq]},
+                {"any_of": [{"doc_id": "A-PWD", "section_id": "5"}, faq]},
+            ]
+        ),
+        "g:1",
+    )
+    assert q.sections() == (
+        golden.Label("A-PWD", "4.1"),
+        golden.Label("X-NIST", "3.1"),
+        golden.Label("A-PWD", "5"),
+    )
+    [resolved] = golden.resolve([q], PACK)
+    labels = resolved.label_sets()
+    assert all("X-NIST@4/3.1/1" in s for s in labels)
+    from raglab.evals import metrics
+
+    assert metrics.recall_at_k(["X-NIST@4/3.1/1"], labels, 5) == 1.0
+
+
+@pytest.mark.unit
 def test_a_group_resolves_to_one_chunk_set_and_a_record_label_with_its_members():
     """A group is one thing to find: one label set, every member's chunks together; the record
     keeps the primary's ids, the union and each member with its own chunks."""
@@ -410,12 +438,12 @@ def test_the_location_guard_reads_every_member_of_a_group():
         line(id="G1", relevant=[{"any_of": [primary, faq]}], feature_ids=features), "g:1"
     )
     assert labels_outside_their_features([good]) == set()
-    stray = {"doc_id": "A-FAQ", "section_id": "Q5"}  # a location of neither feature
+    stray = {"doc_id": "A-FAQ", "section_id": "Q12"}  # a location of neither feature
     bad = golden.parse_line(
         line(id="G2", relevant=[{"any_of": [primary, stray]}], feature_ids=features), "g:2"
     )
-    assert labels_outside_their_features([bad]) == {("G2", "A-FAQ", "Q5")}
-    assert group_members([bad]) == {("G2", "A-PWD-V2", "4.1"), ("G2", "A-FAQ", "Q5")}
+    assert labels_outside_their_features([bad]) == {("G2", "A-FAQ", "Q12")}
+    assert group_members([bad]) == {("G2", "A-PWD-V2", "4.1"), ("G2", "A-FAQ", "Q12")}
 
 
 def datasheet() -> str:
@@ -423,15 +451,23 @@ def datasheet() -> str:
 
 
 # S2 review findings S2-L2 and S2-L4: the label scope of R-Q14 and R-Q25 is stated, with its cost.
+# Since v1.1 (S4, D2) Device Policy 6.2 is an F-17 location and a member of A-EXC 4.2's group, so
+# R-Q25 finds that rule once whichever statement is retrieved; v1's sentence is history.
 def test_the_datasheet_states_the_label_scope_the_review_raised():
     text = datasheet()
     assert "Labels follow the feature's reference answer." in text
     assert "R-Q14 asks which second-factor methods" in text
     assert "it labels A-MFA 3.2 (the factors that are not approved)" in text
-    assert "It is not labelled for R-Q25: F-17 does not list it" in text
+    assert "In v1 it was not labelled for R-Q25" in text
+    assert "it is a member of A-EXC 4.2's group" in text
     assert (
         "the Policy Exceptions Process section that gives the register's effect or expiry" in text
     )
     by_id = {q.case_id: q for q in questions()}
-    assert golden.Label("A-MFA", "3.2") in by_id["R-Q14"].labels
-    assert golden.Label("A-DEVICE", "6.2") not in by_id["R-Q25"].labels
+    assert golden.Label("A-MFA", "3.2") in by_id["R-Q14"].sections()
+    [group] = [
+        e
+        for e in by_id["R-Q25"].labels
+        if isinstance(e, golden.Group) and golden.Label("A-DEVICE", "6.2") in e.members
+    ]
+    assert group.members[0] == golden.Label("A-EXC", "4.2")

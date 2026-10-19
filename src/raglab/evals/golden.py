@@ -98,8 +98,9 @@ class Question:
         return value if isinstance(value, str) else None
 
     def sections(self) -> tuple[Label, ...]:
-        """Every labelled section, the members of each group included, in order."""
-        return tuple(s for entry in self.labels for s in members(entry))
+        """Every labelled section, the members of each group included, in order, each once (a
+        section may sit in several groups)."""
+        return tuple(dict.fromkeys(s for entry in self.labels for s in members(entry)))
 
 
 @dataclass(frozen=True)
@@ -165,8 +166,18 @@ def parse_line(line: str, where: str) -> Question:
     labels = tuple(_entry(item, where) for item in cast(list[object], relevant))
     if kind == "retrieval" and not labels:
         raise DatasetError(f"{where}: a retrieval question needs at least one relevant section")
-    sections = [s for entry in labels for s in members(entry)]
-    if len(set(sections)) != len(sections):
+    # A section is listed once as a label, and once in a group; it may sit in several groups (a
+    # FAQ entry that restates two rules is a member of the group of each), never in a group and
+    # as a label of its own, and no two groups are the same.
+    plain = [e for e in labels if isinstance(e, Label)]
+    groups = [e for e in labels if isinstance(e, Group)]
+    in_groups = {s for g in groups for s in g.members}
+    if (
+        len(set(plain)) != len(plain)
+        or any(len(set(g.members)) != len(g.members) for g in groups)
+        or set(plain) & in_groups
+        or len({frozenset(g.members) for g in groups}) != len(groups)
+    ):
         raise DatasetError(f"{where}: a relevant section is listed twice")
     extra = {k: v for k, v in row.items() if k not in (*REQUIRED, "relevant")}
     return Question(case_id, kind, split, tenant, question, labels, extra)
