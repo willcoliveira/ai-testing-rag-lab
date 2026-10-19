@@ -21,6 +21,13 @@
 - S4: label groups (`any_of`: the primary's ids, every member's chunks together) and the behaviour
   case kind (raglab.evals.behaviour), whose checks are recomputed from its fields and the answer
   key's canaries and answer_must_not_contain strings, read live.
+- S4, the fields a behaviour case's checks rest on (the orchestrator's decision; the same class of
+  gap as S3-S2, publish trusting a label): when a generation record's dataset sha256 is that of the
+  golden file at its dataset path under root, each behaviour case's expected label, mix and
+  features, its labels with their groups and conflict sides, and its may_quote section with its
+  chunks and their values are derived again from the golden file, the answer key and the corpus
+  (the may_quote document chunked at the record's settings), and a difference is refused. A record
+  of another dataset version keeps its recorded fields, as history (the S2 and S3 runs).
 
 The report and the cases carry chunk ids and scores, never chunk text.
 """
@@ -31,10 +38,11 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
+from raglab.chunk.sections import ChunkSettings
 from raglab.core.types import visible_tenants
-from raglab.evals import behaviour, generation_record, metrics
+from raglab.evals import behaviour, generation_record, golden, metrics
 from raglab.evals.schema import Validator
-from raglab.ingest import answer_key, register
+from raglab.ingest import answer_key, pipeline, register
 
 SCHEMA_VERSION = "run-record.v1"
 SCHEMA_PATH = "schemas/run-record.v1.json"
@@ -505,4 +513,93 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
             manifest["partial"] and sorted(numbers) == full[: len(numbers)]
         ):
             problems.append(f"case {case_id}: trials {sorted(numbers)}, not 1 to {trials}")
+    problems.extend(behaviour_field_problems(manifest, cases, root))
+    return problems
+
+
+# ---------------------------------------------------------------- the behaviour fields (S4)
+
+
+def current_golden(manifest: Json, root: Path) -> Path | None:
+    """The golden file a record names, when its bytes are still those the record was made from."""
+    dataset = as_json(manifest["dataset"])
+    path = root / str(dataset["path"])
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    return path if sha256_bytes(data) == dataset["sha256"] else None
+
+
+def _recorded_label(label: Json) -> tuple[object, ...]:
+    group = tuple(
+        (as_json(m)["doc_id"], as_json(m)["section_id"]) for m in as_list(label.get("any_of", []))
+    )
+    return (label["doc_id"], label["section_id"], group, label.get("side"))
+
+
+def behaviour_field_problems(manifest: Json, cases: Sequence[Json], root: Path) -> list[str]:
+    """For a record of the current golden file, every behaviour case whose expected label, mix,
+    features, labels, groups, conflict sides or may_quote chunks and values differ from those the
+    golden file, the answer key and the corpus give (see the module docstring)."""
+    path = current_golden(manifest, root)
+    if path is None or not any(c.get("kind") == behaviour.BEHAVIOUR for c in cases):
+        return []
+    try:
+        questions = {q.case_id: q for q in golden.load(path) if q.kind == "behaviour"}
+        features = answer_key.features(root)
+    except (OSError, ValueError) as error:  # fails closed, as the register does
+        return [f"the golden file or the answer key cannot be read, so it is unchecked ({error})"]
+    chunker = as_json(manifest["chunker"])
+    settings = ChunkSettings(cast(int, chunker["chunk_size"]), cast(int, chunker["overlap"]))
+    quotes: dict[tuple[str, str], Json] = {}
+    problems: list[str] = []
+    for case in cases:
+        if case.get("kind") != behaviour.BEHAVIOUR:
+            continue
+        where = f"case {case['case_id']} trial {case['trial']}"
+        question = questions.get(str(case["case_id"]))
+        if question is None:
+            problems.append(f"{where}: {path.name} has no behaviour case with this id")
+            continue
+        try:
+            shape = golden.behaviour(question)
+        except golden.DatasetError as error:
+            problems.append(f"{where}: {error}")
+            continue
+        listed = [str(f) for f in as_list(case.get("feature_ids", []))]
+        fields = (case.get("expected"), case.get("mix"), listed)  # a missing one: reported above
+        if fields != (shape.expected, shape.mix, list(shape.feature_ids)):
+            problems.append(f"{where}: its expected label, mix or features are not {path.name}'s")
+        own = [features[f] for f in shape.feature_ids if f in features]
+        derived: list[tuple[object, ...]] = []
+        for entry in question.labels:
+            members = golden.members(entry)
+            places = {(s.doc_id, s.section_id) for s in members}
+            group = (
+                tuple((s.doc_id, s.section_id) for s in members)
+                if isinstance(entry, golden.Group)
+                else ()
+            )
+            side = behaviour.side(places, own) if shape.expected == "flag-conflict" else None
+            derived.append((members[0].doc_id, members[0].section_id, group, side))
+        recorded = [_recorded_label(as_json(x)) for x in as_list(case.get("labels", []))]
+        if recorded != derived:
+            problems.append(
+                f"{where}: its labels or their conflict sides are not those of {path.name} and "
+                "the answer key"
+            )
+        quote: Json | None = None
+        if shape.may_quote is not None:
+            key = (shape.may_quote.doc_id, shape.may_quote.section_id)
+            if key not in quotes:
+                try:
+                    chunks = pipeline.section_chunks(root, key[0], key[1], settings)
+                except (pipeline.IngestError, OSError) as error:
+                    problems.append(f"{where}: its may_quote section cannot be read ({error})")
+                    continue
+                quotes[key] = behaviour.quote_json(*key, [(c.chunk_id, c.text) for c in chunks])
+            quote = quotes[key]
+        if case.get("may_quote") != quote:
+            problems.append(f"{where}: its may_quote chunks or values are not the corpus's")
     return problems

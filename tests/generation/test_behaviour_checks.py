@@ -170,14 +170,24 @@ def test_an_abstention_may_quote_only_a_cited_chunk_of_its_may_quote_section(tmp
 
 
 def test_the_record_keeps_the_quotable_values_never_the_text(tmp_path):
+    """The may_quote section's every chunk (the real excerpt's two), each with the numbers its text
+    states, never the text."""
+    from raglab.evals.oracle import policy_values
+    from tests.generation_support import NIST_CHUNKS
+
     _, cases = run(tmp_path)
-    [quote] = {repr(c["may_quote"]) for c in cases if c["case_id"] == "B-ABQ"}
-    assert eval(quote) == {  # noqa: S307  # a repr of a dict built in this test
+    quotes = [c["may_quote"] for c in cases if c["case_id"] == "B-ABQ"]
+    assert all(q == quotes[0] for q in quotes)
+    assert quotes[0] == {
         "doc_id": "X-NIST",
         "section_id": "3.1.1.2",
-        "chunks": [{"chunk_id": NIST.chunk_id, "values": ["64"]}],
+        "chunks": [
+            {"chunk_id": c.chunk_id, "values": sorted(set(policy_values(c.text)))}
+            for c in NIST_CHUNKS
+        ],
     }
-    assert all(NIST.text not in str(c) for c in cases)
+    assert "64" in quotes[0]["chunks"][0]["values"]
+    assert all(c.text not in str(case) for c in NIST_CHUNKS for case in cases)
 
 
 @pytest.mark.parametrize(

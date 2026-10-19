@@ -429,6 +429,53 @@ def test_a_broken_behaviour_case_is_refused(tmp_path, label, case_id, change, ex
     assert any(expected in p for p in problems), (label, problems)
 
 
+def _flip_conflict_side(case) -> None:
+    if case["case_id"] == "B-FC":
+        for label in case["labels"]:
+            if label.get("side") == "conflict":
+                label["side"] = "governing"
+
+
+def _add_quotable_value(case) -> None:
+    if case["case_id"] == "B-ABQ":
+        case["may_quote"]["chunks"][-1]["values"].append("30")
+
+
+def _relabel(case) -> None:
+    if case["case_id"] == "B-RH":
+        case["expected"] = "answer"
+
+
+@pytest.mark.parametrize(
+    ("change", "expected"),
+    [
+        (_flip_conflict_side, "case B-FC trial 1: its labels or their conflict sides are not"),
+        (_add_quotable_value, "case B-ABQ trial 1: its may_quote chunks or values are not"),
+        (_relabel, "case B-RH trial 1: its expected label, mix or features are not"),
+    ],
+    ids=["a conflict side flipped", "a quotable value added", "an expected label changed"],
+)
+def test_a_forged_record_of_the_current_golden_file_is_refused(tmp_path, change, expected):
+    """S4, the orchestrator's decision (the class of S3-S2): a record whose dataset is the golden
+    file as it stands has its behaviour fields derived again from that file, the answer key and
+    the corpus, so a hand edit that moves a check (a side, a quotable value, the expected label)
+    is refused even with its checks, results, report and hashes resealed. The same record, once
+    the golden file has moved on, is history: its recorded fields are kept as they are."""
+    from tests.generation_support import behaviour_run
+
+    root, run_dir = behaviour_run(tmp_path)
+    assert record.validate(run_dir, root) == []
+    _, cases = read_run(run_dir)
+    for case in cases:
+        change(case)
+    _reseal_generation(run_dir, cases)
+    problems = record.validate(run_dir, root)
+    assert any(p.startswith(expected) for p in problems), problems
+    golden_file = root / "golden.jsonl"
+    golden_file.write_text(golden_file.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    assert record.validate(run_dir, root) == []  # another dataset version: kept as recorded
+
+
 def test_behaviour_checks_that_do_not_follow_from_the_fields_are_refused(tmp_path):
     """A behaviour case's checks are recomputed from its fields: a decision_label turned true on
     the S3 pattern (label answer on an abstain case), or a must_not_contain hidden, is caught even

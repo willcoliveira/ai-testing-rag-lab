@@ -2,6 +2,7 @@
 tests/retrieval_support with the fake embedder, FakeChat, and a spy that counts retrievals."""
 
 import json
+import shutil
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,7 +19,8 @@ from raglab.evals import generation, record
 from raglab.generate.assemble import Assembled, assemble
 from raglab.generate.pipeline import Pipeline
 from raglab.guard import default_guards
-from raglab.ingest.pipeline import Inventory
+from raglab.ingest.pipeline import Inventory, section_chunks
+from tests.conftest import ROOT
 from tests.retrieval_support import (
     GIT,
     PACK,
@@ -261,16 +263,16 @@ V1_44 = make_chunk(
     "A-PWD-V1@1.0/4.4/1", "tenant-a", "Accounts stay locked until the desk unlocks them.", "4.4"
 )
 FAQ_Q2 = make_chunk("A-FAQ@1.0/Q2/1", "tenant-a", "Q2 Passwords expire every 60 days.", "Q2")
-NIST = make_chunk(
-    "X-NIST@4/3.1.1.2/1",
-    "shared",
-    "Verifiers permit passwords of at least 64 characters.",
-    "3.1.1.2",
-)
+# the real excerpt's section 3.1.1.2, two chunks at the default settings: a may_quote section is
+# derived again from the corpus when a record's golden file is current (raglab.evals.record), so
+# the fixture's root carries the real document and these are its real chunks
+NIST_PATH = "corpus/external/nist-sp-800-63b-4-excerpt.md"
+NIST_CHUNKS = section_chunks(ROOT, "X-NIST", "3.1.1.2")
+NIST = NIST_CHUNKS[0]  # the maximum-length sentence (at least 64 characters) is in the first
 B_33 = make_chunk(
     "B-PWD@1.0/3.3/1", "tenant-b", "Passwords do not expire; a reset link lasts 30 minutes.", "3.3"
 )
-BEHAVIOUR_CHUNKS = [V2_41, V2_44, V2_46, V2_5, V1_43, V1_44, FAQ_Q2, NIST, B_33]
+BEHAVIOUR_CHUNKS = [V2_41, V2_44, V2_46, V2_5, V1_43, V1_44, FAQ_Q2, *NIST_CHUNKS, B_33]
 
 Q_ANS = "How long must a password be?"
 Q_FC = "Has the expiry period changed?"
@@ -335,6 +337,20 @@ GOOD = {
 }
 
 
+def write_behaviour_register(root: Path) -> None:
+    """The behaviour pack's register: a placeholder file for each tenant document (as
+    write_register writes them) and the real NIST excerpt, from which a may_quote section is
+    read again when a record is validated."""
+    write_register(root, {c.doc_id: c.tenant for c in BEHAVIOUR_CHUNKS if c.doc_id != "X-NIST"})
+    (root / NIST_PATH).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ROOT / NIST_PATH, root / NIST_PATH)
+    with (root / "corpus" / "register.yaml").open("a", encoding="utf-8") as entries:
+        entries.write(
+            "- id: X-NIST\n  status: reference\n  supersedes: null\n  tenant: shared\n"
+            f"  path: {NIST_PATH}\n"
+        )
+
+
 class ScriptedRetriever:
     """A retriever that returns the chunks a test chose for each question, best first."""
 
@@ -382,7 +398,7 @@ def behaviour_run(
     file. The record is written and left for the test to validate. A given root is reused."""
     if root is None:
         root = lab_root(tmp_path, cases if cases is not None else behaviour_cases())
-        write_register(root, {c.doc_id: c.tenant for c in BEHAVIOUR_CHUNKS})
+        write_behaviour_register(root)
     path = root / "config" / "generation.toml"
     path.parent.mkdir(exist_ok=True)
     path.write_text(
