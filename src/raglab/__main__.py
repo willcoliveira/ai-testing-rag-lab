@@ -4,6 +4,7 @@ ollama (the local model server's session: up, down, status, session)."""
 import argparse
 import json
 import shlex
+import signal
 import sys
 from pathlib import Path
 
@@ -247,7 +248,18 @@ def ollama(args: argparse.Namespace) -> int:
         if not args.run:
             print("ollama session: give at least one --run command", file=sys.stderr)
             return 2
-        return session.run([shlex.split(c) for c in args.run], runtime.run_command)
+        try:
+            return session.run([shlex.split(c) for c in args.run], runtime.run_command)
+        except KeyboardInterrupt:
+            # Ctrl-C (judge S3-J13): Session.run has already run its stop, and its lines are
+            # above, so one line here instead of a traceback, and 128 + SIGINT. A SIGTERM or
+            # SIGHUP ends the session as SystemExit(128 + n), which passes through.
+            print(
+                "interrupted: see the lines above for the stop and the postcheck",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 128 + signal.SIGINT
     except (eval_config.ConfigError, runtime.SessionError, OSError) as error:
         print(f"ollama {args.action}: {error}", file=sys.stderr)
         return 1

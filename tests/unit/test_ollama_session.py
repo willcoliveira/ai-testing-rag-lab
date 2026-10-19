@@ -745,3 +745,65 @@ def test_a_server_that_is_not_our_child_is_judged_by_kill_0(tmp_path):
     finally:
         with contextlib.suppress(ProcessLookupError):
             os.kill(pid, signal.SIGKILL)
+
+
+# ------------------------------------------------- follow-up (judge S3-J13): how the CLI ends
+
+CLI_SESSION = """
+import signal, sys
+from pathlib import Path
+sys.path.insert(0, {root!r})
+from tests.unit.test_ollama_session import FakeHost, pulled
+from raglab.runtime import ollama
+from raglab.__main__ import main
+signal.signal(signal.SIGINT, signal.default_int_handler)  # as in a terminal
+lab = Path({lab!r})
+pulled(lab)
+real = ollama.session_for
+ollama.session_for = lambda config, root, host=None: real(config, lab, FakeHost(tmp=lab))
+sys.exit(main({argv!r}))
+"""
+STAND_IN = (
+    "import pathlib, sys, time\npathlib.Path(sys.argv[1]).write_text('running')\ntime.sleep(30)\n"
+)
+INTERRUPTED = "interrupted: see the lines above for the stop and the postcheck"
+
+
+@pytest.mark.parametrize(("sig", "code"), [("SIGINT", 130), ("SIGTERM", 143), ("SIGHUP", 129)])
+def test_the_cli_ends_a_signalled_session_without_a_traceback(tmp_path, sig, code):
+    """Judge S3-J13: `raglab ollama session` as a subprocess (the CLI's main, the fake host on a
+    lab root, so no server and no pid file in the repo), signalled once its command runs. Ctrl-C
+    (SIGINT) ends it after the stop and the postcheck with one line on stderr and exit 130, and no
+    KeyboardInterrupt traceback; SIGTERM and SIGHUP keep their 128 + n."""
+    import os
+    import shlex
+    import subprocess
+    import sys
+
+    marker = tmp_path / "running"
+    argv = [
+        "ollama",
+        "session",
+        "--config",
+        str(ROOT / "config" / "local-ollama.toml"),
+        "--root",
+        str(ROOT),
+        "--run",
+        shlex.join([sys.executable, "-c", STAND_IN, str(marker)]),
+    ]
+    script = CLI_SESSION.format(root=str(ROOT), lab=str(tmp_path / "lab"), argv=argv)
+    proc = subprocess.Popen(
+        [sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+    try:
+        _wait_for(marker, proc)
+        os.kill(proc.pid, getattr(signal, sig))
+        out, err = proc.communicate(timeout=60)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.communicate()
+    assert "Traceback" not in err, err[-2000:]
+    assert proc.returncode == code, (proc.returncode, err[-2000:])
+    assert "postcheck passed: port closed, no ollama process, no model loaded" in out
+    assert err.count(INTERRUPTED) == (1 if sig == "SIGINT" else 0), err[-2000:]

@@ -1,12 +1,14 @@
 """The API smoke test (S3 AC12): start `raglab serve` with config/fake.toml on 127.0.0.1, then
 check /healthz, /version, an /ask answer and a no-tenant refusal, and stop the server whatever
-happens. Offline: the fake model, the embedder from its cache (HF_HUB_OFFLINE=1), loopback only.
+happens; last, check that it stopped as a graceful shutdown on SIGTERM ends it (exit -15, judge
+S3-J12). Offline: the fake model, the embedder from its cache (HF_HUB_OFFLINE=1), loopback only.
 `make api-smoke` runs it, in `make check` and in pr-fast.
 
 Usage: uv run python scripts/api_smoke.py [--port 8765] [--timeout 180]
 """
 
 import argparse
+import contextlib
 import json
 import os
 import signal
@@ -22,6 +24,14 @@ ROOT = Path(__file__).resolve().parent.parent
 CONFIG = "config/fake.toml"
 TOKEN = "demo"  # noqa: S105  # nosec B105  # lab: the public demo token of config/fake.toml
 QUESTION = "How many characters must a password have?"
+# The server is stopped with SIGTERM to its process group. uvicorn's graceful shutdown on it ends
+# with "Application shutdown complete", then raises the signal again with its default action, so
+# the process ends by SIGTERM: -15 (on SIGINT it would exit 0). Any other exit fails the smoke
+# (judge S3-J12): -6 is an abort, as onnxruntime 1.30.0 can give at exit on macOS, and -9 the
+# SIGKILL after GRACE_S.
+STOP = signal.SIGTERM
+GRACEFUL_EXIT = -STOP
+GRACE_S = 15
 
 
 def call(base: str, method: str, path: str, body: object = None) -> tuple[int, dict[str, object]]:
@@ -88,6 +98,29 @@ def check(base: str) -> list[str]:
     return failures
 
 
+def stop(server: subprocess.Popen[bytes]) -> int:
+    """STOP to the server's process group, SIGKILL after GRACE_S; its exit code."""
+    with contextlib.suppress(ProcessLookupError):  # it has exited already: its code says how
+        os.killpg(server.pid, STOP)
+    try:
+        return server.wait(timeout=GRACE_S)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(server.pid, signal.SIGKILL)
+        return server.wait()
+
+
+def in_words(code: int) -> str:
+    """An exit code as the check prints it: 'exited with 1', or 'ended by SIGABRT (-6)'."""
+    if code >= 0:
+        return f"exited with {code}"
+    try:
+        name = signal.Signals(-code).name
+    except ValueError:
+        name = f"signal {-code}"
+    return f"ended by {name} ({code})"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("--port", type=int, default=8765)
@@ -111,12 +144,12 @@ def main(argv: list[str] | None = None) -> int:
         wait_until_up(base, server, args.timeout)
         failures = check(base)
     finally:
-        os.killpg(server.pid, signal.SIGTERM)
-        try:
-            server.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            os.killpg(server.pid, signal.SIGKILL)
-            server.wait()
+        code = stop(server)
+    name = f"the server stops gracefully on {STOP.name} (exit {GRACEFUL_EXIT})"
+    graceful = code == GRACEFUL_EXIT
+    print(f"{'ok  ' if graceful else 'FAIL'} {name}: {in_words(code)}")
+    if not graceful:
+        failures.append(name)
     print(f"api-smoke: {'failed: ' + ', '.join(failures) if failures else 'passed'}")
     return 1 if failures else 0
 
