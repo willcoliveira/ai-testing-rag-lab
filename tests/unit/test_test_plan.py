@@ -174,6 +174,7 @@ def test_the_stages_so_far_are_filled_in():
         assert rows[arrow][4].startswith("`tests/"), f"{arrow} is S2's and must name its tests"
     for arrow in ("R1", "R4", "R7"):
         assert rows[arrow][4].startswith("`tests/"), f"{arrow} is S3's and must name its tests"
+    assert rows["R6"][4].startswith("`tests/"), "R6 is S4's and must name its tests"
     template = part2().split("## 10. The plan, filled in", 1)[1]
     ingestion = template.split("ingestion (every commit):", 1)[1].split("\nretrieval", 1)[0]
     assert not re.search(r"<[^=\s]", ingestion), "the ingestion line has a <placeholder> left"

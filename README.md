@@ -43,7 +43,8 @@ flowchart TB
   classDef wip fill:#fef3c7,stroke:#92400e
   classDef done fill:#dcfce7,stroke:#166534
   class S0,S1a,S1b,S2,S3 done
-  class S3h,S4,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
+  class S4 wip
+  class S3h,S4b,S5,S6,S7,S8,S9,S10,S11,S12,B todo
 ```
 
 ## Quickstart
@@ -67,7 +68,7 @@ their hashes; `make check` runs it, and the tests only ever load from that cache
 ```bash
 make model                                                            # once
 uv run raglab eval --suite retrieval --config config/retrieval-dense.toml  # a run record in runs/tmp
-uv run raglab eval --suite retrieval --config config/retrieval-dense.toml --split all  # every question
+uv run raglab eval --suite retrieval --config config/retrieval-dense.toml --split all --gate nightly  # every question: the test split runs only under nightly or release
 uv run raglab compare <run A> <run B>      # paired differences with intervals, flipped questions
 uv run raglab publish <run>                # validate, privacy check, add to runs/published
 make gate                                  # recall@5 on dev against the published baseline
@@ -94,6 +95,14 @@ make eval-local    # the live run on Ollama: starts the server, runs, stops it (
 make container && make zap   # the fake-model container and its ZAP baseline scan (Docker)
 ```
 
+The golden set and the consistency gate (S4, in progress): `make check-dataset` holds the golden
+file to ten rules before any run (every `raglab eval` and `raglab gate` runs it first, and so does
+pr-fast); the generation suite reads the decision label of each behaviour case from the structured
+field and scores abstention as its own check, without a judge; `make gate-local` gates behaviour
+pass^3 on dev against a local baseline (docs/THRESHOLDS.md), and `make nightly-local` runs every
+split under the nightly gate. The behaviour cases, their datasheet and the republished baselines
+come with the golden set's sign-off.
+
 A run is published only from a clean, committed tree, with its provenance (`local` for the ONNX
 embedder) in the manifest. Run record v1 is `schemas/run-record.v1.json`; thresholds and their
 reasons are in [docs/THRESHOLDS.md](docs/THRESHOLDS.md).
@@ -103,8 +112,9 @@ staged change and each push for secrets and private names. CI checks a pull requ
 commits again, but only with the generic example list.
 
 `make check` runs formatting, lint, types, dependency and dead-code checks, a vulnerability audit,
-SAST, workflow security, secret scanning, the privacy check, the architecture rules, the
-offline tests and the retrieval no-regression gate. CI runs the same on every pull request.
+SAST, workflow security, secret scanning, the privacy check, the architecture rules, the dataset
+check, the offline tests and the retrieval no-regression gate. CI runs the same on every pull
+request.
 
 ## Licence
 
