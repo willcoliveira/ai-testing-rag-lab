@@ -142,8 +142,8 @@ def test_another_id_of_the_same_shape_is_a_hit_under_runs_published(tree: Path):
 def test_an_address_not_on_the_list_is_still_a_hit_under_runs_published(tree: Path):
     """D3's break: the list is exact strings, so another address at a team's own domain, or a
     team address with one letter more, is refused."""
-    service_desk = sorted(team_addresses())[0]
-    local, domain = service_desk.split("@")
+    team = sorted(team_addresses())[0]
+    local, domain = team.split("@")
     for other in ("@".join(["hr", domain]), "@".join([local + "s", domain])):
         write(tree, "runs/published/r/cases.jsonl", answer_line(f"Write to {other}."))
         assert run_check(tree, "--dir", "runs/published/r").returncode == 1, other
