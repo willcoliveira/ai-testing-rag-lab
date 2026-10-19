@@ -8,9 +8,9 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local container container-run zap
 
-check: format lint types deps audit sast workflows secrets privacy architecture model test gate api-smoke
+check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
 format:
 	uv run ruff format --check
@@ -51,6 +51,12 @@ privacy-history:
 
 architecture:
 	uv run python scripts/check_architecture.py
+
+# S4: the dataset hard stop. The golden file against its ten rules (raglab.evals.dataset_check):
+# the answer key, the register and the inventory snapshot, no model and no embedder. Every
+# `raglab eval` and `raglab gate` runs the same check first; pr-fast runs it as its own step.
+check-dataset:
+	uv run raglab check-dataset
 
 # the pinned embedding model (BAAI/bge-small-en-v1.5, ONNX) into $RAGLAB_MODEL_DIR (default
 # ~/.cache/raglab/models): downloads only what is missing or fails its sha256, so it is offline once

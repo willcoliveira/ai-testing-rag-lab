@@ -243,6 +243,35 @@ def test_pr_fast_runs_the_retrieval_gate_offline_after_the_tests():
     )
 
 
+def test_pr_fast_runs_the_dataset_check_as_its_own_step_before_the_tests():
+    """S4 AC3: "Dataset check (hard stop)" runs `make check-dataset` as a step of its own, before
+    the model fetch, the tests, the retrieval gate and the API smoke, with no network-shaped
+    input; `make check` runs the same target before its tests."""
+    wf = load(WORKFLOW_DIR / "pr-fast.yml")
+    steps = wf["jobs"]["check"]["steps"]
+    names = [step.get("name") for step in steps]
+    check = names.index("Dataset check (hard stop)")
+    assert steps[check]["run"] == "make check-dataset"
+    assert "uses" not in steps[check]
+    assert "env" not in steps[check]
+    assert names.index("Install the project") < check
+    for later in (
+        "Embedding model (download on a miss, hashes checked)",
+        "Tests (offline)",
+        "Retrieval no-regression gate (offline)",
+        "API smoke (offline, fake model)",
+    ):
+        assert check < names.index(later), later
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    targets = re.search(r"^check:(.*)$", makefile, flags=re.M)
+    assert targets is not None
+    order = targets.group(1).split()
+    assert order.index("check-dataset") < order.index("test") < order.index("gate")
+    target = re.search(r"^check-dataset:\n\t(.*)$", makefile, flags=re.M)
+    assert target is not None
+    assert target.group(1) == "uv run raglab check-dataset"
+
+
 def test_pr_fast_smoke_tests_the_api_offline_after_the_tests():
     """S3 AC12: pr-fast starts `raglab serve` with config/fake.toml and smoke-tests /healthz,
     /version, an /ask answer and a no-tenant refusal, offline, after the model fetch and the

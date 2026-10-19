@@ -1,5 +1,5 @@
-"""Command line entry point: ingest, fetch-model, eval, compare, publish, gate, ask, serve and
-ollama (the local model server's session: up, down, status, session)."""
+"""Command line entry point: ingest, fetch-model, check-dataset, eval, compare, publish, gate, ask,
+serve and ollama (the local model server's session: up, down, status, session)."""
 
 import argparse
 import json
@@ -14,16 +14,18 @@ from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSett
 from raglab.core.types import TenantError
 from raglab.evals import compare as compare_runs
 from raglab.evals import config as eval_config
+from raglab.evals import dataset_check, generation, golden, publish, record, retrieval
 from raglab.evals import gate as retrieval_gate
-from raglab.evals import generation, golden, publish, record, retrieval
 from raglab.generate import assemble
 from raglab.ingest import inventory, pipeline
 
 INVENTORY = "runs/tmp/inventory.json"
 RUNS = "runs/tmp"
+DATASET = "datasets/golden.v1.jsonl"
 GATES = ["manual", "pr-fast", "eval-on-change", "nightly", "weekly", "release"]
 EVAL_ERRORS = (
     eval_config.ConfigError,
+    dataset_check.CheckError,
     factory.AdapterError,
     fastembed_embed.ModelUnavailable,
     golden.DatasetError,
@@ -82,6 +84,31 @@ def fetch_model(args: argparse.Namespace) -> int:
     return 0
 
 
+def check_dataset(args: argparse.Namespace) -> int:
+    """`raglab check-dataset`: the golden file against its ten rules (raglab.evals.dataset_check);
+    exit 1 naming each case and rule."""
+    root: Path = args.root
+    dataset: Path = args.dataset if args.dataset.is_absolute() else root / args.dataset
+    try:
+        report = dataset_check.check(root, dataset)
+    except dataset_check.CheckError as error:
+        print(f"check-dataset: {error}", file=sys.stderr)
+        return 1
+    print("\n".join(report.lines()))
+    return 0 if report.passed else 1
+
+
+def _check_first(root: Path, dataset: str) -> None:
+    """The dataset hard stop every run passes first: a problem stops the run before any model,
+    embedder or ingestion starts (S4)."""
+    report = dataset_check.check(root, root / dataset)
+    if not report.passed:
+        raise dataset_check.CheckError(
+            "check-dataset stopped the run:\n" + "\n".join(report.lines())
+        )
+    print("\n".join(report.lines()), file=sys.stderr)  # the notes and the pass line
+
+
 def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]:
     root: Path = args.root
     suite: str = getattr(args, "suite", "retrieval")
@@ -92,12 +119,14 @@ def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]
         split_: str | None = getattr(args, "split", None)
         if split_ is not None:
             raise eval_config.ConfigError("a generation run uses its config's split")
+        _check_first(root, gen.dataset)
         built = assemble.assemble(gen, root)
         return generation.run(gen, root, built, gate=args.gate)
     config = eval_config.load(args.config, root)
     split: str | None = getattr(args, "split", None)
     if split is not None:
         config = eval_config.with_split(config, split)
+    _check_first(root, config.dataset)
     embedder, description, provenance = factory.embedder(
         config.embedder.provider, config.embedder.model, config.embedder.revision
     )
@@ -301,6 +330,14 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help=f"cache directory (default ${fastembed_embed.CACHE_ENV} or ~/.cache/raglab/models)",
     )
+    checked = commands.add_parser(
+        "check-dataset",
+        help="the golden file against its ten rules, before any run (no model, no embedder)",
+    )
+    checked.add_argument(
+        "--dataset", type=Path, default=Path(DATASET), help=f"golden file (default {DATASET})"
+    )
+    checked.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     for name, text in (
         ("eval", "run an evaluation suite and write a run record under runs/tmp"),
         ("gate", "retrieval no-regression gate: a fresh run against the published baseline"),
@@ -350,6 +387,7 @@ def main(argv: list[str] | None = None) -> int:
     handlers = {
         "ingest": ingest,
         "fetch-model": fetch_model,
+        "check-dataset": check_dataset,
         "eval": evaluate,
         "compare": compare,
         "publish": publish_run,
