@@ -1,12 +1,12 @@
 # Onboarding
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
-guards, and where each concept already lives. It is current as of S4, in progress (2026-10-19):
-the code is built and golden set v1.1 (40 behaviour cases) is in the file, awaiting the user's
-sign-off, after which the baselines are republished. Every stage that adds a command or a concept
-updates it, and
+guards, and where each concept already lives. It is current as of S4, done (2026-10-19): golden
+set v1.1 (40 behaviour cases) is signed off, and the retrieval and local generation baselines are
+republished on it (the S4 ledger). Every stage that adds a command or a concept updates it, and
 `tests/unit/test_onboarding.py` checks that every path, `make` target and `raglab` command named
-here exists.
+here exists, and that the stage this line names is not still in progress once the phase map marks
+it done.
 
 The lab is a policy Q&A assistant over a fictional company's identity and security policy pack.
 Up to S2 it ingests the pack, retrieves from it with a real local embedding model, and scores
