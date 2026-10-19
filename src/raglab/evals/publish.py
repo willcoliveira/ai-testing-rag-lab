@@ -3,18 +3,20 @@ runs/published/<run_id>/ and rebuild runs/published/index.json, which the playgr
 
 A run is refused when it is not a valid run record, when it was made from a dirty work tree
 (git_dirty: its commit would not reproduce it), when its provenance is fake or any model field
-says fake (provider, revision or digest), when it is partial, when it holds the test cases
-(split test or all) under a gate other than nightly or release (S4), when one of its files holds a
-string the answer key says no answer may repeat (the planted secret,
-personal details and attack canaries: `answer_must_not_contain`, R-19), or when the privacy check
-finds anything in its files. The privacy check reads the files at their published path
-(runs/published/<run_id>/), where privacy/allowlist-published.txt applies; a refused run's copy is
-removed again. An already published run is replaced only
-by identical files. `--baseline` makes the run the baseline of its suite, config and split, which
-the no-regression gate compares against.
+says fake (provider, revision or digest), when it is partial, when it holds the test cases (split
+test or all) under a gate other than nightly or release (S4), when one of its files holds a string
+the answer key says no answer may repeat (the planted secret, personal details and attack
+canaries: `answer_must_not_contain`, R-19; since S4's D3 the plain attack phrases only in attack
+runs), or when the privacy check finds anything in its files. The privacy check reads the files at
+their published path (runs/published/<run_id>/), where privacy/allowlist-published.txt applies
+(the planted exception ids and, since D3, the team contact addresses); a refused run's copy is
+removed again. An already published run is replaced only by identical files. `--baseline` makes
+the run the baseline of its suite, config and split, which the no-regression gate compares
+against.
 """
 
 import json
+import re
 import shutil
 import subprocess  # nosec B404
 from collections.abc import Callable
@@ -56,11 +58,46 @@ def node_privacy_check(run_dir: Path, root: Path) -> list[str]:
     ]
 
 
+# D3 (the user's decision of 2026-10-19, "Narrow both (Recommended)"). The suites whose runs read
+# the register's documents only, so no attack page is indexed and no answer repeats one. In their
+# runs the plain attack phrases (words only, such as F-48's "never expire") do not block, because
+# a correct answer on an expiry rule can hold them; every other string blocks every run: the
+# planted secret (F-44), the personal details (F-45), the canary token and the planted links and
+# address. A run of any other suite (S7's attack suite) is held to every string.
+CLEAN_SUITES = frozenset({"retrieval", "generation"})
+PLAIN_PHRASE = re.compile(r"[A-Za-z0-9]+(?: [A-Za-z0-9]+)*")
+
+
+def blocks_clean_runs(kind: str, string: str) -> bool:
+    """Whether an answer_must_not_contain string blocks a clean run: every string but a plain
+    phrase (letters and digits between single spaces) of an attack feature."""
+    return not (kind.startswith("attack-") and PLAIN_PHRASE.fullmatch(string))
+
+
+def banned_strings(root: Path, suite: str) -> dict[str, list[str]]:
+    """The answer_must_not_contain strings a run of this suite may not hold, by feature."""
+    banned: dict[str, list[str]] = {}
+    for feature in answer_key.features(root).values():
+        strings = [
+            s
+            for s in feature.must_not_contain
+            if suite not in CLEAN_SUITES or blocks_clean_runs(feature.kind, s)
+        ]
+        if strings:
+            banned[feature.id] = strings
+    return banned
+
+
 def planted_strings(run_dir: Path, root: Path) -> list[str]:
-    """Each run file line that holds one of the answer key's answer_must_not_contain strings."""
+    """Each run file line that holds an answer_must_not_contain string the run's suite may not
+    hold (D3: the plain attack phrases only in attack runs; the rest in every run)."""
     try:
-        banned = answer_key.must_not_contain(root)
-    except (OSError, ValueError) as error:  # fails closed: no check, no publish
+        suite = str(as_json(json.loads((run_dir / record.MANIFEST).read_text("utf-8")))["suite"])
+    except (OSError, ValueError, KeyError):  # an unreadable suite is held to every string
+        suite = ""
+    try:
+        banned = banned_strings(root, suite)
+    except (OSError, ValueError, KeyError) as error:  # fails closed: no check, no publish
         return [f"the answer key cannot be read ({error})"]
     found: list[str] = []
     for name in FILES:

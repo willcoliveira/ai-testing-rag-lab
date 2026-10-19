@@ -2,8 +2,15 @@
 # model in the answers of published runs. One per line, exact match, enumerated (never a pattern).
 # scripts/check-forbidden.mjs allows them ONLY in files whose path starts with runs/published/;
 # anywhere else they are still hits (corpus/ has its own list, privacy/allowlist-corpus.txt).
-# tests/unit/test_published_allowlist_scope.py checks the scope, and that every entry is one of
-# the exceptions-register ids the corpus plants. The user's decision of 2026-10-18 (S3 ledger):
-# "Allow those IDs only (Recommended)". Contacts, secrets and personal details never go here.
+# tests/unit/test_published_allowlist_scope.py checks the scope, and that the entries are exactly
+# the exceptions-register ids the corpus plants and the team contact addresses of corpus/SPEC.md
+# section 6 (the IT Service Desk, the SOC, Mirrowfen IT Support).
+# The user's decisions: 2026-10-18 (S3 ledger), "Allow those IDs only (Recommended)"; 2026-10-19
+# (S4 plan, D3), "Narrow both (Recommended)", which adds the team contacts: published contact
+# points are not PII (TEST-PLAN R-19). The worked example's personal details (F-45), the planted
+# secret (F-44), the attack address and any other address never go here.
 EX-2025-003
 EX-2026-007
+servicedesk@halvenroot.example.com
+security@halvenroot.example.com
+itsupport@mirrowfen.example.org

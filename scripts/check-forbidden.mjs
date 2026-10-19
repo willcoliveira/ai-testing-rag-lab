@@ -20,9 +20,9 @@
 // - a corpus-scoped allowlist, privacy/allowlist-corpus.txt: tokens allowed only in files under
 //   corpus/ (the lab corpus's planted fakes), never elsewhere, in a commit message or an identity
 //   (S1a, tests/unit/test_corpus_allowlist_scope.py)
-// - a published-runs allowlist, privacy/allowlist-published.txt: the exceptions-register ids a model
-//   quotes in answers, allowed only in files under runs/published/ (S3,
-//   tests/unit/test_published_allowlist_scope.py)
+// - a published-runs allowlist, privacy/allowlist-published.txt: the exceptions-register ids (S3)
+//   and the team contact addresses (S4, D3) a model quotes in answers, allowed only in files under
+//   runs/published/ (tests/unit/test_published_allowlist_scope.py)
 // - --history <revisions>: every commit message, author and committer, and every line the commits added, so a string
 //   committed without the hooks and removed later is still found (S0 judge round 3); reviewed
 //   false positives in the history are listed in privacy/history-exceptions.txt by commit and line
@@ -139,8 +139,9 @@ const CORPUS_SCOPE = "corpus/";
 const CORPUS_ALLOWLIST = "privacy/allowlist-corpus.txt";
 const CORPUS_ALLOW_TOKENS = readTokens(CORPUS_ALLOWLIST);
 const inCorpus = (path) => typeof path === "string" && path.startsWith(CORPUS_SCOPE) && !path.split("/").includes("..");
-// the exceptions-register ids a model quotes in published answers, allowed only under
-// runs/published/ (S3, the user's decision of 2026-10-18; tests/unit/test_published_allowlist_scope.py)
+// the exceptions-register ids and team contact addresses a model quotes in published answers,
+// allowed only under runs/published/ (the user's decisions of 2026-10-18, S3, and 2026-10-19, S4 D3;
+// tests/unit/test_published_allowlist_scope.py)
 const PUBLISHED_SCOPE = "runs/published/";
 const PUBLISHED_ALLOWLIST = "privacy/allowlist-published.txt";
 const PUBLISHED_ALLOW_TOKENS = readTokens(PUBLISHED_ALLOWLIST);
