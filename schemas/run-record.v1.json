@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "run-record.v1.json",
   "title": "raglab run record v1",
-  "description": "A run directory read as one object: manifest.json and every line of cases.jsonl. report.md is generated from both and checked by raglab.evals.record.validate, as are the sha256 of each file and the results recomputed from the cases. Validated by raglab.evals.schema, which supports a subset of JSON Schema and refuses any other keyword. S3 extends v1 additively with the generation suite: its manifest and case fields are optional here, and validate requires them for that suite and refuses them for retrieval, as it requires bootstrap and the retrieval case fields for retrieval (the subset has no conditional keywords).",
+  "description": "A run directory read as one object: manifest.json and every line of cases.jsonl. report.md is generated from both and checked by raglab.evals.record.validate, as are the sha256 of each file and the results recomputed from the cases. Validated by raglab.evals.schema, which supports a subset of JSON Schema and refuses any other keyword. S3 extends v1 additively with the generation suite: its manifest and case fields are optional here, and validate requires them for that suite and refuses them for retrieval, as it requires bootstrap and the retrieval case fields for retrieval (the subset has no conditional keywords). S4 extends v1 additively again: the behaviour case kind (expected, mix and feature_ids; labels and scores unless it abstains, a label's side on a flag-conflict case, may_quote on an abstain case), label groups (any_of), the checks decision_label, conflict and must_not_contain, and results.generation.behaviour; the probes block is required only of a run with probe cases. Every earlier record validates as it did.",
   "type": "object",
   "required": ["manifest", "cases"],
   "additionalProperties": false,
@@ -286,9 +286,36 @@
         "reciprocal_rank": {"type": "number", "minimum": 0, "maximum": 1},
         "recall": {"type": "number", "minimum": 0, "maximum": 1},
         "latency_ms": {"type": "number", "minimum": 0},
-        "kind": {"enum": ["retrieval", "probe"]},
+        "kind": {"enum": ["retrieval", "probe", "behaviour"]},
         "feature_ids": {"type": "array", "items": {"type": "string", "pattern": "^F-[0-9]+$"}},
         "expected": {"enum": ["answer", "abstain", "flag-conflict", "refuse-and-help"]},
+        "mix": {
+          "$comment": "S4, a behaviour case: the build project's mix kind",
+          "enum": ["single-chunk", "multi-chunk", "unanswerable", "version-conflict", "paraphrase", "misspelling"]
+        },
+        "may_quote": {
+          "$comment": "S4, an abstain behaviour case: the shared reference section whose value the answer may quote (D-03), its chunks and the values each states (numbers only, never chunk text)",
+          "type": "object",
+          "required": ["doc_id", "section_id", "chunks"],
+          "additionalProperties": false,
+          "properties": {
+            "doc_id": {"type": "string", "minLength": 1},
+            "section_id": {"type": "string", "minLength": 1},
+            "chunks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["chunk_id", "values"],
+                "additionalProperties": false,
+                "properties": {
+                  "chunk_id": {"type": "string", "minLength": 1},
+                  "values": {"type": "array", "items": {"type": "string", "minLength": 1}}
+                }
+              }
+            }
+          }
+        },
         "canaries_of": {"enum": ["tenant-a", "tenant-b", null]},
         "status": {"enum": ["ok", "refused", "blocked", "unavailable", "invalid_output"]},
         "label": {"enum": ["answer", "abstain", "flag-conflict", "refuse-and-help"]},
@@ -331,6 +358,9 @@
             "no_canary": {"type": "boolean"},
             "answered": {"type": "boolean"},
             "cites_label": {"type": "boolean"},
+            "decision_label": {"type": "boolean"},
+            "conflict": {"type": "boolean"},
+            "must_not_contain": {"type": "boolean"},
             "passed": {"type": "boolean"}
           }
         }
@@ -403,7 +433,75 @@
             "prompt": {"$ref": "#/$defs/count"},
             "completion": {"$ref": "#/$defs/count"}
           }
-        }
+        },
+        "behaviour": {"$ref": "#/$defs/behaviour_results"}
+      }
+    },
+    "label_counts": {
+      "type": "object",
+      "required": ["answer", "abstain", "flag-conflict", "refuse-and-help", "withheld"],
+      "additionalProperties": false,
+      "properties": {
+        "answer": {"$ref": "#/$defs/count"},
+        "abstain": {"$ref": "#/$defs/count"},
+        "flag-conflict": {"$ref": "#/$defs/count"},
+        "refuse-and-help": {"$ref": "#/$defs/count"},
+        "withheld": {"$ref": "#/$defs/count"}
+      }
+    },
+    "behaviour_results": {
+      "$comment": "S4: the behaviour cases of a generation run (raglab.evals.behaviour), in case-trials unless named cases",
+      "type": "object",
+      "required": [
+        "cases", "confusion", "abstention", "label_agreement", "label_failures",
+        "conflict_side_missed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "cases": {"type": "integer", "minimum": 1},
+        "confusion": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "answer": {"$ref": "#/$defs/label_counts"},
+            "abstain": {"$ref": "#/$defs/label_counts"},
+            "flag-conflict": {"$ref": "#/$defs/label_counts"},
+            "refuse-and-help": {"$ref": "#/$defs/label_counts"}
+          }
+        },
+        "abstention": {
+          "type": "object",
+          "required": [
+            "abstain_no_value", "abstain_value", "not_abstain_no_value", "not_abstain_value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "abstain_no_value": {"$ref": "#/$defs/count"},
+            "abstain_value": {"$ref": "#/$defs/count"},
+            "not_abstain_no_value": {"$ref": "#/$defs/count"},
+            "not_abstain_value": {"$ref": "#/$defs/count"}
+          }
+        },
+        "label_agreement": {
+          "type": "object",
+          "required": ["cases", "unanimous"],
+          "additionalProperties": false,
+          "properties": {
+            "cases": {"$ref": "#/$defs/count"},
+            "unanimous": {"$ref": "#/$defs/count"}
+          }
+        },
+        "label_failures": {
+          "type": "object",
+          "required": ["labels_retrieved", "labels_missed", "no_labels"],
+          "additionalProperties": false,
+          "properties": {
+            "labels_retrieved": {"$ref": "#/$defs/count"},
+            "labels_missed": {"$ref": "#/$defs/count"},
+            "no_labels": {"$ref": "#/$defs/count"}
+          }
+        },
+        "conflict_side_missed": {"$ref": "#/$defs/count"}
       }
     }
   }

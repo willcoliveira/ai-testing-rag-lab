@@ -47,7 +47,8 @@ model = "fake-echo"
 trials = 3
 seed = 20261018                 # trial t uses seed + t - 1
 level = 0.95                    # of the Wilson intervals
-probes = "datasets/probes.s3.jsonl"
+# probes = "datasets/probes.s3.jsonl"  # optional: S3's probes file; S4 made its probes golden
+                                       # cases, so the committed configs name none
 run_timeout_s = 600             # the whole run's wall-clock cap; a run that hits it is partial
 
 [api]                           # optional: the caller tokens `raglab serve` accepts (lab)
@@ -118,6 +119,7 @@ OPTIONAL = {
     ("retriever", "candidates"),
     ("retriever", "rrf_k"),
     *(("generator", key) for key in SECTIONS["generator"] if key not in {"provider", "model"}),
+    ("generation", "probes"),  # S4: the probes are golden cases; S3's file stays readable
 }
 # the tables each suite has (required) and may have (optional)
 TABLES = {
@@ -357,7 +359,7 @@ class GenerationSettings:
     trials: int
     seed: int
     level: float
-    probes: str
+    probes: str | None  # S3's probes file; S4 folds the probes into the golden set
     run_timeout_s: float
 
 
@@ -400,7 +402,7 @@ class GenerationConfig:
             "embedder": asdict(self.embedder),
             "retriever": {k: v for k, v in asdict(self.retriever).items() if v is not None},
             "generator": {k: v for k, v in asdict(self.generator).items() if v is not None},
-            "generation": asdict(self.generation),
+            "generation": {k: v for k, v in asdict(self.generation).items() if v is not None},
         }
         if self.ollama is not None:
             out["ollama"] = asdict(self.ollama)
@@ -513,11 +515,12 @@ def load_generation(path: Path, root: Path, require_digest: bool = True) -> Gene
     level = float(cast(float, table["level"]))
     if trials < 1 or not 0 < level < 1:
         raise ConfigError(f"{where}: trials must be at least 1 and level in (0, 1)")
+    probes = table.get("probes")
     generation = GenerationSettings(
         trials,
         cast(int, table["seed"]),
         level,
-        str(table["probes"]),
+        None if probes is None else str(probes),
         _positive(table["run_timeout_s"], where, "run_timeout_s"),
     )
     return GenerationConfig(

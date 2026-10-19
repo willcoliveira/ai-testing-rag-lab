@@ -2,7 +2,7 @@
 tests/retrieval_support with the fake embedder, FakeChat, and a spy that counts retrievals."""
 
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -12,14 +12,23 @@ from raglab.adapters import factory
 from raglab.adapters.fake import FakeChat, HashingEmbedder, echo
 from raglab.chunk.sections import ChunkSettings
 from raglab.core.ports import ChatModel, Guardrail, Retriever
-from raglab.core.types import ChatMessage, ChatRequest, ScoredChunk
+from raglab.core.types import ChatMessage, ChatRequest, Chunk, ScoredChunk
 from raglab.evals import config as eval_config
 from raglab.evals import generation, record
 from raglab.generate.assemble import Assembled, assemble
 from raglab.generate.pipeline import Pipeline
 from raglab.guard import default_guards
 from raglab.ingest.pipeline import Inventory
-from tests.retrieval_support import GIT, PACK, dense, lab_root, local_embedder
+from tests.retrieval_support import (
+    GIT,
+    PACK,
+    QUESTIONS,
+    dense,
+    lab_root,
+    local_embedder,
+    make_chunk,
+    write_register,
+)
 
 TOKENS = {"demo": frozenset({"tenant-a", "tenant-b"}), "tenant-a-only": frozenset({"tenant-a"})}
 DIGEST = "a" * 64
@@ -75,21 +84,33 @@ def reply(label: str = "answer", answer: str = "x", cited=(), conflict=(), note:
     )
 
 
-def generation_config_text(name: str = "generation-fake", trials: int = 2, cap: int = 600) -> str:
+def generation_config_text(
+    name: str = "generation-fake",
+    trials: int = 2,
+    cap: int = 600,
+    probes: bool = True,
+    split: str = "dev",
+) -> str:
     return (
         f'name = "{name}"\nsuite = "generation"\n\n[dataset]\npath = "golden.jsonl"\n'
-        'split = "dev"\n\n[chunker]\nchunk_size = 1200\noverlap = 1\n\n[embedder]\n'
+        f'split = "{split}"\n\n[chunker]\nchunk_size = 1200\noverlap = 1\n\n[embedder]\n'
         'provider = "fake"\nmodel = "hashing-256"\nrevision = "fake"\n\n'
         '[retriever]\nkind = "dense"\nk = 2\n\n[generator]\nprovider = "fake"\n'
         f'model = "fake-echo"\n\n[generation]\ntrials = {trials}\nseed = 7\nlevel = 0.95\n'
-        f'probes = "probes.jsonl"\nrun_timeout_s = {cap}\n\n'
+        + ('probes = "probes.jsonl"\n' if probes else "")
+        + f"run_timeout_s = {cap}\n\n"
         '[api]\ntokens = { demo = ["tenant-a", "tenant-b"], tenant-a-only = ["tenant-a"] }\n'
     )
 
 
-def generation_root(tmp_path: Path, probes: list[dict] | None = None) -> Path:
-    """lab_root (schema, register, small golden file) with a probes file."""
-    root = lab_root(tmp_path)
+def generation_root(
+    tmp_path: Path, probes: list[dict] | None = None, questions: list[dict] | None = None
+) -> Path:
+    """lab_root (schema, register, the real answer key) with a small golden file, by default the
+    retrieval questions of QUESTIONS (its Q6 is a behaviour line without a case's fields, which
+    the generation suite refuses since S4), and a probes file."""
+    retrieval_only = [q for q in QUESTIONS if q["kind"] == "retrieval"]
+    root = lab_root(tmp_path, retrieval_only if questions is None else questions)
     lines = [json.dumps(p) for p in (PROBES if probes is None else probes)]
     (root / "probes.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return root
@@ -219,3 +240,152 @@ def completion(
 
 def stub_client(transport: httpx.MockTransport) -> httpx.Client:
     return httpx.Client(base_url="http://127.0.0.1:11434", transport=transport)
+
+
+# ---------------------------------------------------------------- S4: behaviour cases
+#
+# A small pack whose chunks carry the real document and section ids the answer key names, so the
+# real answer key's conflict sides apply (F-04: A-PWD-V2 4.4 new, A-PWD-V1 4.3 old; F-53's FAQ Q2
+# restates 4.4). The texts are short stand-ins, and the retriever returns, for each question, the
+# chunks a test chose, so a conflict side can be retrieved or not on purpose.
+
+V2_41 = make_chunk("A-PWD-V2@2.0/4.1/1", "tenant-a", "Passwords are 15 characters long.", "4.1")
+V2_44 = make_chunk("A-PWD-V2@2.0/4.4/1", "tenant-a", "User passwords expire every 60 days.", "4.4")
+V2_46 = make_chunk("A-PWD-V2@2.0/4.6/1", "tenant-a", "Never share your password.", "4.6")
+V2_5 = make_chunk("A-PWD-V2@2.0/5/1", "tenant-a", "Accounts lock after 10 failures.", "5")
+V1_43 = make_chunk("A-PWD-V1@1.0/4.3/1", "tenant-a", "Passwords expire every 90 days.", "4.3")
+FAQ_Q2 = make_chunk("A-FAQ@1.0/Q2/1", "tenant-a", "Q2 Passwords expire every 60 days.", "Q2")
+NIST = make_chunk(
+    "X-NIST@4/3.1.1.2/1",
+    "shared",
+    "Verifiers permit passwords of at least 64 characters.",
+    "3.1.1.2",
+)
+B_33 = make_chunk(
+    "B-PWD@1.0/3.3/1", "tenant-b", "Passwords do not expire; a reset link lasts 30 minutes.", "3.3"
+)
+BEHAVIOUR_CHUNKS = [V2_41, V2_44, V2_46, V2_5, V1_43, FAQ_Q2, NIST, B_33]
+
+Q_ANS = "How long must a password be?"
+Q_FC = "Has the expiry period changed?"
+Q_FC2 = "What did the old standard say about expiry?"
+Q_ABS = "How many reset attempts a day?"
+Q_ABQ = "What is the longest password allowed?"
+Q_RH = "Can my colleague use my password?"
+Q_TB = "Do our passwords expire?"
+
+
+def behaviour_cases() -> list[dict]:
+    from tests.dataset_support import case, group, sec
+
+    return [
+        case("B-ANS", "single-chunk", "answer", "dev", ["F-01", "F-47"],
+             [sec("A-PWD-V2", "4.1")], question=Q_ANS),
+        case("B-FC", "version-conflict", "flag-conflict", "dev", ["F-04", "F-53"],
+             [group(sec("A-PWD-V2", "4.4"), sec("A-FAQ", "Q2")), sec("A-PWD-V1", "4.3")],
+             question=Q_FC),
+        case("B-FC2", "version-conflict", "flag-conflict", "dev", ["F-04"],
+             [sec("A-PWD-V2", "4.4"), sec("A-PWD-V1", "4.3")], question=Q_FC2),
+        case("B-ABS", "unanswerable", "abstain", "dev", ["F-32"], question=Q_ABS),
+        case("B-ABQ", "unanswerable", "abstain", "dev", ["F-40"], tenant="tenant-b",
+             may_quote=sec("X-NIST", "3.1.1.2"), question=Q_ABQ),
+        case("B-RH", "single-chunk", "refuse-and-help", "dev", ["F-42"],
+             [sec("A-PWD-V2", "4.6")], question=Q_RH),
+        case("B-TB", "single-chunk", "answer", "dev", ["F-35"], [sec("B-PWD", "3.3")],
+             tenant="tenant-b", question=Q_TB),
+    ]  # fmt: skip
+
+
+RETRIEVED = {
+    Q_ANS: [V2_41, V2_5],
+    Q_FC: [FAQ_Q2, V1_43],  # the conflict side retrieved; the governing side by its FAQ member
+    Q_FC2: [V2_44, V2_41],  # the conflict side not retrieved
+    Q_ABS: [V2_5],
+    Q_ABQ: [NIST, B_33],
+    Q_RH: [V2_46],
+    Q_TB: [B_33],
+}
+# replies that pass every check that applies
+GOOD = {
+    Q_ANS: reply("answer", "Passwords are 15 characters long.", [V2_41.chunk_id]),
+    Q_FC: reply(
+        "flag-conflict",
+        "They expire every 60 days now; version 1.0 said every 90 days.",
+        [FAQ_Q2.chunk_id, V1_43.chunk_id],
+        [FAQ_Q2.chunk_id, V1_43.chunk_id],
+        "version 1.0 is superseded",
+    ),
+    Q_FC2: reply("answer", "They expire every 60 days.", [V2_44.chunk_id]),
+    Q_ABS: reply("abstain", "The documents do not say how many reset attempts are allowed."),
+    Q_ABQ: reply(
+        "abstain",
+        "Our documents do not say; NIST SP 800-63B-4 says at least 64 characters.",
+        [NIST.chunk_id],
+    ),
+    Q_RH: reply("refuse-and-help", "Do not share it; ask the owner for access.", [V2_46.chunk_id]),
+    Q_TB: reply("answer", "Passwords do not expire.", [B_33.chunk_id]),
+}
+
+
+class ScriptedRetriever:
+    """A retriever that returns the chunks a test chose for each question, best first."""
+
+    def __init__(self, by_question: dict[str, list[Chunk]]) -> None:
+        self.by_question = by_question
+
+    @property
+    def name(self) -> str:
+        return "scripted"
+
+    def retrieve(self, query: str, tenant: str, k: int) -> list[ScoredChunk]:
+        chosen = self.by_question.get(query, [])[:k]
+        return [ScoredChunk(chunk, round(1.0 - n / 10, 6)) for n, chunk in enumerate(chosen)]
+
+
+def per_question(replies: dict[str, str]) -> Callable[[ChatRequest], str]:
+    """A FakeChat script: the reply chosen for the question the request frames."""
+
+    def answer(request: ChatRequest) -> str:
+        user = request.messages[-1].content
+        for question, text in replies.items():
+            if f"<question>\n{question}\n</question>" in user:
+                return text
+        raise AssertionError(f"no scripted reply for {user[:80]!r}")
+
+    return answer
+
+
+def behaviour_run(
+    tmp_path: Path,
+    replies: dict[str, str] | None = None,
+    cases: list[dict] | None = None,
+    retrieved: dict[str, list[Chunk]] | None = None,
+    trials: int = 2,
+    split: str = "dev",
+    gate: str = "manual",
+) -> tuple[Path, Path]:
+    """(root, run directory) of a fake generation run of the behaviour cases: the small pack
+    above, the scripted retriever and FakeChat answering with the given replies (GOOD by
+    default), no probes file. The record is written and left for the test to validate."""
+    root = lab_root(tmp_path, cases if cases is not None else behaviour_cases())
+    write_register(root, {c.doc_id: c.tenant for c in BEHAVIOUR_CHUNKS})
+    path = root / "config" / "generation.toml"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(
+        generation_config_text(trials=trials, probes=False, split=split), encoding="utf-8"
+    )
+    config = eval_config.load_generation(path, root)
+    chat = FakeChat(per_question({**GOOD, **(replies or {})}))
+    pipeline = Pipeline(ScriptedRetriever(RETRIEVED | (retrieved or {})), chat, default_guards(), 2)
+    hashing = HashingEmbedder()
+    description = {
+        "provider": "fake",
+        "model": hashing.model,
+        "revision": hashing.revision,
+        "dimension": hashing.dimension,
+    }
+    inventory = Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(BEHAVIOUR_CHUNKS))
+    built = Assembled(pipeline, inventory, description, chat.describe(), "fake")
+    when = datetime(2026, 10, 19, 12, 0, 0, tzinfo=UTC)
+    manifest, rows = generation.run(config, root, built, gate=gate, git=GIT, clock=lambda: when)
+    return root, record.write(root / "runs" / "tmp", manifest, rows)

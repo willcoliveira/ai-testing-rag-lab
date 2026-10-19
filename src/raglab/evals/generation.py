@@ -1,6 +1,9 @@
-"""The generation suite (S3): every retrieval question of the config's split and every abstention
-probe (datasets/probes.s3.jsonl), each asked N times as its tenant through the pipeline, scored
-by the checks of raglab.evals.generation_record, and written as run record v1.
+"""The generation suite (S3, S4): every retrieval question and every behaviour case of the
+golden file in the config's split, and the abstention probes of a probes file when the config
+names one (S3's datasets/probes.s3.jsonl; S4 folds its three probes into the golden set as
+behaviour cases), each asked N times as its tenant through the pipeline, scored by the checks of
+raglab.evals.generation_record (raglab.evals.behaviour for the behaviour cases), and written as
+run record v1.
 
 Trial t of every case uses seed + t - 1, so the trials differ only where the model samples. The
 run stops early, and is marked partial, when its wall-clock cap (generation.run_timeout_s) is hit.
@@ -10,23 +13,24 @@ unanswered trials is never complete, and a partial run is never published. A rep
 answer schema (invalid_output) does not: the model did answer.
 
 No model judges anything here: the checks are counts (S5 adds judged metrics). The abstention
-probes are scored by the named oracle `abstention_oracle` (raglab.evals.generation_record, where
-the run record validator recomputes it): label abstain, no policy value in the text (R-18), and,
-for a tenant-isolation probe, no canary of the other tenant (R-16).
+probes and the abstain cases are scored by the named oracle `abstention_oracle`
+(raglab.evals.oracle, which the run record validator recomputes): label abstain, no policy value
+in the text (R-18; S4 allows a number a cited chunk of the case's may_quote section states), and
+no canary of the other tenant (R-16).
 """
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
 from typing import cast
 
-from raglab.core.types import ScoredChunk, Status
-from raglab.evals import generation_record, golden, record, retrieval
+from raglab.core.types import ChunkId, ScoredChunk, Status
+from raglab.evals import behaviour, generation_record, golden, record, retrieval
 from raglab.evals.config import GenerationConfig, canonical_sha256
-from raglab.evals.generation_record import abstention_oracle, policy_values
+from raglab.evals.oracle import abstention_oracle, policy_values
 from raglab.generate.assemble import Assembled
 from raglab.generate.pipeline import Outcome
 from raglab.generate.prompts import answer_v1 as prompt
@@ -93,6 +97,44 @@ def _answer_fields(outcome: Outcome) -> Json:
     }
 
 
+def _behaviour_fields(
+    item: golden.Resolved,
+    shape: golden.Behaviour,
+    features: dict[str, answer_key.Feature],
+    ids: Sequence[str],
+    outcome: Outcome,
+    text_of: Mapping[ChunkId, str],
+    config: GenerationConfig,
+) -> Json:
+    """A behaviour case's record fields (raglab.evals.behaviour): its expected label, mix and
+    features; its labels and scores when labelled, each label of a flag-conflict case with its
+    side; its may_quote section's chunks with the values each states."""
+    fields: Json = {
+        "kind": behaviour.BEHAVIOUR,
+        "expected": shape.expected,
+        "mix": shape.mix,
+        "feature_ids": list(shape.feature_ids),
+    }
+    sets = item.label_sets()
+    fields["retrieved"] = _retrieved(outcome.retrieved, frozenset[str]().union(*sets))
+    if item.entries:
+        labels = item.labels_json(set(ids))
+        if shape.expected == "flag-conflict":
+            own = [features[f] for f in shape.feature_ids if f in features]
+            for label, found in zip(labels, item.entries, strict=True):
+                places = {(s.doc_id, s.section_id) for s in golden.members(found.entry)}
+                if side := behaviour.side(places, own):
+                    label["side"] = side
+        fields |= {"labels": labels, **record.case_scores(ids, sets, config.retriever.k)}
+    if shape.may_quote is not None:
+        fields["may_quote"] = behaviour.quote_json(
+            shape.may_quote.doc_id,
+            shape.may_quote.section_id,
+            [(chunk_id, text_of[chunk_id]) for chunk_id in item.quote],
+        )
+    return fields
+
+
 def run(
     config: GenerationConfig,
     root: Path,
@@ -106,14 +148,27 @@ def run(
     started = monotonic()
     created = clock().replace(microsecond=0)
     git = git or retrieval.git_state(root)
-    dataset_path, probes_path = root / config.dataset, root / config.generation.probes
-    questions = golden.select(golden.load(dataset_path), "retrieval", config.split)
-    probes = [p for p in load_probes(probes_path) if config.split in (p.split, "all")]
-    if not questions and not probes:
-        raise golden.DatasetError(f"no retrieval question or probe in split {config.split}")
+    dataset_path = root / config.dataset
+    golden_file = golden.load(dataset_path)
+    questions = golden.select(golden_file, "retrieval", config.split)
+    cases_ = golden.select(golden_file, "behaviour", config.split)
+    shapes = {q.case_id: golden.behaviour(q) for q in cases_}  # refuses a case without its fields
+    probes_path = None if config.generation.probes is None else root / config.generation.probes
+    probes = (
+        []
+        if probes_path is None
+        else [p for p in load_probes(probes_path) if config.split in (p.split, "all")]
+    )
+    if twice := sorted({p.case_id for p in probes} & {q.case_id for q in golden_file}):
+        raise golden.DatasetError(f"probes {twice} are golden cases too: one id, one case")
+    if not questions and not cases_ and not probes:
+        raise golden.DatasetError(f"no question, case or probe in split {config.split}")
     chunks = list(assembled.chunks)
-    resolved = golden.resolve(questions, chunks)
+    resolved = golden.resolve([*questions, *cases_], chunks)
+    text_of = {c.chunk_id: c.text for c in chunks}
     canaries = answer_key.canaries(root)
+    banned = answer_key.must_not_contain(root)
+    features = answer_key.features(root)
     settings = config.generation
     cap = settings.run_timeout_s
     items: list[tuple[golden.Question, golden.Resolved | None]] = [
@@ -151,6 +206,10 @@ def run(
                     "canaries_of": question.extra.get("canaries_of"),
                     "retrieved": _retrieved(outcome.retrieved, frozenset()),
                 }
+            elif question.kind == "behaviour":
+                case |= _behaviour_fields(
+                    item, shapes[question.case_id], features, ids, outcome, text_of, config
+                )
             else:
                 sets = item.label_sets()
                 case |= {
@@ -159,7 +218,7 @@ def run(
                     "retrieved": _retrieved(outcome.retrieved, frozenset[str]().union(*sets)),
                     **record.case_scores(ids, sets, config.retriever.k),
                 }
-            case["checks"] = generation_record.case_checks(case, canaries)
+            case["checks"] = generation_record.case_checks(case, canaries, banned)
             cases.append(case)
         if stopped:
             break
@@ -216,11 +275,17 @@ def run(
             "sha256": record.sha256_bytes(dataset_path.read_bytes()),
             "questions": len({str(c["case_id"]) for c in cases}),
         },
-        "probes": {
-            "path": config.generation.probes,
-            "sha256": record.sha256_bytes(probes_path.read_bytes()),
-            "questions": len(probes),
-        },
+        **(
+            {}
+            if probes_path is None  # S4: no probes file, the probes are golden cases
+            else {
+                "probes": {
+                    "path": config.generation.probes,
+                    "sha256": record.sha256_bytes(probes_path.read_bytes()),
+                    "questions": len(probes),
+                }
+            }
+        ),
         "corpus": {
             "documents": len({c.doc_id for c in chunks}),
             "chunks": len(chunks),

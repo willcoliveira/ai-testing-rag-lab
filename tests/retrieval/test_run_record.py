@@ -314,6 +314,142 @@ def test_the_three_s2_runs_still_validate_under_the_extended_schema(run_id):
     assert "generator" not in manifest
 
 
+S3_RUN = "20261018T162604Z-generation-local-ollama-dev-3b66ea3"
+
+
+def test_the_s3_run_still_validates_unchanged():
+    """S4 AC6: run record v1 stays additive. The S3 run (probe cases, a probes block, no behaviour
+    case) validates as it is: its checks, results and report are recomputed from its fields, the
+    probes' oracle included, and match its files."""
+    run_dir = ROOT / "runs" / "published" / S3_RUN
+    assert record.validate(run_dir, ROOT) == []
+    manifest, cases = read_run(run_dir)
+    assert "probes" in manifest
+    assert "behaviour" not in manifest["results"]["generation"]
+    assert {c["kind"] for c in cases} == {"retrieval", "probe"}
+
+
+def _reseal_generation(run_dir, cases, recheck: bool = True) -> None:
+    """Rewrite a generation run's cases with results, report and hashes that agree, as a careful
+    hand edit would; with recheck, the checks too (from the live answer key)."""
+    from raglab.evals import generation_record
+    from raglab.ingest.answer_key import canaries, must_not_contain
+
+    manifest, _ = read_run(run_dir)
+    if recheck:
+        for case in cases:
+            with contextlib.suppress(KeyError, ValueError, TypeError):
+                case["checks"] = generation_record.case_checks(
+                    case, canaries(ROOT), must_not_contain(ROOT)
+                )
+    with contextlib.suppress(KeyError, ValueError, TypeError):
+        manifest["results"] = record.expected_results(manifest, cases)
+    body = {k: v for k, v in manifest.items() if k != "files"}
+    cases_bytes = record.cases_text(cases).encode()
+    try:
+        report_bytes = record.render(body, cases).encode()
+    except (KeyError, ValueError, TypeError):
+        report_bytes = (run_dir / record.REPORT).read_bytes()
+    (run_dir / record.CASES).write_bytes(cases_bytes)
+    (run_dir / record.REPORT).write_bytes(report_bytes)
+    manifest["files"] = {
+        record.CASES: record.sha256_bytes(cases_bytes),
+        record.REPORT: record.sha256_bytes(report_bytes),
+    }
+    (run_dir / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def _first(cases, case_id):
+    return next(c for c in cases if c["case_id"] == case_id)
+
+
+@pytest.mark.parametrize(
+    ("label", "case_id", "change", "expected"),
+    [
+        (
+            "no expected label",
+            "B-ANS",
+            lambda c: c.pop("expected"),
+            "a behaviour case needs ['expected']",
+        ),
+        ("no mix", "B-ABS", lambda c: c.pop("mix"), "a behaviour case needs ['mix']"),
+        (
+            "labels on an abstain case",
+            "B-ABS",
+            lambda c: c.update(
+                labels=[
+                    {"doc_id": "A", "section_id": "1", "chunk_ids": ["A@1/1/1"], "found": False}
+                ]
+            ),
+            "a behaviour case has no ['labels']",
+        ),
+        (
+            "may_quote on a labelled case",
+            "B-ANS",
+            lambda c: c.update(
+                may_quote={
+                    "doc_id": "X-NIST",
+                    "section_id": "3.1.1.2",
+                    "chunks": [{"chunk_id": "X-NIST@4/3.1.1.2/1", "values": ["64"]}],
+                }
+            ),
+            "a behaviour case has no ['may_quote']",
+        ),
+        (
+            "a side on a case that does not flag a conflict",
+            "B-ANS",
+            lambda c: c["labels"][0].update(side="governing"),
+            "only a flag-conflict case's labels take a side",
+        ),
+        (
+            "an unretrieved citation",
+            "B-ANS",
+            lambda c: c.update(cited_ids=["A-PWD-V2@2.0/4.6/1"]),
+            "cites ids that were not retrieved: ['A-PWD-V2@2.0/4.6/1']",
+        ),
+        (
+            "canaries_of on a behaviour case",
+            "B-ABS",
+            lambda c: c.update(canaries_of=None),
+            "a behaviour case has no ['canaries_of']",
+        ),
+    ],
+)
+def test_a_broken_behaviour_case_is_refused(tmp_path, label, case_id, change, expected):
+    from tests.generation_support import behaviour_run
+
+    root, run_dir = behaviour_run(tmp_path)
+    assert record.validate(run_dir, root) == []
+    _, cases = read_run(run_dir)
+    for case in cases:
+        if case["case_id"] == case_id:
+            change(case)
+    _reseal_generation(run_dir, cases)
+    problems = record.validate(run_dir, root)
+    assert any(expected in p for p in problems), (label, problems)
+
+
+def test_behaviour_checks_that_do_not_follow_from_the_fields_are_refused(tmp_path):
+    """A behaviour case's checks are recomputed from its fields: a decision_label turned true on
+    the S3 pattern (label answer on an abstain case), or a must_not_contain hidden, is caught even
+    when the results, the report and the hashes were made to agree."""
+    from tests.generation_support import Q_ABS, behaviour_run, reply
+
+    pattern = reply("answer", "The documents do not say how many reset attempts.")
+    root, run_dir = behaviour_run(tmp_path, {Q_ABS: pattern})
+    _, cases = read_run(run_dir)
+    for case in cases:
+        if case["case_id"] == "B-ABS":
+            assert case["checks"]["decision_label"] is False
+            case["checks"]["decision_label"] = True
+            case["checks"]["passed"] = all(
+                v for k, v in case["checks"].items() if k != "passed" and k != "abstained"
+            )
+    _reseal_generation(run_dir, cases, recheck=False)
+    problems = record.validate(run_dir, root)
+    assert any("B-ABS" in p and "do not follow from the fields" in p for p in problems), problems
+
+
 def test_a_generation_run_writes_a_valid_record(tmp_path):
     from tests.generation_support import fake_generation_run, generation_root
 

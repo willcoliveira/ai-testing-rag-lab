@@ -13,10 +13,14 @@
   fake (provider fake, or a fake revision or digest) has provenance fake, whatever else its label
   says, so a fake run relabelled local is refused even when its hashes and report agree.
 - The suite (S3): a retrieval run has bootstrap intervals and every case its labels and scores; a
-  generation run (raglab.evals.generation_record) has the generator, the prompt, the guards, the
-  probes and Wilson intervals, one line per case and trial, and every case its answer fields, its
-  checks recomputed, and no cited id that was not retrieved for it. Fields of one suite are
-  refused in the other.
+  generation run (raglab.evals.generation_record) has the generator, the prompt, the guards and
+  Wilson intervals (and the probes block when it has probe cases: S4 made it optional), one line
+  per case and trial, and every case its answer fields and those of its kind, its checks
+  recomputed, and no cited id that was not retrieved for it. Fields of one suite are refused in
+  the other.
+- S4: label groups (`any_of`: the primary's ids, every member's chunks together) and the behaviour
+  case kind (raglab.evals.behaviour), whose checks are recomputed from its fields and the answer
+  key's canaries and answer_must_not_contain strings, read live.
 
 The report and the cases carry chunk ids and scores, never chunk text.
 """
@@ -28,7 +32,7 @@ from pathlib import Path
 from typing import cast
 
 from raglab.core.types import visible_tenants
-from raglab.evals import generation_record, metrics
+from raglab.evals import behaviour, generation_record, metrics
 from raglab.evals.schema import Validator
 from raglab.ingest import answer_key, register
 
@@ -273,6 +277,9 @@ def tenant_problems(case: Json, tenants: Mapping[str, str]) -> list[str]:
     ]
     if "cited_ids" in case:  # a generation case: what it cites is checked too
         ids += sorted(generation_record.referenced(case))
+    if "may_quote" in case:  # a behaviour case's quotable section (S4)
+        quote = as_json(case["may_quote"])
+        ids += [str(as_json(c)["chunk_id"]) for c in as_list(quote["chunks"])]
     problems: list[str] = []
     for chunk_id in ids:
         doc = chunk_id.split("@", 1)[0]
@@ -365,7 +372,30 @@ def provenance_problems(manifest: Json) -> list[str]:
     return []
 
 
-GENERATION_MANIFEST = ("generator", "prompt", "guards", "intervals", "probes")
+# the probes block is S3's: a run without probe cases has none (S4), one with them needs it
+GENERATION_MANIFEST = ("generator", "prompt", "guards", "intervals")
+BEHAVIOUR_ONLY = ("mix", "may_quote")
+
+
+def kind_fields(case: Json) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """(required, refused) fields of a generation case of its kind: a retrieval question has its
+    labels and scores; a probe (S3) its expected label, features and canaries_of; a behaviour case
+    (S4) its expected label, features and mix, with labels and scores unless it abstains, and a
+    may_quote section only if it abstains."""
+    kind = case["kind"]
+    if kind == generation_record.PROBE:
+        return generation_record.PROBE_FIELDS, (
+            *generation_record.RETRIEVAL_FIELDS,
+            *BEHAVIOUR_ONLY,
+        )
+    if kind == generation_record.BEHAVIOUR:
+        if case.get("expected") == "abstain":
+            return behaviour.BEHAVIOUR_FIELDS, ("canaries_of", *generation_record.RETRIEVAL_FIELDS)
+        return (
+            (*behaviour.BEHAVIOUR_FIELDS, *generation_record.RETRIEVAL_FIELDS),
+            ("canaries_of", "may_quote"),
+        )
+    return generation_record.RETRIEVAL_FIELDS, (*generation_record.PROBE_FIELDS, *BEHAVIOUR_ONLY)
 
 
 def render(manifest: Json, cases: Sequence[Json]) -> str:
@@ -390,7 +420,7 @@ def retrieval_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[st
     problems: list[str] = []
     if "bootstrap" not in manifest:
         problems.append("a retrieval run has bootstrap intervals: missing 'bootstrap'")
-    extra = [f for f in (*GENERATION_MANIFEST, "ollama") if f in manifest]
+    extra = [f for f in (*GENERATION_MANIFEST, "probes", "ollama") if f in manifest]
     if extra or "generation" in as_json(manifest["results"]):
         problems.append(
             f"a retrieval run has no generation fields: {extra or ['results.generation']}"
@@ -408,9 +438,9 @@ def retrieval_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[st
 
 def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Path) -> list[str]:
     """A generation run: its manifest fields, N trials of every case (fewer only in a partial
-    run), every case's answer fields, a withheld answer for every status but ok, no cited id that
-    was not retrieved, retrieval scores on the questions and none on the probes, and the checks
-    as the fields give them."""
+    run), every case's answer fields and the fields of its kind, a withheld answer for every
+    status but ok, no cited id that was not retrieved, retrieval scores on the labelled cases and
+    none on the others, and the checks as the fields give them (S4: the behaviour cases' too)."""
     problems: list[str] = []
     if missing := [f for f in GENERATION_MANIFEST if f not in manifest]:
         problems.append(f"a generation run needs {missing}")
@@ -418,6 +448,8 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
         problems.append("a generation run has Wilson intervals, not bootstrap ones")
     if "generation" not in as_json(manifest["results"]):
         problems.append("a generation run needs results.generation")
+    if "probes" not in manifest and any(c.get("kind") == generation_record.PROBE for c in cases):
+        problems.append("a generation run with probe cases needs its probes block")
     if problems:
         return problems
     trials = cast(int, manifest["trials"])
@@ -429,6 +461,7 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
         )
     try:
         canaries = answer_key.canaries(root)
+        banned = answer_key.must_not_contain(root)
     except (OSError, ValueError) as error:  # fails closed, as the register does
         return [f"the answer key's canaries cannot be read, so the probes are unchecked ({error})"]
     seen: dict[str, list[int]] = {}
@@ -438,22 +471,16 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
         if missing := [f for f in generation_record.ANSWER_FIELDS if f not in case]:
             problems.append(f"{where}: a generation case needs {missing}")
             continue
-        kind_fields = (
-            generation_record.PROBE_FIELDS
-            if case["kind"] == generation_record.PROBE
-            else generation_record.RETRIEVAL_FIELDS
-        )
-        other_fields = (
-            generation_record.RETRIEVAL_FIELDS
-            if case["kind"] == generation_record.PROBE
-            else generation_record.PROBE_FIELDS
-        )
-        if missing := [f for f in kind_fields if f not in case]:
+        required, refused = kind_fields(case)
+        if missing := [f for f in required if f not in case]:
             problems.append(f"{where}: a {case['kind']} case needs {missing}")
             continue
-        if extra := [f for f in other_fields if f in case]:
+        if extra := [f for f in refused if f in case]:
             problems.append(f"{where}: a {case['kind']} case has no {extra}")
             continue
+        sided = case["kind"] == generation_record.BEHAVIOUR and case["expected"] == "flag-conflict"
+        if not sided and any("side" in as_json(x) for x in as_list(case.get("labels", []))):
+            problems.append(f"{where}: only a flag-conflict case's labels take a side")
         if case["status"] != "ok" and (
             case["answer"] or case["cited_ids"] or case["conflict"] or case["label"] != "abstain"
         ):
@@ -464,11 +491,13 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
             problems.append(f"{where}: the citation validator fired, so the answer is blocked")
         if unretrieved := sorted(generation_record.referenced(case) - retrieved):
             problems.append(f"{where}: cites ids that were not retrieved: {unretrieved}")
-        if case["kind"] == generation_record.RETRIEVAL:
+        if "labels" in case:
             problems.extend(case_problems(case, k))
         elif any(as_json(r)["relevant"] for r in as_list(case["retrieved"])):
-            problems.append(f"{where}: a probe has no labels, so no retrieved chunk is relevant")
-        if case["checks"] != generation_record.case_checks(case, canaries):
+            problems.append(
+                f"{where}: a {case['kind']} case has no labels, so no retrieved chunk is relevant"
+            )
+        if case["checks"] != generation_record.case_checks(case, canaries, banned):
             problems.append(f"{where}: checks {case['checks']} do not follow from the fields")
     for case_id, numbers in seen.items():
         full = list(range(1, trials + 1))
