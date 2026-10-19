@@ -155,15 +155,7 @@ def run(
                 sets = item.label_sets()
                 case |= {
                     "kind": generation_record.RETRIEVAL,
-                    "labels": [
-                        {
-                            "doc_id": label.doc_id,
-                            "section_id": label.section_id,
-                            "chunk_ids": list(chunk_ids),
-                            "found": bool(set(ids) & set(chunk_ids)),
-                        }
-                        for label, chunk_ids in item.groups
-                    ],
+                    "labels": item.labels_json(set(ids)),
                     "retrieved": _retrieved(outcome.retrieved, frozenset[str]().union(*sets)),
                     **record.case_scores(ids, sets, config.retriever.k),
                 }

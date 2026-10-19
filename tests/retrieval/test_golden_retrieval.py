@@ -138,6 +138,110 @@ def test_labels_resolve_to_every_chunk_of_their_section():
 
 
 @pytest.mark.unit
+def test_a_group_is_read_as_one_entry_of_several_sections():
+    """S4: `{"any_of": [...]}` is a label group; its first member is the primary section."""
+    q = golden.parse_line(
+        line(
+            relevant=[
+                {
+                    "any_of": [
+                        {"doc_id": "A-PWD", "section_id": "4.1"},
+                        {"doc_id": "X-NIST", "section_id": "3.1"},
+                    ]
+                },
+                {"doc_id": "A-PWD", "section_id": "5"},
+            ]
+        ),
+        "g:1",
+    )
+    group = golden.Group((golden.Label("A-PWD", "4.1"), golden.Label("X-NIST", "3.1")))
+    assert q.labels == (group, golden.Label("A-PWD", "5"))
+    assert q.sections() == (*group.members, golden.Label("A-PWD", "5"))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("relevant", "match"),
+    [
+        ([{"any_of": [{"doc_id": "A-PWD", "section_id": "4.1"}]}], "at least two sections"),
+        ([{"any_of": "A-PWD 4.1"}], "nothing else"),
+        (
+            [
+                {
+                    "any_of": [
+                        {"doc_id": "A-PWD", "section_id": "4.1"},
+                        {"doc_id": "A-PWD", "section_id": "5"},
+                    ],
+                    "doc_id": "A-PWD",
+                }
+            ],
+            "nothing else",
+        ),
+        (
+            [
+                {
+                    "any_of": [
+                        {"doc_id": "A-PWD", "section_id": "4.1"},
+                        {"doc_id": "A-PWD", "section_id": "5"},
+                    ]
+                },
+                {"doc_id": "A-PWD", "section_id": "5"},
+            ],
+            "listed twice",
+        ),
+        ([{"any_of": [{"doc_id": "A-PWD"}, {"doc_id": "A-PWD", "section_id": "5"}]}], "section_id"),
+    ],
+)
+def test_a_wrong_group_is_refused(relevant, match):
+    with pytest.raises(golden.DatasetError, match=match):
+        golden.parse_line(line(relevant=relevant), "g:1")
+
+
+@pytest.mark.unit
+def test_a_group_resolves_to_one_chunk_set_and_a_record_label_with_its_members():
+    """A group is one thing to find: one label set, every member's chunks together; the record
+    keeps the primary's ids, the union and each member with its own chunks."""
+    q = golden.parse_line(
+        line(
+            relevant=[
+                {
+                    "any_of": [
+                        {"doc_id": "A-PWD", "section_id": "4.1"},
+                        {"doc_id": "X-NIST", "section_id": "3.1"},
+                    ]
+                }
+            ]
+        ),
+        "g:1",
+    )
+    [resolved] = golden.resolve([q], PACK)
+    union = ("A-PWD@1.0/4.1/1", "A-PWD@1.0/4.1/2", "X-NIST@4/3.1/1")
+    assert resolved.label_sets() == [frozenset(union)]
+    assert resolved.labels_json({"X-NIST@4/3.1/1"}) == [
+        {
+            "doc_id": "A-PWD",
+            "section_id": "4.1",
+            "chunk_ids": list(union),
+            "found": True,
+            "any_of": [
+                {"doc_id": "A-PWD", "section_id": "4.1", "chunk_ids": list(union[:2])},
+                {"doc_id": "X-NIST", "section_id": "3.1", "chunk_ids": [union[2]]},
+            ],
+        }
+    ]
+    plain = golden.parse_line(line(), "g:2")
+    [one] = golden.resolve([plain], PACK)
+    assert one.labels_json(set()) == [  # a section alone keeps the S2 record shape
+        {
+            "doc_id": "A-PWD",
+            "section_id": "4.1",
+            "chunk_ids": ["A-PWD@1.0/4.1/1", "A-PWD@1.0/4.1/2"],
+            "found": False,
+        }
+    ]
+
+
+@pytest.mark.unit
 def test_a_label_that_goes_missing_or_crosses_tenants_fails():
     missing = golden.parse_line(line(relevant=[{"doc_id": "A-PWD", "section_id": "9"}]), "g:1")
     other = golden.parse_line(
@@ -174,7 +278,7 @@ def test_every_planted_retrieval_kind_is_covered():
     for kind in ("table-only", "cross-reference", "glossary", "multi-hop"):
         assert any(kind in (k or "") for k in kinds), (kind, kinds)
     assert any(len(q.labels) >= 2 for q in found if "multi-hop" in (q.question_kind or ""))
-    assert any(label.doc_id == "A-DEVICE-B" for q in found for label in q.labels), "scanned page"
+    assert any(s.doc_id == "A-DEVICE-B" for q in found for s in q.sections()), "scanned page"
     assert any("version" in (q.question_kind or "") for q in found)
     assert any("external" in (q.question_kind or "") for q in found)
     assert any(q.tenant == "tenant-b" for q in found)
@@ -212,7 +316,7 @@ def test_tenant_b_questions_label_only_tenant_b_or_shared_documents():
     text is never the register)."""
     tenant = {e.doc_id: e.tenant for e in register.read(ROOT)}
     for q in questions():
-        for label in q.labels:
+        for label in q.sections():  # every section, the members of a group included (S4)
             assert label.doc_id in tenant, (q.case_id, label.doc_id)
             assert tenant[label.doc_id] in {q.tenant, "shared"}, (q.case_id, label.doc_id)
             if tenant[label.doc_id] == "shared":
@@ -221,7 +325,7 @@ def test_tenant_b_questions_label_only_tenant_b_or_shared_documents():
         tenant[label.doc_id] == "tenant-b"
         for q in questions()
         if q.tenant == "tenant-b"
-        for label in q.labels
+        for label in q.sections()
     )
 
 
@@ -249,20 +353,23 @@ def test_every_label_resolves_to_existing_chunks(chunk_size):
         else pipeline.ingest(ROOT, ChunkSettings(chunk_size=chunk_size))
     )
     resolved = golden.resolve(questions(), list(inventory.chunks))
-    assert all(ids for r in resolved for _, ids in r.groups)
+    assert all(ids for r in resolved for found in r.entries for _, ids in found.sections)
 
 
 # The datasheet: "All but one label is a location of one of its question's features", the
 # exception being R-Q09's pointer section. A label outside its features' locations (the S2 review
 # weighed adding Device Policy 6.2 to R-Q25) fails here until the datasheet and the answer key
-# agree on it.
+# agree on it. S4 (AC2): the guard reads every member of a label group too, and no member may be
+# an exception: a group member is always an answer-key location of the question's features.
 LABELS_OUTSIDE_THE_FEATURES = {("R-Q09", "A-LIFE", "5.4")}
 
 
-def test_every_label_is_a_location_of_one_of_its_features():
+def labels_outside_their_features(found: list[golden.Question]) -> set[tuple[str, str, str]]:
+    """(question, document, section) of every labelled section, group members included, that is
+    not a location of one of the question's features in the answer key."""
     features = {f["id"]: f for f in answer_key()["features"]}  # type: ignore[index]
     outside: set[tuple[str, str, str]] = set()
-    for q in questions():
+    for q in found:
         locations = {
             (str(location["doc"]), str(location["section"]))
             for feature in q.extra["feature_ids"]  # type: ignore[union-attr]
@@ -270,10 +377,45 @@ def test_every_label_is_a_location_of_one_of_its_features():
         }
         outside |= {
             (q.case_id, label.doc_id, label.section_id)
-            for label in q.labels
+            for label in q.sections()
             if (label.doc_id, label.section_id) not in locations
         }
-    assert outside == LABELS_OUTSIDE_THE_FEATURES
+    return outside
+
+
+def group_members(found: list[golden.Question]) -> set[tuple[str, str, str]]:
+    return {
+        (q.case_id, s.doc_id, s.section_id)
+        for q in found
+        for entry in q.labels
+        if isinstance(entry, golden.Group)
+        for s in entry.members
+    }
+
+
+def test_every_label_is_a_location_of_one_of_its_features():
+    found = questions()
+    assert labels_outside_their_features(found) == LABELS_OUTSIDE_THE_FEATURES
+    assert not group_members(found) & LABELS_OUTSIDE_THE_FEATURES, "a group member is no location"
+
+
+@pytest.mark.unit
+def test_the_location_guard_reads_every_member_of_a_group():
+    """AC2: a group member that is no answer-key location of the question's features is caught
+    by the guard; the same group with members that are locations passes."""
+    primary = {"doc_id": "A-PWD-V2", "section_id": "4.1"}
+    faq = {"doc_id": "A-FAQ", "section_id": "Q1"}  # F-53's restatement of F-01's value
+    features = ["F-01", "F-53"]
+    good = golden.parse_line(
+        line(id="G1", relevant=[{"any_of": [primary, faq]}], feature_ids=features), "g:1"
+    )
+    assert labels_outside_their_features([good]) == set()
+    stray = {"doc_id": "A-FAQ", "section_id": "Q5"}  # a location of neither feature
+    bad = golden.parse_line(
+        line(id="G2", relevant=[{"any_of": [primary, stray]}], feature_ids=features), "g:2"
+    )
+    assert labels_outside_their_features([bad]) == {("G2", "A-FAQ", "Q5")}
+    assert group_members([bad]) == {("G2", "A-PWD-V2", "4.1"), ("G2", "A-FAQ", "Q5")}
 
 
 def datasheet() -> str:

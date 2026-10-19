@@ -130,15 +130,7 @@ def run(
             "split": question.split,
             "tenant": question.tenant,
             "question": question.question,
-            "labels": [
-                {
-                    "doc_id": label.doc_id,
-                    "section_id": label.section_id,
-                    "chunk_ids": list(chunk_ids),
-                    "found": bool(set(ids) & set(chunk_ids)),
-                }
-                for label, chunk_ids in item.groups
-            ],
+            "labels": item.labels_json(set(ids)),
             "retrieved": [
                 {
                     "rank": rank,

@@ -34,6 +34,41 @@ def test_case_metrics_by_hand(retrieved, k, hit, rr, recall):
     assert math.isclose(m.recall_at_k(retrieved, labels, k), recall)
 
 
+# S4 (AC2): a label group, sections that state the same rule, is one thing to find. The question
+# below labels a group G of two sections, A-PWD 4.1 (two chunks, /1 and /2) and X-NIST 3.1 (one
+# chunk), and a section S, A-PWD 5 (one chunk): two things to find, not three. It goes through
+# the golden loader and resolver, so the per-thing chunk sets are the ones a run scores.
+G_PRIMARY, G_SECOND = "A-PWD@1.0/4.1/2", "X-NIST@4/3.1/1"
+S_CHUNK = "A-PWD@1.0/5/1"
+
+
+@pytest.mark.parametrize(
+    ("retrieved", "k", "hit", "rr", "recall"),
+    [
+        ([G_SECOND, "z", S_CHUNK], 3, 1, 1.0, 1.0),  # G by its second member at rank 1, S at 3
+        (["z", G_PRIMARY, G_SECOND], 3, 1, 1 / 2, 1 / 2),  # G at rank 2 (counted once), S missed
+        ([S_CHUNK, "z", G_SECOND], 2, 1, 1.0, 1 / 2),  # G's member at rank 3, outside k = 2
+        (["z", "y", G_SECOND], 3, 1, 1 / 3, 1 / 2),  # only the second member: G is found
+        (["z", "y", "w"], 3, 0, 0.0, 0.0),
+    ],
+)
+def test_a_group_is_one_thing_to_find_by_hand(retrieved, k, hit, rr, recall):
+    from raglab.evals import golden
+    from tests.retrieval_support import PACK
+
+    line = (
+        '{"id": "Q", "kind": "retrieval", "split": "dev", "tenant": "tenant-a", "question": "q",'
+        ' "relevant": [{"any_of": [{"doc_id": "A-PWD", "section_id": "4.1"},'
+        ' {"doc_id": "X-NIST", "section_id": "3.1"}]}, {"doc_id": "A-PWD", "section_id": "5"}]}'
+    )
+    [resolved] = golden.resolve([golden.parse_line(line, "g:1")], PACK)
+    labels = resolved.label_sets()
+    assert len(labels) == 2  # G and S
+    assert m.hit_at_k(retrieved, labels, k) == hit
+    assert math.isclose(m.reciprocal_rank(retrieved, labels, k), rr)
+    assert math.isclose(m.recall_at_k(retrieved, labels, k), recall)
+
+
 def test_means_over_questions_by_hand():
     # three questions: RR 1, 1/3, 0 -> MRR 4/9; recall 1, 0.5, 0 -> 0.5; hit 1, 1, 0 -> 2/3
     assert math.isclose(m.mean([1.0, 1 / 3, 0.0]), 4 / 9)

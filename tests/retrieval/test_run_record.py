@@ -92,6 +92,42 @@ def test_cases_carry_labels_ranks_and_scores_without_chunk_text(tmp_path):
     assert all(not r["chunk_id"].startswith("A-") for r in q4["retrieved"])
 
 
+def test_a_label_group_is_recorded_with_its_members_and_an_edited_group_is_refused(tmp_path):
+    """S4 (AC2): a group is one label in the record: the primary's ids, every member's chunks
+    together, `any_of` with each member's chunks; the report says how a group is found. A group
+    whose chunk ids or primary were edited apart from its members is refused, even resealed."""
+    from tests.retrieval_support import QUESTIONS
+
+    group = {
+        "any_of": [
+            {"doc_id": "A-PWD", "section_id": "4.1"},
+            {"doc_id": "X-NIST", "section_id": "3.1"},
+        ]
+    }
+    questions = [{**q, "relevant": [group]} if q["id"] == "Q1" else q for q in QUESTIONS]
+    root = lab_root(tmp_path, questions)
+    run_dir = fake_run(root)
+    assert record.validate(run_dir, root) == []
+    _, cases = read_run(run_dir)
+    [label] = cases[0]["labels"]
+    assert (label["doc_id"], label["section_id"]) == ("A-PWD", "4.1")
+    assert label["chunk_ids"] == ["A-PWD@1.0/4.1/1", "A-PWD@1.0/4.1/2", "X-NIST@4/3.1/1"]
+    assert [m["chunk_ids"] for m in label["any_of"]] == [
+        ["A-PWD@1.0/4.1/1", "A-PWD@1.0/4.1/2"],
+        ["X-NIST@4/3.1/1"],
+    ]
+    assert "is one thing to find" in (run_dir / record.REPORT).read_text(encoding="utf-8")
+    label["chunk_ids"] = label["chunk_ids"][:2]  # the second member dropped from the union
+    reseal(run_dir, cases)
+    problems = record.validate(run_dir, root)
+    assert any("a group's chunk_ids are not its members' chunks together" in p for p in problems)
+    label["chunk_ids"] = [*label["chunk_ids"], "X-NIST@4/3.1/1"]
+    label["doc_id"], label["section_id"] = "X-NIST", "3.1"
+    reseal(run_dir, cases)
+    problems = record.validate(run_dir, root)
+    assert problems == ["case Q1: a group's doc_id and section_id are its first member's"]
+
+
 def test_the_real_schema_is_in_the_supported_subset():
     schema = json.loads((ROOT / record.SCHEMA_PATH).read_text(encoding="utf-8"))
     Validator(schema)  # raises SchemaError on an unsupported keyword

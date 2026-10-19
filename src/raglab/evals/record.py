@@ -78,6 +78,20 @@ def _fmt(value: object) -> str:
     return f"{cast(float, value):.3f}"
 
 
+def group_note(cases: Sequence[Json]) -> str:
+    """The sentence a report adds when a case has a label group (S4); none otherwise, so the
+    reports of earlier runs render as they did."""
+    grouped = any(
+        "any_of" in as_json(label) for case in cases for label in as_list(case.get("labels", []))
+    )
+    if not grouped:
+        return ""
+    return (
+        " A group of sections that state the same rule (any_of) is one thing to find: found, and"
+        " ranked, by the first chunk of any member."
+    )
+
+
 def render_report(manifest: Json, cases: Sequence[Json]) -> str:
     """report.md, generated from the manifest (without its files block) and the cases."""
     config, chunker = as_json(manifest["config"]), as_json(manifest["chunker"])
@@ -119,7 +133,8 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
         "",
         "## Metrics",
         "",
-        f"Labels are sections; a section is found when any of its chunks is in the top {k}.",
+        f"Labels are sections; a section is found when any of its chunks is in the top {k}."
+        + group_note(cases),
         "",
         f"| Metric | Value | {level}% interval | n |",
         "|---|---|---|---|",
@@ -198,6 +213,21 @@ def case_scores(retrieved: Sequence[str], labels: Sequence[frozenset[str]], k: i
     }
 
 
+def group_problems(label: Json, where: str) -> list[str]:
+    """A label group (S4, `any_of`) is one thing to find: its ids are its primary (first)
+    member's, and its chunk ids are every member's chunks together, in member order, each once."""
+    if "any_of" not in label:
+        return []
+    group = [as_json(m) for m in as_list(label["any_of"])]
+    problems: list[str] = []
+    if (label["doc_id"], label["section_id"]) != (group[0]["doc_id"], group[0]["section_id"]):
+        problems.append(f"{where}: a group's doc_id and section_id are its first member's")
+    union = list(dict.fromkeys(str(i) for m in group for i in as_list(m["chunk_ids"])))
+    if [str(i) for i in as_list(label["chunk_ids"])] != union:
+        problems.append(f"{where}: a group's chunk_ids are not its members' chunks together")
+    return problems
+
+
 def case_problems(case: Json, k: int) -> list[str]:
     """A case whose scores, ranks or flags do not follow from its retrieved ids and labels."""
     labels = [as_json(x) for x in as_list(case["labels"])]
@@ -206,6 +236,8 @@ def case_problems(case: Json, k: int) -> list[str]:
     ids = [str(r["chunk_id"]) for r in rows]
     problems: list[str] = []
     where = f"case {case['case_id']}"
+    for label in labels:
+        problems.extend(group_problems(label, where))
     if len(ids) > k or [r["rank"] for r in rows] != list(range(1, len(rows) + 1)):
         problems.append(f"{where}: retrieved must be ranks 1 to n, at most k = {k}")
     relevant = frozenset[str]().union(*sets)
@@ -231,10 +263,13 @@ def tenant_problems(case: Json, tenants: Mapping[str, str]) -> list[str]:
     where = f"case {case['case_id']} ({case['tenant']})"
     visible = visible_tenants(case["tenant"])
     ids = [str(as_json(r)["chunk_id"]) for r in as_list(case["retrieved"])]
-    ids += [
+    labels = [as_json(label) for label in as_list(case.get("labels", []))]
+    ids += [str(i) for label in labels for i in as_list(label["chunk_ids"])]
+    ids += [  # a group's members, in case its chunk_ids were edited apart from them
         str(i)
-        for label in as_list(case.get("labels", []))
-        for i in as_list(as_json(label)["chunk_ids"])
+        for label in labels
+        for member in as_list(label.get("any_of", []))
+        for i in as_list(as_json(member)["chunk_ids"])
     ]
     if "cited_ids" in case:  # a generation case: what it cites is checked too
         ids += sorted(generation_record.referenced(case))
