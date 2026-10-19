@@ -30,6 +30,7 @@ from tests.retrieval_support import (
     local_embedder,
     make_chunk,
     write_register,
+    write_snapshot,
 )
 
 TOKENS = {"demo": frozenset({"tenant-a", "tenant-b"}), "tenant-a-only": frozenset({"tenant-a"})}
@@ -399,6 +400,7 @@ def behaviour_run(
     if root is None:
         root = lab_root(tmp_path, cases if cases is not None else behaviour_cases())
         write_behaviour_register(root)
+        write_snapshot(root, BEHAVIOUR_CHUNKS)
     path = root / "config" / "generation.toml"
     path.parent.mkdir(exist_ok=True)
     path.write_text(

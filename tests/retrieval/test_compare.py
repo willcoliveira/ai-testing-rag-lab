@@ -235,9 +235,10 @@ def test_unpaired_generation_runs_are_refused(tmp_path):
         compare.compare(a, other, root)
     # a retrieval run beside it: the small pack's documents registered too, a retrieval question
     from tests.generation_support import BEHAVIOUR_CHUNKS
-    from tests.retrieval_support import LAB_DOCS, QUESTIONS, write_register
+    from tests.retrieval_support import LAB_DOCS, QUESTIONS, write_register, write_snapshot
 
     write_register(root, {**LAB_DOCS, **{c.doc_id: c.tenant for c in BEHAVIOUR_CHUNKS}})
+    write_snapshot(root, [*BEHAVIOUR_CHUNKS, *PACK])
     golden.write_text(golden.read_text() + json.dumps(QUESTIONS[0]) + "\n")
     retrieval_run = fake_run(root, name="retrieval-a")
     assert record.validate(retrieval_run, root) == []

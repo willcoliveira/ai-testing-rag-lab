@@ -322,6 +322,7 @@ def validate(run_dir: Path, root: Path) -> list[str]:
     if totals["cases"] != len(cases):
         problems.append(f"totals.cases {totals['cases']} but cases.jsonl has {len(cases)} lines")
     problems.extend(provenance_problems(manifest))
+    problems.extend(label_chunk_problems(manifest, cases, root))
     keys = [(str(c["case_id"]), c["trial"]) for c in cases]
     if len(set(keys)) != len(keys):
         problems.append("a case id and trial appear twice in cases.jsonl")
@@ -518,6 +519,102 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
 
 
 # ---------------------------------------------------------------- the behaviour fields (S4)
+
+
+SNAPSHOT = "corpus/inventory.snapshot.json"
+# each register document's chunk ids by section, per (root, document, chunk size, overlap and the
+# document's bytes): ingestion parses a whole document, the scanned page through OCR, so a
+# document is chunked once per process however many records and labels read it
+_SECTIONS: dict[tuple[str, str, int, int, str], dict[str, tuple[str, ...]]] = {}
+
+
+class SectionIds:
+    """The chunk ids of a labelled section at a record's chunker settings: from the committed
+    inventory snapshot when the settings are the snapshot's, so the record validates alike on a
+    Mac and on CI, whose Tesseract reads the scanned page with other character errors; otherwise
+    from the corpus, each document chunked once (S4, fix round 1)."""
+
+    def __init__(self, root: Path, settings: ChunkSettings) -> None:
+        self.root, self.settings = root, settings
+        self.snapshot: dict[tuple[str, str], tuple[str, ...]] | None = None
+        path = root / SNAPSHOT
+        if path.is_file():
+            data = as_json(json.loads(path.read_text(encoding="utf-8")))
+            kept = as_json(data["settings"])
+            if (kept["chunk_size"], kept["overlap"]) == (settings.chunk_size, settings.overlap):
+                found: dict[tuple[str, str], list[str]] = {}
+                for row in (as_json(r) for r in as_list(data["chunks"])):
+                    found.setdefault((str(row["doc"]), str(row["section"])), []).append(
+                        str(row["id"])
+                    )
+                self.snapshot = {key: tuple(ids) for key, ids in found.items()}
+        self.paths: dict[str, str] | None = None  # the register, read only to chunk again
+
+    def of(self, doc_id: str, section_id: str) -> tuple[str, ...]:
+        if self.snapshot is not None:
+            return self.snapshot.get((doc_id, section_id), ())
+        return self._document(doc_id).get(section_id, ())
+
+    def _document(self, doc_id: str) -> dict[str, tuple[str, ...]]:
+        if self.paths is None:
+            self.paths = {e.doc_id: e.path for e in register.read(self.root)}
+        if doc_id not in self.paths:
+            return {}
+        source = self.root / self.paths[doc_id]
+        digest = hashlib.sha256(source.read_bytes())
+        canonical = source.with_suffix(".md")  # a rendered document's front matter (its version)
+        if canonical != source and canonical.is_file():
+            digest.update(canonical.read_bytes())
+        size, overlap = self.settings.chunk_size, self.settings.overlap
+        key = (str(self.root.resolve()), doc_id, size, overlap, digest.hexdigest())
+        if key not in _SECTIONS:
+            found: dict[str, list[str]] = {}
+            for chunk in pipeline.document_chunks(self.root, doc_id, self.settings):
+                found.setdefault(chunk.section_id, []).append(chunk.chunk_id)
+            _SECTIONS[key] = {section: tuple(ids) for section, ids in found.items()}
+        return _SECTIONS[key]
+
+
+def label_chunk_problems(manifest: Json, cases: Sequence[Json], root: Path) -> list[str]:
+    """For a record of the golden file's current bytes (any suite), every label whose chunk ids,
+    or a group member's, are not the labelled section's chunks at the record's settings (the
+    criteria judge's S4-J2; the user's answer on it, "Fix it now (Recommended)"). A record of
+    another dataset version keeps its labels as recorded, as history (the S2 and S3 runs)."""
+    if current_golden(manifest, root) is None:
+        return []
+    chunker = as_json(manifest["chunker"])
+    settings = ChunkSettings(cast(int, chunker["chunk_size"]), cast(int, chunker["overlap"]))
+    try:
+        ids = SectionIds(root, settings)
+    except (OSError, ValueError, KeyError, TypeError, register.RegisterError) as error:
+        return [f"the labelled sections cannot be read, so the labels are unchecked ({error})"]
+    problems: list[str] = []
+    for case in cases:
+        for label in (as_json(x) for x in as_list(case.get("labels", []))):
+            members = [as_json(m) for m in as_list(label.get("any_of", []))] or [label]
+            union: list[str] = []
+            for member in members:
+                doc, section = str(member["doc_id"]), str(member["section_id"])
+                try:
+                    derived = list(ids.of(doc, section))
+                except (pipeline.IngestError, register.RegisterError, OSError) as error:
+                    problems.append(f"{doc} {section} cannot be chunked again ({error})")
+                    continue
+                recorded = [str(i) for i in as_list(member["chunk_ids"])]
+                if recorded != derived:
+                    problems.append(
+                        f"case {case['case_id']} trial {case['trial']}: label {doc} {section} has "
+                        f"chunk ids {recorded}, not the section's chunks at "
+                        f"{settings.chunk_size}/{settings.overlap} {derived}"
+                    )
+                union += [i for i in derived if i not in union]
+            if len(members) > 1 and [str(i) for i in as_list(label["chunk_ids"])] != union:
+                problems.append(
+                    f"case {case['case_id']} trial {case['trial']}: label group {label['doc_id']} "
+                    f"{label['section_id']} has chunk ids that are not its members' sections' "
+                    "chunks together"
+                )
+    return problems
 
 
 def current_golden(manifest: Json, root: Path) -> Path | None:

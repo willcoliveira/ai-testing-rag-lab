@@ -267,7 +267,10 @@ def test_a_tenant_b_label_on_a_tenant_a_case_is_refused(tmp_path):
     q2["labels"][0]["chunk_ids"] = ["B-PWD@1.0/3/1"]
     reseal(run_dir, cases)
     assert record.validate(run_dir, root) == [
-        "case Q2 (tenant-a): chunk B-PWD@1.0/3/1 is tenant-b, which it cannot see"
+        # since S4's fix round 1 the label check sees it too: the chunk is not A-PWD 5's
+        "case Q2 trial 1: label A-PWD 5 has chunk ids ['B-PWD@1.0/3/1'], not the section's "
+        "chunks at 1200/1 ['A-PWD@1.0/5/1']",
+        "case Q2 (tenant-a): chunk B-PWD@1.0/3/1 is tenant-b, which it cannot see",
     ]
 
 
@@ -474,6 +477,74 @@ def test_a_forged_record_of_the_current_golden_file_is_refused(tmp_path, change,
     golden_file = root / "golden.jsonl"
     golden_file.write_text(golden_file.read_text(encoding="utf-8") + "\n", encoding="utf-8")
     assert record.validate(run_dir, root) == []  # another dataset version: kept as recorded
+
+
+S4_REPEAT = "20261019T174018Z-generation-local-ollama-dev-97011a7"
+S4_DENSE_600 = "20261019T180529Z-retrieval-dense-600-dev-97011a7"
+
+
+def _published_copy(tmp_path, run_id: str):
+    import shutil
+
+    run_dir = tmp_path / run_id
+    shutil.copytree(ROOT / "runs" / "published" / run_id, run_dir)
+    return run_dir
+
+
+def _rescore(case, k: int) -> None:
+    """A labelled case's flags and scores from its (edited) chunk ids, as a careful edit would."""
+    ids = [r["chunk_id"] for r in case["retrieved"]]
+    sets = [frozenset(label["chunk_ids"]) for label in case["labels"]]
+    for r in case["retrieved"]:
+        r["relevant"] = any(r["chunk_id"] in s for s in sets)
+    for label, s in zip(case["labels"], sets, strict=True):
+        label["found"] = bool(set(ids) & s)
+    case.update(record.case_scores(ids, sets, k))
+
+
+def test_a_forged_label_chunk_id_is_refused(tmp_path):
+    """S4-J2, the criteria judge's edit (fix round 1; the user's answer: "Fix it now
+    (Recommended)"). In a copy of a published S4 repeat, G-12 fails only cites_label; the chunk
+    the model cited is added to its label (and to a group's last member), and the case is
+    rescored, rechecked and resealed, which lifted the run from 14 to 15 of 27. The record still
+    holds the golden file's current sha256, so each label is derived again from the corpus at the
+    record's settings and the edit is refused."""
+    run_dir = _published_copy(tmp_path, S4_REPEAT)
+    assert record.validate(run_dir, ROOT) == []
+    _, cases = read_run(run_dir)
+    edited = 0
+    for case in cases:
+        if case["case_id"] == "G-12" and not case["checks"]["cites_label"] and case["cited_ids"]:
+            extra, label = case["cited_ids"][0], case["labels"][0]
+            assert extra not in label["chunk_ids"]
+            label["chunk_ids"].append(extra)
+            if "any_of" in label:
+                label["any_of"][-1]["chunk_ids"].append(extra)
+            _rescore(case, 5)
+            edited += 1
+    assert edited
+    _reseal_generation(run_dir, cases)
+    passing = {c["case_id"] for c in cases if c["kind"] == "behaviour"} - {
+        c["case_id"] for c in cases if c["kind"] == "behaviour" and not c["checks"]["passed"]
+    }
+    assert "G-12" in passing  # the edit made G-12 pass every trial
+    problems = record.validate(run_dir, ROOT)
+    assert any(p.startswith("case G-12 trial ") and "chunk ids" in p for p in problems), problems
+
+
+def test_a_forged_label_chunk_id_of_a_retrieval_run_at_another_chunk_size_is_refused(tmp_path):
+    """The same for a retrieval record at chunk size 600, whose sections are chunked again from
+    the corpus (the inventory snapshot holds the default size only): one more chunk in R-Q16's
+    label, the case rescored and the record resealed, is refused."""
+    run_dir = _published_copy(tmp_path, S4_DENSE_600)
+    assert record.validate(run_dir, ROOT) == []
+    _, cases = read_run(run_dir)
+    case = next(c for c in cases if c["case_id"] == "R-Q16")
+    extra = next(r["chunk_id"] for r in case["retrieved"] if not r["relevant"])
+    case["labels"][0]["chunk_ids"].append(extra)
+    reseal(run_dir, cases)
+    problems = record.validate(run_dir, ROOT)
+    assert any(p.startswith("case R-Q16 trial 1:") and "chunk ids" in p for p in problems), problems
 
 
 def test_behaviour_checks_that_do_not_follow_from_the_fields_are_refused(tmp_path):
