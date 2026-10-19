@@ -2,9 +2,11 @@
 the how-to 17 test plan, one named check per pipeline arrow (S1b AC1)."""
 
 import ast
+import json
 import re
 
 import pytest
+import yaml
 
 from tests.conftest import ROOT
 
@@ -91,6 +93,85 @@ def test_every_requirement_is_in_the_traceability_table():
     assert gaps == listed, "every gap in the table has a reason in the gaps list, and only those"
     for rid, cell in rows:
         assert cell.strip().startswith("gap") or re.search(r"F-\d+", cell), rid
+
+
+# ---------------------------------------------------------------- the Golden case column (S4)
+
+# the cells that said "tbd (S4)" (the S4 plan, "Requirements the cases cover"), and S4b's
+S4_CELLS = (
+    "R-01", "R-02", "R-03", "R-04", "R-05", "R-06", "R-07",
+    "R-10", "R-11", "R-12", "R-14", "R-18", "R-23",
+)  # fmt: skip
+S4B_CELLS = ("R-08", "R-09", "R-13", "R-15", "R-16", "R-17", "R-19", "R-22")
+# a case named by design, not by its features' requirements (datasets/DATASHEET.md, the R-06 row)
+BY_DESIGN = {"R-06": {"G-26"}}
+CASE_RANGE = re.compile(r"\b([GP])-(\d{2}) to \1-(\d{2})\b")
+CASE_ID = re.compile(r"\b[GP]-\d{2}\b")
+
+
+def golden_case_cells() -> dict[str, str]:
+    table = section("## 8. Traceability").split("### Gaps", 1)[0]
+    rows = re.findall(r"^\| (R-\d{2}) \| [^|]+ \| [^|]+ \| ([^|]+) \|", table, flags=re.M)
+    return {rid: cell.strip() for rid, cell in rows}
+
+
+def case_ids(cell: str) -> set[str]:
+    """The case ids of a cell: "G-24 to G-28, G-37" as a set of ids."""
+    ids = {
+        f"{prefix}-{n:02d}"
+        for prefix, lo, hi in CASE_RANGE.findall(cell)
+        for n in range(int(lo), int(hi) + 1)
+    }
+    return ids | set(CASE_ID.findall(CASE_RANGE.sub("", cell)))
+
+
+def covering_cases() -> tuple[set[str], dict[str, set[str]]]:
+    """The committed golden file's behaviour case ids, and each requirement's cases: a case
+    covers the requirements its features name in the answer key."""
+    key = yaml.safe_load((ROOT / "corpus" / "answer-key.yaml").read_text(encoding="utf-8"))
+    requirements = {f["id"]: f["requirements"] for f in key["features"]}
+    text = (ROOT / "datasets" / "golden.v1.jsonl").read_text(encoding="utf-8")
+    lines = [json.loads(line) for line in text.splitlines() if line.strip()]
+    cases = [line for line in lines if line["kind"] == "behaviour"]
+    covering: dict[str, set[str]] = {}
+    for case in cases:
+        for feature in case["feature_ids"]:
+            for rid in requirements[feature]:
+                covering.setdefault(rid, set()).add(case["id"])
+    return {case["id"] for case in cases}, covering
+
+
+def test_the_golden_case_column_names_the_cases_that_cover_each_requirement():
+    """S4 AC13: every "tbd (S4)" cell names the behaviour cases whose features carry its
+    requirement (and the one case named by design); R-02 applies to every case; S4b's cells
+    stay."""
+    cells = golden_case_cells()
+    assert set(cells) == set(defined_requirements())
+    left = [rid for rid, cell in cells.items() if "tbd (S4)" in cell]
+    assert not left, f"{left}: S4 fills every cell it covers"
+    for rid in S4B_CELLS:
+        assert cells[rid] == "tbd (S4b)", f"{rid} is S4b's"
+    assert cells["R-02"] == "every case (`model_citations_retrieved`)"
+    behaviour, covering = covering_cases()
+    for rid, extra in BY_DESIGN.items():
+        assert not extra & covering.get(rid, set()), f"{rid}: {extra} is not by design"
+    for rid in S4_CELLS:
+        if rid == "R-02":
+            continue
+        named = case_ids(cells[rid])
+        assert named <= behaviour, f"{rid}: {sorted(named - behaviour)} are not behaviour cases"
+        wanted = covering.get(rid, set()) | BY_DESIGN.get(rid, set())
+        assert named == wanted, f"{rid}: the cell names {sorted(named)}, not {sorted(wanted)}"
+
+
+def test_case_ids_reads_ranges_and_lists():
+    assert case_ids("P-01 to P-03, G-24 to G-28, G-37") == {
+        "P-01", "P-02", "P-03", "G-24", "G-25", "G-26", "G-27", "G-28", "G-37",
+    }  # fmt: skip
+    assert case_ids("G-22; by design, G-26 (the attributed external quote, D-03)") == {
+        "G-22",
+        "G-26",
+    }
 
 
 # ---------------------------------------------------------------- part 2 (S1b AC1)
@@ -180,3 +261,5 @@ def test_the_stages_so_far_are_filled_in():
     assert not re.search(r"<[^=\s]", ingestion), "the ingestion line has a <placeholder> left"
     retrieval = template.split("retrieval (every commit, no judge):", 1)[1].split("\ngolden", 1)[0]
     assert not re.search(r"<[^=\s]", retrieval), "the retrieval line has a <placeholder> left"
+    golden_set = template.split("\ngolden set v1", 1)[1].split("\njudges", 1)[0]
+    assert not re.search(r"<[^=\s]", golden_set), "the golden-set line has a <placeholder> left"
