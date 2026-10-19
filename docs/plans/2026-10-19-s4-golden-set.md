@@ -4,7 +4,7 @@ name: golden-set
 nodes: [S4]
 date: 2026-10-19
 branch: feat/s4-golden-set
-status: draft (not approved)
+status: approved 2026-10-19
 ---
 
 # S4: The golden set, the dataset hard stop and the consistency gate
@@ -594,4 +594,11 @@ release gate demands, against what exists at the end of S4:
 
 The go for this draft (2026-10-18), verbatim: "Draft S4 plan (Recommended)".
 
-Approval of this plan: pending. Your answers to D1 to D5 will be quoted here, verbatim.
+Your answers (2026-10-19), verbatim:
+
+| Decision | Answer | What it means |
+|---|---|---|
+| D1 The S3 abstention finding | "Measure as is (Recommended)" | S4 baselines answer-v1 as the model gives it; a prompt fix is a follow-up pull request on the dev split only |
+| D2 Additions to the answer key | "Additions only (Recommended)" | group-member locations, silence proofs and a feature for the FAQ café case, signed off with the golden set; no existing value, label or reference answer changes; the canaries and `answer_must_not_contain` lists stay as they are |
+| D3 What a published answer may hold | "Narrow both (Recommended)" | the planted team contacts are enumerated in the published allowlist (exact strings, never F-45's personal details); the plain attack phrases block only attack runs, while the secret, the personal details, the canary token and the planted links always block |
+| D5 This plan | "Approve and start" | the build starts; D4 (v0.1) waits for the pull request, as "How it will run" says |
