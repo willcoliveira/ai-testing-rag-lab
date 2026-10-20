@@ -276,7 +276,8 @@ def criteria_requirements() -> dict[str, list[str]]:
     for part in re.split(r"\n### ", "\n" + body)[1:]:
         name = re.match(r"`([a-z_]+)`", part)
         req = re.search(r"\*\*Requirements:\*\* (.*?)(?:\n- |\Z)", part, flags=re.S)
-        assert name and req
+        assert name
+        assert req
         for rid in re.findall(r"R-\d\d", req.group(1)):
             covers.setdefault(rid, []).append(name.group(1))
     return covers
