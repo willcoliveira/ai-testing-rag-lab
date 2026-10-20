@@ -1,0 +1,28 @@
+# S5 (D4: "Own judge; DeepEval fenced (Recommended)"): DeepEval's checks on raglab's judge, in a uv
+# project of its own with its own lock. The main environment never installs DeepEval: `uv sync
+# --locked` and `make test` are unchanged, so its pytest plugins never load there, and nothing
+# under src/ imports it (scripts/check_architecture.py, rule 6). `make audit` audits this lock's
+# pinned requirements, exported without installing them; Dependabot watches this folder, and a bump
+# re-runs the checks (`make deepeval-test`, then `make deepeval-check` in a judge session).
+[project]
+name = "deepeval-check"
+version = "0.1.0"
+description = "DeepEval's checks on raglab's local judge, fenced in a project of its own (S5, D4)."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "deepeval==4.3.1",
+    "raglab",
+]
+
+[tool.uv.sources]
+raglab = { path = "../..", editable = true }
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+# DeepEval's own pytest plugin is not loaded: it would import DeepEval before the tests switch its
+# telemetry off (tests/conftest.py)
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "-p", "no:deepeval", "-p", "no:cacheprovider"]

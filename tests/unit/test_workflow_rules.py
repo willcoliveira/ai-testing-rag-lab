@@ -301,3 +301,14 @@ def test_pr_fast_smoke_tests_the_api_offline_after_the_tests():
         assert f'"{path}"' in script, path
     assert 'call(base, "POST", "/ask", {"question": QUESTION})' in script  # the no-tenant refusal
     assert "code == 403" in script
+
+
+def test_dependabot_watches_the_deepeval_tool_project_and_keeps_deepeval_bumps_apart():
+    """S5 AC10: the tool project's lock is watched; a DeepEval bump is a PR of its own, whose
+    checks are re-run before it merges."""
+    config = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
+    [tool] = [u for u in config["updates"] if u.get("directory") == "/tools/deepeval-check"]
+    assert tool["package-ecosystem"] == "uv"
+    assert tool["schedule"]["interval"] == "monthly"
+    assert tool["groups"]["python-minor-patch"]["exclude-patterns"] == ["deepeval"]
+    assert (ROOT / "tools" / "deepeval-check" / "uv.lock").is_file()

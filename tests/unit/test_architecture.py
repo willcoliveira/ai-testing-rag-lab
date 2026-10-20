@@ -364,3 +364,41 @@ def test_httpx_in_adapters_and_fastapi_in_api_pass(tmp_path):
         },
     )
     assert messages(package) == []
+
+
+# Rule 6 (S5, D4): DeepEval is fenced in tools/deepeval-check; nothing in the package imports it,
+# raglab.adapters included (before S5 it was a vendor SDK allowed in adapters)
+@pytest.mark.parametrize(
+    "path",
+    ["adapters/deepeval_judge.py", "judge/llm.py", "evals/judged.py", "core/ports.py"],
+)
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import deepeval\n",
+        "from deepeval.metrics import FaithfulnessMetric\n",
+        "import importlib\nm = importlib.import_module('deepeval.models')\n",
+    ],
+)
+def test_deepeval_is_imported_nowhere_in_the_package_adapters_included(tmp_path, path, source):
+    package = make_package(tmp_path, {path: source})
+    found = [f for f in messages(package) if "fenced in tools/deepeval-check" in f]
+    assert len(found) == 1, messages(package)
+    assert path in found[0]
+
+
+def test_deepeval_is_no_longer_a_vendor_sdk_but_fenced():
+    assert "deepeval" not in arch.VENDORS
+    assert "deepeval" in arch.FENCED
+
+
+def test_the_main_environment_never_installs_deepeval():
+    """S5 AC10: DeepEval and its pytest plugins live in tools/deepeval-check's environment only, so
+    they never load into make test."""
+    import importlib.metadata
+    import importlib.util
+
+    assert importlib.util.find_spec("deepeval") is None
+    assert 'name = "deepeval"' not in (ROOT / "uv.lock").read_text(encoding="utf-8")
+    plugins = {ep.name for ep in importlib.metadata.entry_points(group="pytest11")}
+    assert "deepeval" not in plugins

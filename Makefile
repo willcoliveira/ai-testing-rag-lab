@@ -8,7 +8,7 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-local position-local cost container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -25,8 +25,14 @@ deps:
 	uv run deptry .
 	uv run vulture
 
+# S5 (AC10): also the DeepEval tool project's pinned requirements, exported with their hashes from
+# its own lock and audited without installing them (the main environment never installs DeepEval)
 audit:
 	uv run pip-audit --skip-editable
+	mkdir -p runs/tmp
+	uv export --project tools/deepeval-check --locked --no-emit-project --no-emit-local \
+		--format requirements-txt --quiet -o runs/tmp/deepeval-check.requirements.txt
+	uv run pip-audit -r runs/tmp/deepeval-check.requirements.txt --disable-pip --require-hashes
 
 sast:
 	uv run bandit -q -r src scripts
@@ -150,6 +156,22 @@ judge-local:
 	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
 		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py" \
 		--run "uv run raglab judge --run $(RUN) --config $(JUDGE_CONFIG)"
+
+# S5 AC10: DeepEval 4.3.1 lives in tools/deepeval-check, a uv project with its own lock; the main
+# environment never installs it. deepeval-test runs that project's offline tests in its own
+# environment (telemetry off, a loopback-only socket guard, DeepEval's pytest plugin not loaded);
+# deepeval-check runs its checks (AC11) in a judge session: the judge's live contract test, the
+# canaries, then the checks, JUDGED=<a judged run> for the cross-check. Neither is in make check.
+DEEPEVAL := tools/deepeval-check
+deepeval-test:
+	DEEPEVAL_TELEMETRY_OPT_OUT=1 uv run --project $(DEEPEVAL) --locked pytest $(DEEPEVAL)/tests
+
+deepeval-check:
+	@test -n "$(JUDGED)" || (echo "give a judged run: make deepeval-check JUDGED=<run id>" >&2; exit 2)
+	DEEPEVAL_TELEMETRY_OPT_OUT=1 PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
+		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py" \
+		--run "uv run raglab canaries --config $(JUDGE_CONFIG)" \
+		--run "uv run --project $(DEEPEVAL) --locked python -m deepeval_check --judged runs/published/$(JUDGED)"
 
 # S5 AC12: a published judged record's measured tokens priced with config/prices.toml per call,
 # case-trial, run and month for each option of config/cost-assumptions.toml (no model, no network)
