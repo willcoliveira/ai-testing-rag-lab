@@ -247,11 +247,40 @@ directories.
 16. **DeepEval's own pytest plugin is not loaded by the tool's tests,** which set the opt-out at
     collection; the `make deepeval-check` session also sets it in the environment.
 
+## A dry run of the judged run on the published baseline (no model)
+
+To check the plumbing phase 2's first judge session uses, the judged run was run once offline on
+the published consistency baseline `20261019T172035Z-generation-local-ollama-dev-97011a7` (resolved
+by its id under `runs/published`), with a scripted fake judge (FakeChat: no model, no network) and
+the record written to a scratch folder outside the repository. It validated (the validator found
+its source under `runs/published`, and the golden file and the canary set current). The counts, as
+the record holds them: 147 case-trials of 49 cases (source statuses: ok 144, blocked 3); 592 judge
+calls: 19 canaries (all on their side), 433 verdicts and 140 checks on the judge. 433 is the plan's
+design count of 441 less the 8 calls of the 3 withheld trials (P-01 trial 3 and R-Q25 trial 3, two
+criteria each, G-22 trial 1, four); by criterion: grounded 144, cites_support 56, correct 62,
+relevant 127, abstains 17, refuses_and_helps 6, context_sufficient 21. The checks: 92 repeats (the
+design's 96 less G-22's four) and 48 reversals (49 less G-22). The generator role counts 147 calls:
+the three blocked trials were blocked by the citation validator, after the model answered.
+
 ## Decisions needed
 
-None blocks phase 2. For the sign-off, the user may want to look at these three in CRITERIA.md:
-the `relevant` criterion counting an "the documents do not say" answer as addressing the question;
-`cites_support` passing an answer that states no value; and G-09's reference supplement (choice 8).
+None blocks phase 2.
+
+1. **The DeepEval tool's lock follows the main project's dependencies.** The tool depends on
+   raglab by path, so its `uv.lock` records raglab's own requirements. Checked by changing one main
+   pin for a moment (`numpy==2.5.3` to `2.5.2` in `pyproject.toml`, then restored from git): `uv
+   export --project tools/deepeval-check --locked` exits 1 ("The lockfile at `uv.lock` needs to be
+   updated, but `--locked` was provided."), while `--frozen` exits 0 and exports the old pin. So
+   any pull request that changes the main dependencies, a Dependabot one included, fails `make
+   audit` (in `make check` and pr-fast), `make deepeval-test` and `make deepeval-check` until
+   `uv lock --project tools/deepeval-check` is run in it; Dependabot's root PRs do not do that by
+   themselves. The options: keep `--locked` (applied: the audit never runs on a lock that no longer
+   matches, at the cost of a re-lock in those PRs), or export with `--frozen` in `make audit` (a
+   main bump never blocks; the tool's lock may lag raglab's pins until it is re-locked).
+2. **For the sign-off**, three points of CRITERIA.md the user may want to look at: `relevant`
+   counts an answer that says the documents do not state it as addressing the question;
+   `cites_support` passes an answer that states no value or rule; and G-09's reference supplement
+   (choice 8).
 
 ## make check at the end of phase 1
 
