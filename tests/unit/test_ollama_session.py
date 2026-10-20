@@ -486,6 +486,9 @@ def test_the_judge_and_position_targets_run_one_model_per_session():
     def body(name: str) -> str:
         return makefile.split(f"\n{name}:", 1)[1].split("\n\n", 1)[0].replace("\\\n", "")
 
+    canaries = body("judge-canaries")
+    assert "raglab ollama session --config $(JUDGE_CONFIG)" in canaries
+    assert canaries.index("test_judge_contract.py") < canaries.index("raglab canaries")
     judge = body("judge-local")
     assert "raglab ollama session --config $(JUDGE_CONFIG)" in judge
     assert judge.index("tests/contract/test_judge_contract.py") < judge.index("raglab judge --run")

@@ -300,9 +300,12 @@ def run(
 
 
 def summary(results: Sequence[canaries.CanaryResult]) -> list[str]:
-    """One line per canary: its id, criterion, side and verdict (raglab canaries)."""
+    """One line per canary: its id, criterion, side and verdict, and the call's seconds and
+    tokens as the server reported them (raglab canaries)."""
     return [
         f"{r.canary.id} {r.canary.criterion}: must {r.canary.side}, judged {r.verdict.verdict} "
-        f"({r.verdict.status.value}) {'on side' if r.on_side else 'OFF ITS SIDE'}"
+        f"({r.verdict.status.value}) {'on side' if r.on_side else 'OFF ITS SIDE'}; "
+        f"{r.verdict.latency_ms / 1000:.3f} s, {r.verdict.prompt_tokens} prompt and "
+        f"{r.verdict.completion_tokens} completion tokens"
         for r in results
     ]

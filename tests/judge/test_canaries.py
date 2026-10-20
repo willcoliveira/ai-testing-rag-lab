@@ -157,3 +157,32 @@ def test_a_repeated_id_and_an_unknown_chunk_are_refused(tmp_path):
     )
     with pytest.raises(canaries.CanaryError, match="does not hold"):
         canaries.corpus_passages(ROOT, canaries.load(path))
+
+
+def test_raglab_canaries_prints_and_logs_each_calls_verdict_seconds_and_tokens(
+    tmp_path, monkeypatch, capsys
+):
+    """`raglab canaries` (the short judge session of `make judge-canaries`): one line per item
+    with its seconds and tokens, a log of every result under runs/tmp/canaries/, and exit 1 when
+    an item is off its side."""
+    from raglab.__main__ import main
+    from tests.judge_support import fake_judge, judged_root, script, verdict
+
+    root, _ = judged_root(tmp_path, local=False)
+    config = str(root / "config" / "judge.toml")
+    for fn, code in ((script, 0), (lambda request: verdict("pass"), 1)):
+        judge, chat = fake_judge(fn)
+        monkeypatch.setattr(
+            "raglab.judge.build.judge_from_config",
+            lambda config, response_format=None, j=judge, c=chat: (j, c.describe(), "fake"),
+        )
+        assert main(["canaries", "--config", config, "--root", str(root)]) == code
+        out = capsys.readouterr()
+        assert "C-01 grounded: must fail, judged" in out.out
+        assert " s, None prompt and None completion tokens" in out.out  # FakeChat reports none
+        assert "canaries: 2 calls, " in out.out
+    logs = sorted((root / "runs" / "tmp" / "canaries").glob("*.jsonl"))
+    assert logs
+    rows = [json.loads(x) for x in logs[-1].read_text(encoding="utf-8").splitlines()]
+    assert [(r["id"], r["on_side"]) for r in rows] == [("C-01", False), ("C-02", True)]
+    assert all("reply" in r and "latency_ms" in r for r in rows)

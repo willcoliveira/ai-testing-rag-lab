@@ -8,7 +8,7 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-local position-local cost deepeval-test deepeval-check container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -145,6 +145,14 @@ JUDGE_CONFIG := config/judge-local.toml
 judge-contract:
 	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
 		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py"
+
+# S5: a short judge session: the judge's live contract test, then the canary set alone (raglab
+# canaries), which prints each item's verdict, seconds and tokens and writes them to
+# runs/tmp/canaries/; it measures the judge's seconds per call before the judged run's cap is set
+judge-canaries:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
+		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py" \
+		--run "uv run raglab canaries --config $(JUDGE_CONFIG)"
 
 # S5 AC7, AC8: a judge session on a finished generation run, RUN=<its id or directory>: the judge's
 # live contract test, then raglab judge, which runs the canaries first (one off its side stops the

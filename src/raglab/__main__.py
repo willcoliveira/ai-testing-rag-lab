@@ -7,6 +7,7 @@ import json
 import shlex
 import signal
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from raglab import __version__
@@ -342,6 +343,18 @@ def canary_check(args: argparse.Namespace) -> int:
         print(f"canaries failed: {error}", file=sys.stderr, flush=True)
         return 1
     print("\n".join(judged.summary(results)), flush=True)
+    # every call's verdict, reply, seconds and tokens, for the ledger (runs/tmp is gitignored)
+    out = root / RUNS / "canaries"
+    out.mkdir(parents=True, exist_ok=True)
+    log = out / f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}.jsonl"
+    rows = canaries.results_json(results)
+    log.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
+    seconds = sorted(r.verdict.latency_ms / 1000 for r in results)
+    print(
+        f"canaries: {len(results)} calls, {seconds[0]:.3f} to {seconds[-1]:.3f} s a call "
+        f"(median {seconds[len(seconds) // 2]:.3f} s); written {log}",
+        flush=True,
+    )
     if problems := canaries.off_side(results):
         print("canaries: the judge is stopped:\n- " + "\n- ".join(problems), file=sys.stderr)
         return 1
