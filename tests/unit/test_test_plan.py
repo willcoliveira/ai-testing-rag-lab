@@ -263,3 +263,51 @@ def test_the_stages_so_far_are_filled_in():
     assert not re.search(r"<[^=\s]", retrieval), "the retrieval line has a <placeholder> left"
     golden_set = template.split("\ngolden set v1", 1)[1].split("\njudges", 1)[0]
     assert not re.search(r"<[^=\s]", golden_set), "the golden-set line has a <placeholder> left"
+
+
+# ---------------------------------------------------------------- S5: the judged criteria
+
+
+def criteria_requirements() -> dict[str, list[str]]:
+    """Each requirement docs/CRITERIA.md names, with the criteria that name it, in its order."""
+    text = (ROOT / "docs" / "CRITERIA.md").read_text(encoding="utf-8")
+    body = text.split("\n## The criteria\n", 1)[1].split("\n## ", 1)[0]
+    covers: dict[str, list[str]] = {}
+    for part in re.split(r"\n### ", "\n" + body)[1:]:
+        name = re.match(r"`([a-z_]+)`", part)
+        req = re.search(r"\*\*Requirements:\*\* (.*?)(?:\n- |\Z)", part, flags=re.S)
+        assert name and req
+        for rid in re.findall(r"R-\d\d", req.group(1)):
+            covers.setdefault(rid, []).append(name.group(1))
+    return covers
+
+
+def test_r5_names_its_tests_and_its_gate_local_until_keys_reported_until_s6():
+    """S5 AC14: R5 is built, so it names its tests (the arrows test checks each exists) and its
+    gate says local until keys and reported until S6; its oracle says what is judged and what
+    stays label-based."""
+    rows = {r[0]: r for r in all_rows()}
+    r5 = rows["R5"]
+    assert r5[4].startswith("`tests/"), "R5 is S5's and must name its tests"
+    assert "local until keys" in r5[5]
+    assert "reported, not gated, until S6" in r5[5]
+    assert "docs/CRITERIA.md" in r5[3]
+    assert "label-based" in r5[3]
+
+
+def test_the_test_column_names_the_judged_criteria_for_the_requirements_they_cover():
+    """S5 AC14: each requirement a criterion names in docs/CRITERIA.md has, in the traceability
+    table's Test column, those criteria, reported."""
+    table = section("## 8. Traceability").split("### Gaps", 1)[0]
+    cells = {
+        m.group(1): [c.strip() for c in m.group(0).strip().strip("|").split("|")][4]
+        for m in re.finditer(r"^\| (R-\d{2}) \|.*$", table, flags=re.M)
+    }
+    covers = criteria_requirements()
+    assert covers, "docs/CRITERIA.md names requirements"
+    for rid, names in covers.items():
+        judged = "judged (S5, reported): " + ", ".join(f"`{n}`" for n in names)
+        assert judged in cells[rid], f"{rid}: {cells[rid]!r} lacks {judged!r}"
+    for rid, cell in cells.items():
+        if rid not in covers:
+            assert "judged (S5" not in cell, f"{rid} names a criterion that names no {rid}"

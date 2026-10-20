@@ -19,6 +19,14 @@ safely.
 | `make ollama-up` | Starts the server for manual work (after the preflight); stop it with `make ollama-down` |
 | `make ollama-down` | Unloads every loaded model, stops the server and runs the postcheck |
 | `make ollama-status` | This project's server pid, the port, the loaded models, any ollama process, any registered Ollama service, and the memory available |
+| `make judge-contract` | S5: a judge session (`config/judge-local.toml`): the server serves the judge, `ministral-3:14b-instruct-2512-q4_K_M`, never the generator, and the session runs the judge's live contract test only (`tests/contract/test_judge_contract.py -m live`), on hand-written items, never a golden answer; it probes both response formats and writes each call's format, seconds and tokens to `runs/tmp/judge-contract/`. The first session (2026-10-20) took 31 s from launch to the postcheck: the first call, which loads the model, 6.9 s, each warm call about 3 s (S5 ledger) |
+| `make judge-local RUN=<run>` | S5: a judge session on a finished generation run: the live contract test, then `raglab judge`, which runs the canaries first and stops the session before any judged call when one is off its side; the judged run's wall-clock cap is `[judging] run_timeout_s` |
+| `make position-local` | S5: a generator session (`config/position-local.toml`, the local config with a `[position]` table): the generator's live contract test, then the position test (`raglab position`) |
+| `make deepeval-check JUDGED=<run>` | S5: a judge session for DeepEval's checks: the live contract test, `raglab canaries`, then `tools/deepeval-check` with DeepEval's telemetry off and a loopback-only socket guard |
+
+One model per session: a generator session never serves the judge, and a judge session never
+generates; a judge session reads finished records. `raglab ollama ... --config` picks the model
+from the config's suite: a generation config's generator, a judge config's judge (S5).
 
 `raglab ollama up|down|status|session --config config/local-ollama.toml` is the same from the CLI
 (`src/raglab/runtime/ollama.py`). The server's pid and log are in `runs/tmp/ollama/` (gitignored).
@@ -52,7 +60,17 @@ Before the server starts (the preflight), the session refuses, and starts nothin
   writes one): a resident server would outlive the session;
 - port 11434 is held by a process this project did not start;
 - the pinned model is not pulled (no manifest under `~/.ollama/models`, or `OLLAMA_MODELS`);
+- (S5) the pulled model is not the one the config pins: its local manifest's registry-manifest
+  layer, whose digest is the one `/api/tags` reports, names another digest, or no such layer is
+  there to check (fails closed). The session checks the model of its config's suite: a generation
+  config's generator, a judge config's judge;
 - the memory available is below the model's size plus the margin.
+
+The judge's limits are the generator's, from `config/judge-local.toml`'s `[ollama]` table (the
+same loopback interface, one model, one request, a context of 8,192, a keep-alive of 2 minutes, a
+4 GiB margin on top of the model's 8.5 GiB), with its own per-request settings: temperature 0, a
+fixed seed, 512 output tokens, a 180 s timeout (the first request loads the model), and
+`json_schema` as the response format.
 
 After every session that ends normally, by an error, by Ctrl-C, by SIGTERM or by SIGHUP, the
 postcheck fails loudly (exit 1, `POSTCHECK FAILED`) unless port 11434 is closed and no ollama

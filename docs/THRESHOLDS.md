@@ -36,6 +36,31 @@ schedule and on every change to the prompt, the generation code or the model (th
 nightly and eval-on-change), and sets the margin from many more repeats on that runner. Here it
 runs on the Mac by hand until keys exist, and its margin comes from four repeats.
 
+## Judged (S5)
+
+Nothing judged is gated in S5. The criteria are docs/CRITERIA.md's; the numbers come from the
+judged baseline's record once the user has signed off the criteria and the canary set.
+
+| Metric | Gate | Threshold | Reason |
+|---|---|---|---|
+| `grounded`, `cites_support`, `correct`, `relevant`, `abstains`, `refuses_and_helps`, `context_sufficient`: the pass rate over judged verdicts (Wilson interval at n = cases), pass^3, the unable_to_verify rate, the split by expected label | reported | none | The judge is uncalibrated until S6: how-to 17 step 10 asks to "calibrate the judge on 30 or more human labels before the threshold gates anything". unable_to_verify is never a pass, and a high rate of it reads as a badly written criterion |
+| The canary set (`datasets/canaries.judge.jsonl`) | a hard stop on the judge, in every judge session, before any judged call | every item on its side | A judge that passes a planted invention, or obeys an instruction planted in its input, should grade nothing; the stop is on the judge, not on the system |
+| The judge's repeatability (trial 1 judged twice) and order agreement (`grounded` with the passages reversed) | reported | none | Measured, not assumed: S4 found that a fixed seed does not reproduce the generator's text on the MLX runner; S6 reads them beside the human labels |
+| The position test: each position's rate and the paired differences middle minus first and middle minus last | reported | none | A test of the generator's long contexts on ten cases, whose intervals are wide; scored by code first, the judge's `correct` beside it |
+| DeepEval 4.3.1's metric canary, hallucination direction and faithfulness cross-check | reported (docs/CRITERIA.md, "Checked at DeepEval 4.3.1") | none | DeepEval's scores are never the judged numbers (D4: "Own judge; DeepEval fenced (Recommended)"); a hallucination threshold would be written only after its direction is measured, and DeepEval itself points RAG to faithfulness |
+
+## Cost and latency (S5, Q-01, Q-02)
+
+All reported. The formula is code (`raglab cost`, `src/raglab/evals/cost.py`, tested on
+hand-computed values): a call costs (prompt tokens × input price + completion tokens × output
+price) / 1,000,000; a case-trial is its generator call and its judge calls; a run is the sum of
+its case-trials and one canary set; a month is the sum over the run types of
+`config/cost-assumptions.toml` of runs per month × cost per run. The prices are
+`config/prices.toml`'s, each with its source and read date. The tokens per case-trial by role, the
+monthly estimate per option with the price table's date, and Q-01's local p50 and p95 are written
+here from the published judged baseline, once it exists; no number is written before a run
+produces it.
+
 The test split is never used to set a threshold or to choose a configuration; it runs in
 nightly, release and the capstone only.
 

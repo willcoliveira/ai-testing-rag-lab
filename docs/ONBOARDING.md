@@ -1,9 +1,11 @@
 # Onboarding
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
-guards, and where each concept already lives. It is current as of S4, done (2026-10-19): golden
-set v1.1 (40 behaviour cases) is signed off, and the retrieval and local generation baselines are
-republished on it (the S4 ledger). Every stage that adds a command or a concept updates it, and
+guards, and where each concept already lives. It is current as of S5, in progress (2026-10-20):
+the judge, its criteria and canaries (drafts until the user signs them off), the judged record,
+the position test, the cost formula and the fenced DeepEval tool are built offline, and the judge's
+live contract test has run once; no answer is judged yet (the S5 ledger). Every stage that adds a
+command or a concept updates it, and
 `tests/unit/test_onboarding.py` checks that every path, `make` target and `raglab` command named
 here exists, and that the stage this line names is not still in progress once the phase map marks
 it done.
@@ -55,6 +57,11 @@ CI.
 | `make nightly-local` | The local nightly on Ollama: every split, `--gate nightly` | The live contract test, then a run record of split all |
 | `make container`, then `make zap` | The fake-model container and its ZAP baseline scan (Docker) | No FAIL and no WARN; three Informational alerts, each ignored with its reason in `deploy/zap/rules.tsv` |
 | `make corpus` | Rebuilds the PDF, HTML and scanned PNG from the Markdown sources | No change in `git status` |
+| `make judge-contract` | S5: the judge's live contract test in a judge session of its own (the judge's pinned model, checked by size and digest before the server starts; docs/LOCAL-MODEL.md) | `model: ministral-3:14b-instruct-2512-q4_K_M at the pinned digest 4760c35aeb9d`, one line per call (both response formats; json_schema accepted), then `postcheck passed` |
+| `make judge-local RUN=<a generation run>` | S5: the canaries first (`raglab canaries` alone runs only them), then every answer of the run judged on its criteria (`docs/CRITERIA.md`), written as a judged run record | One line per canary on its side, then the judged report; a canary off its side stops the session before any judged call, and no record is written |
+| `make position-local` | S5: the position test (`raglab position`): each dev single-chunk answer case's answering chunk first, in the middle and last of a long context | A generation record of kind position with each position's rate and the paired differences |
+| `make cost JUDGED=<a judged run>` (or `uv run raglab cost --judged <run>`) | S5: the judged record's tokens by role priced with `config/prices.toml` for each option of `config/cost-assumptions.toml` | The price table's date, then the cost per call, case-trial, run and month for each option |
+| `make deepeval-test` | S5: DeepEval 4.3.1's offline checks, in `tools/deepeval-check`'s own environment (never the main one): telemetry off before the import, a loopback-only socket guard, the custom judge model over raglab's adapter | `8 passed` |
 
 Read next: [README.md](../README.md), [ARCHITECTURE.md](ARCHITECTURE.md) for the progress
 diagrams, [TEST-PLAN.md](TEST-PLAN.md) for the requirements and one named check per pipeline
@@ -127,19 +134,26 @@ around them.
 | Generation | Checks without a judge, Wilson intervals and pass^k | `src/raglab/evals/generation_record.py`, `src/raglab/evals/generation.py` | `tests/retrieval/test_run_record.py` |
 | Engineering | An API that fails closed on tenant, with security headers, and a page with labels | `src/raglab/api/`, `src/raglab/web/` | `tests/api/test_api.py`, `tests/api/test_page.py`, `tests/e2e/test_e2e_fake.py` |
 | Engineering | A local model for one session only, with usage guards | `src/raglab/runtime/ollama.py`, `docs/LOCAL-MODEL.md` | `tests/unit/test_ollama_session.py` |
+| Evaluation | Criteria written first: one binary behaviour each, its pass and fail rules the judge prompt's words | `docs/CRITERIA.md`, `src/raglab/judge/prompts/judge_v1.py` | `tests/unit/test_criteria.py`, `tests/judge/test_judge_prompt.py` |
+| Evaluation | An LLM judge behind a port, with frames its input cannot close and a strict verdict parser | `src/raglab/core/ports.py`, `src/raglab/judge/llm.py` | `tests/judge/test_verdict_parser.py`, `tests/contract/test_judge_contract.py` |
+| Evaluation | Canaries: a hard stop on the judge, before any judged call | `datasets/canaries.judge.jsonl`, `src/raglab/judge/canaries.py` | `tests/judge/test_canaries.py` |
+| Evaluation | A judged record tied line by line to the run it judges, each verdict read again from its reply | `src/raglab/evals/judged.py`, `src/raglab/evals/judged_record.py` | `tests/judge/test_judged_run.py`, `tests/judge/test_order_check.py` |
+| Evaluation | The position test: the answering chunk first, in the middle and last of a long context | `src/raglab/evals/position.py`, `config/position-local.toml` | `tests/generation/test_position_contexts.py` |
+| Evaluation | Every call's tokens by role, and a cost formula over a dated price table | `src/raglab/evals/cost.py`, `config/prices.toml` | `tests/unit/test_cost.py` |
+| Engineering | A heavy evaluation library fenced in a project and a lock of its own | `tools/deepeval-check/`, `scripts/check_architecture.py` | `tests/unit/test_architecture.py`, `make deepeval-test` |
 
 Also worth a look: the progress diagram is itself tested (`tests/unit/test_diagram.py`), and the
 playground reads only published runs (`tests/unit/test_playground.py`).
 
 ## Not testable yet
 
-Judged quality starts in S5; S3 checks only what code can count.
+Judged quality starts in S5: the judge is built, and it judges nothing until the user signs off docs/CRITERIA.md and the canary set; S3 and S4 check only what code can count.
 
 | Capability | Arrives in |
 |---|---|
 | A deployed demo: the fake model first, then a real model with rate and budget limits | S3h (start of P3), then S10 |
 | Behaviour cases (abstain, flag a conflict, refuse but help) and the dataset consistency gate | S4 (40 cases), S4b (about 120) |
-| Judged metrics (faithfulness, relevancy), measured tokens, the provider and cost decision | S5 |
+| Judged numbers on the dev slice, the checks on DeepEval, the provider and cost decision (ADR-002) | S5, after the sign-off |
 | A judge calibrated against human labels (kappa) | S6 |
 | Prompt injection, poisoned documents, red team, Guardrails AI (the attack documents are in the corpus but kept out of the default ingest) | S7 |
 | Every failure tagged with its cause, a suite audit and GATES.md | S8 |

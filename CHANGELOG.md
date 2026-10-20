@@ -3,6 +3,15 @@
 One line per change, newest first, grouped by release. Each pull request adds its line
 (checked in CI; Dependabot is exempt).
 
+## Unreleased
+
+- S5, judged metrics on local models (in progress; plan `docs/plans/2026-10-20-s5-judged-metrics.md`):
+  `docs/CRITERIA.md` and the canary set (drafts for the user's sign-off); the `Judge` port and
+  judge-v1 on a local Ministral 3 14B judge, pinned by tag and digest, whose session checks its
+  own model; the canaries as a hard stop; the judged record, tied to the run it judges; the
+  position test; the tokens of every call by role, a dated price table and `raglab cost`;
+  DeepEval 4.3.1 fenced in `tools/deepeval-check`; S5 before S4b (D1).
+
 ## v0.1.0 (2026-10-20)
 
 - Release v0.1.0, the lab release after S4 (decision D4: "Release after S4 (Recommended)"; plan
