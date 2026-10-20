@@ -262,7 +262,7 @@ def judge_text() -> str:
         (lambda t: t.replace("max_tokens = 512\n", ""), "openai-compat judge needs"),
         (lambda t: t.replace('criteria = "docs/CRITERIA.md"\n', ""), "missing judging.criteria"),
         (lambda t: t.replace("level = 0.95", "level = 1.5"), "judging.level"),
-        (lambda t: t.replace("run_timeout_s = 14400", "run_timeout_s = 0"), "run_timeout_s"),
+        (lambda t: t.replace("run_timeout_s = 7200", "run_timeout_s = 0"), "run_timeout_s"),
         (lambda t: t.replace('host = "127.0.0.1:11434"', 'host = "0.0.0.0:11434"'), "loopback"),
         (lambda t: t + '\n[generator]\nprovider = "fake"\nmodel = "x"\n', "not for suite"),
     ],

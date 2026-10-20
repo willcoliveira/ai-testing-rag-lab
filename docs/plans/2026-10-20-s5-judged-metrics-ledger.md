@@ -214,9 +214,10 @@ tier of Claude Haiku 5.5 (prompts up to 100,000 tokens) and gpt-6-luna (272K) is
 
 ## Runs S5 made
 
-None published. Under `runs/tmp` (gitignored): the judge contract log
-`runs/tmp/judge-contract/20261020T162848Z.jsonl`, and the exported requirements of the tool's lock
-that `make audit` writes. The runs pytest makes are fake or stub-server records in temporary
+None published yet. Under `runs/tmp` (gitignored): the judge contract logs
+`runs/tmp/judge-contract/20261020T162848Z.jsonl` and `20261020T194209Z.jsonl`, the canary log
+`runs/tmp/canaries/20261020T194409Z.jsonl`, and the exported requirements of the tool's lock that
+`make audit` writes. The runs pytest makes are fake or stub-server records in temporary
 directories.
 
 ## Developer choices (for the review)
@@ -281,6 +282,59 @@ criteria each, G-22 trial 1, four); by criterion: grounded 144, cites_support 56
 relevant 127, abstains 17, refuses_and_helps 6, context_sufficient 21. The checks: 92 repeats (the
 design's 96 less G-22's four) and 48 reversals (49 less G-22). The generator role counts 147 calls:
 the three blocked trials were blocked by the citation validator, after the model answered.
+
+## Phase 2, step 1: the short judge session (2026-10-20, after the sign-off)
+
+`make judge-canaries` at `68f95bf` (the freeze is `f68c37b`): one guarded session, 20:42:08 to
+20:44:10 WEST by the shell's clock, exit 0. The preflight said "model:
+ministral-3:14b-instruct-2512-q4_K_M at the pinned digest 4760c35aeb9d" and "memory: 23.1 GiB
+available; the model needs 8.5 GiB plus a margin of 4 GiB"; Ollama 0.40.6 started on
+127.0.0.1:11434; after the two commands, the model was unloaded, the server stopped and the
+postcheck passed (port closed, no ollama process, no model loaded). `make ollama-status` after:
+down, 21.3 GiB available.
+
+1. **The judge's live contract test** (its second run; log `runs/tmp/judge-contract/20261020T194209Z.jsonl`):
+   1 passed. With `json_schema`, 4 of 4 replies were valid verdicts: 10.546 s (the cold call,
+   model load included), 3.327, 2.976 and 2.591 s. Prompt-only (`none`), 3 of 3 were
+   invalid_output, as in the first run: the judge keeps `json_schema`.
+2. **The canaries, alone** (`raglab canaries`; log `runs/tmp/canaries/20261020T194409Z.jsonl`, each
+   item's verdict, reply, seconds and tokens): **all 19 on their side**, every one with status ok;
+   the quote check found every quote (C-16 and C-17, `context_sufficient`, see no answer and quote
+   none). Seconds per call: 2.487 to 9.196 (C-14, `refuses_and_helps`, 182 completion tokens), median
+   3.790, mean 4.519, 85.854 in all. Tokens: prompt 330 to 1,174 a call (14,190 in all),
+   completion 59 to 182 (1,688 in all).
+
+| Item | Criterion | Must | Judged | Seconds | Prompt | Completion |
+|---|---|---|---|---|---|---|
+| C-01 | grounded | fail | fail | 5.652 | 1095 | 60 |
+| C-02 | abstains | fail | fail | 6.392 | 1095 | 82 |
+| C-03 | grounded | pass | pass | 2.931 | 1101 | 75 |
+| C-04 | abstains | pass | pass | 3.014 | 1101 | 77 |
+| C-05 | grounded | pass | pass | 5.702 | 706 | 114 |
+| C-06 | grounded | fail | fail | 5.331 | 600 | 115 |
+| C-07 | cites_support | pass | pass | 4.173 | 424 | 94 |
+| C-08 | cites_support | fail | fail | 3.790 | 437 | 90 |
+| C-09 | correct | pass | pass | 3.660 | 420 | 80 |
+| C-10 | correct | fail | fail | 2.553 | 420 | 66 |
+| C-11 | relevant | pass | pass | 2.526 | 330 | 59 |
+| C-12 | relevant | fail | fail | 2.681 | 340 | 70 |
+| C-13 | abstains | fail | fail | 7.444 | 1105 | 108 |
+| C-14 | refuses_and_helps | pass | pass | 9.196 | 847 | 182 |
+| C-15 | refuses_and_helps | fail | fail | 3.681 | 819 | 96 |
+| C-16 | context_sufficient | pass | pass | 5.346 | 509 | 115 |
+| C-17 | context_sufficient | fail | fail | 3.185 | 554 | 67 |
+| C-18 | grounded | fail | fail | 2.487 | 1113 | 60 |
+| C-19 | grounded | fail | fail | 6.109 | 1174 | 78 |
+
+**The judged run's wall-clock cap, set from it:** `run_timeout_s = 7200` in
+`config/judge-local.toml` (it was 14,400, the plan's ceiling, until this session). The baseline's
+judged run makes 592 calls (the dry run's count); 592 times 9.196 s, the slowest canary call, is
+5,444 s. The baseline's answers are longer than the canaries' (ok answers: median 160 characters,
+the longest 662; the canaries': median 98, the longest 238), and the judge quotes from them, so the
+cap is rounded up to 2 hours, about 1.3 times that product. The time outside the judge's calls is
+under a second: the dry run took 0.546 s in all, ingest included. At the canaries' mean the 592
+calls would take about 45 minutes (a projection, not a measurement); the judged run measures its
+own. The Mac time so far is far under the plan's 4 hours for the judge sessions.
 
 ## Decisions needed
 

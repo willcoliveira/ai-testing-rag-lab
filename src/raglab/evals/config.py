@@ -74,7 +74,7 @@ model = "<tag>"                 # timeout_s; response_format and the optional ke
 [judging]
 seed = 20261020                 # every judge call's seed
 level = 0.95                    # of the Wilson intervals
-run_timeout_s = 14400           # the judged run's wall-clock cap; a run that hits it is partial
+run_timeout_s = 7200            # the judged run's wall-clock cap; a run that hits it is partial
 criteria = "docs/CRITERIA.md"   # its sha256 goes into every judged manifest
 canaries = "datasets/canaries.judge.jsonl"
 
