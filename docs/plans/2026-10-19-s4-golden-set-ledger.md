@@ -656,3 +656,44 @@ exit 0 in 175.44 s real (159.80 s user), the tests 138.87 s:
 `make privacy-history`: "0 hits in 224 commits (42 rules)". The CHANGELOG's S4 line names no fix
 round, so it is unchanged. Nothing pushed; no Ollama session; the golden file, the answer key, the
 datasheet and every published record are as they were at `5fd4bf1`.
+
+## Fix round 3 (2026-10-20)
+
+**The criteria judge's re-check of fix round 2 at `7b2df9f`:** S4-J10 fixed; 11 met, 0 not met,
+3 need CI (AC3, AC10, AC14); one new low finding, S4-J11: nothing held the version parse to the
+Maintenance table, so a parse that took every hash in the datasheet while keeping the version
+names would have passed both of round 2's tests and counted the labels judge's seal as a version.
+
+**The user's go (2026-10-20), verbatim, with the orchestrator's question.** "S4-J11 (low, a gap in
+round 2's new test): the test reads the version hashes from the datasheet's Maintenance table,
+which the judge confirmed works. But nothing checks that it reads only that table. A parse that
+grabbed every hash in the datasheet would also pass, and would count the labels judge's seal as a
+version. The fix is one test on the committed file (2 versions listed out of 3 hashes mentioned)
+plus a planted copy with a hash in prose. The plan allows a third fix round only with your go.
+Run it?" The answer: "Round 3, test only (Recommended)".
+
+| Finding | Red | Commit | Green |
+|---|---|---|---|
+| S4-J11 (low): the version parse was not held to the Maintenance table | The two new tests written first, then `listed_dataset_versions` changed for the red step to a parse that collects every 64-hex string in the datasheet, keeping the Maintenance rows' version names: "2 failed, 2 passed" (round 2's two tests still passed, the gap). `test_the_versions_are_read_from_the_maintenance_table_only`: "AssertionError: assert ['?', 'v1', 'v1.1'] == ['v1', 'v1.1']" (the seal counted); `test_a_hash_outside_the_maintenance_table_is_no_version`: "AssertionError: assert '1111…1111' not in {…}" (the prose hash and the planted row's hash listed) | `bd1aec1`: the two tests; the helper itself unchanged, since the tests show it right | The helper restored as committed in `0d02736` (the diff only adds the tests): "4 passed" |
+
+The committed datasheet mentions three distinct 64-hex strings (v1's, v1.1's in the header and the
+table, and the labels judge's seal) and lists two versions; the planted copy, in a temporary
+folder, adds a backticked hash in prose and a five-column version row in another section's table,
+both before the Maintenance section, and lists the same two versions.
+
+**make check** at the end of fix round 3 (before this paragraph was written): exit 0 in 175.98 s:
+
+    194 files already formatted
+    All checks passed!
+    0 errors, 0 warnings, 0 informations
+    No known vulnerabilities found
+    0 hits across 274 files (42 rules)
+    0 architecture violations in src/raglab
+    check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    ========== 1108 passed, 1 deselected, 1 warning in 139.53s (0:02:19) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+`make privacy-history`: "0 hits in 226 commits (42 rules)". Nothing pushed; no Ollama session; the
+golden file, the answer key, the datasheet and every published record are as they were at
+`5fd4bf1`.
