@@ -18,6 +18,7 @@ The user's answers (2026-10-19), verbatim (quoted in the plan's Approval):
 | D1 The S3 abstention finding | "Measure as is (Recommended)" | No prompt change in S4: answer-v1 stays. The behaviour checks read the label field, and the report counts the S3 pattern on the abstain cases (label not abstain, no value stated) in its four-way table. The baseline will record what the model gives (AC11, after the sign-off) |
 | D2 Additions to the answer key | "Additions only (Recommended)" | The question author's answer-key additions are on their branch (`feat/s4-cases`), integrated below; this build added no answer-key line |
 | D3 What a published answer may hold | "Narrow both (Recommended)" | `privacy/allowlist-published.txt` enumerates, as exact strings, the three team contact addresses of `corpus/SPEC.md` section 6 (the IT Service Desk, the SOC, Mirrowfen IT Support) beside the two exception ids; publish refuses the plain attack phrases only in attack runs, while the planted secret, the personal details, the canary token and the planted links and address block every run. **This partly reverses the S3 decision "Allow those IDs only (Recommended)" (S3 ledger, decision 1), by the user's D3 answer.** `ea66086` |
+| D4 v0.1 (asked 2026-10-20; the question is quoted under "Fix round 2") | "Release after S4 (Recommended)" | Option A, a lab release after this stage, in a pull request of its own, not this branch: `chore(release): v0.1.0` bumps the version from 0.0.1, adds a CHANGELOG section and release notes listing each release-gate item as run or not built yet, runs the two history scans and the held-out test split once (one guarded Ollama session, published); the user tags v0.1.0 on its merge commit by hand. v0.1 ships the current prompt, answer-v1, with its abstention weakness documented |
 | D5 This plan | "Approve and start" | The build started; D4 (v0.1) waits for the pull request |
 
 **The labels judge's review (2026-10-19).** A different model in a context of its own labelled
@@ -603,3 +604,55 @@ this section was written:
 `make privacy-history`: "0 hits in 222 commits (42 rules)". Nothing pushed; no live run and no
 Ollama session in this round; the golden file, the answer key, the datasheet and every published
 record are as they were at `5fd4bf1`.
+
+## Fix round 2 (2026-10-20)
+
+**The criteria judge's re-check of fix round 1 at `cb3e54d`:** 11 met (AC1, AC2, AC4, AC5, AC6,
+AC7, AC8, AC9, AC11, AC12, AC13), 0 not met, 3 need CI (AC3, AC10, AC14); S4-J1 to S4-J5 fixed,
+nothing open at low severity or above, and one new info finding, S4-J10. The tally at `5fd4bf1`
+stays as history.
+
+**The user's answers (2026-10-20), verbatim, with the orchestrator's questions.**
+
+- D4, the question: "D4, v0.1: how should this stage end? The plan recommended option A, a lab
+  release. A `chore(release): v0.1.0` PR bumps the version from 0.0.1 and adds a CHANGELOG section
+  and release notes listing each release-gate item as run or not built yet. It also runs the two
+  history scans and the held-out test split once (one guarded Ollama session, published). You then
+  tag v0.1.0 on its merge commit by hand. v0.1 would ship the current prompt, answer-v1, with its
+  abstention weakness documented." The answer: "Release after S4 (Recommended)". It is in the
+  decisions table above; the release pull request is not part of this branch.
+- S4-J10, the question: "S4-J10 (info, new in the re-check): the validator re-checks labels only
+  for records that claim the current dataset. A record that misstates its dataset hash keeps its
+  labels unchecked, as history. The gate already refuses such a record as a baseline, and it would
+  show as a diff under runs/published/. The judge suggests a test that pins every published
+  record's dataset hash to a version the datasheet lists. Close it?" The answer: "Close it in this
+  PR".
+
+| Finding | Red | Commit | Green | Break (restored from git) |
+|---|---|---|---|---|
+| S4-J10 (info): a record that misstates its dataset sha256 keeps its labels unchecked | The judge's shape, a copy of the published repeat `20261019T174018Z-generation-local-ollama-dev-97011a7` in a temporary folder with `dataset.sha256` set to zeros, against the new tests with the check not yet written (it returned nothing): "1 failed, 1 passed": "Right contains one more item: \"20261019T174018Z-generation-local-ollama-dev-97011a7: dataset.sha256 0000000000000000000000000000000000000000000000000000000000000000 is no version the datasheet's Maintenance table lists\"" | `0d02736`: `tests/retrieval/test_publish.py::test_every_published_run_names_a_dataset_version_the_datasheet_lists` reads the Maintenance table's rows (never copying a hash) and requires every manifest under `runs/published/` to name one; `test_a_published_run_with_a_dataset_hash_no_version_has_is_named` holds the judge's copy to that line, naming the run and the hash | "2 passed"; the twelve published manifests name v1 (the S2 runs and the S3 run) or v1.1 (the eight S4 runs) | The check made to accept any hash: "1 failed, 1 passed" (the copy no longer named); restored: "2 passed", the tree clean |
+
+What the records hold: every manifest's `dataset` block names `datasets/golden.v1.jsonl` with its
+sha256 (ffb8c5a54b22 for the S2 and S3 runs, 5f8cdaf18783 for S4's), and `index.json`'s entries
+hold no dataset sha256, so the manifests are what the test reads. The S3 run's manifest also holds
+a `probes` block, `datasets/probes.s3.jsonl` with its own sha256, which no datasheet row lists:
+the Maintenance table versions the golden file only, so the test pins the dataset and not the
+probes file. Kept to the test the user chose: no publish-side refusal was added.
+
+**make check** at the end of fix round 2 (before this paragraph was written), `/usr/bin/time -p`:
+exit 0 in 175.44 s real (159.80 s user), the tests 138.87 s:
+
+    194 files already formatted
+    All checks passed!
+    0 errors, 0 warnings, 0 informations
+    No known vulnerabilities found
+    0 hits across 274 files (42 rules)
+    0 architecture violations in src/raglab
+    check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    ========== 1106 passed, 1 deselected, 1 warning in 138.87s (0:02:18) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+`make privacy-history`: "0 hits in 224 commits (42 rules)". The CHANGELOG's S4 line names no fix
+round, so it is unchanged. Nothing pushed; no Ollama session; the golden file, the answer key, the
+datasheet and every published record are as they were at `5fd4bf1`.
