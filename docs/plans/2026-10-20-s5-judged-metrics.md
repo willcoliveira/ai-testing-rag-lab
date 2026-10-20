@@ -4,7 +4,7 @@ name: judged-metrics
 nodes: [S5]
 date: 2026-10-20
 branch: feat/s5-judged-metrics
-status: draft, for approval
+status: approved 2026-10-20
 ---
 
 # S5: Judged metrics on local models, token measurement and the provider decision
@@ -25,8 +25,10 @@ per-case pass rate with case-level Wilson intervals; metric canary and hallucina
 check recorded for the pinned DeepEval (version, telemetry opt-out and custom-LLM API checked at
 that version); position test; cost formula and monthly estimate in THRESHOLDS.md".
 
-The message that opened S5 planning is quoted under Approval; this draft's brief carried none of
-your words.
+The message that opened S5 planning (2026-10-20), verbatim: "we can continue". The plan was
+approved on 2026-10-20, and your answers are quoted under Approval. One answer was not the
+recommended one: D5, one pull request. So the hosted half is part of this stage (AC16 to AC21), D6
+is asked mid-stage, and this stage's pull request waits for your sign-up.
 
 ## Where S5 starts
 
@@ -81,7 +83,8 @@ Read from the files at `0105404`, the v0.1.0 merge:
 - Run the position test of how-to 17 step 8.
 - Record the tokens of every generator and judge call, and turn them into a monthly cost per
   provider option in ADR-002 from a dated price table; you choose what to sign up for.
-- After your sign-up, in S5b: the hosted adapters you chose pass the contract tests with your keys.
+- After your sign-up, in this same pull request (D5): the hosted adapters you chose pass the
+  contract tests with your keys. The pull request waits for the sign-up.
 
 ## Out of scope
 
@@ -95,7 +98,7 @@ Read from the files at `0105404`, the v0.1.0 merge:
 | Any test-split run | none in S5 |
 | A failure cause on every case | S8; S5 records `context_sufficient`, which S8's retrieval-or-generation split needs |
 | Attack runs; the injection, PII and grounding guards | S7 |
-| Hosted calls and keys | S5b, after your sign-up (D5, D6) |
+| The CI gates with keys (eval-on-change, nightly, weekly) | S8, once keys exist |
 | Ragas | not used: at most one judged-metric library (D4) |
 
 ## CRITERIA.md, written first
@@ -158,7 +161,8 @@ is written.
 
 ## The judge
 
-- **The model** (D3): a family other than NVIDIA's, pulled by you, pinned by tag and digest in
+- **The model** (D3): `ministral-3:14b-instruct-2512-q4_K_M`, of a family other than NVIDIA's,
+  pulled by the orchestrator (your answer under Approval), pinned by tag and digest in
   `config/judge-local.toml`, the digest read from `/api/tags` after the pull, as S3 did.
 - **The session.** One model at a time, so generation and judging never share a session: a
   generator session writes its record and ends with the postcheck; a judge session reads finished
@@ -338,7 +342,8 @@ Under D4's recommended option:
 - **What the estimate cannot know.** Tokens measured on local models are a proxy: each provider's
   tokenizer counts differently (Anthropic's newer tokenizer counts the same text as "approximately
   30% more tokens than on Claude Haiku 4.5" [A2]), and hosted answers differ in length. The ADR
-  says so, and S5b replaces the estimate with the providers' own usage figures.
+  says so; after your sign-up, the hosted criteria record the providers' own usage figures, and
+  the optional hosted run (AC20) sets the estimate against a measured cost.
 - **THRESHOLDS.md** gets the formula, the measured tokens per case-trial by role, the monthly
   estimate per option with the price table's date, and Q-01's local latency baseline (p50, p95),
   all reported.
@@ -362,10 +367,13 @@ Under D4's recommended option:
 - Costs come from local token counts and a price table read by hand. Production reads the
   providers' usage and billing exports.
 
-## S5b, after your sign-up
+## The hosted half, after your sign-up (D5: in this pull request)
 
-A separate pull request, started only once you have signed up (D5, D6). Its criteria are B1 to B6
-below. In short:
+By your D5 answer ("One PR") the hosted half is part of this stage, not a pull request of its own.
+It starts once ADR-002's costs exist, you have answered D6 and you have signed up; **this stage's
+pull request waits for the sign-up.** Its criteria are AC16 to AC21, each marked "after your
+sign-up". If D6's answer is none (local only), AC16 to AC21 become "not applicable, by D6", ADR-002
+records local only, and the pull request goes ahead without them. In short:
 
 - the adapter for each provider you chose, over httpx in `raglab.adapters` (S3's choice: no vendor
   SDK); "loopback only" becomes "loopback or an allowlisted provider URL"; the key read from the
@@ -374,7 +382,7 @@ below. In short:
   without it), and the fallback contract against a stub;
 - model ids pinned to a fixed snapshot. Anthropic's current ids carry no date; its model-ids page
   says such an id "maps to a single, fixed model snapshot" [A4], which meets the repo rule's aim
-  (never a moving alias), and S5b records it;
+  (never a moving alias), and the hosted criteria record it;
 - provider differences recorded, not papered over: Claude Haiku 5.5 thinks adaptively by default,
   and its guide says to "omit `temperature`, `top_p`, and `top_k`", some values of which return
   HTTP 400 [A2]; a hosted judge then records the provider's defaults instead of temperature 0;
@@ -398,9 +406,14 @@ src/raglab/evals/record.py          + suite judged, + the position case kind (ad
 src/raglab/evals/cost.py            the formula over published records and the price table
 src/raglab/runtime/ollama.py        the session checks the model its config pins (generator or
                                     judge)
+src/raglab/adapters/                after your sign-up: the hosted adapter of each provider D6
+                                    picks (httpx), with an allowlist of provider URLs and a
+                                    per-run budget abort
 cli: raglab judge --run <run> --config config/judge-local.toml; raglab cost; the position suite
 config/judge-local.toml             the judge's tag and digest, temperature 0, seed, caps, [ollama]
 config/prices.toml                  each price with its URL and read date
+config/<provider>.toml              after your sign-up: one per hosted provider, with its pinned
+                                    model id and its budget, never a key
 datasets/canaries.judge.jsonl       the canary set (the developer may place it elsewhere)
 tools/deepeval-check/               pyproject.toml, uv.lock (deepeval==4.3.1), the wrapper, the
                                     checks
@@ -408,7 +421,8 @@ schemas/run-record.v1.json          + judged suite, + position kind (additive)
 Makefile                            judge-local, position-local, deepeval-check, cost; audit of the
                                     tool's lock
 .github/dependabot.yml              + tools/deepeval-check
-runs/published/                     the judged baseline; the position run
+runs/published/                     the judged baseline; the position run; the hosted judged run,
+                                    if AC20 is asked for
 docs/                               THRESHOLDS, COMPATIBILITY, TEST-PLAN, LOCAL-MODEL, ONBOARDING,
                                     ARCHITECTURE; README; CHANGELOG
 ```
@@ -433,7 +447,7 @@ ledger.
 | 11 | Canaries | a hard stop at the start of every judge session | a judge that misses a planted invention should grade nothing |
 | 12 | Cost | code over published records and a committed price table; the ADR quotes its output | the numbers come from runs, not from arithmetic by hand |
 | 13 | Retrieval questions | judged on `grounded` and `relevant` only | they carry no reference answer |
-| 14 | Hosted adapters (S5b) | httpx, no vendor SDK | S3's choice: one small dependency, already in place |
+| 14 | Hosted adapters (after your sign-up) | httpx, no vendor SDK | S3's choice: one small dependency, already in place |
 
 ## Acceptance criteria
 
@@ -456,66 +470,81 @@ from git; "expected pass" marks a break that must not trip its gate.
 | AC10 | **DeepEval, pinned and fenced.** `tools/deepeval-check/` locks DeepEval 4.3.1; the main environment never installs it (`uv sync --locked` and `make test` unchanged); the architecture rule forbids a deepeval import anywhere under `src/`, adapters included; `make audit` audits the tool's pinned requirements, exported from its lock; the opt-out is set before the import, the checks run under a loopback-only socket guard, every metric runs in mode `llm`, and every call goes through raglab's judge adapter | the tool's offline tests against the stub server; `make audit`; the main environment's package list; the ledger | the opt-out unset with the guard on: a connection attempt beyond loopback is expected to be caught (if none is attempted, the ledger says what the guard cannot see); a deepeval import added in `raglab.adapters`: `make architecture` fails |
 | AC11 | **DeepEval's checks** (live, recorded) at 4.3.1: the custom-LLM API; the metric canary (four scores, their sides, the reading the run supports); the hallucination direction (two scores, which is higher, `is_successful()` at the default threshold, beside the page's sentence and read date); the cross-check (agreement table, DeepEval's calls and tokens per metric); recorded in CRITERIA.md, COMPATIBILITY.md and the ledger | the checks' output, copied into the ledger; CRITERIA.md | the direction report fed scripted scores with the outputs' names swapped: its offline test fails |
 | AC12 | **Cost.** `config/prices.toml` with each price's URL and read date; `raglab cost` per call, case-trial, run and month, by role, from published records and the table; THRESHOLDS.md's cost section (the formula, tokens per case-trial by role, the monthly estimate per option, the table's date) and Q-01's local p50 and p95, all reported; every number from `raglab cost` or a record | `tests/unit/test_cost.py` (hand-computed); the command's output in the ledger | the output price applied to prompt tokens: the hand-computed test fails; a price without a URL or a date: the table's test fails |
-| AC13 | **ADR-002 and your choice.** The options, the measured tokens, the price table (cited, dated), the monthly cost per option from `raglab cost`, its limits, a recommendation, and your choice quoted verbatim (D6, asked at the pull request); the main plan's accounts row follows your choice | review; a test that the ADR's cost table equals `raglab cost`'s output for the committed records and table | a cost edited by hand in the ADR: the test fails |
+| AC13 | **ADR-002 and your choice.** The options, the measured tokens, the price table (cited, dated), the monthly cost per option from `raglab cost`, its limits, a recommendation, and your choice quoted verbatim (D6, asked mid-stage once these costs exist); the main plan's accounts row follows your choice | review; a test that the ADR's cost table equals `raglab cost`'s output for the committed records and table | a cost edited by hand in the ADR: the test fails |
 | AC14 | **Docs and the standing criterion.** TEST-PLAN: R5 names its tests and its gate (local until keys, reported until S6) and its oracle says what is judged and what stays label-based, section 10's judges and canary lines, Q-01 and Q-02 point at THRESHOLDS.md, and the Test column names the judged criteria (reported) for the requirements they cover; LOCAL-MODEL: the judge session, its limits and its measured time; COMPATIBILITY: the judge and DeepEval rows; ONBOARDING: the commands; ARCHITECTURE and README: S5 `done`, and the phase map reordered if D1 is A; a CHANGELOG line; the ledger | `tests/unit/test_test_plan.py`, `test_diagram.py`, `test_onboarding.py`, `test_readme.py`; review | |
 | AC15 | **`make check`, and [CI] pr-fast green.** No new runtime dependency in the main project; the S4 baselines unchanged (`make gate` passes, every published record validates) | the `make check` tail in the ledger; the pull request's checks | |
+| AC16 | **After your sign-up: the hosted adapters.** For each provider D6 picks, an adapter over httpx in `raglab.adapters`; "loopback only" becomes "loopback or an allowlisted provider URL"; the key read from the environment only (`.env` locally, an Environment secret in CI), never from config or the repo; model ids pinned to fixed snapshots | `make architecture`; `make secrets`; the adapter tests against a stub | a URL outside the allowlist accepted: its test fails; a config that names a key loaded: the loader's test fails |
+| AC17 | **After your sign-up: the contract tests with your key.** The shared contract tests pass against each hosted adapter with your key (marker `live`, skipped without it); the fallback contract against a stub (timeout, 5xx, unparseable: `unavailable` or `invalid_output`); tokens from the provider's usage fields | the live test log in the ledger (never the key); the stub tests | the 5xx mapping removed: the fallback test fails |
+| AC18 | **After your sign-up: the spend limit first.** Your hard spend limit at the provider (an Anthropic workspace other than the default one, or an OpenAI project), set before the first call, its amount in the ledger; a per-run budget abort from the price table, tested offline | `tests/unit/test_budget.py`; the ledger | the abort removed: the budget test fails |
+| AC19 | **After your sign-up: COMPATIBILITY.md** says "tested against <model> on <date>" for each hosted adapter, from its live contract test | review | |
+| AC20 | **After your sign-up, if you ask for it: one hosted judged run** on the dev slice within its budget, published with provenance hosted, and ADR-002's estimate set against its measured cost | `runs/published/`; the ledger | |
+| AC21 | **After your sign-up: no key anywhere.** gitleaks finds no key in the files or the history; `make check` and [CI] pr-fast green with the hosted adapters in | `make secrets`; the pull request's checks | |
 
-### S5b's criteria (after your sign-up; a pull request of its own)
-
-| # | Criterion | Evidence |
-|---|---|---|
-| B1 | The adapter for each provider you chose, over httpx in `raglab.adapters`; the key read from the environment only (`.env` locally, an Environment secret in CI), never from config or the repo; model ids pinned to fixed snapshots | `make architecture`; `make secrets`; tests |
-| B2 | The shared contract tests pass against each hosted adapter with your key (marker `live`, skipped without it); the fallback contract against a stub (timeout, 5xx, unparseable: `unavailable` or `invalid_output`); tokens from the provider's usage | the live test log in the ledger (never the key) |
-| B3 | Your hard spend limit at the provider, set before the first call, its amount in the ledger; a per-run budget abort from the price table, tested offline | `tests/unit/test_budget.py`; the ledger |
-| B4 | COMPATIBILITY.md: "tested against <model> on <date>" per adapter, from the live tests | review |
-| B5 | If you ask for it: one hosted judged run on the dev slice within its budget, published with provenance hosted, and ADR-002's estimate set against its measured cost | `runs/published/`; the ledger |
-| B6 | `make check` and [CI] pr-fast green; gitleaks finds no key in the files or the history | the checks |
+AC16 to AC21 start after your sign-up, and this stage's pull request waits for it. If D6's answer
+is none (local only), they are "not applicable, by D6": ADR-002 records local only, and the report
+counts them so.
 
 ## Your review tasks and time
 
-My estimates:
+My estimates, updated for your answers (one pull request under D5; the orchestrator runs the
+download):
 
-1. **This plan**, with D1 to D5: about 40 minutes.
-2. **The judge's download** (D3): one guarded session to pull it (`make ollama-up`, `ollama pull
-   <tag>`, `make ollama-down`): about 10 minutes of your time, plus the download.
+1. **This plan**, with D1 to D5: about 40 minutes (done: approved on 2026-10-20).
+2. **The judge's download:** nothing for you; the orchestrator runs it (your answer under
+   Approval).
 3. **Sign off CRITERIA.md and the canary set**, mid-stage; nothing is judged before it: seven
    criteria and about sixteen canary items, about 30 to 45 minutes.
-4. **Questions the ledger raises** during the build: about 15 minutes.
-5. **The pull request:** the judged numbers, the checks on the judge and on DeepEval, THRESHOLDS,
-   ADR-002, and D6 (what to sign up for): about 60 to 75 minutes.
-6. **S5b**, if you sign up: an account, a workspace or project with its hard limit and its key
-   (about 30 minutes), and its pull request (about 30 minutes).
+4. **D6, mid-stage**, once ADR-002's costs exist: reading the ADR and answering, about 20
+   minutes.
+5. **Your sign-up**, if D6 picks a provider: an account, a workspace or project with its hard spend
+   limit set first, and a key in `.env`: about 30 minutes. The pull request waits for it.
+6. **Questions the ledger raises** during the build: about 15 minutes.
+7. **The pull request:** the judged numbers, the checks on the judge and on DeepEval, THRESHOLDS,
+   ADR-002 and the hosted criteria: about 75 to 90 minutes.
 
-In all, about 2.5 to 3 hours for S5, and about 1 hour for S5b.
+In all, about 3.5 to 4 hours over the stage, the plan included; without a sign-up (D6: local
+only), about 3 hours.
 
 ## How it will run
 
-1. **Decisions:** D1 to D5 come with this plan's approval (D3 includes your download); D6 is asked
-   at the pull request, with ADR-002 in hand.
-2. **Build, offline** (developer, Opus 5.5): CRITERIA.md's draft and the code and tests of AC2 and
+1. **Decisions:** D1 to D5 were answered with the approval (below); D6 is asked mid-stage, at step
+   6, once ADR-002's costs exist.
+2. **The judge's download:** the orchestrator runs it in one guarded session (`make ollama-up`,
+   `ollama pull ministral-3:14b-instruct-2512-q4_K_M`, `make ollama-down`, and the postcheck); the
+   developer pins the digest the server reports, which must start with `4760c35aeb9d`.
+3. **Build, offline** (developer, Opus 5.5): CRITERIA.md's draft and the code and tests of AC2 and
    AC4 to AC13 against the stub server and FakeChat, the DeepEval tool project's offline tests and
    the docs, with `make check` green. The only live session before your sign-off is the judge's
    live contract test (AC3), which judges no golden answer: it shows early whether the judge's
    runner gives schema-constrained JSON.
-3. **Your sign-off** of CRITERIA.md and the canary set, quoted in the ledger; both are frozen from
+4. **Your sign-off** of CRITERIA.md and the canary set, quoted in the ledger; both are frozen from
    there.
-4. **Live** (developer, `make` targets only; one model per session; the postcheck after each):
+5. **Live, local** (developer, `make` targets only; one model per session; the postcheck after
+   each):
    1. a short judge session: the judge's live contract test and the canaries. It measures the
       judge's seconds per call, from which the judged run's wall-clock cap is set and committed
       before the run;
    2. the judged run on the consistency baseline, with the repeatability and order checks;
    3. the position test: one generator session, then its `correct` verdicts in a judge session;
    4. DeepEval's checks, in a judge session.
-5. **Criteria judge** (Fable 5.1, its own worktree): re-runs the evidence and recomputes every
-   number from the records; breaks AC1, AC2, AC4 to AC6 and AC8 to AC13 offline and restores each;
-   one live judge session with a flipped canary (AC4); a verdict per criterion: met, not met or
-   needs CI.
-6. **Fix rounds:** at most two. Product choices come back to you; a third round only with your go.
-7. **Report:** the pull request's body is the stage report: n of m criteria met, what needs CI,
-   what was cut, the Mac time used, and hosted spend (none).
+6. **ADR-002 and D6:** `raglab cost` over the published records, ADR-002 written from its output,
+   then D6 asked with those costs; your answer quoted verbatim in the ADR and the ledger.
+7. **Your sign-up**, if D6 picks a provider: the account, a workspace or project with its hard spend
+   limit set first, and the key in `.env`. The pull request waits for it. If D6's answer is none
+   (local only), AC16 to AC21 are not applicable, by D6, and the stage goes on to step 9.
+8. **The hosted adapters:** built offline against a stub (AC16, AC18), then their live contract
+   tests with your key, the spend limit already set (AC17, AC19), and the hosted judged run if you
+   ask for it (AC20).
+9. **Criteria judge** (Fable 5.1, its own worktree): re-runs the evidence and recomputes every
+   number from the records; breaks AC1, AC2, AC4 to AC6, AC8 to AC13, AC16 and AC18 offline and
+   restores each; one live judge session with a flipped canary (AC4); it re-runs a hosted live test
+   only with your go (your key, your spend), and otherwise reads its log; a verdict per criterion:
+   met, not met, needs CI, or not applicable by D6.
+10. **Fix rounds:** at most two. Product choices come back to you; a third round only with your go.
+11. **Report:** the pull request's body is the stage report: n of m criteria met, what needs CI,
+    what was cut, the Mac time used, and the hosted spend set against ADR-002's estimate.
 
-S5b runs the same loop, shorter, with its own ledger. Sequential subagents unless your go asks for
-a Workflow.
+Sequential subagents: your go did not ask for a Workflow.
 
 ## Mac time
 
@@ -537,7 +566,9 @@ a wall-clock cap set from the measured speed. If the measured speed puts the jud
 about 4 hours, the developer stops and asks you before cutting, in this order: the DeepEval
 cross-check, then `relevant` on the retrieval questions, then the repeatability check.
 
-Hosted spend: none in S5. S5b spends within the limit you set at the provider.
+Hosted spend: none before your sign-up. After it, the contract tests and the optional hosted run
+spend within the limit you set at the provider, and the report sets the actual spend against
+ADR-002's estimate.
 
 ## Decisions needed
 
@@ -606,9 +637,10 @@ gives judge accuracy for any of these models: S6's calibration will.
 - **C: gpt-oss 20B**: listed structured outputs and the most reasoning on paper, but its reasoning
   may not switch off (more tokens and time per verdict), and it is OpenAI's family, so an OpenAI
   generator under D6 would then need another judge.
-- **The download is yours,** in one guarded session: `make ollama-up`, `ollama pull <tag>`, `make
+- **The download,** in one guarded session: `make ollama-up`, `ollama pull <tag>`, `make
   ollama-down` (9.1 GB under A). The developer then pins the digest from `/api/tags`, which must
-  start with the tags page's prefix above.
+  start with the tags page's prefix above. Who runs it was asked with the approval: the
+  orchestrator (see Approval).
 - Also looked at, not recommended: Gemma 4, Phi-4 and Granite 4.2. Not proposed here: moving Ollama
   from Homebrew's formula to its `ollama-binary` cask, which a commenter on the issue uses as a
   workaround [M1]; it would change the generator's tested setup, so it would be a decision of its
@@ -642,20 +674,62 @@ gives judge accuracy for any of these models: S6's calibration will.
   waits for the sign-up.
 - **C: no hosted provider now.** ADR-002 records local only as the choice, and S5b waits until a
   stage needs keys (S8's CI gates, S10's demo).
+- **Answered: B, one pull request** (see Approval). S5b is not a pull request of its own: its
+  criteria are AC16 to AC21 of this stage, marked "after your sign-up", and this stage's pull
+  request waits for the sign-up.
 
-**D6. What to sign up for: asked at the pull request**, with ADR-002's monthly costs. The options
-it will price: none (local only); a hosted judge for the local generator; or a hosted generator
-with a hosted judge of another family. The judge's family must differ from the generator's in
-every option: the local judge chosen in D3 counts too.
+**D6. What to sign up for: asked mid-stage**, once ADR-002's monthly costs exist (step 6 of "How it
+will run"). The draft asked it at the pull request; your D5 answer, one pull request, moved it to
+the middle of the stage, so that the hosted criteria run before the pull request. The options it
+will price: none (local only); a hosted judge for the local generator; or a hosted generator with a
+hosted judge of another family. The judge's family must differ from the generator's in every
+option: the local judge chosen in D3 counts too. If the answer is none (local only), AC16 to AC21
+become "not applicable, by D6", and ADR-002 records local only.
 
 **D7. This plan:** approve and start, or changes first.
 
 ## Approval
 
-The message that opened S5 planning, and your answers to D1 to D7, are quoted here verbatim when
-they are given.
+The message that opened S5 planning (2026-10-20), verbatim: "we can continue". It was your reply
+after the orchestrator recommended drafting the S5 plan next.
+
+Your answers (2026-10-20), each with its question, verbatim:
+
+- **D1.** Question: "D1: S5 before S4b? The main plan's order is S4b (golden set v2, about 120
+  cases) and then S5." Answer: "S5 now, S4b after (Recommended)". It means: S5 runs on golden set
+  v1.1 and S4b follows it; this stage's pull request records the new order in the main plan's phase
+  map and its README and ARCHITECTURE copies, as pull request #10 did for S3h.
+- **D2.** Question: "D2: where does answer-v2, the prompt fix for the model labelling nearly
+  everything `answer`, fit?" Answer: "After S5, own PR (Recommended)". It means: S5 judges
+  answer-v1; answer-v2 is a pull request of its own after S5, before S4b and S6, on dev only.
+- **D3.** Question: "D3: which local judge model? It must come from a different family than the
+  NVIDIA generator. It is pinned to a GGUF build, because the MLX builds refuse structured output
+  on your Homebrew Ollama." Answer: "Ministral 3 14B (Recommended)". It means: the judge is
+  `ministral-3:14b-instruct-2512-q4_K_M`, pinned by tag and digest.
+- **D4.** Question: "D4: DeepEval or our own judge prompts?" Answer: "Own judge; DeepEval fenced
+  (Recommended)". It means: D4's option A; our own judge decides every criterion, and DeepEval
+  4.3.1 runs only in `tools/deepeval-check/`.
+- **D5.** Question: "D5: how should the hosted half (adapters for the provider you choose, tested
+  with your keys) ship?" Answer: "One PR". This is option B, not the recommended one. It means: the
+  hosted half is part of this stage (AC16 to AC21, after your sign-up); D6 is asked mid-stage, once
+  ADR-002's costs exist; this stage's pull request waits for your sign-up; and if D6's answer is
+  none (local only), AC16 to AC21 are not applicable, by D6, and ADR-002 records local only.
+- **The download.** Question: "The judge model's download (9.1 GB under D3). The plan has it
+  pulled in one guarded session: `make ollama-up`,
+  `ollama pull ministral-3:14b-instruct-2512-q4_K_M`, `make ollama-down`, with the digest then
+  pinned from the server. Who runs it?" Answer: "You run it (Recommended)", whose description
+  read: "I run those three steps, as you allowed for the generator in S3. Ollama is up only for the
+  pull, then down, and the postcheck confirms it." It means: the orchestrator runs the pull, and
+  the developer pins the digest it reports.
+- **D7.** Question: "D7: this plan, with your answers to D1 to D5. D6 (what to sign up for) is
+  asked at the PR, with ADR-002's costs." Answer: "Approve and start (Recommended)". It means: the
+  build starts. Note: D5's answer ("One PR") moves D6 from the pull request to mid-stage, once
+  ADR-002's costs exist, as D6 now says.
 
 ## Sources (all read 2026-10-20)
+
+A note on the reading: a research helper read some Ollama source files on GitHub during planning,
+which the isolation rule forbids; nothing from them is cited or used in this plan.
 
 - [H1] AI Testing Handbook, "Build project: a RAG assistant you can prove", stage 5:
   https://raw.githubusercontent.com/willcoliveira/ai-testing-handbook/main/learning-path/rag-build-project.md
