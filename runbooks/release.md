@@ -13,7 +13,8 @@ v0.3 as the main plan's phases close.
 
 1. **Plan.** A short release plan in `docs/plans/` with numbered criteria, approved by the
    maintainer before anything runs; the go is quoted verbatim in it.
-2. **Branch.** `chore/release-vX.Y.Z` from `main`.
+2. **Branch.** `chore/release-vX-Y-Z` from `main`: the branch rule (`scripts/check_conventions.py`)
+   allows no dots, so the version's dots become hyphens.
 3. **Version.** Set it in `pyproject.toml`, then `uv lock` and `uv lock --check`.
 4. **Freeze.** Commit everything but the runs and the notes; `make check` green; the tree clean.
 5. **The test slice, once.** `make release-local`: the default retrieval configuration on the test
