@@ -237,6 +237,38 @@ def test_a_published_run_with_a_dataset_hash_no_version_has_is_named(tmp_path):
     ]
 
 
+def test_the_versions_are_read_from_the_maintenance_table_only():
+    """S4-J11 (fix round 3): the committed datasheet mentions more 64-hex strings than it lists
+    versions (the labels judge's seal, in its agreement section, is the third), and only the
+    Maintenance table's rows are versions."""
+    text = DATASHEET.read_text(encoding="utf-8")
+    assert len(set(re.findall(r"[0-9a-f]{64}", text))) == 3
+    listed = listed_dataset_versions(DATASHEET)
+    assert sorted(listed.values()) == ["v1", "v1.1"]
+    assert len(listed) == 2
+
+
+def test_a_hash_outside_the_maintenance_table_is_no_version(tmp_path):
+    """S4-J11 (fix round 3): a copy of the datasheet, in a temporary folder, with a backticked
+    hash in prose and a version row in another section's table, both before the Maintenance
+    section: neither is listed, and the Maintenance rows are."""
+    text = DATASHEET.read_text(encoding="utf-8")
+    prose, row = "1" * 64, "2" * 64
+    head, maintenance = text.split("\n## Maintenance\n", 1)
+    planted = (
+        f"{head}\n\nA hash in prose: `{prose}`.\n\n"
+        "| Version | Date | Stage | What changed | sha256 |\n|---|---|---|---|---|\n"
+        f"| v9 | 2026-10-20 | S9 | planted | `{row}` |\n"
+        f"\n## Maintenance\n{maintenance}"
+    )
+    copy = tmp_path / "DATASHEET.md"
+    copy.write_text(planted, encoding="utf-8")
+    listed = listed_dataset_versions(copy)
+    assert prose not in listed
+    assert row not in listed
+    assert listed == listed_dataset_versions(DATASHEET)
+
+
 def test_a_published_run_edited_to_show_another_tenants_chunk_is_refused(tmp_path):
     """S2 judge D3, as reproduced: the dense baseline copied, R-Q01 (tenant A) given tenant B's
     B-PWD 1.0 3.1 at rank 1 with every flag, score, hash and the report made to agree. The
