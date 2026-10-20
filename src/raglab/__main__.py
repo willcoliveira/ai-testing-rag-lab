@@ -382,6 +382,27 @@ def position_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def cost_estimate(args: argparse.Namespace) -> int:
+    """`raglab cost --judged <run>` (S5, AC12): the tokens a judged record measured, priced with
+    config/prices.toml per call, case-trial, run and month for each option of
+    config/cost-assumptions.toml (raglab.evals.cost), printed as Markdown."""
+    from raglab.evals import cost
+
+    root: Path = args.root
+    try:
+        run_dir = _run_dir(root, args.judged)
+        table = cost.load_prices(args.prices if args.prices.is_absolute() else root / args.prices)
+        assumptions = cost.load_assumptions(
+            args.assumptions if args.assumptions.is_absolute() else root / args.assumptions, table
+        )
+        found = cost.measured(run_dir)
+        print(cost.render(found, table, assumptions, cost.estimate(found, table, assumptions)))
+    except (cost.CostError, FileNotFoundError, KeyError, ValueError) as error:
+        print(f"cost failed: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def ask(args: argparse.Namespace) -> int:
     """One question through the pipeline; the outcome as JSON. Exit 0 when the status is ok."""
     root: Path = args.root
@@ -569,6 +590,13 @@ def main(argv: list[str] | None = None) -> int:
     where.add_argument("--gate", choices=GATES, default="manual")
     where.add_argument("--out", type=Path, default=Path(RUNS), help=f"(default {RUNS})")
     where.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    priced = commands.add_parser(
+        "cost", help="a judged run's measured tokens priced per call, case-trial, run, month (S5)"
+    )
+    priced.add_argument("--judged", type=Path, required=True, help="a judged run: dir or id")
+    priced.add_argument("--prices", type=Path, default=Path("config/prices.toml"))
+    priced.add_argument("--assumptions", type=Path, default=Path("config/cost-assumptions.toml"))
+    priced.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     canary = commands.add_parser("canaries", help="the judge's canary set, a hard stop (S5)")
     canary.add_argument("--config", type=Path, required=True, help="a judge config/*.toml")
     canary.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
@@ -605,6 +633,7 @@ def main(argv: list[str] | None = None) -> int:
         "judge": judge_run,
         "canaries": canary_check,
         "position": position_run,
+        "cost": cost_estimate,
         "publish": publish_run,
         "gate": gate,
         "ask": ask,

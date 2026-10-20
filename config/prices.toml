@@ -1,0 +1,97 @@
+# The price table (S5, AC12): each price in US dollars per million tokens, with the page it was read
+# from and the date it was read. raglab cost (raglab.evals.cost) reads it, and an estimate names the
+# table's date (price_table_date). Prices change: read the pages again before a decision, add a row
+# or change one with its new read date, and the date below follows.
+#
+# Read by the S5 developer on 2026-10-20 from the providers' own pages; they match the planner's
+# reading of the same day. Only the tier our prompts fall in is listed: every prompt S5 measured is
+# far below 100,000 tokens (Claude Haiku 5.5's threshold) and 272,000 (gpt-6-luna's), and
+# max_prompt_tokens makes raglab cost refuse a call above a row's threshold.
+# Read by raglab.evals.cost.load_prices (strict: an unknown or missing key stops it).
+date = "2026-10-20"
+
+[[price]]
+id = "anthropic-haiku-5.5"
+provider = "anthropic"
+model = "Claude Haiku 5.5"
+model_id = "claude-haiku-5-5"
+input = 0.10
+output = 0.50
+batch_input = 0.05
+batch_output = 0.25
+max_prompt_tokens = 100000
+source = "https://platform.claude.com/docs/en/about-claude/pricing"
+read = "2026-10-20"
+note = "for prompts up to 100,000 tokens; the model id from https://platform.claude.com/docs/en/models/haiku-5-5/overview"
+
+[[price]]
+id = "anthropic-sonnet-5.5"
+provider = "anthropic"
+model = "Claude Sonnet 5.5"
+input = 2.0
+output = 10.0
+batch_input = 1.0
+batch_output = 5.0
+source = "https://platform.claude.com/docs/en/about-claude/pricing"
+read = "2026-10-20"
+
+[[price]]
+id = "anthropic-opus-5.5"
+provider = "anthropic"
+model = "Claude Opus 5.5"
+input = 4.0
+output = 20.0
+batch_input = 2.0
+batch_output = 10.0
+source = "https://platform.claude.com/docs/en/about-claude/pricing"
+read = "2026-10-20"
+
+[[price]]
+id = "anthropic-haiku-4.5"
+provider = "anthropic"
+model = "Claude Haiku 4.5"
+input = 1.0
+output = 5.0
+batch_input = 0.50
+batch_output = 2.50
+source = "https://platform.claude.com/docs/en/about-claude/pricing"
+read = "2026-10-20"
+note = "the main plan's row (2026-10-05)"
+
+[[price]]
+id = "openai-gpt-5-nano"
+provider = "openai"
+model = "gpt-5-nano"
+model_id = "gpt-5-nano"
+input = 0.05
+output = 0.40
+batch_input = 0.025
+batch_output = 0.20
+source = "https://developers.openai.com/api/docs/pricing"
+read = "2026-10-20"
+
+[[price]]
+id = "openai-gpt-5-mini"
+provider = "openai"
+model = "gpt-5-mini"
+model_id = "gpt-5-mini"
+input = 0.25
+output = 2.00
+batch_input = 0.125
+batch_output = 1.00
+source = "https://developers.openai.com/api/docs/pricing"
+read = "2026-10-20"
+
+[[price]]
+id = "openai-gpt-6-luna"
+provider = "openai"
+model = "gpt-6-luna"
+model_id = "gpt-6-luna"
+input = 0.10
+output = 0.50
+batch_input = 0.05
+batch_output = 0.25
+max_prompt_tokens = 272000
+source = "https://developers.openai.com/api/docs/pricing"
+read = "2026-10-20"
+note = "short context: 272K input tokens or fewer"

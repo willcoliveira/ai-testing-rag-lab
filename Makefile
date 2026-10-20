@@ -8,7 +8,7 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-local position-local container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-local position-local cost container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -150,6 +150,12 @@ judge-local:
 	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
 		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py" \
 		--run "uv run raglab judge --run $(RUN) --config $(JUDGE_CONFIG)"
+
+# S5 AC12: a published judged record's measured tokens priced with config/prices.toml per call,
+# case-trial, run and month for each option of config/cost-assumptions.toml (no model, no network)
+cost:
+	@test -n "$(JUDGED)" || (echo "give a judged run: make cost JUDGED=<run id>" >&2; exit 2)
+	uv run raglab cost --judged $(JUDGED)
 
 # S5 AC9: the position test, one generator session: the generator's live contract test, then each
 # position case with its answering chunk first, in the middle and last of a long context, written
