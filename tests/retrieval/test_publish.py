@@ -3,6 +3,7 @@ runs/published/<run_id>/ and rebuilds index.json (AC9: the index the playground 
 fake, invalid or private run is refused. And the no-regression gate against the baseline."""
 
 import json
+import re
 import shutil
 from datetime import UTC, datetime
 from typing import Any
@@ -176,6 +177,64 @@ def test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline():
     assert dataset["sha256"] == record.sha256_bytes((ROOT / dense.dataset).read_bytes())
     used = record.as_json(baseline["config"])
     assert used["sha256"] == eval_config.canonical_sha256(dense.resolved())
+
+
+# ---------------------------------------------------------------- S4-J10 (fix round 2)
+
+DATASHEET = ROOT / "datasets" / "DATASHEET.md"
+
+
+def listed_dataset_versions(datasheet: Any) -> dict[str, str]:
+    """The datasheet's Maintenance table: each version's sha256 of the golden file, read from the
+    table's rows (never copied here), as {sha256: version}."""
+    text = datasheet.read_text(encoding="utf-8")
+    table = text.split("\n## Maintenance\n", 1)[1].split("\n## ", 1)[0]
+    rows = re.findall(r"^\| (v\d+(?:\.\d+)*) \|.*\| `([0-9a-f]{64})` \|$", table, flags=re.M)
+    assert len({sha for _, sha in rows}) == len(rows), "a sha256 is listed twice"
+    return {sha: version for version, sha in rows}
+
+
+def unlisted_dataset_problems(published: Any, datasheet: Any) -> list[str]:
+    """Each published run whose manifest's dataset.sha256 is no version the datasheet lists."""
+    listed = listed_dataset_versions(datasheet)
+    problems: list[str] = []
+    for path in sorted(published.glob(f"*/{record.MANIFEST}")):
+        sha = json.loads(path.read_text(encoding="utf-8"))["dataset"]["sha256"]
+        if sha not in listed:
+            problems.append(
+                f"{path.parent.name}: dataset.sha256 {sha} is no version the datasheet's "
+                "Maintenance table lists"
+            )
+    return problems
+
+
+def test_every_published_run_names_a_dataset_version_the_datasheet_lists():
+    """S4-J10, the criteria judge's info finding, closed by the user's answer "Close it in this PR"
+    (fix round 2). The validator derives a record's labels and behaviour fields again only when
+    the record claims the golden file's current sha256, so a record that misstated its dataset
+    would keep them unchecked, as history. Every published record must therefore name a version
+    the datasheet's Maintenance table lists: today v1 (the S2 and S3 runs) and v1.1 (S4's). The
+    index entries hold no dataset sha256, so the manifests are what is read."""
+    listed = listed_dataset_versions(DATASHEET)
+    assert {"v1", "v1.1"} <= set(listed.values())
+    index = publish.read_index(ROOT / publish.PUBLISHED)
+    assert not any("dataset" in record.as_json(run) for run in record.as_list(index["runs"]))
+    assert unlisted_dataset_problems(ROOT / publish.PUBLISHED, DATASHEET) == []
+
+
+def test_a_published_run_with_a_dataset_hash_no_version_has_is_named(tmp_path):
+    """The judge's shape: a copy of a published S4 run with dataset.sha256 set to zeros, in a
+    temporary folder (the committed tree is never edited), is named with its run id and hash."""
+    run_id = "20261019T174018Z-generation-local-ollama-dev-97011a7"
+    published = tmp_path / "runs" / "published"
+    shutil.copytree(ROOT / publish.PUBLISHED / run_id, published / run_id)
+    manifest_path = published / run_id / record.MANIFEST
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["dataset"]["sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    assert unlisted_dataset_problems(published, DATASHEET) == [
+        f"{run_id}: dataset.sha256 {'0' * 64} is no version the datasheet's Maintenance table lists"
+    ]
 
 
 def test_a_published_run_edited_to_show_another_tenants_chunk_is_refused(tmp_path):
