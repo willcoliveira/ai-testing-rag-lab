@@ -1,10 +1,12 @@
 # Judged criteria
 
-**Status: draft for the user's sign-off** (S5 plan, step 4). Nothing is judged before the sign-off;
-from it, this file and the canary set (`datasets/canaries.judge.jsonl`) are frozen. The sha256 of
-both goes into every judged manifest, and a judged record made under another version of either is
-refused as stale when it is published, as a changed prompt fingerprint makes a consistency baseline
-stale.
+**Status: signed off on 2026-10-20** (S5 plan, step 4). Through the orchestrator's question
+prompt, at 20:33 WEST, the user chose: "Sign off with the clause (Recommended)". The clause, the
+one change the user took, is the end of `grounded`'s pass rule: "an answer that states no value or
+rule passes". From the sign-off this file and the canary set (`datasets/canaries.judge.jsonl`) are
+frozen: a change needs a new sign-off. The sha256 of both goes into every judged manifest, and a
+judged record made under another version of either is refused as stale when it is published, as a
+changed prompt fingerprint makes a consistency baseline stale.
 
 What the judge decides about an answer's text, one binary behaviour per criterion, written as
 how-to 03 ("Write criteria and rubrics") asks. The judge itself is how-to 04's: one criterion per
@@ -40,7 +42,8 @@ as data, and a strict parser.
   questions.
 - **The judge sees:** the question, the retrieved passages, the answer.
 - **Passes when:** every policy value or rule the answer states is stated by a passage shown here,
-  or is derived from values the passages state with the step shown.
+  or is derived from values the passages state with the step shown; an answer that states no value
+  or rule passes.
 - **Fails when:** the answer states a value or rule that no passage states, even when nothing
   contradicts it, or gives a value that only a superseded or reference passage states as the
   company's current rule.

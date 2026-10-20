@@ -5,8 +5,9 @@ reviewed); every input sits in a frame its text cannot close or open; a criterio
 the inputs it sees; and the text carries no developer comments.
 
 To change the prompt: write judge_v2 (or bump VERSION), add its fingerprint below and its
-snapshot under tests/snapshots/, and review both diffs in the pull request. Until the user signs
-off docs/CRITERIA.md, judge-v1 is a draft that no record has used; from the sign-off it is frozen.
+snapshot under tests/snapshots/, and review both diffs in the pull request. judge-v1 is frozen
+since the user signed off docs/CRITERIA.md on 2026-10-20 with one clause, the end of grounded's
+pass rule, which is in the fingerprint below; no record used the draft's text.
 """
 
 import re
@@ -22,7 +23,7 @@ pytestmark = pytest.mark.unit
 
 # the reviewed fingerprint of each judge prompt version; never edit a line, add one
 REVIEWED = {
-    "judge-v1": "481783ef736170802f28d82fc8e2055d26b12424b552acaab8ffee2fa563d575",
+    "judge-v1": "10d96ed31467c42c13e2b037956fef94e9a011b47156ffb88d095a40c3955368",
 }
 SNAPSHOT = ROOT / "tests" / "snapshots" / "judge-v1.txt"
 QUESTION = "How long must a password be?"

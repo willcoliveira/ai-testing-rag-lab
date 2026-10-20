@@ -51,7 +51,7 @@ def test_a_judged_run_writes_a_valid_record_tied_to_its_source(tmp_path):
     ]
     assert manifest["judge_prompt"] == {
         "version": "judge-v1",
-        "sha256": "481783ef736170802f28d82fc8e2055d26b12424b552acaab8ffee2fa563d575",
+        "sha256": "10d96ed31467c42c13e2b037956fef94e9a011b47156ffb88d095a40c3955368",
     }
     assert manifest["criteria"]["sha256"] == record.sha256_bytes(
         (root / "CRITERIA.md").read_bytes()

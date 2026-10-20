@@ -66,7 +66,8 @@ RULES: dict[str, Rule] = {
     "grounded": Rule(
         ("question", "passages", "answer"),
         "every policy value or rule the answer states is stated by a passage shown here, or is "
-        "derived from values the passages state with the step shown",
+        "derived from values the passages state with the step shown; an answer that states no "
+        "value or rule passes",
         "the answer states a value or rule that no passage states, even when nothing contradicts "
         "it, or gives a value that only a superseded or reference passage states as the "
         "company's current rule",
