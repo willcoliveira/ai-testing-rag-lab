@@ -40,7 +40,7 @@ from typing import cast
 
 from raglab.chunk.sections import ChunkSettings
 from raglab.core.types import visible_tenants
-from raglab.evals import behaviour, generation_record, golden, metrics
+from raglab.evals import behaviour, generation_record, golden, judged_record, metrics
 from raglab.evals.schema import Validator
 from raglab.ingest import answer_key, pipeline, register
 
@@ -329,6 +329,8 @@ def validate(run_dir: Path, root: Path) -> list[str]:
     k = cast(int, as_json(manifest["retriever"])["k"])
     if manifest["suite"] == "generation":
         problems.extend(generation_problems(manifest, cases, k, root))
+    elif manifest["suite"] == judged_record.JUDGED:  # S5
+        problems.extend(judged_record.judged_problems(manifest, cases, run_dir, root))
     else:
         problems.extend(retrieval_problems(manifest, cases, k))
     try:
@@ -362,6 +364,7 @@ def fake_models(manifest: Json) -> list[str]:
     for part, fields in (
         ("embedder", ("provider", "revision")),
         ("generator", ("provider", "digest")),
+        ("judge", ("provider", "digest")),  # S5: a judged run's judge model
     ):
         if part not in manifest:
             continue
@@ -411,6 +414,8 @@ def render(manifest: Json, cases: Sequence[Json]) -> str:
     """report.md for the run's suite."""
     if manifest["suite"] == "generation":
         return generation_record.render_report(manifest, cases)
+    if manifest["suite"] == judged_record.JUDGED:
+        return judged_record.render_report(manifest, cases)
     return render_report(manifest, cases)
 
 
@@ -419,6 +424,10 @@ def expected_results(manifest: Json, cases: Sequence[Json]) -> Json:
     if manifest["suite"] == "generation":
         level = cast(float, as_json(manifest["intervals"])["level"])
         return generation_record.results(cases, cast(int, manifest["trials"]), level)
+    if manifest["suite"] == judged_record.JUDGED:
+        level = cast(float, as_json(manifest["intervals"])["level"])
+        canary_rows = [as_json(r) for r in as_list(as_json(manifest["canaries"])["results"])]
+        return judged_record.results(cases, cast(int, manifest["trials"]), level, canary_rows)
     k = cast(int, as_json(manifest["retriever"])["k"])
     return results_from_cases(cases, k, as_json(manifest["bootstrap"]))
 

@@ -1,5 +1,6 @@
-"""Command line entry point: ingest, fetch-model, check-dataset, eval, compare, publish, gate, ask,
-serve and ollama (the local model server's session: up, down, status, session)."""
+"""Command line entry point: ingest, fetch-model, check-dataset, eval, compare, judge, canaries,
+publish, gate, ask, serve and ollama (the local model server's session: up, down, status,
+session)."""
 
 import argparse
 import json
@@ -14,10 +15,11 @@ from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSett
 from raglab.core.types import TenantError
 from raglab.evals import compare as compare_runs
 from raglab.evals import config as eval_config
-from raglab.evals import dataset_check, generation, golden, publish, record, retrieval
+from raglab.evals import dataset_check, generation, golden, judged, publish, record, retrieval
 from raglab.evals import gate as retrieval_gate
 from raglab.generate import assemble
 from raglab.ingest import inventory, pipeline
+from raglab.judge import canaries
 
 INVENTORY = "runs/tmp/inventory.json"
 RUNS = "runs/tmp"
@@ -275,6 +277,78 @@ def gate(args: argparse.Namespace) -> int:
     return 0 if verdict.passed else 1
 
 
+JUDGE_ERRORS = (
+    eval_config.ConfigError,
+    factory.AdapterError,
+    judged.JudgedError,
+    canaries.CanaryError,
+    golden.DatasetError,
+    pipeline.IngestError,
+    OSError,
+    ValueError,
+)
+
+
+def _say(text: str) -> None:
+    print(text, file=sys.stderr, flush=True)
+
+
+def judge_run(args: argparse.Namespace) -> int:
+    """`raglab judge --run <run> --config <judge config>` (S5): the canaries first, then every
+    answer of a finished generation run on its criteria, written as a judged run record under
+    runs/tmp. Exit 1 when a canary is off its side (no judged call is made, no record written)."""
+    from raglab.judge.build import judge_from_config
+
+    root: Path = args.root
+    try:
+        config = eval_config.load_judge(args.config, root)
+        source = _run_dir(root, args.run)
+        judge, description, provenance = judge_from_config(config)
+        manifest, lines = judged.run(
+            config, root, source, judge, description, provenance, gate=args.gate, say=_say
+        )
+    except canaries.CanaryStop as stop:
+        print(f"judge stopped: {stop}", file=sys.stderr, flush=True)
+        return 1
+    except JUDGE_ERRORS as error:
+        print(f"judge failed: {error}", file=sys.stderr, flush=True)
+        return 1
+    out: Path = args.out if args.out.is_absolute() else root / args.out
+    run_dir = record.write(out, manifest, lines)
+    if problems := record.validate(run_dir, root):
+        print("judge wrote an invalid run record:\n" + "\n".join(problems), file=sys.stderr)
+        return 1
+    print((run_dir / record.REPORT).read_text(encoding="utf-8"))
+    print(f"run record: {run_dir}")
+    if manifest["git_dirty"]:
+        print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
+    return 0
+
+
+def canary_check(args: argparse.Namespace) -> int:
+    """`raglab canaries --config <judge config>` (S5): the canary set judged, one line per item;
+    exit 1 when any is off its side. A judge session that runs no judged run (DeepEval's checks)
+    runs this first."""
+    from raglab.judge.build import judge_from_config
+
+    root: Path = args.root
+    try:
+        config = eval_config.load_judge(args.config, root)
+        items = canaries.load(root / config.judging.canaries)
+        passages = canaries.corpus_passages(root, items)
+        judge, _, _ = judge_from_config(config)
+        results = canaries.run(judge, items, passages, config.judging.seed)
+    except JUDGE_ERRORS as error:
+        print(f"canaries failed: {error}", file=sys.stderr, flush=True)
+        return 1
+    print("\n".join(judged.summary(results)), flush=True)
+    if problems := canaries.off_side(results):
+        print("canaries: the judge is stopped:\n- " + "\n- ".join(problems), file=sys.stderr)
+        return 1
+    print(f"canaries: all {len(results)} on their side", flush=True)
+    return 0
+
+
 def ask(args: argparse.Namespace) -> int:
     """One question through the pipeline; the outcome as JSON. Exit 0 when the status is ok."""
     root: Path = args.root
@@ -446,6 +520,18 @@ def main(argv: list[str] | None = None) -> int:
     cmp.add_argument("b", type=Path, help="run B: a directory or a run id")
     cmp.add_argument("--out", type=Path, help="where compare.json and compare.md go")
     cmp.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    judging = commands.add_parser(
+        "judge",
+        help="the canaries, then every answer of a finished generation run on its criteria (S5)",
+    )
+    judging.add_argument("--run", type=Path, required=True, help="a generation run: dir or id")
+    judging.add_argument("--config", type=Path, required=True, help="a judge config/*.toml")
+    judging.add_argument("--gate", choices=GATES, default="manual")
+    judging.add_argument("--out", type=Path, default=Path(RUNS), help=f"(default {RUNS})")
+    judging.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    canary = commands.add_parser("canaries", help="the judge's canary set, a hard stop (S5)")
+    canary.add_argument("--config", type=Path, required=True, help="a judge config/*.toml")
+    canary.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     pub = commands.add_parser("publish", help="validate a run, check privacy, add it to the index")
     pub.add_argument("run", type=Path, help="a run directory or run id")
     pub.add_argument(
@@ -476,6 +562,8 @@ def main(argv: list[str] | None = None) -> int:
         "check-dataset": check_dataset,
         "eval": evaluate,
         "compare": compare,
+        "judge": judge_run,
+        "canaries": canary_check,
         "publish": publish_run,
         "gate": gate,
         "ask": ask,
