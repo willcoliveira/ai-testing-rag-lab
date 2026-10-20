@@ -24,7 +24,10 @@ v0.3 as the main plan's phases close.
    publish refuses a run, the run stays in `runs/tmp/`, the release stops and the maintainer
    decides.
 7. **History scans.** `make secrets` (gitleaks over the history) and
-   `make privacy-history RANGE=--all` with the maintainer's real list: no leaks, 0 hits.
+   `make privacy-history RANGE=--all` with the maintainer's real list: no leaks, 0 hits. A scan
+   covers only the commits that exist when it runs. The notes name the commit their counts come
+   from, and the scans run again at the pull request's last commit; the pull request quotes that
+   run.
 8. **Release notes.** `docs/releases/vX.Y.Z.md` covers:
    - what the release is and how to run it;
    - every published run with its provenance;
