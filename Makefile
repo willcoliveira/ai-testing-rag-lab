@@ -8,7 +8,7 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -129,6 +129,16 @@ release-local:
 	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(RELEASE_CONFIG) \
 		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
 		--run "uv run raglab eval --suite generation --config $(RELEASE_CONFIG) --gate release"
+
+# S5 AC3: the judge's live contract test in a session of its own. A judge config's session serves
+# the judge's pinned model (its size and digest checked by the preflight before the server starts),
+# never the generator's: one model per session. It judges hand-written contract items only, never a
+# golden answer, probes both response formats, and writes each call's format, seconds and tokens to
+# runs/tmp/judge-contract/. The session stops the server and runs the postcheck, as eval-local does.
+JUDGE_CONFIG := config/judge-local.toml
+judge-contract:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
+		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py"
 
 # S3 AC10, AC11: the container with the fake model and the baked-in embedder (deploy/Dockerfile),
 # run on 127.0.0.1 only, and the ZAP baseline scan against it (deploy/zap/)

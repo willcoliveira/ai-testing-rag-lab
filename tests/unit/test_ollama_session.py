@@ -92,12 +92,24 @@ class FakeHost(Host):
         return self.tmp / "models"
 
 
-def pulled(tmp: Path, size: int = MODEL_BYTES) -> None:
-    manifest = (
-        tmp / "models/manifests/registry.ollama.ai/library/nemotron-3.5-lightning/30b-a3b-mlx"
-    )
+GENERATOR_DIGEST = "d1e17d7dabacb401dec6440b4ec987ea053b9568b01f89fb3d54f8b2e71397be"
+
+
+def pulled(
+    tmp: Path,
+    size: int = MODEL_BYTES,
+    model: str = MODEL,
+    digest: str | None = GENERATOR_DIGEST,
+) -> None:
+    """A pulled model's local manifest as Ollama 0.40.6 writes it: its layers, its config, and
+    (S5) a layer naming the registry manifest, whose digest /api/tags reports (None: no such
+    layer). The sizes add up to size."""
+    name, _, tag = model.partition(":")
+    manifest = tmp / "models/manifests/registry.ollama.ai/library" / name / tag
     manifest.parent.mkdir(parents=True)
-    layers = [{"size": size - 1000}, {"size": 600}]
+    layers: list[dict[str, object]] = [{"size": size - 1000 - 858}, {"size": 600}]
+    registry = {"mediaType": ollama.REGISTRY_MANIFEST, "digest": f"sha256:{digest}", "size": 858}
+    layers.append(registry if digest is not None else {"size": 858})
     manifest.write_text(json.dumps({"config": {"size": 400}, "layers": layers}), encoding="utf-8")
 
 
@@ -164,6 +176,114 @@ def test_a_model_that_is_not_pulled_is_refused(tmp_path):
     with pytest.raises(SessionError, match="is not pulled"):
         s.up()
     assert fake.started == []
+
+
+# ---------------------------------------------------------------- S5 AC3: the judge's session
+
+JUDGE = "ministral-3:14b-instruct-2512-q4_K_M"
+JUDGE_DIGEST = "4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7"
+JUDGE_BYTES = 9082537546  # /api/tags after the pull (config/judge-local.toml)
+
+
+def judge_config() -> eval_config.JudgeConfig:
+    return eval_config.load_judge(ROOT / "config" / "judge-local.toml", ROOT)
+
+
+def judge_session(tmp_path: Path, **host) -> tuple[Session, FakeHost, list[str]]:
+    fake = FakeHost(tmp=tmp_path, **host)
+    said: list[str] = []
+    s = ollama.session_for(judge_config(), tmp_path, fake)
+    s.say = said.append
+    return s, fake, said
+
+
+def test_a_judge_configs_session_checks_the_judge_model_not_the_generator(tmp_path):
+    """S5 AC3: the preflight reads the model the config pins. With only the generator pulled, a
+    judge config's session refuses, naming the judge; the generator's manifest is never read."""
+    pulled(tmp_path)  # the generator only
+    s, fake, _ = judge_session(tmp_path)
+    assert (s.model, s.digest) == (JUDGE, JUDGE_DIGEST)
+    with pytest.raises(SessionError, match=re.escape(f"{JUDGE} is not pulled")):
+        s.up()
+    assert fake.started == []
+    generator = ollama.session_for(local_config(), tmp_path, FakeHost(tmp=tmp_path))
+    assert (generator.model, generator.digest) == (MODEL, GENERATOR_DIGEST)
+
+
+def test_the_judge_session_starts_with_its_pinned_model_and_says_its_size_and_digest(tmp_path):
+    pulled(tmp_path, size=JUDGE_BYTES, model=JUDGE, digest=JUDGE_DIGEST)
+    s, fake, said = judge_session(tmp_path)
+    assert s.model_size_bytes() == JUDGE_BYTES
+    assert s.up() == 4242
+    assert f"model: {JUDGE} at the pinned digest 4760c35aeb9d" in said
+    assert "the model needs 8.5 GiB plus a margin of 4 GiB" in " ".join(said)
+    assert {k: v for k, v in fake.started[0][1].items() if k.startswith("OLLAMA_")} == {
+        "OLLAMA_HOST": "127.0.0.1:11434",
+        "OLLAMA_KEEP_ALIVE": "2m",
+        "OLLAMA_MAX_LOADED_MODELS": "1",
+        "OLLAMA_NUM_PARALLEL": "1",
+        "OLLAMA_CONTEXT_LENGTH": "8192",
+    }
+    assert s.down() == []
+
+
+@pytest.mark.parametrize("config", ["judge", "generator"])
+def test_a_replaced_digest_refuses_the_session_before_the_server_starts(tmp_path, config):
+    """S5 AC3's break: the pulled model's manifest names another digest than the config pins."""
+    other = "b" * 64
+    if config == "judge":
+        pulled(tmp_path, size=JUDGE_BYTES, model=JUDGE, digest=other)
+        s, fake, _ = judge_session(tmp_path)
+        pinned = JUDGE_DIGEST
+    else:
+        pulled(tmp_path, digest=other)
+        s, fake, _ = session(tmp_path)
+        s.say = lambda text: None
+        pinned = GENERATOR_DIGEST
+    with pytest.raises(
+        SessionError, match=re.escape(f"has digest sha256:{other}, not the pinned sha256:{pinned}")
+    ):
+        s.up()
+    assert fake.started == []
+
+
+def test_a_manifest_without_a_registry_digest_refuses_the_session(tmp_path):
+    """Fails closed: nothing to check the pinned digest against is not a pass."""
+    pulled(tmp_path, size=JUDGE_BYTES, model=JUDGE, digest=None)
+    s, fake, _ = judge_session(tmp_path)
+    with pytest.raises(SessionError, match="names no registry digest"):
+        s.up()
+    assert fake.started == []
+
+
+def test_an_unpinned_generator_digest_is_not_checked_and_the_session_says_so(tmp_path):
+    """The lifecycle commands read a generation config unpinned (for a pull): its digest is not
+    checked, and the session says so. A judge config is never read unpinned."""
+    pulled(tmp_path, digest="c" * 64)
+    fake = FakeHost(tmp=tmp_path)
+    said: list[str] = []
+    s = Session(local_config().ollama, MODEL, tmp_path, fake, said.append, digest="fill me in")  # type: ignore[arg-type]
+    assert s.up() == 4242
+    assert f"model: {MODEL}; its digest is not pinned yet, so not checked" in said
+    assert s.down() == []
+
+
+def test_the_cli_reads_a_judge_config_for_its_session(tmp_path, monkeypatch):
+    """`raglab ollama status --config config/judge-local.toml` builds the judge's session."""
+    from raglab.__main__ import main
+
+    seen: list[object] = []
+    real = ollama.session_for
+
+    def spy(config, root, host=None):
+        seen.append(config)
+        return real(config, tmp_path, FakeHost(tmp=tmp_path))
+
+    monkeypatch.setattr(ollama, "session_for", spy)
+    assert main(["ollama", "status", "--config", str(ROOT / "config" / "judge-local.toml")]) == 0
+    [config] = seen
+    assert isinstance(config, eval_config.JudgeConfig)
+    assert config.judge.model == JUDGE
 
 
 def test_the_memory_guard_is_the_model_size_plus_the_stated_margin(tmp_path):
@@ -344,6 +464,17 @@ def test_the_makefile_has_the_session_targets():
     assert "raglab ollama session --config config/local-ollama.toml" in eval_local
     assert "-m live" in eval_local
     assert "raglab eval --suite generation --config config/local-ollama.toml" in eval_local
+
+
+def test_the_judge_contract_target_runs_in_a_judge_session():
+    """S5 AC3: the judge's live contract test runs in a session of the judge config, so the
+    preflight checks the judge's pinned model; it runs the live judge contract test only."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    target = makefile.split("\njudge-contract:", 1)[1].split("\n\n", 1)[0].replace("\\\n", "")
+    assert "JUDGE_CONFIG := config/judge-local.toml" in makefile
+    assert "raglab ollama session --config $(JUDGE_CONFIG)" in target
+    assert target.count("--run") == 1
+    assert "pytest -m live -s tests/contract/test_judge_contract.py" in target
 
 
 def test_a_refused_group_signal_falls_back_to_the_server_itself(monkeypatch):

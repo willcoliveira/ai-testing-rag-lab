@@ -56,7 +56,8 @@ def test_the_three_committed_configs():
         (lambda t: t.replace('kind = "dense"', 'kind = "hybrid"'), "needs candidates and rrf_k"),
         (lambda t: t.replace("chunk_size = 1200", "chunk_size = 0"), "chunk size"),
         (lambda t: t.replace('name = "x"', 'name = "X Y"'), "lower case"),
-        (lambda t: t.replace('suite = "retrieval"', 'suite = "judged"'), "only retrieval"),
+        # S5 made "judged" a suite; "attack" is S7's, not one yet
+        (lambda t: t.replace('suite = "retrieval"', 'suite = "attack"'), "only retrieval"),
         (lambda t: t + "\n[extra]\na = 1\n", "unknown tables or keys"),
         (lambda t: t.replace("level = 0.9", "level = 1.5"), "bootstrap level"),
         (lambda t: "not = [toml", "not TOML"),
@@ -215,3 +216,66 @@ def test_the_fake_generator_takes_no_server_settings(tmp_path):
     path.write_text(text + '\n[ollama]\nhost = "127.0.0.1:11434"\n')
     with pytest.raises(config.ConfigError, match="openai-compat generator only"):
         config.load_generation(path, ROOT)
+
+
+# ---------------------------------------------------------------- S5: the judge config
+
+JUDGE_CONFIG = ROOT / "config" / "judge-local.toml"
+
+
+def test_the_committed_judge_config_pins_the_judge_and_shares_the_generators_session_limits():
+    judge = config.load_judge(JUDGE_CONFIG, ROOT)
+    spec = judge.judge
+    assert (judge.name, judge.suite, spec.provider, spec.model) == (
+        "judge-local",
+        "judged",
+        "openai-compat",
+        "ministral-3:14b-instruct-2512-q4_K_M",
+    )
+    # the digest /api/tags reported after the pull, with the tags page's prefix (D3)
+    assert spec.digest == "4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7"
+    assert spec.base_url == "http://127.0.0.1:11434"
+    assert (spec.temperature, spec.top_p, spec.extra()) == (0.0, None, {})
+    assert spec.response_format in ("json_schema", "none")
+    assert (judge.judging.criteria, judge.judging.canaries) == (
+        "docs/CRITERIA.md",
+        "datasets/canaries.judge.jsonl",
+    )
+    local = config.load_generation(ROOT / "config" / "local-ollama.toml", ROOT)
+    assert judge.ollama == local.ollama  # one model at a time, the same limits
+    assert "judge" in judge.resolved()
+    assert config.suite_of(JUDGE_CONFIG) == "judged"
+
+
+def judge_text() -> str:
+    return JUDGE_CONFIG.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("edit", "match"),
+    [
+        (
+            lambda t: t.replace('digest = "4760c35a', 'digest = "fill in from /api/tags 4760c35a'),
+            "judge.digest .* is not a pinned digest",
+        ),
+        (lambda t: t.replace('provider = "openai-compat"', 'provider = "anthropic"'), "judge"),
+        (lambda t: t.replace("max_tokens = 512\n", ""), "openai-compat judge needs"),
+        (lambda t: t.replace('criteria = "docs/CRITERIA.md"\n', ""), "missing judging.criteria"),
+        (lambda t: t.replace("level = 0.95", "level = 1.5"), "judging.level"),
+        (lambda t: t.replace("run_timeout_s = 14400", "run_timeout_s = 0"), "run_timeout_s"),
+        (lambda t: t.replace('host = "127.0.0.1:11434"', 'host = "0.0.0.0:11434"'), "loopback"),
+        (lambda t: t + '\n[generator]\nprovider = "fake"\nmodel = "x"\n', "not for suite"),
+    ],
+)
+def test_a_wrong_judge_config_is_refused(tmp_path, edit, match):
+    path = tmp_path / "j.toml"
+    path.write_text(edit(judge_text()), encoding="utf-8")
+    with pytest.raises(config.ConfigError, match=match):
+        config.load_judge(path, ROOT)
+
+
+def test_each_loader_reads_its_own_suite():
+    with pytest.raises(config.ConfigError, match="judge configs only"):
+        config.load_judge(ROOT / "config" / "local-ollama.toml", ROOT)
+    with pytest.raises(config.ConfigError, match="generation configs only"):
+        config.load_generation(JUDGE_CONFIG, ROOT)

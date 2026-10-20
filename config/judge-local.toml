@@ -1,0 +1,58 @@
+# The local judge (S5): Ministral 3 14B Instruct 2512, a family other than the generator's
+# (NVIDIA's Nemotron), behind Ollama's OpenAI-compatible endpoint. A judge session runs one model,
+# this one: it reads finished generation records and never generates, so generation and judging
+# never share a session. Run it through the make targets only (docs/LOCAL-MODEL.md):
+# `make judge-contract` runs the judge's live contract test in a session of its own.
+#
+# Pinned by tag AND digest (docs/plans/2026-10-20-s5-judged-metrics.md, D3: "Ministral 3 14B
+# (Recommended)"). The orchestrator pulled it on 2026-10-20 at 17:00 in one guarded session
+# (make ollama-up, ollama pull, make ollama-down, postcheck passed), as the user answered ("You
+# run it (Recommended)"). The server's /api/tags then reported: digest 4760c35aeb9d...bcdcf7 (the
+# tags page's prefix 4760c35aeb9d matches), 9082537546 bytes, format gguf, quantization Q4_K_M,
+# family mistral3, 13.9B parameters, runner ggml, context length 262144. The same digest is the
+# registry-manifest layer of the model's local manifest, which the session's preflight reads before
+# the server starts (raglab.runtime.ollama): another digest there refuses the session.
+# Read by raglab.evals.config.load_judge (strict: an unknown or missing key stops the run).
+name = "judge-local"
+suite = "judged"
+
+[judge]
+provider = "openai-compat"
+model = "ministral-3:14b-instruct-2512-q4_K_M"
+digest = "4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7"
+base_url = "http://127.0.0.1:11434"
+# Sampling: temperature 0 and a fixed seed ([judging] seed), so a verdict is as repeatable as the
+# runner makes it; the repeatability check measures it rather than assuming it. The model card
+# advises "a temperature below 0.1" for production
+# (https://huggingface.co/mistralai/Ministral-3-14B-Instruct-2512, read 2026-10-20 by the planner).
+# An instruct model with no thinking to switch off: the live contract test checks that a reply
+# carries no reasoning text.
+temperature = 0
+# One verdict is a small JSON object (a verdict, a quote, passage ids and one sentence); a reply
+# cut at the cap is off the schema and recorded as invalid_output, never repaired.
+max_tokens = 512
+# The first request of a session loads the 9.1 GB model; the cap covers that load.
+timeout_s = 180
+# json_schema when the judge's runner accepts it (a GGUF build: the MLX runner's 501 does not
+# apply); the live contract test probes both formats and records which this runner accepts.
+response_format = "json_schema"
+
+[judging]
+seed = 20261020
+level = 0.95
+# The judged run's wall-clock cap: the plan's ceiling for the judge sessions (about 4 hours),
+# until the seconds per call measured by the first judge session set it before the judged run.
+run_timeout_s = 14400
+criteria = "docs/CRITERIA.md"
+canaries = "datasets/canaries.judge.jsonl"
+
+# The server's session limits, the generator's (config/local-ollama.toml): loopback only, one
+# model, one request at a time, a context of 8,192 tokens, the model unloaded soon after its last
+# request, and 4 GiB of free memory on top of the model's size before a session may start.
+[ollama]
+host = "127.0.0.1:11434"
+keep_alive = "2m"
+max_loaded_models = 1
+num_parallel = 1
+context_length = 8192
+memory_margin_gb = 4

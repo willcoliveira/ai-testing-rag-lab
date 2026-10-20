@@ -332,3 +332,97 @@ class ChatUnavailable(RuntimeError):
 
 class ChatTimeout(ChatUnavailable):
     """No reply within the request's timeout. A run that meets one is marked partial."""
+
+
+# ---------------------------------------------------------------- judging (S5)
+
+# The judged criteria of docs/CRITERIA.md, in the order a report lists them. Each is one binary
+# behaviour; a verdict is pass, fail or unable_to_verify, and unable_to_verify is never a pass.
+CRITERIA: tuple[str, ...] = (
+    "grounded",
+    "cites_support",
+    "correct",
+    "relevant",
+    "abstains",
+    "refuses_and_helps",
+    "context_sufficient",
+)
+VerdictLabel = Literal["pass", "fail", "unable_to_verify"]
+VERDICTS: tuple[VerdictLabel, ...] = ("pass", "fail", "unable_to_verify")
+
+
+@dataclass(frozen=True)
+class Passage:
+    """A passage as the judge is shown it: a chunk's id, document, version, section and status,
+    and its text (from the corpus, or written by hand in a canary item)."""
+
+    chunk_id: str
+    document: str
+    version: str
+    section: str
+    status: str
+    text: str
+
+    @classmethod
+    def of(cls, chunk: Chunk) -> "Passage":
+        return cls(
+            chunk.chunk_id, chunk.title, chunk.version, chunk.section_id, chunk.status, chunk.text
+        )
+
+
+@dataclass(frozen=True)
+class JudgeItem:
+    """What one judge call is shown: a criterion, and the inputs that criterion sees (None for an
+    input it does not see), with the call's seed. The prompt refuses an item whose inputs are not
+    exactly its criterion's."""
+
+    criterion: str
+    question: str | None
+    passages: tuple[Passage, ...] | None
+    reference: str | None
+    answer: str | None
+    seed: int
+
+    def __post_init__(self) -> None:
+        if self.criterion not in CRITERIA:
+            raise ValueError(f"criterion {self.criterion!r} is not one of {CRITERIA}")
+
+    def shown_ids(self) -> tuple[str, ...]:
+        """The ids of the passages the call shows, in the order shown."""
+        return tuple(p.chunk_id for p in self.passages or ())
+
+
+@dataclass(frozen=True)
+class Verdict:
+    """One judge call's verdict, what it rests on and what it cost. status is ok, invalid_output
+    (a reply off the verdict schema: recorded as unable_to_verify, never repaired) or unavailable
+    (no reply). quote_found says whether the quote is a span of the answer (None when no answer
+    was shown); passages_given whether every id it names was shown. reply is the reply as it
+    came, so a record's verdict can be read again from it."""
+
+    criterion: str
+    verdict: VerdictLabel
+    status: Status
+    answer_quote: str
+    passage_ids: tuple[str, ...]
+    reason: str
+    quote_found: bool | None
+    passages_given: bool
+    shown_ids: tuple[str, ...]
+    reply: str | None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    reasoning: bool = False
+    latency_ms: float = 0.0
+    error: str | None = None
+    timed_out: bool = False
+
+    def __post_init__(self) -> None:
+        if self.verdict not in VERDICTS:
+            raise ValueError(f"verdict {self.verdict!r} is not one of {VERDICTS}")
+        if self.status not in (Status.OK, Status.INVALID_OUTPUT, Status.UNAVAILABLE):
+            raise ValueError(
+                f"a verdict's status is ok, invalid_output or unavailable, not {self.status}"
+            )
+        if self.status is not Status.OK and self.verdict != "unable_to_verify":
+            raise ValueError(f"a {self.status} verdict is unable_to_verify")

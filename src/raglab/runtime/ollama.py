@@ -18,6 +18,13 @@ Usage guards (each refusal names its reason, and nothing is started):
 - the server's port is free, unless this project's own pid file names the process holding it;
 - the pinned model is pulled, and the memory the OS reports available is at least the model's
   size on disk plus the config's memory_margin_gb;
+- (S5) the model is the one its config pins, generator or judge: a generation config's session
+  checks its generator, a judge config's its judge, and the model's local manifest names the
+  pinned digest. Ollama 0.40.6 keeps the registry manifest's digest, the one /api/tags reports,
+  as a layer of the local manifest (media type REGISTRY_MANIFEST; read on this Mac for both pinned
+  models, 2026-10-20), so another digest refuses the session before the server starts. A manifest
+  without that layer refuses it too (fails closed); a digest the config has not pinned yet (the
+  lifecycle commands of a generation config, for a pull) is not checked, and the session says so;
 - once up, the server's version is at least MIN_VERSION (0.40.6: the first that runs the pinned
   model; 0.40.4 refused it with "requires a newer version of Ollama").
 
@@ -45,11 +52,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
-from raglab.evals.config import GenerationConfig, OllamaSettings
+from raglab.evals.config import DIGEST, GenerationConfig, JudgeConfig, OllamaSettings
 
 MIN_VERSION = (0, 40, 6)
 STATE_DIR = "runs/tmp/ollama"
 GIB = 1 << 30
+# the layer of a local manifest that names the registry manifest, whose digest /api/tags reports
+REGISTRY_MANIFEST = "application/vnd.docker.distribution.manifest.v2+json"
 
 
 class SessionError(RuntimeError):
@@ -200,13 +209,15 @@ def say_now(text: str) -> None:
 
 @dataclass
 class Session:
-    """One config's server: its settings, the model and where its pid and log live."""
+    """One config's server: its settings, the model it pins (the generator's or the judge's) with
+    its digest, and where its pid and log live."""
 
     settings: OllamaSettings
     model: str
     root: Path
     host: Host = field(default_factory=Host)
     say: Callable[[str], None] = say_now
+    digest: str | None = None  # the pinned digest; None or unpinned: not checked (said)
 
     @property
     def address(self) -> tuple[str, int]:
@@ -251,8 +262,8 @@ class Session:
             return None
         return pid if self.host.pid_alive(pid) else None
 
-    def model_size_bytes(self) -> int:
-        """The pinned model's size on disk, from its manifest under the models directory."""
+    def manifest(self) -> dict[str, object]:
+        """The pinned model's local manifest, from the models directory."""
         name, _, tag = self.model.partition(":")
         repo = name if "/" in name else f"library/{name}"
         manifest = (
@@ -260,9 +271,40 @@ class Session:
         )
         if not manifest.is_file():
             raise SessionError(f"{self.model} is not pulled (no manifest at {manifest})")
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-        layers = [*data.get("layers", []), data.get("config", {})]
-        return sum(int(layer.get("size", 0)) for layer in layers)
+        data: object = json.loads(manifest.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise SessionError(f"{self.model}'s manifest at {manifest} is not a JSON object")
+        return {str(k): v for k, v in cast(dict[object, object], data).items()}
+
+    def model_size_bytes(self) -> int:
+        """The pinned model's size on disk, from its manifest under the models directory."""
+        data = self.manifest()
+        layers = [*_objects(data.get("layers")), *_objects([data.get("config", {})])]
+        return sum(int(cast(int, layer.get("size", 0))) for layer in layers)
+
+    def digest_problem(self) -> str | None:
+        """Why the pulled model is not the pinned one, if it is not: its manifest's registry
+        layer names another digest, or no registry layer is there to check (fails closed). A
+        digest the config has not pinned (64 hex characters) is not checked; the caller says so."""
+        if self.digest is None or not DIGEST.match(self.digest):
+            return None
+        data = self.manifest()
+        found = [
+            str(layer.get("digest", ""))
+            for layer in _objects(data.get("layers"))
+            if layer.get("mediaType") == REGISTRY_MANIFEST
+        ]
+        if not found:
+            return (
+                f"{self.model}'s manifest names no registry digest ({REGISTRY_MANIFEST}), so its "
+                f"pinned digest {self.digest} cannot be checked"
+            )
+        if f"sha256:{self.digest}" not in found:
+            return (
+                f"{self.model} on this Mac has digest {', '.join(found)}, not the pinned "
+                f"sha256:{self.digest}: a session never serves other weights than its config pins"
+            )
+        return None
 
     def preflight(self) -> list[str]:
         """Every reason this session may not start; [] when it may."""
@@ -281,7 +323,13 @@ class Session:
             )
         try:
             size = self.model_size_bytes()
-        except SessionError as error:
+            if digest := self.digest_problem():
+                problems.append(digest)
+            elif self.digest is not None and DIGEST.match(self.digest):
+                self.say(f"model: {self.model} at the pinned digest {self.digest[:12]}")
+            else:
+                self.say(f"model: {self.model}; its digest is not pinned yet, so not checked")
+        except (SessionError, ValueError, TypeError) as error:
             problems.append(str(error))
         else:
             needed = size + int(self.settings.memory_margin_gb * GIB)
@@ -465,6 +513,16 @@ def _field(data: object, name: str) -> object:
     return cast(dict[str, object], data).get(name)
 
 
+def _objects(value: object) -> list[dict[str, object]]:
+    """The JSON objects of a list (anything else in it, or a value that is no list: none)."""
+    items = cast(list[object], value) if isinstance(value, list) else []
+    return [
+        {str(k): v for k, v in cast(dict[object, object], item).items()}
+        for item in items
+        if isinstance(item, dict)
+    ]
+
+
 # the signals that end a session; the session's finally block then stops the server
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
 type SignalHandler = Callable[[int, object], None]
@@ -494,10 +552,15 @@ def parse_version(text: str) -> tuple[int, ...]:
     return tuple(int(x) for x in found.groups()) if found else ()
 
 
-def session_for(config: GenerationConfig, root: Path, host: Host | None = None) -> Session:
+def session_for(
+    config: GenerationConfig | JudgeConfig, root: Path, host: Host | None = None
+) -> Session:
+    """The session of a config's [ollama] table, for the model the config pins: a generation
+    config's generator, a judge config's judge (S5), each checked by its own size and digest."""
     if config.ollama is None:
         raise SessionError(f"{config.path} has no [ollama] table: it does not run a local server")
-    return Session(config.ollama, config.generator.model, root, host or Host())
+    spec = config.judge if isinstance(config, JudgeConfig) else config.generator
+    return Session(config.ollama, spec.model, root, host or Host(), digest=spec.digest)
 
 
 def signal_group(pgid: int, sig: int) -> None:

@@ -325,7 +325,12 @@ def ollama(args: argparse.Namespace) -> int:
 
     root: Path = args.root
     try:
-        config = eval_config.load_generation(args.config, root, require_digest=False)
+        # S5: a judge config's session serves its judge; a generation config's its generator
+        config = (
+            eval_config.load_judge(args.config, root)
+            if eval_config.suite_of(args.config) == "judged"
+            else eval_config.load_generation(args.config, root, require_digest=False)
+        )
         session = runtime.session_for(config, root)
         if args.action == "up":
             session.up()
