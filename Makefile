@@ -8,7 +8,7 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -116,6 +116,19 @@ nightly-local:
 	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(NIGHTLY_CONFIG) \
 		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
 		--run "uv run raglab eval --suite generation --config $(NIGHTLY_CONFIG) --gate nightly"
+
+# The v0.1 release (docs/plans/2026-10-20-v0.1-release.md): the test slice, once per release, by
+# hand until keys exist. First the default retrieval configuration on the test split (embedder only),
+# then one session: the live contract test and the generation suite on the test split x3, from
+# config/local-ollama-release.toml (a generation run uses its config's split). Both run under gate
+# release, the only gate besides nightly that may run or publish the test split.
+RELEASE_CONFIG := config/local-ollama-release.toml
+release-local:
+	HF_HUB_OFFLINE=1 uv run raglab eval --suite retrieval --config config/retrieval-dense.toml \
+		--split test --gate release
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(RELEASE_CONFIG) \
+		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
+		--run "uv run raglab eval --suite generation --config $(RELEASE_CONFIG) --gate release"
 
 # S3 AC10, AC11: the container with the fake model and the baked-in embedder (deploy/Dockerfile),
 # run on 127.0.0.1 only, and the ZAP baseline scan against it (deploy/zap/)

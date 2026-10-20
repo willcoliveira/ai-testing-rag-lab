@@ -715,3 +715,22 @@ file stays outside the repo; the results below are copied from it.
 each, about 33 minutes in all: the five AC11 sessions and the developer's live break (above), and
 the judge's live break (about 4 min 42 s). Every session's postcheck passed: port closed, no ollama
 process, no model loaded.
+
+## CI on the PR (2026-10-20)
+
+Pull request #11, pr-fast run 39416794159 on `753a114`: `check` passed in 8m43s and `conventions`
+in 6s. The lines below are copied from the run's log.
+
+- **AC3.** The step "Dataset check (hard stop)" runs seventh, right after "Install the project" and
+  before every other check and the tests ("Tests (offline)" is step 23): "check-dataset:
+  datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256
+  5f8cdaf18783)".
+- **AC10.** "Retrieval no-regression gate (offline)", on the runner (Linux, Tesseract
+  5.3.4-1build5): "retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the
+  threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question
+  (1/22), 0.636". The runner's value equals the baseline made on the Mac, so THRESHOLDS.md needs no
+  new note.
+- **AC14.** "Tests (offline)": "1108 passed, 1 deselected, 1 warning in 370.08s (0:06:10)"; the API
+  smoke's five `ok` lines and "api-smoke: passed"; every step green.
+
+So AC3, AC10 and AC14 are met on the pull request: **14 of 14 criteria met.**

@@ -1,6 +1,6 @@
 [project]
 name = "raglab"
-version = "0.0.1"
+version = "0.1.0"
 description = "A small RAG assistant over a fictional security policy pack, built and tested stage by stage."
 readme = "README.md"
 license = "MIT"

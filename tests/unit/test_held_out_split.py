@@ -16,6 +16,7 @@ from tests.conftest import ROOT
 
 pytestmark = pytest.mark.unit
 NIGHTLY = ROOT / "config" / "local-ollama-nightly.toml"
+RELEASE = ROOT / "config" / "local-ollama-release.toml"
 LOCAL = ROOT / "config" / "local-ollama.toml"
 DENSE = ROOT / "config" / "retrieval-dense.toml"
 OTHER_GATES = ["manual", "pr-fast", "eval-on-change", "weekly"]
@@ -138,3 +139,37 @@ def test_make_nightly_local_runs_the_nightly_gate_in_one_session():
         "raglab eval --suite generation --config config/local-ollama-nightly.toml --gate nightly"
         in target
     )
+
+
+def test_make_release_local_runs_the_test_slice_under_the_release_gate():
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    assert re.search(r"^release-local:", makefile, flags=re.M)
+    target = makefile.split("\nrelease-local:", 1)[1].split("\n\n", 1)[0].replace("\\\n", " ")
+    target = " ".join(
+        target.replace("$(RELEASE_CONFIG)", "config/local-ollama-release.toml").split()
+    )
+    retrieval = (
+        "raglab eval --suite retrieval --config config/retrieval-dense.toml --split test "
+        "--gate release"
+    )
+    session = "raglab ollama session --config config/local-ollama-release.toml"
+    assert retrieval in target
+    assert session in target
+    assert target.index(retrieval) < target.index(session)
+    assert "-m live tests/contract/test_chat_contract.py" in target
+    assert (
+        "raglab eval --suite generation --config config/local-ollama-release.toml --gate release"
+        in target
+    )
+
+
+def test_the_release_config_is_the_local_config_on_the_test_split():
+    release = eval_config.load_generation(RELEASE, ROOT)
+    local = eval_config.load_generation(LOCAL, ROOT)
+    assert (release.name, release.split) == ("generation-local-ollama-release", "test")
+    one, two = release.resolved(), local.resolved()
+    for settings in (one, two):
+        settings.pop("name")
+        settings.pop("dataset")
+    assert one == two
+    assert release.dataset == local.dataset

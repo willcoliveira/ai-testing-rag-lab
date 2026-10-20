@@ -3,8 +3,17 @@
 One line per change, newest first, grouped by release. Each pull request adds its line
 (checked in CI; Dependabot is exempt).
 
-## Unreleased (v0.1)
+## v0.1.0 (2026-10-20)
 
+- Release v0.1.0, the lab release after S4 (decision D4: "Release after S4 (Recommended)"; plan
+  `docs/plans/2026-10-20-v0.1-release.md`):
+  - the version is 0.1.0;
+  - `make release-local` runs the test slice once, retrieval and one guarded generation session,
+    under gate release, and both runs are published;
+  - the gitleaks and privacy history scans are run;
+  - release notes in `docs/releases/v0.1.0.md` mark each release-gate item as run or not built yet;
+  - `runbooks/release.md` is the lab release runbook;
+  - the S4 ledger gains the record of its pull request's CI run.
 - S4: the golden set and the consistency gate. Label groups (`any_of`: sections that state the same
   rule are one thing to find); `raglab check-dataset`, a hard stop of ten rules before every run,
   in `make check` and as its own pr-fast step; the behaviour cases in the generation suite (the
