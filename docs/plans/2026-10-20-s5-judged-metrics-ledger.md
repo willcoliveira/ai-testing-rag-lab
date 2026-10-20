@@ -8,9 +8,10 @@ nodes: [S5]
 Plan: [2026-10-20-s5-judged-metrics.md](2026-10-20-s5-judged-metrics.md).
 
 This ledger covers **phase 1, the offline build, up to the user's sign-off of docs/CRITERIA.md and
-the canary set**. Nothing has been judged: no golden answer has met the judge, no judged record
-exists, and no run was published. The later phases (the judge sessions, ADR-002 and D6, the
-hosted half) add their sections below.
+the canary set**, the sign-off itself, and **phase 2 as far as its step 2**: the short judge session
+that set the judged run's cap, and the judged run on the consistency baseline, published. The
+position test (step 3), DeepEval's checks (step 4), `raglab cost` and ADR-002 (step 5), D6 and the
+hosted half add their sections below.
 
 ## Approval and decisions
 
@@ -102,16 +103,16 @@ Each break was made on a committed file with `PYTHONDONTWRITEBYTECODE=1`, run, a
 --short` was empty. The break spec is a scratch file outside the repository; each edit is described
 below.
 
-| AC | Status after phase 1 | Evidence | Break (restored from git) |
+| AC | Status (phase 1, then phase 2 as far as step 2) | Evidence | Break (restored from git) |
 |---|---|---|---|
-| AC1 | signed off on 2026-10-20 with the clause (above); the date check against the first judged manifest waits for it | `docs/CRITERIA.md` and `datasets/canaries.judge.jsonl` (`78d32e0`). `tests/unit/test_criteria.py`, 9 tests: every criterion has every field (applies to, the judge sees, passes, fails, requirements, grader, status); its pass and fail rules are judge-v1's words exactly; what the judge sees is judge-v1's inputs; every requirement named is one of TEST-PLAN's; every criterion is graded by judge-v1 and reported; the canary table is the canary file; every canary names a criterion and a side, and every criterion has an item on each side; the metric canary, its honest twin and the two injection canaries are there; every corpus passage a canary names is in the committed inventory. A judged manifest carries the sha256 of both files, and publish refuses a judged run made under another version of either (`tests/judge/test_judged_run.py`). The date check against the first judged manifest waits for that manifest | (1) context_sufficient's "Fails when" line removed from docs/CRITERIA.md: "2 failed, 7 passed" ("context_sufficient has no ['Fails when']"), restored "9 passed". (2) publish's stale check disabled (`if False:` in `publish.judged_problems`): the edited-CRITERIA and flipped-side tests "2 failed" ("DID NOT RAISE PublishError"), restored "2 passed". The plan's live form of this break (a published judged record) waits for one |
+| AC1 | met: signed off on 2026-10-20 with the clause (above); the first judged manifest (created 2026-10-20T19:53:41Z) is 13 minutes after the freeze commit `f68c37b` | `docs/CRITERIA.md` and `datasets/canaries.judge.jsonl` (`78d32e0`). `tests/unit/test_criteria.py`, 9 tests: every criterion has every field (applies to, the judge sees, passes, fails, requirements, grader, status); its pass and fail rules are judge-v1's words exactly; what the judge sees is judge-v1's inputs; every requirement named is one of TEST-PLAN's; every criterion is graded by judge-v1 and reported; the canary table is the canary file; every canary names a criterion and a side, and every criterion has an item on each side; the metric canary, its honest twin and the two injection canaries are there; every corpus passage a canary names is in the committed inventory. A judged manifest carries the sha256 of both files, and publish refuses a judged run made under another version of either (`tests/judge/test_judged_run.py`). The date check against the first judged manifest waits for that manifest | (1) context_sufficient's "Fails when" line removed from docs/CRITERIA.md: "2 failed, 7 passed" ("context_sufficient has no ['Fails when']"), restored "9 passed". (2) publish's stale check disabled (`if False:` in `publish.judged_problems`): the edited-CRITERIA and flipped-side tests "2 failed" ("DID NOT RAISE PublishError"), restored "2 passed". The plan's live form of this break (a published judged record) waits for one |
 | AC2 | met offline | `tests/judge/test_judge_prompt.py` (18 tests: the snapshot of all seven criteria's prompts; the reviewed fingerprint, `10d96ed31467...` since the sign-off (the draft's was `481783ef7361...`); every criterion has rules; a criterion is shown exactly the inputs it sees, and an item showing more or less is refused; no passages is said plainly; no input can close its frame or open another, in any letter case; a passage attribute cannot break out of its tag; no developer comments; the schema puts the evidence before the verdict) and `tests/judge/test_verdict_parser.py` (22 tests: a reply in the schema parses; thirteen replies off the schema are refused, an extra field, a missing one, a verdict outside the enum, a code fence, text after the JSON, a repeated field among them; an off-schema reply is unable_to_verify with status invalid_output and the reply kept; no reply is unavailable; the quote is checked against the answer and reported; passage ids not shown are reported; a verdict's seed, schema and system prompt; an off-schema or unavailable verdict is never a pass). `make architecture`: 0 violations (`raglab.core` imports the standard library only) | (1) one word of SYSTEM changed ("given" to "shown"): "2 failed, 16 passed" (snapshot and fingerprint), restored "18 passed". (2) the parser made to accept extra fields (`not FIELDS <= frozenset(data)`): "2 failed, 20 passed", restored "22 passed". (3) `as_data` made a no-op: "5 failed, 13 passed" (the four frames and the attribute), restored "18 passed" |
-| AC3 | met offline; the live contract test passed (below) | `tests/unit/test_ollama_session.py` additions: a judge config's session checks the judge, never the generator (with only the generator pulled it refuses, naming the judge); it starts with its pinned model and says its size and digest; a replaced digest refuses before the server starts, for the judge and for the generator; a manifest without a registry digest refuses; an unpinned generator digest is not checked and the session says so; the CLI builds the judge's session; the make targets run one model per session. `tests/unit/test_eval_config.py` additions: the committed judge config (tag, digest, temperature 0, the generator's session limits) and eight wrong judge configs refused. `tests/contract/test_judge_contract.py`: the stub contract in pr-fast (the config's temperature, cap, seed and schema sent; a reply off the schema is invalid_output with its tokens; an HTTP error is unavailable; another digest refuses to start); the live test in the session. COMPATIBILITY.md: "Tested against ministral-3:14b-instruct-2512-q4_K_M@4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7 on Ollama 0.40.6 on 2026-10-20" | (1) the preflight given the generator's model for a judge config (in `session_for`): "4 failed, 6 passed", restored "10 passed". (2) the digest replaced in `config/judge-local.toml` (`4760...` to `5760...`): the judge tests "5 failed, 11 passed"; and `make judge-contract` against this Mac's real manifest: "ollama session: the session may not start: - ministral-3:14b-instruct-2512-q4_K_M on this Mac has digest sha256:4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7, not the pinned sha256:5760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7: a session never serves other weights than its config pins", `make` error 1, no server started; restored "16 passed", and `make ollama-status` showed no pid, the port closed, no process, nothing loaded |
-| AC4 | met offline; the live run and the live flipped canary wait for phase 2 | `tests/judge/test_canaries.py` (17 tests: a judge with every committed canary on its side passes them; one canary off its side stops the judge, naming it, whether the verdict is the other side, unable_to_verify, off the schema or missing; every item off its side is named, not only the first; the results name each item, its side and its verdict, never a passage's text; corpus passages are read from the corpus and a written one is kept; a wrong canary is refused, naming the line). `tests/judge/test_judged_run.py`: the canaries run before every answer, a miss stops the run before any judged call (the chat saw the canary calls only), and the CLI writes no record then | The stop removed (`off_side(results)[:0]`): "6 failed, 33 passed" (the four stop cases, the run and the CLI), restored "39 passed" |
-| AC5 | met offline; the published judged record waits for phase 2 | `tests/judge/test_judged_run.py` (22 tests): a judged run writes a valid record tied to its source (case-trials in the source's order, the answer's sha256, the copied retrieval, the source's chunker, embedder, retriever, corpus and dataset); each answer takes its criteria, context_sufficient once per case; a cited answer is shown its cited passages; a withheld trial is not judged but its retrieval is; the run stops at its cap and is partial; a resealed line whose answer sha256 differs, edited results, a flipped verdict, dropped completion tokens, other shown passages, a missing line, a changed source, a forged quote check and a canary off its side are refused; publish requires the source published and refuses a stale run; judged runs are held to their source's planted strings. The committed-runs test validates every published record unchanged | (1) the answer-sha256 tie skipped in `line_problems`: "1 failed, 21 passed", restored "22 passed". (2) the judged results trusted as recorded instead of recomputed (in `record.expected_results`): "2 failed, 20 passed", restored "22 passed" |
-| AC6 | the code met offline; the published records wait for phase 2 | Every call's tokens: the generator's per case-trial from the source lines (`source_tokens`, `source_called`), the judge's per verdict, the checks' and the canaries', totalled by role in `results.judged.tokens` (calls, prompt, completion, unreported); with the stub's usage (`test_every_calls_tokens_are_totalled_by_role`: generator 14 calls, 1400 and 280; the judge's 300 and 40 a call) and without (FakeChat: every judge call unreported). The DeepEval wrapper records every call's tokens (`RaglabJudgeLLM.tokens`); the position run is a generation record, whose tokens S3 records | The judge's completion tokens dropped from the totals (`"completion": 0` in `judged_record._role`): "3 failed, 34 passed", restored "37 passed" |
-| AC7 | the code met offline; the judged run waits for the sign-off | `raglab judge`, `make judge-local RUN=`; THRESHOLDS.md marks every judged criterion reported with the reason (`57f6fad`) | The verdict no longer read again from its reply (only the quote, ids and reason compared): the flipped-verdict test "1 failed, 21 passed", restored "22 passed". The plan's break on the published record waits for it |
-| AC8 | the code met offline | The repeatability pass (trial 1 of every behaviour case judged again) and the order pass (grounded on trial 1 of every case with the passages reversed), both after every answer is judged, both in the record and validated (`tests/judge/test_order_check.py`, 4 tests) | The order check given the passages in their original order (`reverse=False` in `judged.run`): "2 failed, 2 passed", restored "4 passed" |
+| AC3 | met: the live contract test passed in all three judge sessions (below and phase 2) | `tests/unit/test_ollama_session.py` additions: a judge config's session checks the judge, never the generator (with only the generator pulled it refuses, naming the judge); it starts with its pinned model and says its size and digest; a replaced digest refuses before the server starts, for the judge and for the generator; a manifest without a registry digest refuses; an unpinned generator digest is not checked and the session says so; the CLI builds the judge's session; the make targets run one model per session. `tests/unit/test_eval_config.py` additions: the committed judge config (tag, digest, temperature 0, the generator's session limits) and eight wrong judge configs refused. `tests/contract/test_judge_contract.py`: the stub contract in pr-fast (the config's temperature, cap, seed and schema sent; a reply off the schema is invalid_output with its tokens; an HTTP error is unavailable; another digest refuses to start); the live test in the session. COMPATIBILITY.md: "Tested against ministral-3:14b-instruct-2512-q4_K_M@4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7 on Ollama 0.40.6 on 2026-10-20" | (1) the preflight given the generator's model for a judge config (in `session_for`): "4 failed, 6 passed", restored "10 passed". (2) the digest replaced in `config/judge-local.toml` (`4760...` to `5760...`): the judge tests "5 failed, 11 passed"; and `make judge-contract` against this Mac's real manifest: "ollama session: the session may not start: - ministral-3:14b-instruct-2512-q4_K_M on this Mac has digest sha256:4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7, not the pinned sha256:5760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7: a session never serves other weights than its config pins", `make` error 1, no server started; restored "16 passed", and `make ollama-status` showed no pid, the port closed, no process, nothing loaded |
+| AC4 | met offline and live: all 19 on their side in both phase 2 sessions, their results in the published judged manifest; the live flipped canary is the criteria judge's break | `tests/judge/test_canaries.py` (17 tests: a judge with every committed canary on its side passes them; one canary off its side stops the judge, naming it, whether the verdict is the other side, unable_to_verify, off the schema or missing; every item off its side is named, not only the first; the results name each item, its side and its verdict, never a passage's text; corpus passages are read from the corpus and a written one is kept; a wrong canary is refused, naming the line). `tests/judge/test_judged_run.py`: the canaries run before every answer, a miss stops the run before any judged call (the chat saw the canary calls only), and the CLI writes no record then | The stop removed (`off_side(results)[:0]`): "6 failed, 33 passed" (the four stop cases, the run and the CLI), restored "39 passed" |
+| AC5 | met: the judged record `20261020T195341Z-judge-local-dev-25ccc0d` validated and published (phase 2, step 2) | `tests/judge/test_judged_run.py` (22 tests): a judged run writes a valid record tied to its source (case-trials in the source's order, the answer's sha256, the copied retrieval, the source's chunker, embedder, retriever, corpus and dataset); each answer takes its criteria, context_sufficient once per case; a cited answer is shown its cited passages; a withheld trial is not judged but its retrieval is; the run stops at its cap and is partial; a resealed line whose answer sha256 differs, edited results, a flipped verdict, dropped completion tokens, other shown passages, a missing line, a changed source, a forged quote check and a canary off its side are refused; publish requires the source published and refuses a stale run; judged runs are held to their source's planted strings. The committed-runs test validates every published record unchanged | (1) the answer-sha256 tie skipped in `line_problems`: "1 failed, 21 passed", restored "22 passed". (2) the judged results trusted as recorded instead of recomputed (in `record.expected_results`): "2 failed, 20 passed", restored "22 passed" |
+| AC6 | met for the judged record (every judge call reported its tokens: unreported 0 in every role); the position run's and DeepEval's wait for steps 3 and 4 | Every call's tokens: the generator's per case-trial from the source lines (`source_tokens`, `source_called`), the judge's per verdict, the checks' and the canaries', totalled by role in `results.judged.tokens` (calls, prompt, completion, unreported); with the stub's usage (`test_every_calls_tokens_are_totalled_by_role`: generator 14 calls, 1400 and 280; the judge's 300 and 40 a call) and without (FakeChat: every judge call unreported). The DeepEval wrapper records every call's tokens (`RaglabJudgeLLM.tokens`); the position run is a generation record, whose tokens S3 records | The judge's completion tokens dropped from the totals (`"completion": 0` in `judged_record._role`): "3 failed, 34 passed", restored "37 passed" |
+| AC7 | met: the consistency baseline judged and published, every number in the ledger copied from the record (phase 2, step 2) | `raglab judge`, `make judge-local RUN=`; THRESHOLDS.md marks every judged criterion reported with the reason (`57f6fad`) | The verdict no longer read again from its reply (only the quote, ids and reason compared): the flipped-verdict test "1 failed, 21 passed", restored "22 passed". The plan's break on the published record waits for it |
+| AC8 | met: repeatability 92 of 92 pairs agree, order 46 of 48, in the published record | The repeatability pass (trial 1 of every behaviour case judged again) and the order pass (grounded on trial 1 of every case with the passages reversed), both after every answer is judged, both in the record and validated (`tests/judge/test_order_check.py`, 4 tests) | The order check given the passages in their original order (`reverse=False` in `judged.run`): "2 failed, 2 passed", restored "4 passed" |
 | AC9 | the code met offline | `tests/generation/test_position_contexts.py` (20 tests): first, middle (n // 2) and last; the fillers are the tenant's other chunks in rank order, never a labelled section or a group member, nor another tenant's or a shared chunk; the fit to the budget; the measured characters per token are the fewest; a value is stated as the answer key writes it or by its numbers and units (11 cases); the committed config names the ten cases, derived from the golden file; a position run writes a valid generation record; a moved answering chunk, a labelled filler and forged checks are refused; the judge's `correct` runs on a position run | (1) the answering chunk put first at every position (`index = 0` in `place`): "3 failed, 17 passed", restored "20 passed". (2) a group member allowed as filler (only plain labels excluded in `fillers`): "1 failed, 19 passed", restored "20 passed" |
 | AC10 | met offline; needs CI for `make audit` on the runner | `tools/deepeval-check` locks `deepeval==4.3.1` (94 packages resolved); the main environment never installs it (`uv sync --locked` unchanged, the main `uv.lock` holds no deepeval, `find_spec("deepeval")` is None and no `deepeval` pytest plugin is registered: `test_the_main_environment_never_installs_deepeval`); rule 6 forbids a deepeval import anywhere under `src/` (`test_deepeval_is_imported_nowhere_in_the_package_adapters_included`, 12 cases); `make audit` exports its 92 pinned requirements with their hashes and audits them without installing ("No known vulnerabilities found"); deptry leaves `tools/` to its own lock; Dependabot watches it, a DeepEval bump in a PR of its own. `make deepeval-test`: "8 passed" (the opt-out set before the first DeepEval import, recorded by an import hook; the guard lets nothing but the loopback Ollama port through; the custom-LLM API returns the schema's instance and records tokens; a whole FaithfulnessMetric in mode llm through the wrapper against a stub, with no connection attempted; the direction report; the canary reading) | (1) `import deepeval` added to `src/raglab/adapters/openai_compat.py`: `make architecture` "1 architecture violations" ("src/raglab/adapters/openai_compat.py:28: deepeval is fenced in tools/deepeval-check and imported nowhere in raglab, adapters included"), restored "0 architecture violations". (2) The opt-out unset with the guard on (a probe outside the repository: DeepEval imported and a FaithfulnessMetric run against a stub judge, the guard installed before the import and kept until the interpreter exits): no attempt during the import or the metric, then at exit "[PostHog] error uploading: HTTPSConnectionPool(host='us.i.posthog.com', port=443)": 12 lookups of `us.i.posthog.com:443`, every one caught. With the opt-out set to 1 before the import: no attempt at all, exit included |
 | AC11 | offline parts met; the live checks wait for phase 2 | The checks are code (`tools/deepeval-check/src/deepeval_check/checks.py`): the custom-LLM API, the metric canary (C-01 and C-03 with penalize_ambiguous_claims off and on), the hallucination direction (G-01's labelled passage, a consistent and a contradicting output, the page's sentence and its read date), the cross-check against the own judge's grounded on trial 1 of the dev answer cases; every metric in mode llm. Offline: `test_the_direction_report_names_the_output_that_scored_higher` (3 cases) and `test_the_canary_reading_follows_the_invented_answers_verdict` | The direction report's scores swapped (`x, c = ...`): `make deepeval-test` "2 failed, 6 passed", restored "8 passed" |
@@ -214,8 +215,10 @@ tier of Claude Haiku 5.5 (prompts up to 100,000 tokens) and gpt-6-luna (272K) is
 
 ## Runs S5 made
 
-None published yet. Under `runs/tmp` (gitignored): the judge contract logs
-`runs/tmp/judge-contract/20261020T162848Z.jsonl` and `20261020T194209Z.jsonl`, the canary log
+Published: the judged baseline `runs/published/20261020T195341Z-judge-local-dev-25ccc0d/`
+(phase 2, step 2). Under `runs/tmp` (gitignored): the judge contract logs
+`runs/tmp/judge-contract/20261020T162848Z.jsonl`, `20261020T194209Z.jsonl` and
+`20261020T195309Z.jsonl`, the canary log
 `runs/tmp/canaries/20261020T194409Z.jsonl`, and the exported requirements of the tool's lock that
 `make audit` writes. The runs pytest makes are fake or stub-server records in temporary
 directories.
@@ -336,6 +339,158 @@ under a second: the dry run took 0.546 s in all, ingest included. At the canarie
 calls would take about 45 minutes (a projection, not a measurement); the judged run measures its
 own. The Mac time so far is far under the plan's 4 hours for the judge sessions.
 
+## Phase 2, step 2: the judged run on the consistency baseline (2026-10-20)
+
+`make judge-local RUN=20261019T172035Z-generation-local-ollama-dev-97011a7` at `25ccc0d` (the cap's
+commit; the tree clean): one guarded session, 20:53:08 to 22:34:02 WEST by the shell's clock, exit
+0. The preflight said "model: ministral-3:14b-instruct-2512-q4_K_M at the pinned digest
+4760c35aeb9d" and "memory: 21.6 GiB available; the model needs 8.5 GiB plus a margin of 4 GiB".
+The judge's live contract test passed again (log
+`runs/tmp/judge-contract/20261020T195309Z.jsonl`: `json_schema` 4 of 4 valid verdicts, `none` 3 of
+3 invalid_output). Then `raglab judge`: "canaries: all 19 on their side", "judged 147 case-trials",
+the checks on the judge, and the record, validated as it was written. After it: the model
+unloaded, the server stopped, "postcheck passed: port closed, no ollama process, no model loaded";
+`make ollama-status`: down, 27.7 GiB available.
+
+**The Mac hibernated during the judged run.** The session started at 20:53:01 WEST with the Mac on
+battery (the power log's last reading before it, at 20:30:25, was "Using BATT (Charge:43%)"). The
+power log (`pmset -g log`), verbatim:
+
+```
+2026-10-20 21:19:14 +0100 Sleep  Entering Sleep state due to 'Low Power Sleep':TCPKeepAlive=inactive Using Batt (Charge:1%) 2188 secs
+2026-10-20 21:55:42 +0100 Wake   Wake from Hibernate [CDNVA] : due to acattach rtc IOPortFeatureLDCM.measurement/UserActivity Assertion Using AC (Charge:1%)
+```
+
+The battery ran down to 1% under the judge's load and macOS hibernated the Mac for 2,188 s (36.5
+minutes); it woke when the 140 W adapter was attached. Every process, the server and the run
+included, was frozen in between, and the run went on after the wake. From the server's request log
+(Ollama's GIN lines, all HTTP 200): before the sleep, 213 judged calls at a mean of 6.80 s (median
+6.23, the longest 19.44); the call in flight at the sleep returned 1m1s of awake time after the
+wake; the next 8 calls took 22.49 s on average while the model's memory came back from the
+hibernation image; by 22:01 the last 10 calls were back to a mean of 4.04 s (median 3.51).
+
+**The clock.** The run's cap, its `duration_s` and each verdict's `latency_ms` are measured with
+Python's `time.monotonic()` and `time.perf_counter()`, which on macOS are `mach_absolute_time()`
+(checked with `time.get_clock_info`): they do not advance while the Mac sleeps. So the cap counted
+awake time only, the record's `duration_s` is about 36.5 minutes shorter than the session's span
+by the wall clock, and the judge's latency p50 and p95 in the record include the calls made just
+after the wake.
+
+**For the pull request (a decision, not built):** the session's preflight checks memory and the
+model's digest, not the power source. A judge session on battery can run the Mac down, as this one
+did; a preflight could refuse to start on battery, or below a charge, or the docs could say to run
+on AC.
+
+**The record, published:** `runs/published/20261020T195341Z-judge-local-dev-25ccc0d/` (`raglab publish`, exit 0: valid, not partial,
+provenance local, made from a clean tree, its source published with the manifest it names,
+docs/CRITERIA.md and the canary set current, no planted string, the privacy check clean). Created
+2026-10-20T19:53:41Z, 13 minutes after the freeze commit `f68c37b` (2026-10-20T20:40:21+01:00):
+AC1's date check. The judge block: `ministral-3:14b-instruct-2512-q4_K_M`, digest
+`4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7`, server 0.40.6, temperature 0.0,
+max_tokens 512, timeout_s 180.0, response_format `json_schema`; judge-v1 `10d96ed31467...`;
+CRITERIA.md `7e3a522335c7...`; the canary set `4ca54c3ced55...`; the source
+`20261019T172035Z-generation-local-ollama-dev-97011a7` (manifest sha256 `29b4ba03b84d...`). 49
+cases, 147 case-trials; 592 judge calls (19 canaries, 433 verdicts, 140 checks), none unavailable,
+none invalid_output, none unable_to_verify; `duration_s` 3869.275 (awake
+time, above). `make gate` passes after the publish, and the publish, record, judge and cost tests
+pass over the published records (200 passed).
+
+The judged criteria, as the record's report gives them (reported, not gated: the judge is
+uncalibrated until S6):
+
+| Metric | Rate | 95% interval | n (cases) |
+|---|---|---|---|
+| grounded | 0.868 | 0.746 to 0.936 | 49 |
+| grounded[answer] | 0.882 | 0.657 to 0.967 | 17 |
+| grounded[flag-conflict] | 0.600 | 0.132 to 0.937 | 2 |
+| grounded[refuse-and-help] | 0.833 | 0.241 to 0.987 | 2 |
+| grounded[abstain] | 0.706 | 0.330 to 0.921 | 6 |
+| grounded[retrieval] | 0.923 | 0.740 to 0.981 | 22 |
+| grounded_pass^3 | 0.714 | 0.576 to 0.822 | 49 |
+| cites_support | 0.839 | 0.621 to 0.943 | 19 |
+| cites_support[answer] | 0.882 | 0.657 to 0.967 | 17 |
+| cites_support[flag-conflict] | 0.400 | 0.063 to 0.868 | 2 |
+| cites_support_pass^3 | 0.684 | 0.460 to 0.846 | 19 |
+| correct | 0.323 | 0.164 to 0.536 | 21 |
+| correct[answer] | 0.392 | 0.201 to 0.623 | 17 |
+| correct[flag-conflict] | 0.000 | 0.000 to 0.658 | 2 |
+| correct[refuse-and-help] | 0.000 | 0.000 to 0.658 | 2 |
+| correct_pass^3 | 0.190 | 0.077 to 0.400 | 21 |
+| relevant | 0.819 | 0.679 to 0.906 | 43 |
+| relevant[answer] | 0.824 | 0.590 to 0.938 | 17 |
+| relevant[flag-conflict] | 1.000 | 0.342 to 1.000 | 2 |
+| relevant[refuse-and-help] | 0.667 | 0.159 to 0.955 | 2 |
+| relevant[retrieval] | 0.815 | 0.612 to 0.925 | 22 |
+| relevant_pass^3 | 0.674 | 0.525 to 0.795 | 43 |
+| abstains | 0.353 | 0.106 to 0.714 | 6 |
+| abstains[abstain] | 0.353 | 0.106 to 0.714 | 6 |
+| abstains_pass^3 | 0.167 | 0.030 to 0.564 | 6 |
+| refuses_and_helps | 1.000 | 0.342 to 1.000 | 2 |
+| refuses_and_helps[refuse-and-help] | 1.000 | 0.342 to 1.000 | 2 |
+| refuses_and_helps_pass^3 | 1.000 | 0.342 to 1.000 | 2 |
+| context_sufficient | 0.619 | 0.409 to 0.792 | 21 |
+| context_sufficient[answer] | 0.765 | 0.527 to 0.904 | 17 |
+| context_sufficient[flag-conflict] | 0.000 | 0.000 to 0.658 | 2 |
+| context_sufficient[refuse-and-help] | 0.000 | 0.000 to 0.658 | 2 |
+
+| Criterion | Cases | Judged | pass | fail | unable_to_verify | invalid_output | unavailable | Quote found | Quote missing | Passages not shown |
+|---|---|---|---|---|---|---|---|---|---|---|
+| grounded | 49 | 144 | 125 | 19 | 0 | 0 | 0 | 140 | 4 | 0 |
+| cites_support | 19 | 56 | 47 | 9 | 0 | 0 | 0 | 49 | 7 | 0 |
+| correct | 21 | 62 | 20 | 42 | 0 | 0 | 0 | 55 | 7 | 3 |
+| relevant | 43 | 127 | 104 | 23 | 0 | 0 | 0 | 123 | 4 | 0 |
+| abstains | 6 | 17 | 6 | 11 | 0 | 0 | 0 | 16 | 1 | 0 |
+| refuses_and_helps | 2 | 6 | 6 | 0 | 0 | 0 | 0 | 6 | 0 | 0 |
+| context_sufficient | 21 | 21 | 13 | 8 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+The checks on the judge (AC8). The two order-check pairs that disagree are P-01 trial 1 and G-01
+trial 1: `grounded` fail with the passages in their order, pass reversed.
+
+| Check | Pairs | Agree |
+|---|---|---|
+| repeat: grounded | 26 | 26 |
+| repeat: cites_support | 18 | 18 |
+| repeat: correct | 20 | 20 |
+| repeat: relevant | 20 | 20 |
+| repeat: abstains | 6 | 6 |
+| repeat: refuses_and_helps | 2 | 2 |
+| order: grounded reversed | 48 | 46 |
+
+Tokens and time (AC6):
+
+| Role | Calls | Prompt | Completion | Unreported |
+|---|---|---|---|---|
+| generator | 147 | 153210 | 16138 | 0 |
+| judge | 433 | 315104 | 51385 | 0 |
+| judge_checks | 140 | 115648 | 16807 | 0 |
+| canaries | 19 | 14190 | 1688 | 0 |
+
+- Judge calls' latency: p50 5865.893 ms, p95 12957.615 ms (n 592); the run took 3869.275 s.
+
+**What the judged numbers show (read from the record; reported).**
+
+1. **`correct` is low: 0.323 (0.164 to 0.536, n 21).** The signed-off rule lists "the governing
+   rule" among a reference answer's decisive facts, and the judge sees the answer's text, never its
+   citations. The generator often answers with a bare value, and the judge then fails it for not
+   naming the document and section. G-08 trial 1 answered "5 minutes" to "After how much idle time
+   does a kiosk session end on its own?"; the reference is "Kiosk sessions sign out automatically
+   after 5 minutes of inactivity (Device Policy Annex B: Shared Kiosk Devices, section 1, the
+   scanned page)."; the judge's reason: "The answer omits the governing rule ('Device Policy Annex
+   B: Shared Kiosk Devices, section 1') and the unit ('minutes') is implied but not explicitly
+   stated as part of the policy context." Trials 2 and 3 answered "After 5 minutes of inactivity."
+   and failed with "The answer omits the governing rule ('Device Policy Annex B: Shared Kiosk
+   Devices, section 1') but matches the decisive fact (5 minutes of inactivity)." Of the 42
+   `correct` fails, 17 give "governing rule" in their reason (a search of the reasons for the
+   words), across G-01, G-05, G-08, G-09, G-11, G-17, G-19, G-21, G-34 and G-36. Other fails are on
+   the value itself: G-31 answered "64" to "How many characters must a Halvenroot password have
+   under the standard in force today?", whose reference is "at least 15 characters". Whether "the
+   governing rule" means the document's name or the rule's substance is the user's to decide; the
+   rule is frozen, and this ledger does not change it.
+2. **`abstains` is 0.353 (0.106 to 0.714, n 6):** 11 of the 17 judged abstain answers fail. On
+   P-03 ("When is a leaver's account disabled?"), an abstain case, trial 1 answered "24 hours".
+3. **The checks:** the 92 repeated verdicts agree with the first in every pair; the order check
+   agrees in 46 of 48.
+
 ## Decisions needed
 
 None blocks phase 2.
@@ -385,6 +540,14 @@ reworded and the run above is the next one. `make deepeval-test`, outside `make 
 
 ## Notes
 
+- **`make audit` turned red on 2026-10-20 between 20:49 and 22:50 WEST, with no change of ours:**
+  new advisories against two locked packages of the main project. `pip-audit` found 9: certifi
+  2026.7.22 (GHSA-6q48-6c7w-9gw2, fixed in 2026.10.19; it comes in through httpx and requests)
+  and pillow 12.3.0 (eight CVEs, fixed in 13.0.0, a major version; it comes in through fastembed
+  and pytesseract, and fpdf2 and the dev group). Every other step of `make -k check` passed (1307
+  tests, the gate, the API smoke test). Bumping them is a dependency change for the user or a
+  Dependabot pull request, not part of this stage; until then pr-fast's audit fails too, and the
+  bump needs the tool's re-lock (next note).
 - **For a pull request that changes the main dependencies** (a Dependabot root PR included): run
   `uv lock --project tools/deepeval-check` in it and commit `tools/deepeval-check/uv.lock` with
   the change, or `make audit` (pr-fast), `make deepeval-test` and `make deepeval-check` refuse the

@@ -38,8 +38,9 @@ runs on the Mac by hand until keys exist, and its margin comes from four repeats
 
 ## Judged (S5)
 
-Nothing judged is gated in S5. The criteria are docs/CRITERIA.md's; the numbers come from the
-judged baseline's record once the user has signed off the criteria and the canary set.
+Nothing judged is gated in S5. The criteria are docs/CRITERIA.md's, signed off on 2026-10-20; the
+numbers are the judged baseline's, `runs/published/20261020T195341Z-judge-local-dev-25ccc0d/`
+(its `report.md`): the consistency baseline's answers judged by the local judge.
 
 | Metric | Gate | Threshold | Reason |
 |---|---|---|---|
