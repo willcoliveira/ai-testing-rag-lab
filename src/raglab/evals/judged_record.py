@@ -66,7 +66,7 @@ STATUSES = (Status.OK.value, Status.INVALID_OUTPUT.value, Status.UNAVAILABLE.val
 PUBLISHED = "runs/published"
 # the manifest fields of a judged run, and those of a generation run it has none of
 JUDGED_MANIFEST = ("judge", "judge_prompt", "source", "criteria", "canaries", "intervals")
-NOT_JUDGED = ("generator", "prompt", "guards", "probes", "bootstrap")
+NOT_JUDGED = ("generator", "prompt", "guards", "probes", "bootstrap", "position")
 LINE_FIELDS = (
     "kind",
     "source_status",

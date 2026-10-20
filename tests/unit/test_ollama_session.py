@@ -477,6 +477,27 @@ def test_the_judge_contract_target_runs_in_a_judge_session():
     assert "pytest -m live -s tests/contract/test_judge_contract.py" in target
 
 
+def test_the_judge_and_position_targets_run_one_model_per_session():
+    """S5: a judge session serves the judge (the contract test, then raglab judge, whose canaries
+    run first); the position test's session serves the generator (its contract test, then raglab
+    position). One model per session: never both in one."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+
+    def body(name: str) -> str:
+        return makefile.split(f"\n{name}:", 1)[1].split("\n\n", 1)[0].replace("\\\n", "")
+
+    judge = body("judge-local")
+    assert "raglab ollama session --config $(JUDGE_CONFIG)" in judge
+    assert judge.index("tests/contract/test_judge_contract.py") < judge.index("raglab judge --run")
+    assert "--config $(JUDGE_CONFIG)" in judge.split("raglab judge", 1)[1]
+    position = body("position-local")
+    assert "POSITION_CONFIG := config/position-local.toml" in makefile
+    assert "raglab ollama session --config $(POSITION_CONFIG)" in position
+    assert "tests/contract/test_chat_contract.py" in position
+    assert "raglab position --config $(POSITION_CONFIG)" in position
+    assert "JUDGE_CONFIG" not in position
+
+
 def test_a_refused_group_signal_falls_back_to_the_server_itself(monkeypatch):
     sent: list[tuple[str, int, int]] = []
 

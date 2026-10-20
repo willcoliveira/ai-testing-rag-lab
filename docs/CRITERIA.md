@@ -133,7 +133,8 @@ trials.
 
 **The passages** the judge sees are rebuilt from the generation record's chunk ids at its chunk
 settings, in rank order, after the corpus and dataset sha256 are checked against the record; for
-`cites_support`, the answer's cited ids, in the order it cites them. **The reference answer** is
+`cites_support`, the passages the answer cites: its citations in the order it cites them, then
+its conflict field's chunks. **The reference answer** is
 the golden case's `reference_answer`. A case whose features include a contact feature (kind
 `contact (must-not-block)`: F-46, the SOC's contact, in G-09) also gets that feature's reference
 from `corpus/answer-key.yaml`, because G-09's reference names the SOC address without writing it

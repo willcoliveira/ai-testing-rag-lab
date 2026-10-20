@@ -1,0 +1,66 @@
+# The position test (S5, how-to 17 step 8) on the local generator: the generation config of
+# config/local-ollama.toml (the same model, digest, sampling, guards and session limits), with a
+# [position] table. Run it with `make position-local`, one generator session (docs/LOCAL-MODEL.md).
+# Each case's answering chunk is placed first, in the middle and last of a long context of its
+# tenant's other chunks (raglab.evals.position); the record is a generation record whose lines are
+# of kind position. Read by raglab.evals.config.load_generation (strict).
+name = "generation-local-ollama-position"
+suite = "generation"
+
+[dataset]
+path = "datasets/golden.v1.jsonl"
+split = "dev"
+
+[chunker]
+chunk_size = 1200
+overlap = 1
+
+[embedder]
+provider = "fastembed"
+model = "BAAI/bge-small-en-v1.5"
+revision = "aa8f8b060edb00e03bfdd08813a2949946c8ba55"
+
+# the fillers' rank order: the dense retriever ranking every chunk the asker's tenant may see
+[retriever]
+kind = "dense"
+k = 5
+
+[generator]
+provider = "openai-compat"
+model = "nemotron-3.5-lightning:30b-a3b-mlx"
+digest = "d1e17d7dabacb401dec6440b4ec987ea053b9568b01f89fb3d54f8b2e71397be"
+base_url = "http://127.0.0.1:11434"
+temperature = 1.0
+top_p = 0.95
+max_tokens = 1024
+timeout_s = 120
+reasoning_effort = "none"
+response_format = "none"
+
+[generation]
+trials = 3
+seed = 20261018
+level = 0.95
+run_timeout_s = 3600
+
+# The cases: the ten dev single-chunk answer cases of golden set v1.1 (S5 plan, "The position
+# test"). The prompt's budget is the context window (8,192) less the output cap (1,024) less a
+# margin of 1,024 tokens. The characters per token are measured, not assumed: each of the 147
+# case-trials of the consistency baseline 20261019T172035Z-generation-local-ollama-dev-97011a7 had
+# its answer-v1 prompt rebuilt from its question and retrieved chunks and divided by the prompt
+# tokens the server reported (2026-10-20): min 3.7436, median 4.1238, max 4.3632. The fewest,
+# rounded down, so a prompt is estimated at its most tokens. The fillers that fit are counted at
+# run time and recorded on every line.
+[position]
+cases = ["G-01", "G-03", "G-05", "G-06", "G-08", "G-09", "G-10", "G-11", "G-12", "G-14"]
+prompt_budget_tokens = 6144
+chars_per_token = 3.7435
+resamples = 2000
+
+[ollama]
+host = "127.0.0.1:11434"
+keep_alive = "2m"
+max_loaded_models = 1
+num_parallel = 1
+context_length = 8192
+memory_margin_gb = 4

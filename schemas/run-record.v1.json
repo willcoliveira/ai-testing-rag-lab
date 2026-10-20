@@ -180,6 +180,20 @@
             "sha256": {"$ref": "#/$defs/sha256"}
           }
         },
+        "position": {
+          "$comment": "S5, the position test's generation run: its cases, positions, prompt budget, the measured characters per token and the bootstrap's resamples and seed",
+          "type": "object",
+          "required": ["cases", "positions", "prompt_budget_tokens", "chars_per_token", "resamples", "seed"],
+          "additionalProperties": false,
+          "properties": {
+            "cases": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+            "positions": {"type": "array", "minItems": 1, "items": {"enum": ["first", "middle", "last"]}},
+            "prompt_budget_tokens": {"type": "integer", "minimum": 1},
+            "chars_per_token": {"type": "number", "minimum": 0},
+            "resamples": {"type": "integer", "minimum": 1},
+            "seed": {"type": "integer"}
+          }
+        },
         "judge": {
           "$comment": "S5, a judged run: the judge model, as the generator's block describes a generator",
           "type": "object",
@@ -356,6 +370,8 @@
           "$comment": "S5, a position case: where the answering chunk sits in the context",
           "enum": ["first", "middle", "last"]
         },
+        "answering_chunk": {"type": "string", "minLength": 1},
+        "fillers": {"type": "integer", "minimum": 0},
         "source_status": {
           "$comment": "S5, a judged line: its source line's status",
           "enum": ["ok", "refused", "blocked", "unavailable", "invalid_output"]
@@ -449,6 +465,8 @@
             "decision_label": {"type": "boolean"},
             "conflict": {"type": "boolean"},
             "must_not_contain": {"type": "boolean"},
+            "cites_answering": {"type": "boolean"},
+            "states_value": {"type": "boolean"},
             "passed": {"type": "boolean"}
           }
         }

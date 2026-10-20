@@ -349,6 +349,39 @@ def canary_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def position_run(args: argparse.Namespace) -> int:
+    """`raglab position --config <a generation config with a [position] table>` (S5, how-to 17
+    step 8): each position case with its answering chunk first, in the middle and last of a long
+    context, written as a generation record under runs/tmp."""
+    from raglab.evals import position
+    from raglab.ingest import answer_key
+
+    root: Path = args.root
+    try:
+        config = eval_config.load_generation(args.config, root)
+        if config.position is None:
+            raise eval_config.ConfigError(f"{args.config} has no [position] table")
+        _check_first(root, config.dataset)
+        _held_out(config.split, args.gate)
+        built = assemble.assemble(config, root)
+        manifest, cases = position.run(
+            config, root, built, answer_key.features(root), gate=args.gate
+        )
+    except (*EVAL_ERRORS, position.PositionError) as error:
+        print(f"position failed: {error}", file=sys.stderr)
+        return 1
+    out: Path = args.out if args.out.is_absolute() else root / args.out
+    run_dir = record.write(out, manifest, cases)
+    if problems := record.validate(run_dir, root):
+        print("position wrote an invalid run record:\n" + "\n".join(problems), file=sys.stderr)
+        return 1
+    print((run_dir / record.REPORT).read_text(encoding="utf-8"))
+    print(f"run record: {run_dir}")
+    if manifest["git_dirty"]:
+        print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
+    return 0
+
+
 def ask(args: argparse.Namespace) -> int:
     """One question through the pipeline; the outcome as JSON. Exit 0 when the status is ok."""
     root: Path = args.root
@@ -529,6 +562,13 @@ def main(argv: list[str] | None = None) -> int:
     judging.add_argument("--gate", choices=GATES, default="manual")
     judging.add_argument("--out", type=Path, default=Path(RUNS), help=f"(default {RUNS})")
     judging.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    where = commands.add_parser(
+        "position", help="the position test: the answering chunk first, middle and last (S5)"
+    )
+    where.add_argument("--config", type=Path, required=True, help="a config with [position]")
+    where.add_argument("--gate", choices=GATES, default="manual")
+    where.add_argument("--out", type=Path, default=Path(RUNS), help=f"(default {RUNS})")
+    where.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     canary = commands.add_parser("canaries", help="the judge's canary set, a hard stop (S5)")
     canary.add_argument("--config", type=Path, required=True, help="a judge config/*.toml")
     canary.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
@@ -564,6 +604,7 @@ def main(argv: list[str] | None = None) -> int:
         "compare": compare,
         "judge": judge_run,
         "canaries": canary_check,
+        "position": position_run,
         "publish": publish_run,
         "gate": gate,
         "ask": ask,

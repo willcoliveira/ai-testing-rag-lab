@@ -151,6 +151,12 @@ SECTIONS: dict[str, dict[str, type | tuple[type, ...]]] = {
         "run_timeout_s": (float, int),
     },
     "api": {"tokens": dict},
+    "position": {
+        "cases": list,
+        "prompt_budget_tokens": int,
+        "chars_per_token": (float, int),
+        "resamples": int,
+    },
     "ollama": {
         "host": str,
         "keep_alive": str,
@@ -176,7 +182,7 @@ TABLES = {
     "retrieval": ({"dataset", "chunker", "embedder", "retriever", "bootstrap"}, set[str]()),
     "generation": (
         {"dataset", "chunker", "embedder", "retriever", "generator", "generation"},
-        {"api", "ollama"},
+        {"api", "ollama", "position"},
     ),
     "judged": ({"judge", "judging"}, {"ollama"}),
 }
@@ -430,6 +436,18 @@ class OllamaSettings:
 
 
 @dataclass(frozen=True)
+class PositionSettings:
+    """The position test's settings (S5, raglab.evals.position): its cases, the prompt's token
+    budget and the characters per token measured from a generation record, and the bootstrap's
+    resamples."""
+
+    cases: tuple[str, ...]
+    prompt_budget_tokens: int
+    chars_per_token: float
+    resamples: int
+
+
+@dataclass(frozen=True)
 class GenerationConfig:
     name: str
     suite: str
@@ -444,6 +462,7 @@ class GenerationConfig:
     generation: GenerationSettings
     tokens: dict[str, frozenset[str]]  # [api] tokens: not part of what a run depends on
     ollama: OllamaSettings | None
+    position: PositionSettings | None = None  # S5: the position test's config only
 
     def resolved(self) -> dict[str, object]:
         """Everything the run depends on, as plain data (hashed into the manifest)."""
@@ -459,6 +478,8 @@ class GenerationConfig:
         }
         if self.ollama is not None:
             out["ollama"] = asdict(self.ollama)
+        if self.position is not None:  # only a position config: the others resolve as they did
+            out["position"] = {**asdict(self.position), "cases": list(self.position.cases)}
         return out
 
 
@@ -587,6 +608,27 @@ def load_generation(path: Path, root: Path, require_digest: bool = True) -> Gene
         generation=generation,
         tokens=_tokens(data, where),
         ollama=_ollama(data, where, generator.provider),
+        position=_position(data, where),
+    )
+
+
+def _position(data: dict[str, object], where: str) -> PositionSettings | None:
+    """The [position] table of a position config (S5), if it has one."""
+    if "position" not in data:
+        return None
+    table = _table(data, "position", where)
+    cases = cast(list[object], table["cases"])
+    if not cases or not all(isinstance(c, str) and c for c in cases):
+        raise ConfigError(f"{where}: position.cases lists the golden case ids")
+    budget = cast(int, table["prompt_budget_tokens"])
+    resamples = cast(int, table["resamples"])
+    if budget < 1 or resamples < 1:
+        raise ConfigError(f"{where}: prompt_budget_tokens and resamples must be at least 1")
+    return PositionSettings(
+        tuple(str(c) for c in cases),
+        budget,
+        _positive(table["chars_per_token"], where, "chars_per_token"),
+        resamples,
     )
 
 

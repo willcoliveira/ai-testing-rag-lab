@@ -8,7 +8,7 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-local position-local container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -139,6 +139,26 @@ JUDGE_CONFIG := config/judge-local.toml
 judge-contract:
 	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
 		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py"
+
+# S5 AC7, AC8: a judge session on a finished generation run, RUN=<its id or directory>: the judge's
+# live contract test, then raglab judge, which runs the canaries first (one off its side stops the
+# session before any judged call, and no record is written), then every answer on its criteria and
+# the checks on the judge, written to runs/tmp. The judged run's wall-clock cap is the judge
+# config's [judging] run_timeout_s.
+judge-local:
+	@test -n "$(RUN)" || (echo "give the run to judge: make judge-local RUN=<run id>" >&2; exit 2)
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
+		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py" \
+		--run "uv run raglab judge --run $(RUN) --config $(JUDGE_CONFIG)"
+
+# S5 AC9: the position test, one generator session: the generator's live contract test, then each
+# position case with its answering chunk first, in the middle and last of a long context, written
+# to runs/tmp; its judge's correct comes after, in a judge session (make judge-local RUN=<it>).
+POSITION_CONFIG := config/position-local.toml
+position-local:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(POSITION_CONFIG) \
+		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
+		--run "uv run raglab position --config $(POSITION_CONFIG)"
 
 # S3 AC10, AC11: the container with the fake model and the baked-in embedder (deploy/Dockerfile),
 # run on 127.0.0.1 only, and the ZAP baseline scan against it (deploy/zap/)
