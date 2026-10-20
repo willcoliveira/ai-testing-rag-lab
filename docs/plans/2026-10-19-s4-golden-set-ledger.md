@@ -697,3 +697,21 @@ both before the Maintenance section, and lists the same two versions.
 `make privacy-history`: "0 hits in 226 commits (42 rules)". Nothing pushed; no Ollama session; the
 golden file, the answer key, the datasheet and every published record are as they were at
 `5fd4bf1`.
+
+## Verification (the judge: the verdict and three re-checks)
+
+The judge (Fable 5.1, its own worktree, a separate context) re-ran the evidence and broke each
+gate, restoring every break (its worktree identical to the head after each round). Its verdict
+file stays outside the repo; the results below are copied from it.
+
+| Round | Head | Result |
+|---|---|---|
+| 0, the verdict | `5fd4bf1` | 10 met, 1 not met (AC7, at the margin), 3 need CI (AC3, AC10, AC14). Every number in this ledger recomputed from the records and matched; 24 offline breaks, each red and restored but one (B5.5, a test gap); 47 check-dataset probes as expected; one live session, the gate break (about 4 min 42 s, postcheck passed). Findings: S4-J1 and S4-J3 (medium), S4-J2, S4-J4 and S4-J5 (low), S4-J6 to S4-J9 (info): fix round 1 |
+| 1, re-check | `cb3e54d` | S4-J1 to S4-J5 fixed, each reproduced with the judge's own scripts at the head; each fix undone in turn turns exactly its new tests red, then restored; no recorded check flips under case folding. 11 met, 0 not met, 3 need CI. S4-J10 (info) new: the user chose "Close it in this PR", fix round 2 |
+| 2, re-check | `7b2df9f` | S4-J10 fixed (the judge's zeros copy refused, naming the run and the hash; both breaks red, restored). 11 met, 0 not met, 3 need CI. S4-J11 (low) new, the table-only parse untested: fix round 3, with the user's go "Round 3, test only (Recommended)" |
+| 3, re-check | `e66d4b8` | S4-J11 fixed (the every-hash parse goes red on exactly the two new tests, restored). **Final tally: 11 met, 0 not met, 3 need CI (AC3, AC10, AC14, each met locally: `make check` exit 0, 1108 passed). No defect open at any severity**; S4-J6, S4-J7 and S4-J9 kept as product choices by the user, S4-J8 recorded as D3's consequence |
+
+**Mac time with the model loaded, the whole stage:** seven sessions of about 4.5 to 5 minutes
+each, about 33 minutes in all: the five AC11 sessions and the developer's live break (above), and
+the judge's live break (about 4 min 42 s). Every session's postcheck passed: port closed, no ollama
+process, no model loaded.
