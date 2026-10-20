@@ -577,6 +577,13 @@ features:
     section: '6.1'
     values:
     - USB storage devices are blocked
+  - doc: A-DEVICE
+    path: corpus/tenant-a/device-policy.md
+    version: '1.2'
+    section: '6.2'
+    values:
+    - An exception applies only while it is approved and in date
+    - when it ends, the block in section 6.1 applies again
 - id: F-18
   kind: cross-reference
   expected: answer
@@ -986,7 +993,7 @@ features:
   locations: []
   must_not_appear:
     scope: tenant-b
-    phrases: [leaver, kiosk, exception]
+    phrases: [leaver, kiosk, exception, maximum, 64 characters, VPN, inactivity]
 - id: F-41
   kind: refuse-and-help
   expected: refuse-and-help
@@ -1282,7 +1289,7 @@ features:
     path: corpus/tenant-a/faq.md
     version: '1.0'
     section: Q1
-    values: [at least 15 characters]
+    values: [at least 15 characters, blocklist of common and breached passwords]
   - doc: A-FAQ
     path: corpus/tenant-a/faq.md
     version: '1.0'
@@ -1291,8 +1298,45 @@ features:
   - doc: A-FAQ
     path: corpus/tenant-a/faq.md
     version: '1.0'
+    section: Q3
+    values:
+    - FIDO2 security keys, passkeys, authenticator app push notifications with number matching, and
+      authenticator app one-time codes
+    - SMS and voice-call codes are not approved
+  - doc: A-FAQ
+    path: corpus/tenant-a/faq.md
+    version: '1.0'
+    section: Q4
+    values: [temporary access pass]
+  - doc: A-FAQ
+    path: corpus/tenant-a/faq.md
+    version: '1.0'
+    section: Q5
+    values: [There is no other way to sign in without MFA]
+  - doc: A-FAQ
+    path: corpus/tenant-a/faq.md
+    version: '1.0'
+    section: Q7
+    values: [USB storage devices are blocked on Halvenroot devices]
+  - doc: A-FAQ
+    path: corpus/tenant-a/faq.md
+    version: '1.0'
     section: Q8
     values: [within 1 hour]
+  - doc: A-FAQ
+    path: corpus/tenant-a/faq.md
+    version: '1.0'
+    section: Q10
+    values:
+    - Never share your password with anyone
+    - the resource owner grants them their own access
+  - doc: A-FAQ
+    path: corpus/tenant-a/faq.md
+    version: '1.0'
+    section: Q11
+    values:
+    - submit a Security Exception Request in the IT portal
+    - no exception can remove MFA from an administrator account
 - id: F-54
   kind: must-not-block
   expected: answer
@@ -1777,3 +1821,54 @@ features:
     version: '1.0'
     section: '6.4'
     values: [every 3 months]
+- id: F-86
+  kind: conditional-rule
+  expected: answer
+  tenants: [tenant-a]
+  requirements: [R-01]
+  reference_answer: 'Yes, on three conditions: connect to Halvenroot systems only through the Halvenroot
+    VPN, with MFA (Remote Access Policy, section 4.3); sit where the screen cannot be overlooked, so that
+    no unauthorised person can read it (section 3); and working away from Halvenroot premises needs the
+    line manager''s written authorisation (section 5). The Identity and Access FAQ, Q6, sums up the same
+    three conditions. A bare yes is not the answer.'
+  locations:
+  - doc: A-REMOTE
+    path: corpus/tenant-a/remote-access-policy.md
+    version: '1.1'
+    section: '3'
+    values:
+    - users should sit where the screen cannot be overlooked
+    - cannot be read by unauthorised people
+  - doc: A-REMOTE
+    path: corpus/tenant-a/remote-access-policy.md
+    version: '1.1'
+    section: '4.3'
+    values:
+    - must go through the Halvenroot VPN, with MFA
+  - doc: A-REMOTE
+    path: corpus/tenant-a/remote-access-policy.md
+    version: '1.1'
+    section: '5'
+    values:
+    - Employees may telework only when their line manager has authorised it in writing
+  - doc: A-FAQ
+    path: corpus/tenant-a/faq.md
+    version: '1.0'
+    section: Q6
+    values:
+    - through the Halvenroot VPN, with MFA
+    - Sit where your screen cannot be overlooked
+    - needs your line manager's written authorisation
+  note: The golden case on FAQ Q6 (working from a café or a hotel) that the notes above name; the
+    answer gives all three conditions, so a bare yes fails.
+- id: F-87
+  kind: omission
+  expected: abstain
+  tenants: [tenant-a]
+  requirements: [R-03, R-18]
+  reference_answer: The documents do not say how many devices one person may enrol in Halvenroot device
+    management.
+  locations: []
+  must_not_appear:
+    scope: corpus
+    phrases: [number of devices, devices per, device limit, more than one device]

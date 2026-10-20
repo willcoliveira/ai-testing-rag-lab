@@ -16,4 +16,4 @@
 /\b\d{12}\b/
 /arn:aws:/
 /\.(internal|corp|local)\b/
-/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}/
+/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}/i

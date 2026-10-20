@@ -8,9 +8,9 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local container container-run zap
 
-check: format lint types deps audit sast workflows secrets privacy architecture model test gate api-smoke
+check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
 format:
 	uv run ruff format --check
@@ -52,6 +52,12 @@ privacy-history:
 architecture:
 	uv run python scripts/check_architecture.py
 
+# S4: the dataset hard stop. The golden file against its ten rules (raglab.evals.dataset_check):
+# the answer key, the register and the inventory snapshot, no model and no embedder. Every
+# `raglab eval` and `raglab gate` runs the same check first; pr-fast runs it as its own step.
+check-dataset:
+	uv run raglab check-dataset
+
 # the pinned embedding model (BAAI/bge-small-en-v1.5, ONNX) into $RAGLAB_MODEL_DIR (default
 # ~/.cache/raglab/models): downloads only what is missing or fails its sha256, so it is offline once
 # the cache is filled. The tests never download; they load from this cache.
@@ -92,6 +98,24 @@ eval-local:
 	PYTHONUNBUFFERED=1 uv run raglab ollama session --config config/local-ollama.toml \
 		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
 		--run "uv run raglab eval --suite generation --config config/local-ollama.toml"
+
+# S4 AC7: the consistency gate (Q-05), by hand until keys exist. One session: the live contract
+# test, then a dev run of the generation suite x3, written to runs/tmp and gated against the
+# published local baseline with the margin of docs/THRESHOLDS.md, in one line. A pull request that
+# changes the prompt, the generation code, the chunker, the embedder or the model quotes that line.
+gate-local:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(LOCAL_CONFIG) \
+		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
+		--run "uv run raglab gate --config $(LOCAL_CONFIG)"
+
+# S4 AC9: the local nightly, by hand until keys exist. One session: the live contract test, then
+# every retrieval question and behaviour case of every split (dev and test) x3, gate nightly. The
+# test split runs only here and at a release: raglab eval refuses it under any other gate.
+NIGHTLY_CONFIG := config/local-ollama-nightly.toml
+nightly-local:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(NIGHTLY_CONFIG) \
+		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
+		--run "uv run raglab eval --suite generation --config $(NIGHTLY_CONFIG) --gate nightly"
 
 # S3 AC10, AC11: the container with the fake model and the baked-in embedder (deploy/Dockerfile),
 # run on 127.0.0.1 only, and the ZAP baseline scan against it (deploy/zap/)

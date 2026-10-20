@@ -23,15 +23,20 @@ over the trials, with a Wilson interval at n = the number of cases (raglab.evals
 the share of cases whose N trials all pass; the count of each status; how many cases got the same
 label in every trial; each probe's abstentions out of its trials; p50 and p95 latency (type 7
 quantiles); and the token totals the server reported.
+
+S4 adds a third kind, the golden set's behaviour cases (kind "behaviour"): their checks, results
+and report section are raglab.evals.behaviour's, added only when a run has such cases, so an S3
+record computes and renders exactly as it did. The probes' oracle is raglab.evals.oracle's,
+unchanged.
 """
 
-import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import cast
 
 from raglab.core.types import Status
-from raglab.evals import metrics
+from raglab.evals import behaviour, metrics
+from raglab.evals.oracle import abstention_oracle
 
 type Json = dict[str, object]
 
@@ -39,6 +44,7 @@ STATUSES = tuple(s.value for s in Status)
 PROBE = "probe"
 CITATIONS_GUARD = "citations"  # raglab.guard.citations.CitationValidator's name
 RETRIEVAL = "retrieval"
+BEHAVIOUR = behaviour.BEHAVIOUR
 # the fields every generation case has (record.validate checks them; the schema cannot say "for
 # this suite")
 ANSWER_FIELDS = (
@@ -57,63 +63,6 @@ ANSWER_FIELDS = (
 RETRIEVAL_FIELDS = ("labels", "hit", "reciprocal_rank", "recall")
 PROBE_FIELDS = ("expected", "canaries_of", "feature_ids")
 
-# ---------------------------------------------------------------- the abstention oracle (S3)
-
-# a number standing alone: not inside an id, a version or a citation (an exception id, v2.0,
-# 800-63B-4, A-PWD-V2@2.0/4.1/1), so "15", "15-character", "17:00", "2.5" and "90%" count
-NUMBER = re.compile(r"(?<![\w@./-])\d+(?:[.,:]\d+)*%?(?![\w@/]|-\d|\.\d)")
-# a number right after one of these words points at a place in a document, not a value
-REFERENCE_WORDS = frozenset(
-    {
-        "section",
-        "sections",
-        "version",
-        "versions",
-        "table",
-        "page",
-        "pages",
-        "step",
-        "steps",
-        "appendix",
-        "annex",
-        "chapter",
-        "part",
-        "q",
-        "faq",
-        "sp",
-        "figure",
-        "clause",
-    }
-)
-
-
-def policy_values(answer: str) -> list[str]:
-    """The numbers an answer states as values: every standalone number except one that follows a
-    reference word ("section 4.4", "version 2.0", "Table 1"). Number words ("eight") are not
-    counted: a known limit of this oracle, which S5's judged metrics cover."""
-    values: list[str] = []
-    for match in NUMBER.finditer(answer):
-        before = answer[: match.start()].split()
-        previous = before[-1].strip("(:,").lower() if before else ""
-        if previous not in REFERENCE_WORDS:
-            values.append(match.group())
-    return values
-
-
-def abstention_oracle(
-    status: str, label: str, answer: str, canaries: Sequence[str]
-) -> dict[str, bool]:
-    """The checks of an abstention probe's trial: (a) abstained, the label is abstain on an ok
-    answer; (b) no_value, the text states no policy value (R-18); (c) no_canary, none of the given
-    canaries (the other tenant's, for a tenant-isolation probe; none otherwise) is in the text
-    (R-16). An honest abstention may name the topic ("the documents do not say how many reset
-    attempts...") and passes; the words of the question are not banned, a value is."""
-    return {
-        "abstained": status == "ok" and label == "abstain",
-        "no_value": not policy_values(answer),
-        "no_canary": not [c for c in canaries if c in answer],
-    }
-
 
 def _obj(value: object) -> Json:
     return {str(k): v for k, v in cast(dict[object, object], value).items()}
@@ -131,8 +80,13 @@ def referenced(case: Json) -> set[str]:
     return ids
 
 
-def case_checks(case: Json, canaries: Mapping[str, Sequence[str]]) -> Json:
-    """The checks of one trial, from its fields and the answer key's canaries by tenant."""
+def case_checks(
+    case: Json,
+    canaries: Mapping[str, Sequence[str]],
+    banned: Mapping[str, Sequence[str]] | None = None,
+) -> Json:
+    """The checks of one trial, from its fields and the answer key's canaries by tenant (and, for
+    a behaviour case, its answer_must_not_contain strings by feature, which it needs)."""
     ok = case["status"] == Status.OK.value
     retrieved = {str(_obj(r)["chunk_id"]) for r in cast(list[object], case["retrieved"])}
     events = cast(list[object], case["guard_events"])
@@ -141,7 +95,11 @@ def case_checks(case: Json, canaries: Mapping[str, Sequence[str]]) -> Json:
         "status_ok": ok,
         "model_citations_retrieved": not cited_unretrieved and referenced(case) <= retrieved,
     }
-    if case["kind"] == PROBE:
+    if case["kind"] == BEHAVIOUR:
+        if banned is None:
+            raise ValueError("a behaviour case's checks need the answer_must_not_contain strings")
+        checks |= behaviour.checks(case, canaries, banned)
+    elif case["kind"] == PROBE:
         of = case["canaries_of"]
         oracle = abstention_oracle(
             str(case["status"]),
@@ -248,6 +206,10 @@ def results(cases: Sequence[Json], trials: int, level: float) -> Json:
             "completion": sum(q for _, q in reported),
         },
     }
+    added, block = behaviour.results(cases, trials, level)  # S4: nothing for a run without
+    out |= added
+    if block is not None:
+        generation["behaviour"] = block
     return {"metrics": out, "generation": generation}
 
 
@@ -279,15 +241,22 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
     config, chunker = _obj(manifest["config"]), _obj(manifest["chunker"])
     embedder, retriever = _obj(manifest["embedder"]), _obj(manifest["retriever"])
     generator, prompt = _obj(manifest["generator"]), _obj(manifest["prompt"])
-    dataset, probes, corpus = (
-        _obj(manifest["dataset"]),
-        _obj(manifest["probes"]),
-        _obj(manifest["corpus"]),
-    )
+    dataset, corpus = _obj(manifest["dataset"]), _obj(manifest["corpus"])
+    dataset_line = f"| Dataset | `{dataset['path']}`, sha256 {str(dataset['sha256'])[:12]}"
+    if "probes" in manifest:  # S3's probes file; S4 folds the probes into the golden set
+        probes = _obj(manifest["probes"])
+        dataset_line += f"; probes `{probes['path']}`, sha256 {str(probes['sha256'])[:12]}"
     intervals, totals = _obj(manifest["intervals"]), _obj(manifest["totals"])
     results_ = _obj(manifest["results"])
     found, gen = _obj(results_["metrics"]), _obj(results_["generation"])
     level = round(cast(float, intervals["level"]) * 100)
+    gated = (
+        " Nothing here is gated."
+        if "behaviour" not in gen
+        else f" Only behaviour pass^{manifest['trials']} on the dev split is gated, by the "
+        "consistency gate (Q-05; docs/THRESHOLDS.md), and locally until keys exist; the rest is "
+        "reported."
+    )
     model = f"{generator['model']} ({generator['provider']}, digest {str(generator['digest'])[:12]}"
     if "server_version" in generator:
         model += f", server {generator['server_version']}"
@@ -323,15 +292,14 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
         f"| Chunker | {chunker['chunk_size']} characters, overlap {chunker['overlap']} |",
         f"| Corpus | {corpus['documents']} documents, {corpus['chunks']} chunks, "
         f"sha256 {str(corpus['sha256'])[:12]} |",
-        f"| Dataset | `{dataset['path']}`, sha256 {str(dataset['sha256'])[:12]}; probes "
-        f"`{probes['path']}`, sha256 {str(probes['sha256'])[:12]} |",
+        f"{dataset_line} |",
         f"| Cases | {gen['cases']} ({gen['case_trials']} case-trials) |",
         "",
         "## Checks (no judge)",
         "",
         f"Rates over every trial, with a {level}% Wilson interval at n = the number of cases. "
         "A citation hit means the answer cites a labelled chunk; it is not correctness (S5 "
-        "judges that). Nothing here is gated.",
+        f"judges that).{gated}",
         "",
         _pass_k_note(manifest, generator),
         "",
@@ -358,17 +326,25 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
         f"(n {latency['n']})",
         f"- Tokens: {tokens['prompt']} prompt and {tokens['completion']} completion, from the "
         f"{tokens['reported']} case-trials whose server reported them",
-        "",
-        "## Abstention probes",
-        "",
-        "| Probe | Features | Tenant | Abstained |",
-        "|---|---|---|---|",
     ]
-    for raw in cast(list[object], gen["probes"]):
+    probes_ = cast(list[object], gen["probes"])
+    if probes_ or "behaviour" not in gen:  # an S3 record renders as it did
+        lines += [
+            "",
+            "## Abstention probes",
+            "",
+            "| Probe | Features | Tenant | Abstained |",
+            "|---|---|---|---|",
+        ]
+    for raw in probes_:
         probe = _obj(raw)
         lines.append(
             f"| {probe['case_id']} | {', '.join(_strings(probe['feature_ids']))} | "
             f"{probe['tenant']} | {probe['abstained']} of {probe['trials']} |"
+        )
+    if "behaviour" in gen:
+        lines += behaviour.report_lines(
+            _obj(gen["behaviour"]), cases, cast(int, manifest["trials"])
         )
     lines += [
         "",

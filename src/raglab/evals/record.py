@@ -13,10 +13,21 @@
   fake (provider fake, or a fake revision or digest) has provenance fake, whatever else its label
   says, so a fake run relabelled local is refused even when its hashes and report agree.
 - The suite (S3): a retrieval run has bootstrap intervals and every case its labels and scores; a
-  generation run (raglab.evals.generation_record) has the generator, the prompt, the guards, the
-  probes and Wilson intervals, one line per case and trial, and every case its answer fields, its
-  checks recomputed, and no cited id that was not retrieved for it. Fields of one suite are
-  refused in the other.
+  generation run (raglab.evals.generation_record) has the generator, the prompt, the guards and
+  Wilson intervals (and the probes block when it has probe cases: S4 made it optional), one line
+  per case and trial, and every case its answer fields and those of its kind, its checks
+  recomputed, and no cited id that was not retrieved for it. Fields of one suite are refused in
+  the other.
+- S4: label groups (`any_of`: the primary's ids, every member's chunks together) and the behaviour
+  case kind (raglab.evals.behaviour), whose checks are recomputed from its fields and the answer
+  key's canaries and answer_must_not_contain strings, read live.
+- S4, the fields a behaviour case's checks rest on (the orchestrator's decision; the same class of
+  gap as S3-S2, publish trusting a label): when a generation record's dataset sha256 is that of the
+  golden file at its dataset path under root, each behaviour case's expected label, mix and
+  features, its labels with their groups and conflict sides, and its may_quote section with its
+  chunks and their values are derived again from the golden file, the answer key and the corpus
+  (the may_quote document chunked at the record's settings), and a difference is refused. A record
+  of another dataset version keeps its recorded fields, as history (the S2 and S3 runs).
 
 The report and the cases carry chunk ids and scores, never chunk text.
 """
@@ -27,10 +38,11 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
+from raglab.chunk.sections import ChunkSettings
 from raglab.core.types import visible_tenants
-from raglab.evals import generation_record, metrics
+from raglab.evals import behaviour, generation_record, golden, metrics
 from raglab.evals.schema import Validator
-from raglab.ingest import answer_key, register
+from raglab.ingest import answer_key, pipeline, register
 
 SCHEMA_VERSION = "run-record.v1"
 SCHEMA_PATH = "schemas/run-record.v1.json"
@@ -78,6 +90,20 @@ def _fmt(value: object) -> str:
     return f"{cast(float, value):.3f}"
 
 
+def group_note(cases: Sequence[Json]) -> str:
+    """The sentence a report adds when a case has a label group (S4); none otherwise, so the
+    reports of earlier runs render as they did."""
+    grouped = any(
+        "any_of" in as_json(label) for case in cases for label in as_list(case.get("labels", []))
+    )
+    if not grouped:
+        return ""
+    return (
+        " A group of sections that state the same rule (any_of) is one thing to find: found, and"
+        " ranked, by the first chunk of any member."
+    )
+
+
 def render_report(manifest: Json, cases: Sequence[Json]) -> str:
     """report.md, generated from the manifest (without its files block) and the cases."""
     config, chunker = as_json(manifest["config"]), as_json(manifest["chunker"])
@@ -119,7 +145,8 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
         "",
         "## Metrics",
         "",
-        f"Labels are sections; a section is found when any of its chunks is in the top {k}.",
+        f"Labels are sections; a section is found when any of its chunks is in the top {k}."
+        + group_note(cases),
         "",
         f"| Metric | Value | {level}% interval | n |",
         "|---|---|---|---|",
@@ -198,6 +225,21 @@ def case_scores(retrieved: Sequence[str], labels: Sequence[frozenset[str]], k: i
     }
 
 
+def group_problems(label: Json, where: str) -> list[str]:
+    """A label group (S4, `any_of`) is one thing to find: its ids are its primary (first)
+    member's, and its chunk ids are every member's chunks together, in member order, each once."""
+    if "any_of" not in label:
+        return []
+    group = [as_json(m) for m in as_list(label["any_of"])]
+    problems: list[str] = []
+    if (label["doc_id"], label["section_id"]) != (group[0]["doc_id"], group[0]["section_id"]):
+        problems.append(f"{where}: a group's doc_id and section_id are its first member's")
+    union = list(dict.fromkeys(str(i) for m in group for i in as_list(m["chunk_ids"])))
+    if [str(i) for i in as_list(label["chunk_ids"])] != union:
+        problems.append(f"{where}: a group's chunk_ids are not its members' chunks together")
+    return problems
+
+
 def case_problems(case: Json, k: int) -> list[str]:
     """A case whose scores, ranks or flags do not follow from its retrieved ids and labels."""
     labels = [as_json(x) for x in as_list(case["labels"])]
@@ -206,6 +248,8 @@ def case_problems(case: Json, k: int) -> list[str]:
     ids = [str(r["chunk_id"]) for r in rows]
     problems: list[str] = []
     where = f"case {case['case_id']}"
+    for label in labels:
+        problems.extend(group_problems(label, where))
     if len(ids) > k or [r["rank"] for r in rows] != list(range(1, len(rows) + 1)):
         problems.append(f"{where}: retrieved must be ranks 1 to n, at most k = {k}")
     relevant = frozenset[str]().union(*sets)
@@ -231,13 +275,19 @@ def tenant_problems(case: Json, tenants: Mapping[str, str]) -> list[str]:
     where = f"case {case['case_id']} ({case['tenant']})"
     visible = visible_tenants(case["tenant"])
     ids = [str(as_json(r)["chunk_id"]) for r in as_list(case["retrieved"])]
-    ids += [
+    labels = [as_json(label) for label in as_list(case.get("labels", []))]
+    ids += [str(i) for label in labels for i in as_list(label["chunk_ids"])]
+    ids += [  # a group's members, in case its chunk_ids were edited apart from them
         str(i)
-        for label in as_list(case.get("labels", []))
-        for i in as_list(as_json(label)["chunk_ids"])
+        for label in labels
+        for member in as_list(label.get("any_of", []))
+        for i in as_list(as_json(member)["chunk_ids"])
     ]
     if "cited_ids" in case:  # a generation case: what it cites is checked too
         ids += sorted(generation_record.referenced(case))
+    if "may_quote" in case:  # a behaviour case's quotable section (S4)
+        quote = as_json(case["may_quote"])
+        ids += [str(as_json(c)["chunk_id"]) for c in as_list(quote["chunks"])]
     problems: list[str] = []
     for chunk_id in ids:
         doc = chunk_id.split("@", 1)[0]
@@ -272,6 +322,7 @@ def validate(run_dir: Path, root: Path) -> list[str]:
     if totals["cases"] != len(cases):
         problems.append(f"totals.cases {totals['cases']} but cases.jsonl has {len(cases)} lines")
     problems.extend(provenance_problems(manifest))
+    problems.extend(label_chunk_problems(manifest, cases, root))
     keys = [(str(c["case_id"]), c["trial"]) for c in cases]
     if len(set(keys)) != len(keys):
         problems.append("a case id and trial appear twice in cases.jsonl")
@@ -330,7 +381,30 @@ def provenance_problems(manifest: Json) -> list[str]:
     return []
 
 
-GENERATION_MANIFEST = ("generator", "prompt", "guards", "intervals", "probes")
+# the probes block is S3's: a run without probe cases has none (S4), one with them needs it
+GENERATION_MANIFEST = ("generator", "prompt", "guards", "intervals")
+BEHAVIOUR_ONLY = ("mix", "may_quote")
+
+
+def kind_fields(case: Json) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """(required, refused) fields of a generation case of its kind: a retrieval question has its
+    labels and scores; a probe (S3) its expected label, features and canaries_of; a behaviour case
+    (S4) its expected label, features and mix, with labels and scores unless it abstains, and a
+    may_quote section only if it abstains."""
+    kind = case["kind"]
+    if kind == generation_record.PROBE:
+        return generation_record.PROBE_FIELDS, (
+            *generation_record.RETRIEVAL_FIELDS,
+            *BEHAVIOUR_ONLY,
+        )
+    if kind == generation_record.BEHAVIOUR:
+        if case.get("expected") == "abstain":
+            return behaviour.BEHAVIOUR_FIELDS, ("canaries_of", *generation_record.RETRIEVAL_FIELDS)
+        return (
+            (*behaviour.BEHAVIOUR_FIELDS, *generation_record.RETRIEVAL_FIELDS),
+            ("canaries_of", "may_quote"),
+        )
+    return generation_record.RETRIEVAL_FIELDS, (*generation_record.PROBE_FIELDS, *BEHAVIOUR_ONLY)
 
 
 def render(manifest: Json, cases: Sequence[Json]) -> str:
@@ -355,7 +429,7 @@ def retrieval_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[st
     problems: list[str] = []
     if "bootstrap" not in manifest:
         problems.append("a retrieval run has bootstrap intervals: missing 'bootstrap'")
-    extra = [f for f in (*GENERATION_MANIFEST, "ollama") if f in manifest]
+    extra = [f for f in (*GENERATION_MANIFEST, "probes", "ollama") if f in manifest]
     if extra or "generation" in as_json(manifest["results"]):
         problems.append(
             f"a retrieval run has no generation fields: {extra or ['results.generation']}"
@@ -373,9 +447,9 @@ def retrieval_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[st
 
 def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Path) -> list[str]:
     """A generation run: its manifest fields, N trials of every case (fewer only in a partial
-    run), every case's answer fields, a withheld answer for every status but ok, no cited id that
-    was not retrieved, retrieval scores on the questions and none on the probes, and the checks
-    as the fields give them."""
+    run), every case's answer fields and the fields of its kind, a withheld answer for every
+    status but ok, no cited id that was not retrieved, retrieval scores on the labelled cases and
+    none on the others, and the checks as the fields give them (S4: the behaviour cases' too)."""
     problems: list[str] = []
     if missing := [f for f in GENERATION_MANIFEST if f not in manifest]:
         problems.append(f"a generation run needs {missing}")
@@ -383,6 +457,8 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
         problems.append("a generation run has Wilson intervals, not bootstrap ones")
     if "generation" not in as_json(manifest["results"]):
         problems.append("a generation run needs results.generation")
+    if "probes" not in manifest and any(c.get("kind") == generation_record.PROBE for c in cases):
+        problems.append("a generation run with probe cases needs its probes block")
     if problems:
         return problems
     trials = cast(int, manifest["trials"])
@@ -394,6 +470,7 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
         )
     try:
         canaries = answer_key.canaries(root)
+        banned = answer_key.must_not_contain(root)
     except (OSError, ValueError) as error:  # fails closed, as the register does
         return [f"the answer key's canaries cannot be read, so the probes are unchecked ({error})"]
     seen: dict[str, list[int]] = {}
@@ -403,22 +480,16 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
         if missing := [f for f in generation_record.ANSWER_FIELDS if f not in case]:
             problems.append(f"{where}: a generation case needs {missing}")
             continue
-        kind_fields = (
-            generation_record.PROBE_FIELDS
-            if case["kind"] == generation_record.PROBE
-            else generation_record.RETRIEVAL_FIELDS
-        )
-        other_fields = (
-            generation_record.RETRIEVAL_FIELDS
-            if case["kind"] == generation_record.PROBE
-            else generation_record.PROBE_FIELDS
-        )
-        if missing := [f for f in kind_fields if f not in case]:
+        required, refused = kind_fields(case)
+        if missing := [f for f in required if f not in case]:
             problems.append(f"{where}: a {case['kind']} case needs {missing}")
             continue
-        if extra := [f for f in other_fields if f in case]:
+        if extra := [f for f in refused if f in case]:
             problems.append(f"{where}: a {case['kind']} case has no {extra}")
             continue
+        sided = case["kind"] == generation_record.BEHAVIOUR and case["expected"] == "flag-conflict"
+        if not sided and any("side" in as_json(x) for x in as_list(case.get("labels", []))):
+            problems.append(f"{where}: only a flag-conflict case's labels take a side")
         if case["status"] != "ok" and (
             case["answer"] or case["cited_ids"] or case["conflict"] or case["label"] != "abstain"
         ):
@@ -429,11 +500,13 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
             problems.append(f"{where}: the citation validator fired, so the answer is blocked")
         if unretrieved := sorted(generation_record.referenced(case) - retrieved):
             problems.append(f"{where}: cites ids that were not retrieved: {unretrieved}")
-        if case["kind"] == generation_record.RETRIEVAL:
+        if "labels" in case:
             problems.extend(case_problems(case, k))
         elif any(as_json(r)["relevant"] for r in as_list(case["retrieved"])):
-            problems.append(f"{where}: a probe has no labels, so no retrieved chunk is relevant")
-        if case["checks"] != generation_record.case_checks(case, canaries):
+            problems.append(
+                f"{where}: a {case['kind']} case has no labels, so no retrieved chunk is relevant"
+            )
+        if case["checks"] != generation_record.case_checks(case, canaries, banned):
             problems.append(f"{where}: checks {case['checks']} do not follow from the fields")
     for case_id, numbers in seen.items():
         full = list(range(1, trials + 1))
@@ -441,4 +514,189 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
             manifest["partial"] and sorted(numbers) == full[: len(numbers)]
         ):
             problems.append(f"case {case_id}: trials {sorted(numbers)}, not 1 to {trials}")
+    problems.extend(behaviour_field_problems(manifest, cases, root))
+    return problems
+
+
+# ---------------------------------------------------------------- the behaviour fields (S4)
+
+
+SNAPSHOT = "corpus/inventory.snapshot.json"
+# each register document's chunk ids by section, per (root, document, chunk size, overlap and the
+# document's bytes): ingestion parses a whole document, the scanned page through OCR, so a
+# document is chunked once per process however many records and labels read it
+_SECTIONS: dict[tuple[str, str, int, int, str], dict[str, tuple[str, ...]]] = {}
+
+
+class SectionIds:
+    """The chunk ids of a labelled section at a record's chunker settings: from the committed
+    inventory snapshot when the settings are the snapshot's, so the record validates alike on a
+    Mac and on CI, whose Tesseract reads the scanned page with other character errors; otherwise
+    from the corpus, each document chunked once (S4, fix round 1)."""
+
+    def __init__(self, root: Path, settings: ChunkSettings) -> None:
+        self.root, self.settings = root, settings
+        self.snapshot: dict[tuple[str, str], tuple[str, ...]] | None = None
+        path = root / SNAPSHOT
+        if path.is_file():
+            data = as_json(json.loads(path.read_text(encoding="utf-8")))
+            kept = as_json(data["settings"])
+            if (kept["chunk_size"], kept["overlap"]) == (settings.chunk_size, settings.overlap):
+                found: dict[tuple[str, str], list[str]] = {}
+                for row in (as_json(r) for r in as_list(data["chunks"])):
+                    found.setdefault((str(row["doc"]), str(row["section"])), []).append(
+                        str(row["id"])
+                    )
+                self.snapshot = {key: tuple(ids) for key, ids in found.items()}
+        self.paths: dict[str, str] | None = None  # the register, read only to chunk again
+
+    def of(self, doc_id: str, section_id: str) -> tuple[str, ...]:
+        if self.snapshot is not None:
+            return self.snapshot.get((doc_id, section_id), ())
+        return self._document(doc_id).get(section_id, ())
+
+    def _document(self, doc_id: str) -> dict[str, tuple[str, ...]]:
+        if self.paths is None:
+            self.paths = {e.doc_id: e.path for e in register.read(self.root)}
+        if doc_id not in self.paths:
+            return {}
+        source = self.root / self.paths[doc_id]
+        digest = hashlib.sha256(source.read_bytes())
+        canonical = source.with_suffix(".md")  # a rendered document's front matter (its version)
+        if canonical != source and canonical.is_file():
+            digest.update(canonical.read_bytes())
+        size, overlap = self.settings.chunk_size, self.settings.overlap
+        key = (str(self.root.resolve()), doc_id, size, overlap, digest.hexdigest())
+        if key not in _SECTIONS:
+            found: dict[str, list[str]] = {}
+            for chunk in pipeline.document_chunks(self.root, doc_id, self.settings):
+                found.setdefault(chunk.section_id, []).append(chunk.chunk_id)
+            _SECTIONS[key] = {section: tuple(ids) for section, ids in found.items()}
+        return _SECTIONS[key]
+
+
+def label_chunk_problems(manifest: Json, cases: Sequence[Json], root: Path) -> list[str]:
+    """For a record of the golden file's current bytes (any suite), every label whose chunk ids,
+    or a group member's, are not the labelled section's chunks at the record's settings (the
+    criteria judge's S4-J2; the user's answer on it, "Fix it now (Recommended)"). A record of
+    another dataset version keeps its labels as recorded, as history (the S2 and S3 runs)."""
+    if current_golden(manifest, root) is None:
+        return []
+    chunker = as_json(manifest["chunker"])
+    settings = ChunkSettings(cast(int, chunker["chunk_size"]), cast(int, chunker["overlap"]))
+    try:
+        ids = SectionIds(root, settings)
+    except (OSError, ValueError, KeyError, TypeError, register.RegisterError) as error:
+        return [f"the labelled sections cannot be read, so the labels are unchecked ({error})"]
+    problems: list[str] = []
+    for case in cases:
+        for label in (as_json(x) for x in as_list(case.get("labels", []))):
+            members = [as_json(m) for m in as_list(label.get("any_of", []))] or [label]
+            union: list[str] = []
+            for member in members:
+                doc, section = str(member["doc_id"]), str(member["section_id"])
+                try:
+                    derived = list(ids.of(doc, section))
+                except (pipeline.IngestError, register.RegisterError, OSError) as error:
+                    problems.append(f"{doc} {section} cannot be chunked again ({error})")
+                    continue
+                recorded = [str(i) for i in as_list(member["chunk_ids"])]
+                if recorded != derived:
+                    problems.append(
+                        f"case {case['case_id']} trial {case['trial']}: label {doc} {section} has "
+                        f"chunk ids {recorded}, not the section's chunks at "
+                        f"{settings.chunk_size}/{settings.overlap} {derived}"
+                    )
+                union += [i for i in derived if i not in union]
+            if len(members) > 1 and [str(i) for i in as_list(label["chunk_ids"])] != union:
+                problems.append(
+                    f"case {case['case_id']} trial {case['trial']}: label group {label['doc_id']} "
+                    f"{label['section_id']} has chunk ids that are not its members' sections' "
+                    "chunks together"
+                )
+    return problems
+
+
+def current_golden(manifest: Json, root: Path) -> Path | None:
+    """The golden file a record names, when its bytes are still those the record was made from."""
+    dataset = as_json(manifest["dataset"])
+    path = root / str(dataset["path"])
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    return path if sha256_bytes(data) == dataset["sha256"] else None
+
+
+def _recorded_label(label: Json) -> tuple[object, ...]:
+    group = tuple(
+        (as_json(m)["doc_id"], as_json(m)["section_id"]) for m in as_list(label.get("any_of", []))
+    )
+    return (label["doc_id"], label["section_id"], group, label.get("side"))
+
+
+def behaviour_field_problems(manifest: Json, cases: Sequence[Json], root: Path) -> list[str]:
+    """For a record of the current golden file, every behaviour case whose expected label, mix,
+    features, labels, groups, conflict sides or may_quote chunks and values differ from those the
+    golden file, the answer key and the corpus give (see the module docstring)."""
+    path = current_golden(manifest, root)
+    if path is None or not any(c.get("kind") == behaviour.BEHAVIOUR for c in cases):
+        return []
+    try:
+        questions = {q.case_id: q for q in golden.load(path) if q.kind == "behaviour"}
+        features = answer_key.features(root)
+    except (OSError, ValueError) as error:  # fails closed, as the register does
+        return [f"the golden file or the answer key cannot be read, so it is unchecked ({error})"]
+    chunker = as_json(manifest["chunker"])
+    settings = ChunkSettings(cast(int, chunker["chunk_size"]), cast(int, chunker["overlap"]))
+    quotes: dict[tuple[str, str], Json] = {}
+    problems: list[str] = []
+    for case in cases:
+        if case.get("kind") != behaviour.BEHAVIOUR:
+            continue
+        where = f"case {case['case_id']} trial {case['trial']}"
+        question = questions.get(str(case["case_id"]))
+        if question is None:
+            problems.append(f"{where}: {path.name} has no behaviour case with this id")
+            continue
+        try:
+            shape = golden.behaviour(question)
+        except golden.DatasetError as error:
+            problems.append(f"{where}: {error}")
+            continue
+        listed = [str(f) for f in as_list(case.get("feature_ids", []))]
+        fields = (case.get("expected"), case.get("mix"), listed)  # a missing one: reported above
+        if fields != (shape.expected, shape.mix, list(shape.feature_ids)):
+            problems.append(f"{where}: its expected label, mix or features are not {path.name}'s")
+        own = [features[f] for f in shape.feature_ids if f in features]
+        derived: list[tuple[object, ...]] = []
+        for entry in question.labels:
+            members = golden.members(entry)
+            places = {(s.doc_id, s.section_id) for s in members}
+            group = (
+                tuple((s.doc_id, s.section_id) for s in members)
+                if isinstance(entry, golden.Group)
+                else ()
+            )
+            side = behaviour.side(places, own) if shape.expected == "flag-conflict" else None
+            derived.append((members[0].doc_id, members[0].section_id, group, side))
+        recorded = [_recorded_label(as_json(x)) for x in as_list(case.get("labels", []))]
+        if recorded != derived:
+            problems.append(
+                f"{where}: its labels or their conflict sides are not those of {path.name} and "
+                "the answer key"
+            )
+        quote: Json | None = None
+        if shape.may_quote is not None:
+            key = (shape.may_quote.doc_id, shape.may_quote.section_id)
+            if key not in quotes:
+                try:
+                    chunks = pipeline.section_chunks(root, key[0], key[1], settings)
+                except (pipeline.IngestError, OSError) as error:
+                    problems.append(f"{where}: its may_quote section cannot be read ({error})")
+                    continue
+                quotes[key] = behaviour.quote_json(*key, [(c.chunk_id, c.text) for c in chunks])
+            quote = quotes[key]
+        if case.get("may_quote") != quote:
+            problems.append(f"{where}: its may_quote chunks or values are not the corpus's")
     return problems

@@ -26,11 +26,11 @@ k = 5
 provider = "fake"
 model = "fake-echo"
 
+# S4: no probes file; the S3 probes are behaviour cases of the golden set
 [generation]
 trials = 3
 seed = 20261018
 level = 0.95
-probes = "datasets/probes.s3.jsonl"
 run_timeout_s = 600
 
 # Lab: caller tokens are public demo values, not secrets. The page uses "demo"; the pr-fast smoke

@@ -23,6 +23,19 @@ first local run (S3 ledger) are S4's and S5's starting point.
 | Citation integrity (R-02) | enforced in code, not by a threshold | every cited id was retrieved | The citation validator blocks any other answer, and the run record refuses a case that cites an unretrieved id |
 | Latency p50, p95 and tokens | reported | none | Q-01 and Q-02 get their baselines in S5 |
 
+## Consistency (S4, Q-05)
+
+| Metric | Gate | Threshold | Reason |
+|---|---|---|---|
+| behaviour pass^3, `config/local-ollama.toml`, dev split (Q-05) | the consistency gate, `make gate-local` (`raglab gate`): by hand and **local** until keys exist; a pull request that changes the prompt, the generation code, the chunker, the embedder or the model quotes its line | margin: 1 case(s): at least the baseline's behaviour pass^3 minus one case (1/27 on the 27 dev behaviour cases) | **Measured** (S4 ledger, 2026-10-19, after the golden set's sign-off, at the frozen commit 97011a7): the baseline `20261019T172035Z-generation-local-ollama-dev-97011a7` has behaviour pass^3 0.519 (14 of 27); the repeats `20261019T172524Z-generation-local-ollama-dev-97011a7`, `20261019T173030Z-generation-local-ollama-dev-97011a7`, `20261019T173524Z-generation-local-ollama-dev-97011a7` and `20261019T174018Z-generation-local-ollama-dev-97011a7` have 0.519 (14 of 27) each, the same 14 cases. The largest drop is 0 cases, so the margin is the rule's floor, one case: a run with 13 of 27 passes and one with 12 fails (the gate compares case counts since S4's fix round 1; before it, a run at 13 of 27 failed on the six-place rounding of the rates, the criteria judge's S4-J1). Four repeats that never moved are thin evidence of the spread: the same seed gave the same answer text in only 6 of 147 (case, trial) pairs across the five runs, while the labels and citations that pass^3 reads held. The rule (S4 plan, "How the threshold is set"): after the golden set's sign-off, with the code frozen, five gate-local runs at the config's settings, seed included; the first complete run is published as the baseline, whatever its value (never the best of five), the other four as repeats; the margin is the largest drop of behaviour pass^3 below the baseline among the four repeats, in cases, and at least one case. The gate reads it from this cell as `margin: M case(s)` and refuses to judge until the cell holds one; the run ids and the reason come with the number. A baseline made with another dataset, config, prompt fingerprint, model digest or number of trials is stale and fails the gate until a new one is published in a reviewed pull request; a new Ollama version is not stale, it is a change the gate exists to see. A fake run is refused: the fake model's trials are identical, so its pass^3 measures the plumbing. |
+| label agreement (the cases whose trials all gave the same label, right or wrong) | reported | none | A model that always abstains agrees perfectly, so agreement is not gated on its own; agreement minus behaviour pass^3 counts the cases that agree and still fail, and the rest waver |
+| decision-label rate (overall and per expected label), the confusion table, abstention on the abstain cases and over-abstention on the others, the label failures split by whether the labelled sections were retrieved | reported | none | Read without a judge (TEST-PLAN R6); targets come from the first real runs (main plan), and S5's judge reads the text |
+
+Lab practice: a production system runs this gate in CI against a managed model endpoint, on a
+schedule and on every change to the prompt, the generation code or the model (the main plan's
+nightly and eval-on-change), and sets the margin from many more repeats on that runner. Here it
+runs on the Mac by hand until keys exist, and its margin comes from four repeats.
+
 The test split is never used to set a threshold or to choose a configuration; it runs in
 nightly, release and the capstone only.
 

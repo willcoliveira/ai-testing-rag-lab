@@ -5,6 +5,25 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased (v0.1)
 
+- S4: the golden set and the consistency gate. Label groups (`any_of`: sections that state the same
+  rule are one thing to find); `raglab check-dataset`, a hard stop of ten rules before every run,
+  in `make check` and as its own pr-fast step; the behaviour cases in the generation suite (the
+  decision label from the structured field, abstention as its own check with D-03's quote
+  allowance, the conflict field, canaries both ways, must-not-contain), with run record v1 extended
+  additively; the consistency gate (Q-05, `make gate-local`, its margin to be set from runs); a
+  paired comparison of generation runs; the test split held out of every run but nightly and
+  release (`make nightly-local`); D3: the team contacts allowed in published runs, the plain attack
+  phrases blocking attack runs only. Golden set v1.1 (40 behaviour cases, seven regrouped retrieval
+  questions, the answer-key additions F-86 and F-87, datasheet v1.1), reviewed by the labels judge
+  (blind agreement 40 of 40); the user's answer on its sign-off was "Signed off as is". Published,
+  all made at 97011a7: the retrieval baseline `20261019T180502Z-retrieval-dense-dev-97011a7`
+  (recall@5 0.682) with `20261019T180515Z-retrieval-hybrid-dev-97011a7` and
+  `20261019T180529Z-retrieval-dense-600-dev-97011a7`; the local generation baseline
+  `20261019T172035Z-generation-local-ollama-dev-97011a7` (behaviour pass^3 0.519, 14 of 27) with
+  the repeats `20261019T172524Z-generation-local-ollama-dev-97011a7`,
+  `20261019T173030Z-generation-local-ollama-dev-97011a7`,
+  `20261019T173524Z-generation-local-ollama-dev-97011a7` and
+  `20261019T174018Z-generation-local-ollama-dev-97011a7`; the consistency margin is one case.
 - S3h, the host spike, moves from P1 to the start of P3, before S10 (the user's decision of
   2026-10-18): the main plan, the phase map in ARCHITECTURE and the README, and ONBOARDING say so;
   the S3h draft plan is committed as deferred, with the answers already given.

@@ -1,9 +1,12 @@
 # Onboarding
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
-guards, and where each concept already lives. It is current as of S3 (2026-10-18). Every stage
-that adds a command or a concept updates it, and `tests/unit/test_onboarding.py` checks that
-every path, `make` target and `raglab` command named here exists.
+guards, and where each concept already lives. It is current as of S4, done (2026-10-19): golden
+set v1.1 (40 behaviour cases) is signed off, and the retrieval and local generation baselines are
+republished on it (the S4 ledger). Every stage that adds a command or a concept updates it, and
+`tests/unit/test_onboarding.py` checks that every path, `make` target and `raglab` command named
+here exists, and that the stage this line names is not still in progress once the phase map marks
+it done.
 
 The lab is a policy Q&A assistant over a fictional company's identity and security policy pack.
 Up to S2 it ingests the pack, retrieves from it with a real local embedding model, and scores
@@ -30,21 +33,26 @@ CI.
 
 | Command | What it shows | What you should see |
 |---|---|---|
-| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, tests, the retrieval gate | All tests pass, then `recall@5 0.644 (n 22) passes ... 0.598` |
+| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 ... passes`. Since S4 the retrieval baseline is the dense dev run on golden set v1.1 (recall@5 0.682) |
+| `make check-dataset` (or `uv run raglab check-dataset`) | The golden file against its ten rules before any run: labels, features, the answer, abstain, conflict and refusal shapes, planted strings, the mix, the datasheet's sha256 line | One `check-dataset: datasets/golden.v1.jsonl passes (...)` line; a broken case is named with its rule, and every `raglab eval` and `raglab gate` stops on it |
 | `uv run raglab ingest` | The pack parsed and chunked into `runs/tmp/inventory.json` | 228 chunks from 21 documents |
 | `uv run raglab ingest --chunk-size 600 --compare corpus/inventory.snapshot.json` | A chunking change as a reviewable diff | 249 chunks, with the changed ids listed |
 | `uv run python scripts/chunk_experiment.py --chunk-size 600` | Which planted features a smaller chunk breaks | 0 split at 1,200 and 1 split at 600 (F-16) |
-| `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml` | One retrieval run, written as a run record | A folder in `runs/tmp/` with `manifest.json`, `cases.jsonl` and `report.md`; recall@5 0.644 |
-| The same with `config/retrieval-hybrid.toml`, then `uv run raglab compare <dense run> <hybrid run>` | A paired comparison with bootstrap intervals and the questions that flipped | Every interval contains 0; only hybrid finds R-Q10; only dense finds R-Q02 and R-Q14 |
+| `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml` | One retrieval run, written as a run record | A folder in `runs/tmp/` with `manifest.json`, `cases.jsonl` and `report.md`; recall@5 0.682 |
+| The same with `config/retrieval-hybrid.toml`, then `uv run raglab compare <dense run> <hybrid run>` | A paired comparison with bootstrap intervals and the questions that flipped | Every interval contains 0; only hybrid finds R-Q10 and R-Q33; only dense finds R-Q02 |
 | `make gate` | The no-regression gate that pr-fast runs | The pass line above |
-| `make playground` | The published runs in a browser | http://127.0.0.1:8000/ listing three runs with per-question hits |
+| `make playground` | The published runs in a browser | http://127.0.0.1:8000/ listing the published runs with per-question hits |
 | `uv run raglab ask --config config/fake.toml --tenant tenant-a "How long must a password be?"` | One answer from the fake model, as JSON | Status `ok`, label `answer`, the retrieved chunks' text, and their ids in `cited_ids` |
 | `uv run raglab ask --config config/fake.toml --tenant shared "x"` | The tenant guard failing closed | Status `refused`, no answer, exit 1 |
 | `uv run raglab serve --config config/fake.toml` | The API and the page | http://127.0.0.1:8000/ asks as tenant A or B with the demo token |
 | `make api-smoke` | The API smoke test that pr-fast runs | Five `ok` lines (the last: the server stopped gracefully on SIGTERM, exit -15), then `api-smoke: passed` |
-| `uv run raglab eval --suite generation --config config/fake.toml` | A generation run record with the fake model | 25 cases, 75 case-trials; probe abstention 0 (the echo always answers) |
+| `uv run raglab eval --suite generation --config config/fake.toml` | A generation run record with the fake model: every dev retrieval question and behaviour case, 3 trials each | The checks, and for the behaviour cases the decision-label rate, the confusion and abstention tables and behaviour pass^3; with the echo model these measure the plumbing (it answers whenever a chunk is retrieved), never Q-05 |
+| `uv run raglab compare <run A> <run B>` on two generation runs | The paired difference of behaviour pass^3 and of the decision-label rate, by case id, and the flipped cases | Refused unless the dataset, split and trials match |
+| `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml --split test` | The test split held out | Refused: test and all run only with `--gate nightly` or `--gate release` |
 | `make ollama-status` | Whether a local model server is up, and the memory available | No pid, port closed, no ollama process |
 | `make eval-local` | The live run on Ollama (needs Ollama and the pinned model; docs/LOCAL-MODEL.md) | The live contract test, the run record, then `postcheck passed` |
+| `make gate-local` | The consistency gate (Q-05) on Ollama: a dev run, then `raglab gate` against the published local baseline | One `consistency gate (Q-05): ...` line; it refuses to judge until docs/THRESHOLDS.md sets the margin from runs |
+| `make nightly-local` | The local nightly on Ollama: every split, `--gate nightly` | The live contract test, then a run record of split all |
 | `make container`, then `make zap` | The fake-model container and its ZAP baseline scan (Docker) | No FAIL and no WARN; three Informational alerts, each ignored with its reason in `deploy/zap/rules.tsv` |
 | `make corpus` | Rebuilds the PDF, HTML and scanned PNG from the Markdown sources | No change in `git status` |
 
@@ -65,9 +73,12 @@ break. Restore each file with `git checkout -- <file>`, and never commit a break
 |---|---|---|
 | Remove the tenant mask in `src/raglab/index/memory.py` | `uv run pytest tests/retrieval/test_tenant_filter.py` | 7 failures; the second check, on the way out, raises `TenantError` |
 | Score reciprocal rank as 1/(rank + 1) in `src/raglab/evals/metrics.py` | `make test` | 5 failures across the metrics, run record and compare tests |
-| Make dense retrieval drop its best hit (return ranks 2 to 6) in `src/raglab/retrieve/dense.py` | `make gate` | `recall@5 0.318 (n 22) fails: the threshold is ... 0.598` |
+| Make dense retrieval drop its best hit (return ranks 2 to 6) in `src/raglab/retrieve/dense.py` | `make gate` | `recall@5 0.356 (n 22) fails: the threshold is ... 0.636` |
 | Reword one question in `datasets/golden.v1.jsonl`, keeping its labels | `make gate` | The baseline has another `dataset.sha256`: publish a new baseline in a reviewed pull request |
 | Point R-Q02's label at a section that does not exist (A-LIFE 6.2) | `make gate` | `R-Q02: A-LIFE section 6.2 has no chunk` |
+| The same label edit | `make check-dataset` | `R-Q02: rule 2 (labels and features): labelled section A-LIFE 6.2 has no chunk in the inventory`, before any run |
+| Read the decision label from the answer text instead of the `label` field in `src/raglab/evals/behaviour.py` | `uv run pytest tests/generation/test_behaviour_checks.py` | The text-abstains, label-answer case passes when it must fail: the test fails |
+| Pair the cases of `raglab compare` by position in `src/raglab/evals/compare.py` | `uv run pytest tests/retrieval/test_compare.py` | The hand-computed generation comparison fails (its B run lists the cases in reverse) |
 | Shrink the chunk budget until rules lose their exceptions | `uv run python scripts/chunk_experiment.py --chunk-size 250` | 7 features split, each with the closest chunk and the sentence it lacks; F-15 shows the MFA rule cut from its break-glass exception |
 | Import `fastembed` in `src/raglab/retrieve/dense.py` | `make architecture` | Vendor SDK fastembed is imported outside `raglab.adapters` |
 | Disable the tenant check (`tenant_problems`) in `src/raglab/evals/record.py` | `uv run pytest tests/retrieval/test_publish.py` (it forges a copy of the baseline with a tenant B chunk in a tenant A case) | The forgery test fails: the forged record now validates and would publish |
@@ -102,6 +113,11 @@ around them.
 | Evaluation | A golden set with a dev and test split and a datasheet | `datasets/golden.v1.jsonl`, `datasets/DATASHEET.md` | `tests/retrieval/test_golden_retrieval.py` |
 | Evaluation | The run record: manifest, cases and report, with provenance and hashes | `schemas/run-record.v1.json`, `src/raglab/evals/record.py` | `tests/retrieval/test_run_record.py` |
 | Evaluation | Publish, a baseline, and a no-regression gate with a written threshold | `src/raglab/evals/publish.py`, `src/raglab/evals/gate.py`, `docs/THRESHOLDS.md` | `tests/retrieval/test_publish.py` |
+| Evaluation | Label groups: sections that state the same rule are one thing to find | `src/raglab/evals/golden.py` | `tests/unit/test_metrics.py`, `tests/retrieval/test_golden_retrieval.py` |
+| Evaluation | The dataset hard stop: ten rules before every run and in pr-fast | `src/raglab/evals/dataset_check.py` | `tests/unit/test_check_dataset.py` |
+| Evaluation | Behaviour cases: the decision label from the field, abstention as its own check, no judge | `src/raglab/evals/behaviour.py`, `src/raglab/evals/oracle.py` | `tests/generation/test_behaviour_checks.py` |
+| Evaluation | The consistency gate (Q-05) with a margin set from runs, and a paired comparison of generation runs | `src/raglab/evals/gate.py`, `src/raglab/evals/compare.py` | `tests/generation/test_consistency_gate.py`, `tests/retrieval/test_compare.py` |
+| Evaluation | The test split held out of every run but nightly and release | `src/raglab/evals/config.py`, `config/local-ollama-nightly.toml` | `tests/unit/test_held_out_split.py` |
 | Engineering | Hardened CI: pinned actions; secret, dependency, SAST and workflow scans | `.github/workflows/pr-fast.yml` | `tests/unit/test_workflow_rules.py` |
 | Engineering | The privacy check, Conventional Commits and git hooks | `scripts/check-forbidden.mjs`, `.githooks/` | `tests/unit/test_privacy_check.py`, `tests/unit/test_conventions.py` |
 

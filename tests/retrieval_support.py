@@ -15,6 +15,7 @@ from raglab.core.types import Chunk, ChunkId
 from raglab.evals import config as eval_config
 from raglab.evals import record, retrieval
 from raglab.index.memory import InMemoryStore
+from raglab.ingest import inventory as snapshots
 from raglab.ingest.pipeline import Inventory
 from raglab.retrieve.bm25 import BM25Retriever
 from raglab.retrieve.dense import DenseRetriever, index_chunks
@@ -173,6 +174,14 @@ def write_register(root: Path, docs: dict[str, str]) -> None:
     (root / "corpus" / "register.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def write_snapshot(root: Path, chunks: list[Chunk] | tuple[Chunk, ...]) -> None:
+    """corpus/inventory.snapshot.json of a small pack at the default settings: the corpus a
+    current record's labels are checked against (S4, fix round 1), as the committed snapshot is
+    for the real pack."""
+    pack = Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(chunks))
+    snapshots.write_json(root / "corpus" / "inventory.snapshot.json", snapshots.snapshot_json(pack))
+
+
 def lab_root(tmp_path: Path, questions: list[dict] | None = None) -> Path:
     """A repo root with the real schema, a register of the small runs' documents and a small
     golden file."""
@@ -180,6 +189,7 @@ def lab_root(tmp_path: Path, questions: list[dict] | None = None) -> Path:
     (root / "schemas").mkdir(parents=True)
     shutil.copyfile(ROOT / record.SCHEMA_PATH, root / record.SCHEMA_PATH)
     write_register(root, LAB_DOCS)
+    write_snapshot(root, PACK)
     # the real answer key: publish refuses its answer_must_not_contain strings (S3), and the
     # generation record reads its canaries
     shutil.copyfile(ROOT / "corpus" / "answer-key.yaml", root / "corpus" / "answer-key.yaml")
@@ -198,13 +208,15 @@ def fake_run(
     git: retrieval.GitState = GIT,
     provenance: str = "fake",
     embedder_kind: str = "hashing",
+    split: str = "dev",
+    gate: str = "manual",
 ) -> Path:
     """A run record written under root/runs/tmp with the fake embedder, or with the real local
     one (embedder_kind="local", from the model cache) for a run that publish may accept. The
     provenance is the given string, so a test can also forge a fake run's label."""
     path = root / "config" / f"{name}.toml"
     path.parent.mkdir(exist_ok=True)
-    path.write_text(config_text(name, kind, k), encoding="utf-8")
+    path.write_text(config_text(name, kind, k, split), encoding="utf-8")
     config = eval_config.load(path, root)
     inventory = Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(chunks or PACK))
     embedder: Embedder
@@ -224,6 +236,7 @@ def fake_run(
         embedder,
         description,
         provenance,
+        gate=gate,
         git=git,
         clock=lambda: when,
         inventory=inventory,

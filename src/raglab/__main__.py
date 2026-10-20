@@ -1,5 +1,5 @@
-"""Command line entry point: ingest, fetch-model, eval, compare, publish, gate, ask, serve and
-ollama (the local model server's session: up, down, status, session)."""
+"""Command line entry point: ingest, fetch-model, check-dataset, eval, compare, publish, gate, ask,
+serve and ollama (the local model server's session: up, down, status, session)."""
 
 import argparse
 import json
@@ -14,16 +14,18 @@ from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSett
 from raglab.core.types import TenantError
 from raglab.evals import compare as compare_runs
 from raglab.evals import config as eval_config
+from raglab.evals import dataset_check, generation, golden, publish, record, retrieval
 from raglab.evals import gate as retrieval_gate
-from raglab.evals import generation, golden, publish, record, retrieval
 from raglab.generate import assemble
 from raglab.ingest import inventory, pipeline
 
 INVENTORY = "runs/tmp/inventory.json"
 RUNS = "runs/tmp"
+DATASET = "datasets/golden.v1.jsonl"
 GATES = ["manual", "pr-fast", "eval-on-change", "nightly", "weekly", "release"]
 EVAL_ERRORS = (
     eval_config.ConfigError,
+    dataset_check.CheckError,
     factory.AdapterError,
     fastembed_embed.ModelUnavailable,
     golden.DatasetError,
@@ -82,6 +84,37 @@ def fetch_model(args: argparse.Namespace) -> int:
     return 0
 
 
+def check_dataset(args: argparse.Namespace) -> int:
+    """`raglab check-dataset`: the golden file against its ten rules (raglab.evals.dataset_check);
+    exit 1 naming each case and rule."""
+    root: Path = args.root
+    dataset: Path = args.dataset if args.dataset.is_absolute() else root / args.dataset
+    try:
+        report = dataset_check.check(root, dataset)
+    except dataset_check.CheckError as error:
+        print(f"check-dataset: {error}", file=sys.stderr)
+        return 1
+    print("\n".join(report.lines()))
+    return 0 if report.passed else 1
+
+
+def _check_first(root: Path, dataset: str) -> None:
+    """The dataset hard stop every run passes first: a problem stops the run before any model,
+    embedder or ingestion starts (S4)."""
+    report = dataset_check.check(root, root / dataset)
+    if not report.passed:
+        raise dataset_check.CheckError(
+            "check-dataset stopped the run:\n" + "\n".join(report.lines())
+        )
+    print("\n".join(report.lines()), file=sys.stderr)  # the pass line
+
+
+def _held_out(split: str, gate: str) -> None:
+    """S4: a run that holds the test cases runs only under the nightly or release gate."""
+    if problem := eval_config.held_out_problem(split, gate):
+        raise eval_config.ConfigError(problem)
+
+
 def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]:
     root: Path = args.root
     suite: str = getattr(args, "suite", "retrieval")
@@ -92,12 +125,16 @@ def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]
         split_: str | None = getattr(args, "split", None)
         if split_ is not None:
             raise eval_config.ConfigError("a generation run uses its config's split")
+        _check_first(root, gen.dataset)
+        _held_out(gen.split, args.gate)
         built = assemble.assemble(gen, root)
         return generation.run(gen, root, built, gate=args.gate)
     config = eval_config.load(args.config, root)
     split: str | None = getattr(args, "split", None)
     if split is not None:
         config = eval_config.with_split(config, split)
+    _check_first(root, config.dataset)
+    _held_out(config.split, args.gate)
     embedder, description, provenance = factory.embedder(
         config.embedder.provider, config.embedder.model, config.embedder.revision
     )
@@ -157,8 +194,68 @@ def publish_run(args: argparse.Namespace) -> int:
     return 0
 
 
+CONSISTENCY = "consistency gate (Q-05)"
+
+
+def _consistency(root: Path, run_dir: Path) -> int:
+    """The consistency gate on a finished generation run against the published local baseline of
+    its config, with the margin of docs/THRESHOLDS.md: one line, exit 0 only when it passes."""
+
+    def say(text: str, passed: bool = False) -> int:
+        print(f"{CONSISTENCY}: {text}", flush=True)
+        return 0 if passed else 1
+
+    if problems := record.validate(run_dir, root):
+        return say(f"refused: {run_dir.name} is not a valid run record: " + "; ".join(problems))
+    manifest, _ = record.read(run_dir)
+    key = publish.baseline_key(manifest)
+    baseline_dir = publish.baseline_run(root, key)
+    if baseline_dir is None:
+        return say(f"refused: no published baseline for {key} (run {run_dir.name})")
+    if problems := record.validate(baseline_dir, root):
+        return say("refused: the baseline is invalid: " + "; ".join(problems))
+    baseline, _ = record.read(baseline_dir)
+    thresholds = root / retrieval_gate.THRESHOLDS
+    text = thresholds.read_text(encoding="utf-8") if thresholds.is_file() else ""
+    verdict = retrieval_gate.consistency(
+        baseline, manifest, retrieval_gate.consistency_margin(text)
+    )
+    return say(verdict.message, verdict.passed)
+
+
 def gate(args: argparse.Namespace) -> int:
     root: Path = args.root
+    if (args.config is None) == (args.run is None):
+        print(
+            "gate: give --config (run, then gate) or --run (gate a finished run)", file=sys.stderr
+        )
+        return 2
+    if args.run is not None:
+        try:
+            run_dir = _run_dir(root, args.run)
+        except FileNotFoundError as error:
+            print(f"gate failed: {error}", file=sys.stderr)
+            return 1
+        return _consistency(root, run_dir)
+    try:
+        suite = eval_config.suite_of(args.config)
+    except (eval_config.ConfigError, OSError) as error:
+        print(f"gate failed: {error}", file=sys.stderr)
+        return 1
+    args.suite = suite
+    if args.gate is None:  # pr-fast runs the retrieval gate; the consistency gate runs by hand
+        args.gate = "manual" if suite == "generation" else "pr-fast"
+    if suite == "generation":
+        try:
+            if (split := eval_config.load_generation(args.config, root).split) != "dev":
+                raise eval_config.ConfigError(f"the gate runs on dev, not on {split}")
+            manifest, cases = _evaluate(args)
+        except EVAL_ERRORS as error:
+            print(f"gate failed: {error}", file=sys.stderr)
+            return 1
+        run_dir = record.write(root / RUNS, manifest, cases)
+        print(f"run record: {run_dir}", file=sys.stderr, flush=True)
+        return _consistency(root, run_dir)
     try:
         manifest, cases = _evaluate(args)
     except EVAL_ERRORS as error:
@@ -301,9 +398,21 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help=f"cache directory (default ${fastembed_embed.CACHE_ENV} or ~/.cache/raglab/models)",
     )
+    checked = commands.add_parser(
+        "check-dataset",
+        help="the golden file against its ten rules, before any run (no model, no embedder)",
+    )
+    checked.add_argument(
+        "--dataset", type=Path, default=Path(DATASET), help=f"golden file (default {DATASET})"
+    )
+    checked.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     for name, text in (
         ("eval", "run an evaluation suite and write a run record under runs/tmp"),
-        ("gate", "retrieval no-regression gate: a fresh run against the published baseline"),
+        (
+            "gate",
+            "the retrieval no-regression gate (a retrieval config) or the consistency gate (a "
+            "generation config, or --run for a finished run) against the published baseline",
+        ),
     ):
         sub = commands.add_parser(name, help=text)
         if name == "eval":
@@ -313,9 +422,18 @@ def main(argv: list[str] | None = None) -> int:
                 choices=eval_config.SPLITS,
                 help="run on another split than the config's (the gate always uses the config's)",
             )
-        sub.add_argument("--config", type=Path, required=True, help="a config/*.toml file")
-        default_gate = "pr-fast" if name == "gate" else "manual"
-        sub.add_argument("--gate", choices=GATES, default=default_gate)
+            sub.add_argument("--config", type=Path, required=True, help="a config/*.toml file")
+            sub.add_argument("--gate", choices=GATES, default="manual")
+        else:
+            sub.add_argument("--config", type=Path, help="a config/*.toml file: run, then gate")
+            sub.add_argument(
+                "--run", type=Path, help="a finished generation run (a directory or a run id)"
+            )
+            sub.add_argument(
+                "--gate",
+                choices=GATES,
+                help="the run's gate (default pr-fast for retrieval, manual for generation)",
+            )
         sub.add_argument("--out", type=Path, default=Path(RUNS), help=f"(default {RUNS})")
         sub.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     cmp = commands.add_parser("compare", help="paired differences and flipped questions, B - A")
@@ -350,6 +468,7 @@ def main(argv: list[str] | None = None) -> int:
     handlers = {
         "ingest": ingest,
         "fetch-model": fetch_model,
+        "check-dataset": check_dataset,
         "eval": evaluate,
         "compare": compare,
         "publish": publish_run,

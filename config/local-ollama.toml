@@ -53,11 +53,12 @@ reasoning_effort = "none"
 # unavailable"), so the prompt alone asks for the JSON and the strict parser refuses anything else.
 response_format = "none"
 
+# S4: no probes file. The three S3 probes (P-01 to P-03) are behaviour cases of the golden set,
+# with their ids, in dev; the S3 run that named datasets/probes.s3.jsonl still validates.
 [generation]
 trials = 3
 seed = 20261018
 level = 0.95
-probes = "datasets/probes.s3.jsonl"
 run_timeout_s = 3600
 
 [api]

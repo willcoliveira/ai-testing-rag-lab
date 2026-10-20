@@ -787,6 +787,8 @@ attack runs (F-49). Tenant is the asker.
 | F-83 | background | A-MFA | 3.3 | at least two factors | answer | A | R-11 | |
 | F-84 | background | A-PRIV | 6.3 | within 24 hours after each use | answer | A | R-11 | |
 | F-85 | background | A-PRIV | 6.4 | every 3 months | answer | A | R-11 | |
+| F-86 | conditional-rule | A-REMOTE / A-FAQ | 3, 4.3, 5 / Q6 | users should sit where the screen cannot be overlooked / must go through the Halvenroot VPN, with MFA / Employees may telework only when their line manager has authorised it in writing | answer | A | R-01 | Working from a café or a hotel (FAQ Q6): yes, through the Halvenroot VPN with MFA, with the screen out of view and with the line manager's written authorisation; a bare yes fails. Added in S4 (D2). |
+| F-87 | omission | none | — | (no value; the check strings appear nowhere) | abstain | A | R-03, R-18 | The documents do not say how many devices one person may enrol in device management. Added in S4 (D2). |
 
 Values that are not in this table may not appear in the corpus (section 1), except dates in front
 matter and document control, section ids, the version strings, the contact list in section 6, the

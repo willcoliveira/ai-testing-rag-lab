@@ -10,6 +10,11 @@ are to find:
   labelled section, 0 if none is in the top k; the mean over questions is the MRR.
 - **recall@k**: the share of labelled sections with at least one chunk in the top k.
 
+A label group (S4: sections that state the same rule, `any_of` in the golden file) is one thing to
+find: raglab.evals.golden resolves it to one chunk set, every member's chunks together, so the
+three functions below take the first chunk of any member for hit and rank and count the group
+once for recall, with no special case here.
+
 Intervals are percentile bootstrap intervals: `resamples` resamples of the questions with
 replacement, drawn by random.Random(seed), the metric's mean in each, and the quantiles at
 (1 - level) / 2 and 1 - (1 - level) / 2 by linear interpolation between order statistics

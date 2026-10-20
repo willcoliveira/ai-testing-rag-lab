@@ -55,3 +55,15 @@ def test_every_raglab_command_exists(command, capsys):
         main([command, "--help"])
     assert stop.value.code == 0, f"raglab has no command {command}"
     capsys.readouterr()
+
+
+def test_the_current_stage_line_agrees_with_the_phase_map():
+    """S4 judge, S4-J4: the guide's opening says which stage it is current as of; once diagram 4
+    of docs/ARCHITECTURE.md classes that stage done, the line no longer calls it in progress."""
+    stage = re.search(r"current as of (S\d+[a-z]?)(, in progress)?", " ".join(GUIDE.split()))
+    assert stage, "the guide says which stage it is current as of"
+    architecture = (ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    done = re.search(r"^\s*class (\S+) done\s*$", architecture, flags=re.M)
+    assert done
+    if stage.group(1) in done.group(1).split(","):
+        assert stage.group(2) is None, f"{stage.group(1)} is done in the phase map"

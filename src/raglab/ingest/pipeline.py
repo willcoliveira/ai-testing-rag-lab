@@ -146,3 +146,27 @@ def ingest(root: Path, settings: ChunkSettings | None = None) -> Inventory:
         raise IngestError(str(error)) from error
     empty = tuple(f"{d.meta.path}: {s}" for d in documents for s in empty_sections(d))
     return Inventory(settings, tools(documents), documents, chunk_all(documents, settings), empty)
+
+
+def document_chunks(
+    root: Path, doc_id: str, settings: ChunkSettings | None = None
+) -> tuple[Chunk, ...]:
+    """Every chunk of one register document at the given settings, in order: the same chunks the
+    whole inventory has for it, since a document is chunked on its own. The run record validator
+    reads a current record's labelled sections and may_quote section this way (S4)."""
+    try:
+        entries = {e.doc_id: e for e in register.read(root)}
+        if doc_id not in entries:
+            raise IngestError(f"{doc_id} is not in the register")
+        e = entries[doc_id]
+        document = parse(root, describe(root, e.doc_id, e.status, e.tenant, e.path, e.format))
+    except (register.RegisterError, frontmatter.FrontMatterError, TenantError) as error:
+        raise IngestError(str(error)) from error
+    return tuple(SectionChunker(settings or ChunkSettings()).chunk(document))
+
+
+def section_chunks(
+    root: Path, doc_id: str, section_id: str, settings: ChunkSettings | None = None
+) -> tuple[Chunk, ...]:
+    """The chunks of one section of one register document at the given settings, in order."""
+    return tuple(c for c in document_chunks(root, doc_id, settings) if c.section_id == section_id)

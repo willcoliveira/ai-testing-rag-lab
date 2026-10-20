@@ -142,7 +142,9 @@ def test_the_committed_generation_configs():
             5,
             1200,
         )
-        assert (c.generation.trials, c.generation.probes) == (3, "datasets/probes.s3.jsonl")
+        # S4: the probes are golden cases, so no committed config names the S3 probes file
+        assert (c.generation.trials, c.generation.probes) == (3, None)
+        assert "probes" not in c.resolved()["generation"]  # type: ignore[operator]
 
 
 def test_a_retrieval_command_refuses_a_generation_config_and_the_reverse():
