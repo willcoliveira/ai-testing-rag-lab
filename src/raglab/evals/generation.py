@@ -38,7 +38,7 @@ from raglab.ingest import answer_key
 
 type Json = dict[str, object]
 
-__all__ = ["abstention_oracle", "load_probes", "policy_values", "run"]
+__all__ = ["abstention_oracle", "answer_fields", "load_probes", "policy_values", "run"]
 
 
 def load_probes(path: Path) -> list[golden.Question]:
@@ -76,7 +76,7 @@ def _retrieved(results: tuple[ScoredChunk, ...], relevant: frozenset[str]) -> li
     ]
 
 
-def _answer_fields(outcome: Outcome) -> Json:
+def answer_fields(outcome: Outcome) -> Json:
     answer = outcome.answer
     conflict = answer.conflict
     return {
@@ -193,7 +193,7 @@ def run(
                 "split": question.split,
                 "tenant": question.tenant,
                 "question": question.question,
-                **_answer_fields(outcome),
+                **answer_fields(outcome),
             }
             if question.question_kind:
                 case["question_kind"] = question.question_kind

@@ -11,6 +11,9 @@
    published; the unit tests import the module directly.
 5. HTTP clients (httpx and the like) are imported only inside `raglab.adapters`, and the web
    framework (FastAPI, Starlette, uvicorn) only inside `raglab.api` (S3).
+6. DeepEval is imported nowhere in the package, `raglab.adapters` included (S5, D4: "Own judge;
+   DeepEval fenced"): it lives in tools/deepeval-check, a project with its own lock, which the
+   main environment never installs.
 
 A run-time import is found by the call, not by tracking what importlib is bound to (S0 judge round
 3: `importlib = __import__('importlib')`, `il, x = importlib, 1` or `sys.modules['importlib']`
@@ -45,7 +48,6 @@ VENDORS = frozenset(
         "anthropic",
         "boto3",
         "botocore",
-        "deepeval",
         "fastembed",
         "guardrails",
         "httpx",
@@ -70,6 +72,8 @@ FAKE_IMPORTER = "adapters.factory"
 HTTP_CLIENTS = frozenset({"httpx", "aiohttp", "urllib3"})
 # the web framework: only in raglab.api (rule 5)
 WEB = frozenset({"fastapi", "starlette", "uvicorn"})
+# fenced libraries: imported nowhere in the package, adapters included (rule 6, S5)
+FENCED = frozenset({"deepeval"})
 
 
 @dataclass(frozen=True)
@@ -370,6 +374,15 @@ def check(package_dir: Path) -> list[Violation]:
                 violations.append(
                     Violation(
                         file, line, f"parser library {top} is imported outside {root_name}.ingest"
+                    )
+                )
+            if top in FENCED:
+                violations.append(
+                    Violation(
+                        file,
+                        line,
+                        f"{top} is fenced in tools/deepeval-check and imported nowhere in "
+                        f"{root_name}, adapters included",
                     )
                 )
         violations.extend(_test_only_violations(file, tree, parts, root_name))

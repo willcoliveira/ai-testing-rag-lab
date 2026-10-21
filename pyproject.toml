@@ -51,6 +51,7 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PT", "S"]
 [tool.ruff.lint.per-file-ignores]
 # assert is how pytest checks; subprocess runs our own scripts and git in temp dirs
 "tests/**" = ["S101", "S603", "S607"]
+"tools/*/tests/**" = ["S101", "S603", "S607"]
 "scripts/**" = ["S603", "S607"]
 
 [tool.pyright]
@@ -78,6 +79,8 @@ markers = [
 
 [tool.deptry]
 known_first_party = ["raglab"]
+# S5: tools/deepeval-check is a project of its own, with its own dependencies and lock
+extend_exclude = ["tools"]
 
 [tool.deptry.per_rule_ignores]
 # the modules of fpdf2 and pillow: build-time only, for scripts/build_corpus.py, which renders

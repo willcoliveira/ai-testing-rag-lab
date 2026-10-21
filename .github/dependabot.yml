@@ -18,6 +18,23 @@ updates:
       python-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+  # S5: the DeepEval tool project (tools/deepeval-check), with its own lock. A DeepEval bump comes as
+  # a PR of its own, kept out of the group, so its checks are re-run before it merges
+  # (make deepeval-test, then make deepeval-check in a judge session).
+  - package-ecosystem: uv
+    directory: /tools/deepeval-check
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      python-minor-patch:
+        patterns: ["*"]
+        exclude-patterns: ["deepeval"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: pip
     directory: /.github
     schedule:

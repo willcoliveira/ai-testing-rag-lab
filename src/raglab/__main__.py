@@ -1,11 +1,13 @@
-"""Command line entry point: ingest, fetch-model, check-dataset, eval, compare, publish, gate, ask,
-serve and ollama (the local model server's session: up, down, status, session)."""
+"""Command line entry point: ingest, fetch-model, check-dataset, eval, compare, judge, canaries,
+publish, gate, ask, serve and ollama (the local model server's session: up, down, status,
+session)."""
 
 import argparse
 import json
 import shlex
 import signal
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from raglab import __version__
@@ -14,10 +16,11 @@ from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSett
 from raglab.core.types import TenantError
 from raglab.evals import compare as compare_runs
 from raglab.evals import config as eval_config
-from raglab.evals import dataset_check, generation, golden, publish, record, retrieval
+from raglab.evals import dataset_check, generation, golden, judged, publish, record, retrieval
 from raglab.evals import gate as retrieval_gate
 from raglab.generate import assemble
 from raglab.ingest import inventory, pipeline
+from raglab.judge import canaries
 
 INVENTORY = "runs/tmp/inventory.json"
 RUNS = "runs/tmp"
@@ -275,6 +278,139 @@ def gate(args: argparse.Namespace) -> int:
     return 0 if verdict.passed else 1
 
 
+JUDGE_ERRORS = (
+    eval_config.ConfigError,
+    factory.AdapterError,
+    judged.JudgedError,
+    canaries.CanaryError,
+    golden.DatasetError,
+    pipeline.IngestError,
+    OSError,
+    ValueError,
+)
+
+
+def _say(text: str) -> None:
+    print(text, file=sys.stderr, flush=True)
+
+
+def judge_run(args: argparse.Namespace) -> int:
+    """`raglab judge --run <run> --config <judge config>` (S5): the canaries first, then every
+    answer of a finished generation run on its criteria, written as a judged run record under
+    runs/tmp. Exit 1 when a canary is off its side (no judged call is made, no record written)."""
+    from raglab.judge.build import judge_from_config
+
+    root: Path = args.root
+    try:
+        config = eval_config.load_judge(args.config, root)
+        source = _run_dir(root, args.run)
+        judge, description, provenance = judge_from_config(config)
+        manifest, lines = judged.run(
+            config, root, source, judge, description, provenance, gate=args.gate, say=_say
+        )
+    except canaries.CanaryStop as stop:
+        print(f"judge stopped: {stop}", file=sys.stderr, flush=True)
+        return 1
+    except JUDGE_ERRORS as error:
+        print(f"judge failed: {error}", file=sys.stderr, flush=True)
+        return 1
+    out: Path = args.out if args.out.is_absolute() else root / args.out
+    run_dir = record.write(out, manifest, lines)
+    if problems := record.validate(run_dir, root):
+        print("judge wrote an invalid run record:\n" + "\n".join(problems), file=sys.stderr)
+        return 1
+    print((run_dir / record.REPORT).read_text(encoding="utf-8"))
+    print(f"run record: {run_dir}")
+    if manifest["git_dirty"]:
+        print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
+    return 0
+
+
+def canary_check(args: argparse.Namespace) -> int:
+    """`raglab canaries --config <judge config>` (S5): the canary set judged, one line per item;
+    exit 1 when any is off its side. A judge session that runs no judged run (DeepEval's checks)
+    runs this first."""
+    from raglab.judge.build import judge_from_config
+
+    root: Path = args.root
+    try:
+        config = eval_config.load_judge(args.config, root)
+        items = canaries.load(root / config.judging.canaries)
+        passages = canaries.corpus_passages(root, items)
+        judge, _, _ = judge_from_config(config)
+        results = canaries.run(judge, items, passages, config.judging.seed)
+    except JUDGE_ERRORS as error:
+        print(f"canaries failed: {error}", file=sys.stderr, flush=True)
+        return 1
+    print("\n".join(judged.summary(results)), flush=True)
+    # every call's verdict, reply, seconds and tokens, for the ledger (runs/tmp is gitignored)
+    out = root / RUNS / "canaries"
+    out.mkdir(parents=True, exist_ok=True)
+    log = out / f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}.jsonl"
+    rows = canaries.results_json(results)
+    log.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
+    seconds = sorted(r.verdict.latency_ms / 1000 for r in results)
+    print(
+        f"canaries: {len(results)} calls, {seconds[0]:.3f} to {seconds[-1]:.3f} s a call "
+        f"(median {seconds[len(seconds) // 2]:.3f} s); written {log}",
+        flush=True,
+    )
+    if problems := canaries.off_side(results):
+        print("canaries: the judge is stopped:\n- " + "\n- ".join(problems), file=sys.stderr)
+        return 1
+    print(f"canaries: all {len(results)} on their side", flush=True)
+    return 0
+
+
+def position_run(args: argparse.Namespace) -> int:
+    """`raglab position --config <a generation config with a [position] table>` (S5, how-to 17
+    step 8): each position case with its answering chunk first, in the middle and last of a long
+    context, written as a generation record under runs/tmp."""
+    from raglab.evals import position
+    from raglab.ingest import answer_key
+
+    root: Path = args.root
+    try:
+        config = eval_config.load_generation(args.config, root)
+        if config.position is None:
+            raise eval_config.ConfigError(f"{args.config} has no [position] table")
+        _check_first(root, config.dataset)
+        _held_out(config.split, args.gate)
+        built = assemble.assemble(config, root)
+        manifest, cases = position.run(
+            config, root, built, answer_key.features(root), gate=args.gate
+        )
+    except (*EVAL_ERRORS, position.PositionError) as error:
+        print(f"position failed: {error}", file=sys.stderr)
+        return 1
+    out: Path = args.out if args.out.is_absolute() else root / args.out
+    run_dir = record.write(out, manifest, cases)
+    if problems := record.validate(run_dir, root):
+        print("position wrote an invalid run record:\n" + "\n".join(problems), file=sys.stderr)
+        return 1
+    print((run_dir / record.REPORT).read_text(encoding="utf-8"))
+    print(f"run record: {run_dir}")
+    if manifest["git_dirty"]:
+        print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
+    return 0
+
+
+def cost_estimate(args: argparse.Namespace) -> int:
+    """`raglab cost --judged <run>` (S5, AC12): the tokens a judged record measured, priced with
+    config/prices.toml per call, case-trial, run and month for each option of
+    config/cost-assumptions.toml (raglab.evals.cost), printed as Markdown."""
+    from raglab.evals import cost
+
+    root: Path = args.root
+    try:
+        run_dir = _run_dir(root, args.judged)
+        print(cost.report(root, run_dir, args.prices, args.assumptions))
+    except (cost.CostError, FileNotFoundError, KeyError, ValueError) as error:
+        print(f"cost failed: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def ask(args: argparse.Namespace) -> int:
     """One question through the pipeline; the outcome as JSON. Exit 0 when the status is ok."""
     root: Path = args.root
@@ -325,7 +461,12 @@ def ollama(args: argparse.Namespace) -> int:
 
     root: Path = args.root
     try:
-        config = eval_config.load_generation(args.config, root, require_digest=False)
+        # S5: a judge config's session serves its judge; a generation config's its generator
+        config = (
+            eval_config.load_judge(args.config, root)
+            if eval_config.suite_of(args.config) == "judged"
+            else eval_config.load_generation(args.config, root, require_digest=False)
+        )
         session = runtime.session_for(config, root)
         if args.action == "up":
             session.up()
@@ -346,7 +487,8 @@ def ollama(args: argparse.Namespace) -> int:
             print("ollama session: give at least one --run command", file=sys.stderr)
             return 2
         try:
-            return session.run([shlex.split(c) for c in args.run], runtime.run_command)
+            # the default runner ends a command when the session is halted (S5 AC22: power)
+            return session.run([shlex.split(c) for c in args.run])
         except KeyboardInterrupt:
             # Ctrl-C (judge S3-J13): Session.run has already run its stop, and its lines are
             # above, so one line here instead of a traceback, and 128 + SIGINT. A SIGTERM or
@@ -441,6 +583,32 @@ def main(argv: list[str] | None = None) -> int:
     cmp.add_argument("b", type=Path, help="run B: a directory or a run id")
     cmp.add_argument("--out", type=Path, help="where compare.json and compare.md go")
     cmp.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    judging = commands.add_parser(
+        "judge",
+        help="the canaries, then every answer of a finished generation run on its criteria (S5)",
+    )
+    judging.add_argument("--run", type=Path, required=True, help="a generation run: dir or id")
+    judging.add_argument("--config", type=Path, required=True, help="a judge config/*.toml")
+    judging.add_argument("--gate", choices=GATES, default="manual")
+    judging.add_argument("--out", type=Path, default=Path(RUNS), help=f"(default {RUNS})")
+    judging.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    where = commands.add_parser(
+        "position", help="the position test: the answering chunk first, middle and last (S5)"
+    )
+    where.add_argument("--config", type=Path, required=True, help="a config with [position]")
+    where.add_argument("--gate", choices=GATES, default="manual")
+    where.add_argument("--out", type=Path, default=Path(RUNS), help=f"(default {RUNS})")
+    where.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    priced = commands.add_parser(
+        "cost", help="a judged run's measured tokens priced per call, case-trial, run, month (S5)"
+    )
+    priced.add_argument("--judged", type=Path, required=True, help="a judged run: dir or id")
+    priced.add_argument("--prices", type=Path, default=Path("config/prices.toml"))
+    priced.add_argument("--assumptions", type=Path, default=Path("config/cost-assumptions.toml"))
+    priced.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    canary = commands.add_parser("canaries", help="the judge's canary set, a hard stop (S5)")
+    canary.add_argument("--config", type=Path, required=True, help="a judge config/*.toml")
+    canary.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     pub = commands.add_parser("publish", help="validate a run, check privacy, add it to the index")
     pub.add_argument("run", type=Path, help="a run directory or run id")
     pub.add_argument(
@@ -471,6 +639,10 @@ def main(argv: list[str] | None = None) -> int:
         "check-dataset": check_dataset,
         "eval": evaluate,
         "compare": compare,
+        "judge": judge_run,
+        "canaries": canary_check,
+        "position": position_run,
+        "cost": cost_estimate,
         "publish": publish_run,
         "gate": gate,
         "ask": ask,

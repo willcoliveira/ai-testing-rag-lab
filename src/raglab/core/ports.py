@@ -14,8 +14,10 @@ from raglab.core.types import (
     ChunkId,
     Document,
     GuardEvent,
+    JudgeItem,
     Page,
     ScoredChunk,
+    Verdict,
 )
 
 
@@ -99,6 +101,29 @@ class ChatModel(Protocol):
         ...
 
     def complete(self, request: ChatRequest) -> ChatReply: ...
+
+
+class Judge(Protocol):
+    """One criterion of docs/CRITERIA.md judged per call (S5): the judge model behind the
+    ChatModel port (raglab.judge.llm), or a scripted model in the tests. judge never raises for a
+    model that gave no reply or a reply off the verdict schema: the verdict is unable_to_verify,
+    with status unavailable or invalid_output, and the caller counts it."""
+
+    @property
+    def version(self) -> str:
+        """The judge prompt's version (judge-v2 since the second sign-off), recorded with every
+        judged run."""
+        ...
+
+    def fingerprint(self) -> str:
+        """The sha256 of the judge prompt's texts, frames, criteria and schema."""
+        ...
+
+    def describe(self) -> dict[str, object]:
+        """What a judged record says about the judge model: provider, model, digest, settings."""
+        ...
+
+    def judge(self, item: JudgeItem) -> Verdict: ...
 
 
 class Guardrail(Protocol):

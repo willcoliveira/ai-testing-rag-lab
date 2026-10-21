@@ -355,7 +355,7 @@ flowchart TB
     S0[S0 Skeleton, hygiene, security CI] --> S1a[S1a Requirements, corpus pack, answer key] --> S1b[S1b Ingestion, chunking, test plan] --> S2[S2 Retrieval, run record, playground v0] --> S3[S3 Generation, local live run, API/UI, local container] --> S4[S4 Golden set, consistency gate]
   end
   subgraph P2[P2 Evaluation rigour, v0.2]
-    S4b[S4b Golden set v2, ~120] --> S5[S5 Local judged metrics, token measurement, provider decision] --> S6[S6 Judge calibration] --> S7[S7 Attack, guardrails, red team] --> S8[S8 Gates, causes, suite audit]
+    S5[S5 Local judged metrics, token measurement, provider decision] --> S4b[S4b Golden set v2, ~120] --> S6[S6 Judge calibration] --> S7[S7 Attack, guardrails, red team] --> S8[S8 Gates, causes, suite audit]
   end
   subgraph P3[P3 Production practices, v0.3]
     S9[S9 Observability, perf] --> S3h[S3h Host evaluation spike] --> S10[S10 Real demo, path to prod] --> S11[S11 Teaching playground, system audit, capstone]
@@ -364,7 +364,7 @@ flowchart TB
     S12[S12 Handbook corpus]
     B[Track B Playwright for Python]
   end
-  S4 --> S4b
+  S4 --> S5
   S8 --> S9
   S11 --> S12
   S3 -.-> B
@@ -441,12 +441,19 @@ verbatim: "Before S10, start of P3 (Recommended)". No stage from S4 to S9 needs 
 closes with S4 and a container ready to deploy, without a chosen host. The S3h draft plan
 (`docs/plans/2026-10-18-s3h-host-spike.md`) keeps the answers already given.
 
-**v0.2 (S4b–S8).** Judged, calibrated, attacked, gated.
+Decision (2026-10-20): S5 runs before S4b. Asked "D1: S5 before S4b? The main plan's order is
+S4b (golden set v2, about 120 cases) and then S5.", the user answered, verbatim: "S5 now, S4b after
+(Recommended)". S5 judges golden set v1.1, and S4b follows it, writing cases the judge can score;
+answer-v2, the prompt fix S4 left as a follow-up, comes between them as a pull request of its own
+(D2, verbatim: "After S5, own PR (Recommended)"). The S5 plan
+(`docs/plans/2026-10-20-s5-judged-metrics.md`) quotes both questions.
+
+**v0.2 (S5, S4b, S6–S8).** Judged, calibrated, attacked, gated.
 
 | # | Stage | Build project / how-to step | Key acceptance criteria |
 |---|---|---|---|
-| S4b | Golden set v2 (about 120) | 4 / step 4 | about 120 cases covering every question type and both tenants, with every R-xx traced to at least one case; dev and test split kept; datasheet v2; `check-dataset` passes; re-run of retrieval on v2 published |
 | S5 | Judged metrics locally, token measurement, cost decision | 5 / steps 5, 7, 8 | CRITERIA.md written first; judged metrics run **locally**: Ollama generator plus a judge from a different model family (e.g. Llama against Qwen); every call's tokens are recorded; `docs/decisions/ADR-002-providers.md` converts the measured tokens into a monthly cost per provider option using the price table, and you choose what to sign up for; then the Anthropic and/or OpenAI adapters pass contract tests with the keys you chose (Bedrock optional); COMPATIBILITY.md says "tested against X on date"; judged metrics on the dev slice, per-case pass rate with case-level Wilson intervals; metric canary and hallucination-direction check recorded for the pinned DeepEval (version, telemetry opt-out and custom-LLM API checked at that version); position test; cost formula and monthly estimate in THRESHOLDS.md |
+| S4b | Golden set v2 (about 120) | 4 / step 4 | about 120 cases covering every question type and both tenants, with every R-xx traced to at least one case; dev and test split kept; datasheet v2; `check-dataset` passes; re-run of retrieval on v2 published |
 | S6 | Judge calibration (30 labels) | 6 / step 10 | bar written before looking; blind `label` CLI after the rubric settles; labels never reused as judge examples; kappa, confusion table, TPR and TNR; second labeller on 10–15 items, or an explicit single-labeller caveat; how-to 05 record template; threshold and reason in THRESHOLDS.md |
 | S7 | Attack, guardrails, red team | 7 / step 9 | THREAT-MODEL.md (OWASP LLM Top 10 2026 mapping); promptfoo red-team run with findings turned into cases; planted instruction (including "nothing is sent out"), two tenants, poisoned duplicate: each fails without the defence and passes with it; must-block and must-not-block suites per filter, both error rates and latency; Guardrails AI extra (see below) |
 | S8 | Gates, failure causes, suite audit | 8 / step 11 | suite audit (how-to 09 B) in `docs/audits/`; GATES.md with how-to 08 columns; THRESHOLDS.md gives a reason for every gated and every reported metric; every failure tagged with a cause (ingestion, retrieval, generation, abstention); embedder-swap branch shows what moved; upgrade record (how-to 10); flake policy |
@@ -479,7 +486,7 @@ labelled as lab in the README.
 | Phase | Releases | Nature | You can stop here with |
 |---|---|---|---|
 | **P1 Lab core** | v0.1 (S0–S4) | Experimental. Fake and local models; numbers are real but local. | A tested RAG starter: corpus, ingestion, retrieval metrics, abstention, golden set, CI and a container ready to deploy. This closes the roadmap row in its minimum form. |
-| **P2 Evaluation rigour** | v0.2 (S4b–S8) | Experimental system, production-grade evaluation. | Judged runs with intervals (local, plus hosted if ADR-002 picks a provider), a calibrated judge, a red team, gates with reasons, and a suite audit. This is the interview-grade evidence. |
+| **P2 Evaluation rigour** | v0.2 (S5, S4b, S6–S8) | Experimental system, production-grade evaluation. | Judged runs with intervals (local, plus hosted if ADR-002 picks a provider), a calibrated judge, a red team, gates with reasons, and a suite audit. This is the interview-grade evidence. |
 | **P3 Production practices** | v0.3 (S9, S3h, S10, S11) | Production-shaped on a cheap host. | Tracing with redaction, perf gate, the host spike, demo controls, real-model demo, system audit, teaching playground, capstone. |
 | **P4 Path to prod** | doc only, inside S10 | Not built. | `path-to-prod-aws.md`: what would change and why. |
 

@@ -40,7 +40,14 @@ from typing import cast
 
 from raglab.chunk.sections import ChunkSettings
 from raglab.core.types import visible_tenants
-from raglab.evals import behaviour, generation_record, golden, metrics
+from raglab.evals import (
+    behaviour,
+    generation_record,
+    golden,
+    judged_record,
+    metrics,
+    position_record,
+)
 from raglab.evals.schema import Validator
 from raglab.ingest import answer_key, pipeline, register
 
@@ -329,6 +336,8 @@ def validate(run_dir: Path, root: Path) -> list[str]:
     k = cast(int, as_json(manifest["retriever"])["k"])
     if manifest["suite"] == "generation":
         problems.extend(generation_problems(manifest, cases, k, root))
+    elif manifest["suite"] == judged_record.JUDGED:  # S5
+        problems.extend(judged_record.judged_problems(manifest, cases, run_dir, root))
     else:
         problems.extend(retrieval_problems(manifest, cases, k))
     try:
@@ -362,6 +371,7 @@ def fake_models(manifest: Json) -> list[str]:
     for part, fields in (
         ("embedder", ("provider", "revision")),
         ("generator", ("provider", "digest")),
+        ("judge", ("provider", "digest")),  # S5: a judged run's judge model
     ):
         if part not in manifest:
             continue
@@ -392,6 +402,12 @@ def kind_fields(case: Json) -> tuple[tuple[str, ...], tuple[str, ...]]:
     (S4) its expected label, features and mix, with labels and scores unless it abstains, and a
     may_quote section only if it abstains."""
     kind = case["kind"]
+    if kind == position_record.POSITION:  # S5: the position test
+        return position_record.POSITION_FIELDS, (
+            "canaries_of",
+            *BEHAVIOUR_ONLY,
+            *generation_record.RETRIEVAL_FIELDS,
+        )
     if kind == generation_record.PROBE:
         return generation_record.PROBE_FIELDS, (
             *generation_record.RETRIEVAL_FIELDS,
@@ -411,6 +427,8 @@ def render(manifest: Json, cases: Sequence[Json]) -> str:
     """report.md for the run's suite."""
     if manifest["suite"] == "generation":
         return generation_record.render_report(manifest, cases)
+    if manifest["suite"] == judged_record.JUDGED:
+        return judged_record.render_report(manifest, cases)
     return render_report(manifest, cases)
 
 
@@ -418,7 +436,12 @@ def expected_results(manifest: Json, cases: Sequence[Json]) -> Json:
     """The results block recomputed from the cases, for the run's suite."""
     if manifest["suite"] == "generation":
         level = cast(float, as_json(manifest["intervals"])["level"])
-        return generation_record.results(cases, cast(int, manifest["trials"]), level)
+        position = as_json(manifest["position"]) if "position" in manifest else None
+        return generation_record.results(cases, cast(int, manifest["trials"]), level, position)
+    if manifest["suite"] == judged_record.JUDGED:
+        level = cast(float, as_json(manifest["intervals"])["level"])
+        canary_rows = [as_json(r) for r in as_list(as_json(manifest["canaries"])["results"])]
+        return judged_record.results(cases, cast(int, manifest["trials"]), level, canary_rows)
     k = cast(int, as_json(manifest["retriever"])["k"])
     return results_from_cases(cases, k, as_json(manifest["bootstrap"]))
 
@@ -429,7 +452,7 @@ def retrieval_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[st
     problems: list[str] = []
     if "bootstrap" not in manifest:
         problems.append("a retrieval run has bootstrap intervals: missing 'bootstrap'")
-    extra = [f for f in (*GENERATION_MANIFEST, "probes", "ollama") if f in manifest]
+    extra = [f for f in (*GENERATION_MANIFEST, "probes", "ollama", "position") if f in manifest]
     if extra or "generation" in as_json(manifest["results"]):
         problems.append(
             f"a retrieval run has no generation fields: {extra or ['results.generation']}"
@@ -471,8 +494,14 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
     try:
         canaries = answer_key.canaries(root)
         banned = answer_key.must_not_contain(root)
+        features = answer_key.features(root)
     except (OSError, ValueError) as error:  # fails closed, as the register does
         return [f"the answer key's canaries cannot be read, so the probes are unchecked ({error})"]
+    positioned = [c for c in cases if c.get("kind") == position_record.POSITION]
+    if positioned:  # S5: the position test's lines
+        problems.extend(position_record.problems(manifest, positioned, root))
+    elif "position" in manifest:
+        problems.append("a generation run without position cases has no position block")
     seen: dict[str, list[int]] = {}
     for case in cases:
         where = f"case {case['case_id']} trial {case['trial']}"
@@ -502,11 +531,13 @@ def generation_problems(manifest: Json, cases: Sequence[Json], k: int, root: Pat
             problems.append(f"{where}: cites ids that were not retrieved: {unretrieved}")
         if "labels" in case:
             problems.extend(case_problems(case, k))
+        elif case["kind"] == position_record.POSITION:
+            pass  # its context and relevant flag: position_record.problems, above
         elif any(as_json(r)["relevant"] for r in as_list(case["retrieved"])):
             problems.append(
                 f"{where}: a {case['kind']} case has no labels, so no retrieved chunk is relevant"
             )
-        if case["checks"] != generation_record.case_checks(case, canaries, banned):
+        if case["checks"] != generation_record.case_checks(case, canaries, banned, features):
             problems.append(f"{where}: checks {case['checks']} do not follow from the fields")
     for case_id, numbers in seen.items():
         full = list(range(1, trials + 1))

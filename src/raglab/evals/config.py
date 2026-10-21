@@ -62,6 +62,24 @@ num_parallel = 1
 context_length = 8192
 memory_margin_gb = 8
 ```
+
+A judge config (S5, `suite = "judged"`, read by `load_judge`) names the judge model and what a
+judged run reads; the run it judges is given on the command line (`raglab judge --run`):
+
+```toml
+[judge]                         # the [generator] keys: provider, model, and for openai-compat
+provider = "openai-compat"      # digest (always pinned), base_url, temperature, max_tokens and
+model = "<tag>"                 # timeout_s; response_format and the optional keys as above
+
+[judging]
+seed = 20261020                 # every judge call's seed
+level = 0.95                    # of the Wilson intervals
+run_timeout_s = 7200            # the judged run's wall-clock cap; a run that hits it is partial
+criteria = "docs/CRITERIA.md"   # its sha256 goes into every judged manifest
+canaries = "datasets/canaries.judge.jsonl"
+
+[ollama]                        # optional, as above: a judge session has its own server
+```
 """
 
 import hashlib
@@ -95,7 +113,20 @@ def held_out_problem(split: str, gate: str) -> str | None:
     return None
 
 
-SUITES = ("retrieval", "generation")
+SUITES = ("retrieval", "generation", "judged")
+# the keys of a chat model's table: [generator] (S3) and [judge] (S5)
+MODEL_KEYS: dict[str, type | tuple[type, ...]] = {
+    "provider": str,
+    "model": str,
+    "digest": str,
+    "base_url": str,
+    "temperature": (float, int),
+    "top_p": (float, int),
+    "max_tokens": int,
+    "timeout_s": (float, int),
+    "reasoning_effort": str,
+    "response_format": str,
+}
 SECTIONS: dict[str, dict[str, type | tuple[type, ...]]] = {
     "": {"name": str, "suite": str},
     "dataset": {"path": str, "split": str},
@@ -103,17 +134,14 @@ SECTIONS: dict[str, dict[str, type | tuple[type, ...]]] = {
     "embedder": {"provider": str, "model": str, "revision": str},
     "retriever": {"kind": str, "k": int, "candidates": int, "rrf_k": int},
     "bootstrap": {"seed": int, "resamples": int, "level": (float, int)},
-    "generator": {
-        "provider": str,
-        "model": str,
-        "digest": str,
-        "base_url": str,
-        "temperature": (float, int),
-        "top_p": (float, int),
-        "max_tokens": int,
-        "timeout_s": (float, int),
-        "reasoning_effort": str,
-        "response_format": str,
+    "generator": MODEL_KEYS,
+    "judge": MODEL_KEYS,
+    "judging": {
+        "seed": int,
+        "level": (float, int),
+        "run_timeout_s": (float, int),
+        "criteria": str,
+        "canaries": str,
     },
     "generation": {
         "trials": int,
@@ -123,6 +151,12 @@ SECTIONS: dict[str, dict[str, type | tuple[type, ...]]] = {
         "run_timeout_s": (float, int),
     },
     "api": {"tokens": dict},
+    "position": {
+        "cases": list,
+        "prompt_budget_tokens": int,
+        "chars_per_token": (float, int),
+        "resamples": int,
+    },
     "ollama": {
         "host": str,
         "keep_alive": str,
@@ -135,7 +169,12 @@ SECTIONS: dict[str, dict[str, type | tuple[type, ...]]] = {
 OPTIONAL = {
     ("retriever", "candidates"),
     ("retriever", "rrf_k"),
-    *(("generator", key) for key in SECTIONS["generator"] if key not in {"provider", "model"}),
+    *(
+        (part, key)
+        for part in ("generator", "judge")
+        for key in MODEL_KEYS
+        if key not in {"provider", "model"}
+    ),
     ("generation", "probes"),  # S4: the probes are golden cases; S3's file stays readable
 }
 # the tables each suite has (required) and may have (optional)
@@ -143,8 +182,9 @@ TABLES = {
     "retrieval": ({"dataset", "chunker", "embedder", "retriever", "bootstrap"}, set[str]()),
     "generation": (
         {"dataset", "chunker", "embedder", "retriever", "generator", "generation"},
-        {"api", "ollama"},
+        {"api", "ollama", "position"},
     ),
+    "judged": ({"judge", "judging"}, {"ollama"}),
 }
 OPENAI_COMPAT_KEYS = frozenset({"base_url", "digest", "temperature", "max_tokens", "timeout_s"})
 
@@ -243,7 +283,9 @@ def _read(path: Path) -> tuple[bytes, dict[str, object], str]:
     if not NAME.match(name):
         raise ConfigError(f"{where}: name {name!r} must be lower case letters, digits and dashes")
     if suite not in SUITES:
-        raise ConfigError(f"{where}: suite {suite!r}: only retrieval and generation exist (S3)")
+        raise ConfigError(
+            f"{where}: suite {suite!r}: only retrieval, generation and judged exist (S5)"
+        )
     required, optional = TABLES[suite]
     tables = set(data) - set(SECTIONS[""])
     if tables - required - optional:
@@ -394,6 +436,18 @@ class OllamaSettings:
 
 
 @dataclass(frozen=True)
+class PositionSettings:
+    """The position test's settings (S5, raglab.evals.position): its cases, the prompt's token
+    budget and the characters per token measured from a generation record, and the bootstrap's
+    resamples."""
+
+    cases: tuple[str, ...]
+    prompt_budget_tokens: int
+    chars_per_token: float
+    resamples: int
+
+
+@dataclass(frozen=True)
 class GenerationConfig:
     name: str
     suite: str
@@ -408,6 +462,7 @@ class GenerationConfig:
     generation: GenerationSettings
     tokens: dict[str, frozenset[str]]  # [api] tokens: not part of what a run depends on
     ollama: OllamaSettings | None
+    position: PositionSettings | None = None  # S5: the position test's config only
 
     def resolved(self) -> dict[str, object]:
         """Everything the run depends on, as plain data (hashed into the manifest)."""
@@ -423,6 +478,8 @@ class GenerationConfig:
         }
         if self.ollama is not None:
             out["ollama"] = asdict(self.ollama)
+        if self.position is not None:  # only a position config: the others resolve as they did
+            out["position"] = {**asdict(self.position), "cases": list(self.position.cases)}
         return out
 
 
@@ -433,21 +490,24 @@ def _positive(value: object, where: str, name: str) -> float:
     return number
 
 
-def _generator(table: dict[str, object], where: str, require_digest: bool) -> GeneratorConfig:
+def _generator(
+    table: dict[str, object], where: str, require_digest: bool, part: str = "generator"
+) -> GeneratorConfig:
+    """A chat model's table: [generator] (S3) or [judge] (S5), named by part."""
     provider, model = str(table["provider"]), str(table["model"])
     given = set(table) - {"provider", "model"}
     if provider == "fake":
         if given:
-            raise ConfigError(f"{where}: the fake generator takes provider and model only")
+            raise ConfigError(f"{where}: the fake {part} takes provider and model only")
         return GeneratorConfig(provider, model)
     if provider != "openai-compat":
-        raise ConfigError(f"{where}: generator provider {provider!r} is not fake or openai-compat")
+        raise ConfigError(f"{where}: {part} provider {provider!r} is not fake or openai-compat")
     if missing := OPENAI_COMPAT_KEYS - given:
-        raise ConfigError(f"{where}: an openai-compat generator needs {sorted(missing)}")
+        raise ConfigError(f"{where}: an openai-compat {part} needs {sorted(missing)}")
     digest = str(table["digest"])
     if require_digest and not DIGEST.match(digest):
         raise ConfigError(
-            f"{where}: generator.digest {digest!r} is not a pinned digest (64 hex characters). "
+            f"{where}: {part}.digest {digest!r} is not a pinned digest (64 hex characters). "
             f"Pull {model}, then copy its digest from the server's /api/tags into the config: "
             "a run refuses to start until the tag's digest is pinned"
         )
@@ -493,11 +553,13 @@ def _tokens(data: dict[str, object], where: str) -> dict[str, frozenset[str]]:
     return tokens
 
 
-def _ollama(data: dict[str, object], where: str, provider: str) -> OllamaSettings | None:
+def _ollama(
+    data: dict[str, object], where: str, provider: str, part: str = "generator"
+) -> OllamaSettings | None:
     if "ollama" not in data:
         return None
     if provider != "openai-compat":
-        raise ConfigError(f"{where}: [ollama] is for an openai-compat generator only")
+        raise ConfigError(f"{where}: [ollama] is for an openai-compat {part} only")
     table = _table(data, "ollama", where)
     host = str(table["host"])
     if not re.fullmatch(r"(127\.0\.0\.1|localhost):\d{1,5}", host):
@@ -546,4 +608,98 @@ def load_generation(path: Path, root: Path, require_digest: bool = True) -> Gene
         generation=generation,
         tokens=_tokens(data, where),
         ollama=_ollama(data, where, generator.provider),
+        position=_position(data, where),
+    )
+
+
+def _position(data: dict[str, object], where: str) -> PositionSettings | None:
+    """The [position] table of a position config (S5), if it has one."""
+    if "position" not in data:
+        return None
+    table = _table(data, "position", where)
+    cases = cast(list[object], table["cases"])
+    if not cases or not all(isinstance(c, str) and c for c in cases):
+        raise ConfigError(f"{where}: position.cases lists the golden case ids")
+    budget = cast(int, table["prompt_budget_tokens"])
+    resamples = cast(int, table["resamples"])
+    if budget < 1 or resamples < 1:
+        raise ConfigError(f"{where}: prompt_budget_tokens and resamples must be at least 1")
+    return PositionSettings(
+        tuple(str(c) for c in cases),
+        budget,
+        _positive(table["chars_per_token"], where, "chars_per_token"),
+        resamples,
+    )
+
+
+# ---------------------------------------------------------------- judge configs (S5)
+
+
+@dataclass(frozen=True)
+class JudgingSettings:
+    seed: int
+    level: float
+    run_timeout_s: float
+    criteria: str  # docs/CRITERIA.md, relative to the repo root
+    canaries: str  # the canary set, relative to the repo root
+
+
+@dataclass(frozen=True)
+class JudgeConfig:
+    """A judge config: the judge model, how a judged run is made, and its server's session
+    settings. The run it judges is given on the command line, never in the config."""
+
+    name: str
+    suite: str
+    path: str
+    file_sha256: str
+    judge: GeneratorConfig
+    judging: JudgingSettings
+    ollama: OllamaSettings | None
+
+    def resolved(self) -> dict[str, object]:
+        """Everything a judged run depends on in this config, as plain data (hashed into the
+        manifest)."""
+        out: dict[str, object] = {
+            "name": self.name,
+            "suite": self.suite,
+            "judge": {k: v for k, v in asdict(self.judge).items() if v is not None},
+            "judging": asdict(self.judging),
+        }
+        if self.ollama is not None:
+            out["ollama"] = asdict(self.ollama)
+        return out
+
+
+def load_judge(path: Path, root: Path) -> JudgeConfig:
+    """A judge config. Its model's digest is always pinned: the judge is pulled before any judge
+    session, so no lifecycle command reads it unpinned."""
+    where = str(path)
+    raw, data, suite = _read(path)
+    if suite != "judged":
+        raise ConfigError(f"{where}: suite {suite!r}: this command reads judge configs only")
+    name = str(_table(data, "", where)["name"])
+    judge = _generator(_table(data, "judge", where), where, True, part="judge")
+    table = _table(data, "judging", where)
+    level = float(cast(float, table["level"]))
+    if not 0 < level < 1:
+        raise ConfigError(f"{where}: judging.level must be in (0, 1)")
+    try:
+        rel = path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        rel = path.as_posix()
+    return JudgeConfig(
+        name=name,
+        suite=suite,
+        path=rel,
+        file_sha256=hashlib.sha256(raw).hexdigest(),
+        judge=judge,
+        judging=JudgingSettings(
+            cast(int, table["seed"]),
+            level,
+            _positive(table["run_timeout_s"], where, "run_timeout_s"),
+            str(table["criteria"]),
+            str(table["canaries"]),
+        ),
+        ollama=_ollama(data, where, judge.provider, part="judge"),
     )

@@ -30,6 +30,17 @@ def test_every_skip_reaches_pip_audit():
     assert skipped(), "AUDIT_SKIP names the advisories it skips"
 
 
+def test_every_skip_reaches_the_deepeval_tools_audit_too():
+    """S5 (criteria judge, S5-J7): tools/deepeval-check's lock resolves the same Pillow through
+    raglab, so the audit of its exported requirements skips the same advisories."""
+    recipe = re.search(r"^audit:\n((?:\t.*\n)+)", MAKEFILE, flags=re.MULTILINE)
+    assert recipe, "the Makefile has an audit target"
+    assert (
+        "pip-audit -r runs/tmp/deepeval-check.requirements.txt --disable-pip --require-hashes "
+        "$(foreach id,$(AUDIT_SKIP),--ignore-vuln $(id))"
+    ) in recipe.group(1)
+
+
 def test_the_exception_is_reviewed_by_its_date():
     review = re.search(r"Review by (\d{4}-\d{2}-\d{2})", MAKEFILE)
     assert review, "the Makefile's audit exception carries a review date"

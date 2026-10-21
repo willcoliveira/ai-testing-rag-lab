@@ -35,8 +35,9 @@ from collections.abc import Mapping, Sequence
 from typing import cast
 
 from raglab.core.types import Status
-from raglab.evals import behaviour, metrics
+from raglab.evals import behaviour, metrics, position_record
 from raglab.evals.oracle import abstention_oracle
+from raglab.ingest.answer_key import Feature
 
 type Json = dict[str, object]
 
@@ -84,9 +85,15 @@ def case_checks(
     case: Json,
     canaries: Mapping[str, Sequence[str]],
     banned: Mapping[str, Sequence[str]] | None = None,
+    features: Mapping[str, Feature] | None = None,
 ) -> Json:
     """The checks of one trial, from its fields and the answer key's canaries by tenant (and, for
-    a behaviour case, its answer_must_not_contain strings by feature, which it needs)."""
+    a behaviour case, its answer_must_not_contain strings by feature, which it needs; for a
+    position case (S5), the answer key's features, whose values it reads)."""
+    if case["kind"] == position_record.POSITION:
+        if features is None:
+            raise ValueError("a position case's checks need the answer key's features")
+        return position_record.checks(case, features)
     ok = case["status"] == Status.OK.value
     retrieved = {str(_obj(r)["chunk_id"]) for r in cast(list[object], case["retrieved"])}
     events = cast(list[object], case["guard_events"])
@@ -133,8 +140,9 @@ def _rate(cases: Sequence[Json], passes: list[bool], level: float) -> Json:
     return dict(metrics.wilson_interval(rate, n_cases, level).as_json())
 
 
-def results(cases: Sequence[Json], trials: int, level: float) -> Json:
-    """The manifest's results block of a generation run."""
+def results(cases: Sequence[Json], trials: int, level: float, position: Json | None = None) -> Json:
+    """The manifest's results block of a generation run (S5: with the position test's rates and
+    differences when the run has position cases, from its manifest's position block)."""
     checks = [_obj(c["checks"]) for c in cases]
     probes = [(c, k) for c, k in zip(cases, checks, strict=True) if c["kind"] == PROBE]
     questions = [(c, k) for c, k in zip(cases, checks, strict=True) if c["kind"] == RETRIEVAL]
@@ -210,6 +218,13 @@ def results(cases: Sequence[Json], trials: int, level: float) -> Json:
     out |= added
     if block is not None:
         generation["behaviour"] = block
+    if position is not None and any(c["kind"] == position_record.POSITION for c in cases):
+        out |= position_record.results(
+            cases,
+            level,
+            cast(int, position["seed"]),
+            cast(int, position["resamples"]),
+        )
     return {"metrics": out, "generation": generation}
 
 
@@ -328,7 +343,8 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
         f"{tokens['reported']} case-trials whose server reported them",
     ]
     probes_ = cast(list[object], gen["probes"])
-    if probes_ or "behaviour" not in gen:  # an S3 record renders as it did
+    # an S3 record renders as it did; a position run (S5) has no probes section
+    if probes_ or ("behaviour" not in gen and "position" not in manifest):
         lines += [
             "",
             "## Abstention probes",
@@ -346,6 +362,8 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
         lines += behaviour.report_lines(
             _obj(gen["behaviour"]), cases, cast(int, manifest["trials"])
         )
+    if "position" in manifest:  # S5
+        lines += position_record.report_lines(found, cases)
     lines += [
         "",
         "## Case-trials",

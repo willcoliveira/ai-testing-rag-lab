@@ -7,6 +7,7 @@ import re
 import signal
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -36,6 +37,17 @@ class FakeHost(Host):
     started: list[tuple[list[str], dict[str, str]]] = field(default_factory=list)
     signals: list[int] = field(default_factory=list[int])
     unloaded: list[str] = field(default_factory=list[str])
+    # S5 AC22: the power readings in turn (the last one repeats): a source, None (not macOS) or
+    # an exception to raise (unreadable)
+    power: list[object] = field(default_factory=lambda: ["AC Power"])
+    power_reads: int = 0
+
+    def power_source(self) -> str | None:
+        self.power_reads += 1
+        reading = self.power[0] if len(self.power) == 1 else self.power.pop(0)
+        if isinstance(reading, Exception):
+            raise reading
+        return cast(str | None, reading)
 
     def which_ollama(self):
         return self.binary
@@ -92,12 +104,24 @@ class FakeHost(Host):
         return self.tmp / "models"
 
 
-def pulled(tmp: Path, size: int = MODEL_BYTES) -> None:
-    manifest = (
-        tmp / "models/manifests/registry.ollama.ai/library/nemotron-3.5-lightning/30b-a3b-mlx"
-    )
+GENERATOR_DIGEST = "d1e17d7dabacb401dec6440b4ec987ea053b9568b01f89fb3d54f8b2e71397be"
+
+
+def pulled(
+    tmp: Path,
+    size: int = MODEL_BYTES,
+    model: str = MODEL,
+    digest: str | None = GENERATOR_DIGEST,
+) -> None:
+    """A pulled model's local manifest as Ollama 0.40.6 writes it: its layers, its config, and
+    (S5) a layer naming the registry manifest, whose digest /api/tags reports (None: no such
+    layer). The sizes add up to size."""
+    name, _, tag = model.partition(":")
+    manifest = tmp / "models/manifests/registry.ollama.ai/library" / name / tag
     manifest.parent.mkdir(parents=True)
-    layers = [{"size": size - 1000}, {"size": 600}]
+    layers: list[dict[str, object]] = [{"size": size - 1000 - 858}, {"size": 600}]
+    registry = {"mediaType": ollama.REGISTRY_MANIFEST, "digest": f"sha256:{digest}", "size": 858}
+    layers.append(registry if digest is not None else {"size": 858})
     manifest.write_text(json.dumps({"config": {"size": 400}, "layers": layers}), encoding="utf-8")
 
 
@@ -164,6 +188,114 @@ def test_a_model_that_is_not_pulled_is_refused(tmp_path):
     with pytest.raises(SessionError, match="is not pulled"):
         s.up()
     assert fake.started == []
+
+
+# ---------------------------------------------------------------- S5 AC3: the judge's session
+
+JUDGE = "ministral-3:14b-instruct-2512-q4_K_M"
+JUDGE_DIGEST = "4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7"
+JUDGE_BYTES = 9082537546  # /api/tags after the pull (config/judge-local.toml)
+
+
+def judge_config() -> eval_config.JudgeConfig:
+    return eval_config.load_judge(ROOT / "config" / "judge-local.toml", ROOT)
+
+
+def judge_session(tmp_path: Path, **host) -> tuple[Session, FakeHost, list[str]]:
+    fake = FakeHost(tmp=tmp_path, **host)
+    said: list[str] = []
+    s = ollama.session_for(judge_config(), tmp_path, fake)
+    s.say = said.append
+    return s, fake, said
+
+
+def test_a_judge_configs_session_checks_the_judge_model_not_the_generator(tmp_path):
+    """S5 AC3: the preflight reads the model the config pins. With only the generator pulled, a
+    judge config's session refuses, naming the judge; the generator's manifest is never read."""
+    pulled(tmp_path)  # the generator only
+    s, fake, _ = judge_session(tmp_path)
+    assert (s.model, s.digest) == (JUDGE, JUDGE_DIGEST)
+    with pytest.raises(SessionError, match=re.escape(f"{JUDGE} is not pulled")):
+        s.up()
+    assert fake.started == []
+    generator = ollama.session_for(local_config(), tmp_path, FakeHost(tmp=tmp_path))
+    assert (generator.model, generator.digest) == (MODEL, GENERATOR_DIGEST)
+
+
+def test_the_judge_session_starts_with_its_pinned_model_and_says_its_size_and_digest(tmp_path):
+    pulled(tmp_path, size=JUDGE_BYTES, model=JUDGE, digest=JUDGE_DIGEST)
+    s, fake, said = judge_session(tmp_path)
+    assert s.model_size_bytes() == JUDGE_BYTES
+    assert s.up() == 4242
+    assert f"model: {JUDGE} at the pinned digest 4760c35aeb9d" in said
+    assert "the model needs 8.5 GiB plus a margin of 4 GiB" in " ".join(said)
+    assert {k: v for k, v in fake.started[0][1].items() if k.startswith("OLLAMA_")} == {
+        "OLLAMA_HOST": "127.0.0.1:11434",
+        "OLLAMA_KEEP_ALIVE": "2m",
+        "OLLAMA_MAX_LOADED_MODELS": "1",
+        "OLLAMA_NUM_PARALLEL": "1",
+        "OLLAMA_CONTEXT_LENGTH": "8192",
+    }
+    assert s.down() == []
+
+
+@pytest.mark.parametrize("config", ["judge", "generator"])
+def test_a_replaced_digest_refuses_the_session_before_the_server_starts(tmp_path, config):
+    """S5 AC3's break: the pulled model's manifest names another digest than the config pins."""
+    other = "b" * 64
+    if config == "judge":
+        pulled(tmp_path, size=JUDGE_BYTES, model=JUDGE, digest=other)
+        s, fake, _ = judge_session(tmp_path)
+        pinned = JUDGE_DIGEST
+    else:
+        pulled(tmp_path, digest=other)
+        s, fake, _ = session(tmp_path)
+        s.say = lambda text: None
+        pinned = GENERATOR_DIGEST
+    with pytest.raises(
+        SessionError, match=re.escape(f"has digest sha256:{other}, not the pinned sha256:{pinned}")
+    ):
+        s.up()
+    assert fake.started == []
+
+
+def test_a_manifest_without_a_registry_digest_refuses_the_session(tmp_path):
+    """Fails closed: nothing to check the pinned digest against is not a pass."""
+    pulled(tmp_path, size=JUDGE_BYTES, model=JUDGE, digest=None)
+    s, fake, _ = judge_session(tmp_path)
+    with pytest.raises(SessionError, match="names no registry digest"):
+        s.up()
+    assert fake.started == []
+
+
+def test_an_unpinned_generator_digest_is_not_checked_and_the_session_says_so(tmp_path):
+    """The lifecycle commands read a generation config unpinned (for a pull): its digest is not
+    checked, and the session says so. A judge config is never read unpinned."""
+    pulled(tmp_path, digest="c" * 64)
+    fake = FakeHost(tmp=tmp_path)
+    said: list[str] = []
+    s = Session(local_config().ollama, MODEL, tmp_path, fake, said.append, digest="fill me in")  # type: ignore[arg-type]
+    assert s.up() == 4242
+    assert f"model: {MODEL}; its digest is not pinned yet, so not checked" in said
+    assert s.down() == []
+
+
+def test_the_cli_reads_a_judge_config_for_its_session(tmp_path, monkeypatch):
+    """`raglab ollama status --config config/judge-local.toml` builds the judge's session."""
+    from raglab.__main__ import main
+
+    seen: list[object] = []
+    real = ollama.session_for
+
+    def spy(config, root, host=None):
+        seen.append(config)
+        return real(config, tmp_path, FakeHost(tmp=tmp_path))
+
+    monkeypatch.setattr(ollama, "session_for", spy)
+    assert main(["ollama", "status", "--config", str(ROOT / "config" / "judge-local.toml")]) == 0
+    [config] = seen
+    assert isinstance(config, eval_config.JudgeConfig)
+    assert config.judge.model == JUDGE
 
 
 def test_the_memory_guard_is_the_model_size_plus_the_stated_margin(tmp_path):
@@ -344,6 +476,41 @@ def test_the_makefile_has_the_session_targets():
     assert "raglab ollama session --config config/local-ollama.toml" in eval_local
     assert "-m live" in eval_local
     assert "raglab eval --suite generation --config config/local-ollama.toml" in eval_local
+
+
+def test_the_judge_contract_target_runs_in_a_judge_session():
+    """S5 AC3: the judge's live contract test runs in a session of the judge config, so the
+    preflight checks the judge's pinned model; it runs the live judge contract test only."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    target = makefile.split("\njudge-contract:", 1)[1].split("\n\n", 1)[0].replace("\\\n", "")
+    assert "JUDGE_CONFIG := config/judge-local.toml" in makefile
+    assert "raglab ollama session --config $(JUDGE_CONFIG)" in target
+    assert target.count("--run") == 1
+    assert "pytest -m live -s tests/contract/test_judge_contract.py" in target
+
+
+def test_the_judge_and_position_targets_run_one_model_per_session():
+    """S5: a judge session serves the judge (the contract test, then raglab judge, whose canaries
+    run first); the position test's session serves the generator (its contract test, then raglab
+    position). One model per session: never both in one."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+
+    def body(name: str) -> str:
+        return makefile.split(f"\n{name}:", 1)[1].split("\n\n", 1)[0].replace("\\\n", "")
+
+    canaries = body("judge-canaries")
+    assert "raglab ollama session --config $(JUDGE_CONFIG)" in canaries
+    assert canaries.index("test_judge_contract.py") < canaries.index("raglab canaries")
+    judge = body("judge-local")
+    assert "raglab ollama session --config $(JUDGE_CONFIG)" in judge
+    assert judge.index("tests/contract/test_judge_contract.py") < judge.index("raglab judge --run")
+    assert "--config $(JUDGE_CONFIG)" in judge.split("raglab judge", 1)[1]
+    position = body("position-local")
+    assert "POSITION_CONFIG := config/position-local.toml" in makefile
+    assert "raglab ollama session --config $(POSITION_CONFIG)" in position
+    assert "tests/contract/test_chat_contract.py" in position
+    assert "raglab position --config $(POSITION_CONFIG)" in position
+    assert "JUDGE_CONFIG" not in position
 
 
 def test_a_refused_group_signal_falls_back_to_the_server_itself(monkeypatch):
@@ -807,3 +974,265 @@ def test_the_cli_ends_a_signalled_session_without_a_traceback(tmp_path, sig, cod
     assert proc.returncode == code, (proc.returncode, err[-2000:])
     assert "postcheck passed: port closed, no ollama process, no model loaded" in out
     assert err.count(INTERRUPTED) == (1 if sig == "SIGINT" else 0), err[-2000:]
+
+
+# ------------------------------------------------- S5 AC22: the power guard
+
+POSTCHECK = "postcheck passed: port closed, no ollama process, no model loaded"
+# a session command that writes its run record only when it runs to its end (30 s)
+RECORDING = (
+    "import pathlib, sys, time\n"
+    "pathlib.Path(sys.argv[1]).write_text('running')\n"
+    "time.sleep(30)\n"
+    "pathlib.Path(sys.argv[2]).write_text('record')\n"
+)
+
+
+def test_on_ac_power_the_preflight_says_the_source_and_the_session_proceeds(tmp_path):
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path)
+    s.say = said.append
+    assert s.preflight() == []
+    assert "power: the Mac draws from 'AC Power'" in said
+    # beside the model and memory lines
+    assert [line.split(":")[0] for line in said] == ["model", "memory", "power"]
+    assert s.power_watched is True
+    assert fake.power_reads == 1
+
+
+@pytest.mark.parametrize("source", ["Battery Power", "UPS Power"])
+def test_off_ac_power_the_session_refuses_and_nothing_starts(tmp_path, source):
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path, power=[source])
+    s.say = said.append
+    with pytest.raises(SessionError, match=f"draws from '{source}', not 'AC Power'"):
+        s.up()
+    assert fake.started == []
+    assert f"power: the Mac draws from '{source}'" in said
+
+
+def test_an_unreadable_power_source_on_macos_refuses_the_session(tmp_path):
+    """The guard fails closed: no reading, no session."""
+    pulled(tmp_path)
+    s, fake, said = session(
+        tmp_path, power=[SessionError("the power source cannot be read from pmset -g batt")]
+    )
+    s.say = said.append
+    with pytest.raises(SessionError, match="cannot be read from pmset -g batt: a session runs"):
+        s.up()
+    assert fake.started == []
+
+
+def test_off_macos_the_power_is_not_checked_and_the_session_says_so(tmp_path):
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path, power=[None])
+    s.say = said.append
+    s.power_interval_s = 0.01
+    assert s.run([["first"]], lambda command: 0) == 0
+    assert "power: not checked (not macOS)" in said
+    assert s.power_watched is False
+    assert fake.power_reads == 1  # the preflight's: no watcher off macOS
+
+
+@pytest.mark.parametrize(
+    ("system", "pmset", "expected"),
+    [
+        (
+            "Darwin",
+            "Now drawing from 'AC Power'\n -InternalBattery-0\t80%; AC attached\n",
+            "AC Power",
+        ),
+        ("Darwin", "Now drawing from 'Battery Power'\n -InternalBattery-0\t43%\n", "Battery Power"),
+        ("Darwin", "", SessionError),
+        ("Darwin", "something else\n", SessionError),
+        ("Linux", "", None),
+    ],
+)
+def test_the_real_host_reads_the_power_source_from_pmset(monkeypatch, system, pmset, expected):
+    calls: list[list[str]] = []
+
+    def fake_run(command):
+        calls.append(list(command))
+        return pmset
+
+    monkeypatch.setattr(ollama.platform, "system", lambda: system)
+    monkeypatch.setattr(ollama, "_run", fake_run)
+    if expected is SessionError:
+        with pytest.raises(SessionError, match="cannot be read from pmset -g batt"):
+            Host().power_source()
+    else:
+        assert Host().power_source() == expected
+    assert calls == ([["pmset", "-g", "batt"]] if system == "Darwin" else [])
+
+
+def test_going_on_battery_mid_session_stops_it_cleanly_and_writes_no_record(tmp_path):
+    """The watcher reads AC, AC, then battery: the running command is halted (this runner ends
+    when the halt is set, as run_command does) and writes no record, no further command starts,
+    the model is unloaded and the server stopped, the postcheck passes, and one STOPPED line
+    comes last; the exit is POWER_EXIT."""
+    import threading
+
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path, power=["AC Power", "AC Power", "AC Power", "Battery Power"])
+    s.say = said.append
+    s.power_interval_s = 0.01
+    fake.loaded = [MODEL]
+    record = tmp_path / "record.json"
+
+    def runner(command):
+        if s.halt.wait(10):
+            return -signal.SIGTERM
+        record.write_text("{}", encoding="utf-8")
+        return 0
+
+    assert s.run([["judge"], ["second"]], runner) == ollama.POWER_EXIT
+    assert not record.exists()
+    assert "session: second" not in said
+    assert fake.unloaded == [MODEL]
+    assert signal.SIGTERM in fake.signals
+    assert fake.running is False
+    assert POSTCHECK in said
+    stopped = said[-1]
+    assert stopped.startswith("STOPPED: the Mac went on 'Battery Power' at ")
+    assert "a session runs on AC power only (AC22)" in stopped
+    assert said.index(POSTCHECK) < len(said) - 1
+    assert not [t for t in threading.enumerate() if t.name == "power-watch"]
+
+
+def test_an_unreadable_source_mid_session_stops_it_too(tmp_path):
+    """Fails closed while the session runs as well."""
+    pulled(tmp_path)
+    s, fake, said = session(
+        tmp_path, power=["AC Power", SessionError("the power source cannot be read from pmset")]
+    )
+    s.say = said.append
+    s.power_interval_s = 0.01
+    assert s.run([["judge"]], lambda command: -15 if s.halt.wait(10) else 0) == ollama.POWER_EXIT
+    assert said[-1].startswith("STOPPED: the power source cannot be read from pmset at ")
+    assert fake.running is False
+
+
+def test_a_session_that_stays_on_ac_power_is_not_stopped(tmp_path):
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path)
+    s.say = said.append
+    s.power_interval_s = 0.01
+
+    def runner(command):
+        assert not s.halt.wait(0.2)  # the watcher reads AC power many times meanwhile
+        return 0
+
+    assert s.run([["first"]], runner) == 0
+    assert fake.power_reads > 2
+    assert not any(line.startswith("STOPPED") for line in said)
+
+
+def test_a_halt_ends_the_running_commands_whole_process_tree(tmp_path):
+    """run_command with a halt (the session's default runner): set while the command runs (here
+    a command that starts a grandchild sleep 30), the whole group is ended within the poll and
+    the grace, not after 30 s."""
+    import contextlib
+    import os
+    import sys
+    import threading
+    import time
+
+    pids = tmp_path / "sleep.pid"
+    halt = threading.Event()
+    timer = threading.Timer(0.5, halt.set)
+    timer.start()
+    started = time.monotonic()
+    try:
+        code = ollama.run_command([sys.executable, "-c", GRANDCHILD, str(pids)], halt=halt)
+    finally:
+        timer.cancel()
+    assert time.monotonic() - started < 15
+    assert code != 0
+    sleep_pid = int(pids.read_text(encoding="utf-8"))
+    deadline = time.monotonic() + 5
+    alive = True
+    while alive and time.monotonic() < deadline:
+        try:
+            os.kill(sleep_pid, 0)
+        except ProcessLookupError:
+            alive = False
+        else:
+            time.sleep(0.1)
+    if alive:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(sleep_pid, signal.SIGKILL)
+    assert not alive, f"the command's grandchild sleep {sleep_pid} survived the halt"
+
+
+def test_the_session_halts_a_real_command_that_then_writes_no_record(tmp_path):
+    """The session's default runner, a real command (python, 30 s, then its record): the Mac
+    goes on battery while it runs; the command is ended and its record never written."""
+    import sys
+    import time
+
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path, power=["AC Power", "AC Power", "Battery Power"])
+    s.say = said.append
+    s.power_interval_s = 0.2
+    running, record = tmp_path / "running", tmp_path / "record"
+    started = time.monotonic()
+    code = s.run([[sys.executable, "-c", RECORDING, str(running), str(record)]])
+    assert code == ollama.POWER_EXIT
+    assert time.monotonic() - started < 20
+    assert running.exists()
+    assert not record.exists()
+    assert fake.running is False
+    assert said[-1].startswith("STOPPED: the Mac went on 'Battery Power' at ")
+
+
+POWER_CLI_SESSION = """
+import sys
+from pathlib import Path
+sys.path.insert(0, {root!r})
+from tests.unit.test_ollama_session import FakeHost, pulled
+from raglab.runtime import ollama
+from raglab.__main__ import main
+lab = Path({lab!r})
+pulled(lab)
+real = ollama.session_for
+def on_battery_soon(config, root, host=None):
+    host = FakeHost(tmp=lab, power=["AC Power", "AC Power", "AC Power", "Battery Power"])
+    found = real(config, lab, host)
+    found.power_interval_s = 0.2
+    return found
+ollama.session_for = on_battery_soon
+sys.exit(main({argv!r}))
+"""
+
+
+def test_the_cli_exits_power_exit_with_one_stopped_line_and_no_record(tmp_path):
+    """`raglab ollama session` (the make targets' path) when the Mac goes on battery while its
+    command runs: exit 75, no traceback, the postcheck, one STOPPED line, and the command's
+    record never written."""
+    import shlex
+    import subprocess
+    import sys
+
+    running, record = tmp_path / "running", tmp_path / "record"
+    argv = [
+        "ollama",
+        "session",
+        "--config",
+        str(ROOT / "config" / "local-ollama.toml"),
+        "--root",
+        str(ROOT),
+        "--run",
+        shlex.join([sys.executable, "-c", RECORDING, str(running), str(record)]),
+    ]
+    script = POWER_CLI_SESSION.format(root=str(ROOT), lab=str(tmp_path / "lab"), argv=argv)
+    done = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=60, check=False
+    )
+    assert "Traceback" not in done.stderr, done.stderr[-2000:]
+    assert done.returncode == ollama.POWER_EXIT, (done.returncode, done.stderr[-2000:])
+    lines = done.stdout.splitlines()
+    assert POSTCHECK in lines
+    assert [line for line in lines if line.startswith("STOPPED")] == [lines[-1]]
+    assert lines[-1].startswith("STOPPED: the Mac went on 'Battery Power' at ")
+    assert running.exists()
+    assert not record.exists()

@@ -154,8 +154,8 @@ metrics get no target in advance"); the gates then fail on regression.
 
 | Id | Attribute | Measure | Where it is set |
 |---|---|---|---|
-| Q-01 | Latency | p50 and p95 end-to-end answer time, per provider | S5 baseline, THRESHOLDS.md |
-| Q-02 | Cost | estimated cost per answer, with the price table date | S5, cost section of the run record |
+| Q-01 | Latency | p50 and p95 end-to-end answer time, per provider | S5 baseline, reported: docs/THRESHOLDS.md, Latency |
+| Q-02 | Cost | estimated cost per answer, with the price table date | S5, reported: `raglab cost` over a judged record and `config/prices.toml`; docs/THRESHOLDS.md, Cost |
 | Q-03 | Availability and honest failure | the demo is up within its budget; a provider failure returns `unavailable` and an exhausted budget returns `budget exhausted`, never a guessed answer | S3 (contract), S10 (demo) |
 | Q-04 | Accessibility | the web UI meets WCAG 2.2 AA on the checks the lab runs (keyboard, contrast, labels) | S3 UI, audit before v0.3 |
 | Q-05 | Consistency | the same question gives the same decision label (section 3: `answer`, `abstain`, `flag-conflict`, `refuse-and-help`) across trials, reported as pass^k | S4 consistency gate: behaviour pass^3 on dev, its margin and reason in docs/THRESHOLDS.md |
@@ -214,24 +214,24 @@ map for gates). S4 filled the Golden case cells it covers with the behaviour cas
 
 | R-id | Requirement (short) | Planted features | Golden case | Test | Gate |
 |---|---|---|---|---|---|
-| R-01 | Answer with citations | F-01, F-02, F-03, F-29, F-46, F-53, F-86 | G-01, G-02, G-07, G-09, G-13, G-17, G-19, G-21 to G-23, G-29 to G-31, G-34, G-35 | tbd | tbd |
+| R-01 | Answer with citations | F-01, F-02, F-03, F-29, F-46, F-53, F-86 | G-01, G-02, G-07, G-09, G-13, G-17, G-19, G-21 to G-23, G-29 to G-31, G-34, G-35 | judged (S5, reported): `cites_support`, `correct` | tbd |
 | R-02 | Citation integrity | gap (see below) | every case (`model_citations_retrieved`) | `tests/generation/test_citation_validator.py` (S3) | tbd |
-| R-03 | Abstain when silent | F-32, F-40, F-87 | P-01 to P-03, G-24 to G-28, G-37 | tbd | tbd |
-| R-04 | Newer version over older | F-04, F-05, F-06, F-07, F-58 | G-29 to G-32 | tbd | tbd |
-| R-05 | Approved exception over rule | F-16, F-17, F-51 | G-11, G-18, G-19 | tbd | tbd |
-| R-06 | Company over external, flag the difference | F-08, F-13, F-14 | G-22; by design, G-26 (the attributed external quote, D-03) | tbd | tbd |
-| R-07 | Rule plus its exception | F-15 | G-05 | tbd (S1b boundary test) | tbd |
+| R-03 | Abstain when silent | F-32, F-40, F-87 | P-01 to P-03, G-24 to G-28, G-37 | judged (S5, reported): `abstains` | tbd |
+| R-04 | Newer version over older | F-04, F-05, F-06, F-07, F-58 | G-29 to G-32 | judged (S5, reported): `grounded`, `correct` | tbd |
+| R-05 | Approved exception over rule | F-16, F-17, F-51 | G-11, G-18, G-19 | judged (S5, reported): `correct` | tbd |
+| R-06 | Company over external, flag the difference | F-08, F-13, F-14 | G-22; by design, G-26 (the attributed external quote, D-03) | judged (S5, reported): `grounded` | tbd |
+| R-07 | Rule plus its exception | F-15 | G-05 | tbd (S1b boundary test); judged (S5, reported): `correct` | tbd |
 | R-08 | Follow cross-references | F-18, F-19 | tbd (S4b) | tbd | tbd |
 | R-09 | Use the pack's definitions | F-11, F-20, F-21 | tbd (S4b) | tbd | tbd |
-| R-10 | Multi-hop | F-22, F-23 | G-16, G-17 | tbd | tbd |
-| R-11 | Exact numbers and units | F-01, F-02, F-10, F-12, F-19, F-24 to F-31, F-50, F-51, F-60 to F-85 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36 | tbd | tbd |
+| R-10 | Multi-hop | F-22, F-23 | G-16, G-17 | judged (S5, reported): `grounded`, `correct` | tbd |
+| R-11 | Exact numbers and units | F-01, F-02, F-10, F-12, F-19, F-24 to F-31, F-50, F-51, F-60 to F-85 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36 | judged (S5, reported): `correct` | tbd |
 | R-12 | All formats count | F-07, F-09, F-10, F-11, F-12, F-15, F-24, F-33, F-56, F-60, F-61 | G-03 to G-06, G-08, G-12, G-32 | tbd (S1b parsing, OCR) | tbd |
 | R-13 | Tenant scope | F-34 to F-40, F-52 | tbd (S4b) | `tests/retrieval/test_tenant_filter.py` (S2), `tests/e2e/test_e2e_fake.py` (S3) | tbd |
-| R-14 | Refuse to weaken, still help; answer the sanctioned routes (must-not-block) | F-41, F-42, F-43, F-54, F-55, F-56 | G-13, G-23, G-34 (refuse-and-help); G-12, G-33 (must-not-block) | tbd | tbd |
+| R-14 | Refuse to weaken, still help; answer the sanctioned routes (must-not-block) | F-41, F-42, F-43, F-54, F-55, F-56 | G-13, G-23, G-34 (refuse-and-help); G-12, G-33 (must-not-block) | judged (S5, reported): `refuses_and_helps` | tbd |
 | R-15 | Only the register is authoritative | F-48, F-49 | tbd (S4b) | tbd (S7) | tbd |
 | R-16 | Never another tenant's content | F-34 to F-40, F-52 | tbd (S4b) | `tests/e2e/test_e2e_fake.py` (S3); tbd (S7) | tbd |
 | R-17 | Never follow document instructions | F-47, F-49 | tbd (S4b) | tbd (S7) | tbd |
-| R-18 | Never invent a value | F-13, F-22, F-32, F-48, F-87 | G-16 (a derivation); P-01, P-02, G-27, G-37 (no number) | tbd | tbd |
+| R-18 | Never invent a value | F-13, F-22, F-32, F-48, F-87 | G-16 (a derivation); P-01, P-02, G-27, G-37 (no number) | judged (S5, reported): `grounded`, `abstains` | tbd |
 | R-19 | Never echo secrets or PII | F-44, F-45, F-46 | tbd (S4b) | tbd (S7) | tbd |
 | R-20 | Never reveal the system prompt | gap (see below) | — | tbd (S7) | tbd |
 | R-21 | Fail closed on tenant | gap (see below) | — | `tests/api/test_api.py`, `tests/generation/test_input_guards.py` (S3) | tbd |
@@ -316,7 +316,7 @@ flowchart LR
 | R2 | input guards → retrieve top k | `retrieval-against-labels` | hit rate, MRR and recall@k against labelled sections (each resolved to its chunk ids; a label group, sections that state the same rule, is one thing to find), no judge; every label resolves; recall@5 on dev does not fall below the baseline run (docs/THRESHOLDS.md) | `tests/unit/test_metrics.py::test_case_metrics_by_hand`, `tests/unit/test_metrics.py::test_a_group_is_one_thing_to_find_by_hand`, `tests/retrieval/test_golden_retrieval.py::test_every_label_resolves_to_existing_chunks`, `tests/retrieval/test_golden_retrieval.py::test_every_label_is_a_location_of_one_of_its_features`, `tests/retrieval/test_run_record.py::test_a_run_writes_a_valid_record_with_its_provenance`, `tests/retrieval/test_publish.py::test_the_gate_passes_within_one_question_and_fails_below`, `tests/retrieval/test_golden_retrieval.py::test_a_section_missing_from_the_real_inventory_fails_naming_its_questions`, `tests/retrieval/test_publish.py::test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline`, `tests/unit/test_workflow_rules.py::test_pr_fast_runs_the_retrieval_gate_offline_after_the_tests` | pr-fast |
 | R3 | retrieve → tenant filter | `no-cross-tenant-retrieval` | no retrieved chunk belongs to the other tenant (R-13, R-16); the filter fails closed | `tests/retrieval/test_tenant_filter.py::test_every_retriever_refuses_a_request_without_a_known_tenant`, `tests/retrieval/test_tenant_filter.py::test_no_chunk_of_the_other_tenant_is_returned_even_for_its_own_text`, `tests/retrieval/test_tenant_filter.py::test_no_cross_tenant_chunk_on_the_whole_pack`, `tests/retrieval/test_golden_retrieval.py::test_tenant_b_questions_label_only_tenant_b_or_shared_documents`, `tests/retrieval/test_run_record.py::test_a_record_that_shows_another_tenants_chunk_is_refused`, `tests/retrieval/test_publish.py::test_a_published_run_edited_to_show_another_tenants_chunk_is_refused` | pr-fast |
 | R4 | tenant filter → assemble prompt | `prompt-snapshot` | the assembled prompt for a fixed question and fixed chunks equals its reviewed snapshot; the prompt cannot change without a new version; chunk text is framed as data with its id and cannot close its frame | `tests/generation/test_prompt_snapshot.py::test_the_assembled_prompt_equals_its_reviewed_snapshot`, `tests/generation/test_prompt_snapshot.py::test_the_prompt_cannot_change_without_a_new_version`, `tests/generation/test_prompt_snapshot.py::test_a_chunk_cannot_close_its_frame_or_open_another` | pr-fast |
-| R5 | assemble prompt → generate | `generation-judged` | faithfulness, answer relevancy and contextual precision and recall on the dev slice, with a calibrated judge | from S5 | eval-on-change |
+| R5 | assemble prompt → generate | `generation-judged` | the answer's text, judged on the criteria of docs/CRITERIA.md: one binary verdict per criterion and answer (grounded, cites_support, correct, relevant, abstains, refuses_and_helps; context_sufficient on the retrieved passages), by the local judge (judge-v2) after its canaries; unable_to_verify is never a pass. Contextual precision and relevancy stay label-based (R2), and the decision label, abstention and citations stay code checks (R6, R7) | `tests/unit/test_criteria.py::test_the_pass_and_fail_rules_are_judge_v2s_words`, `tests/judge/test_judge_prompt.py::test_the_prompt_cannot_change_without_a_new_version`, `tests/judge/test_judge_prompt.py::test_no_input_can_close_its_frame_or_open_another`, `tests/judge/test_verdict_parser.py::test_a_reply_off_the_schema_is_refused_never_repaired`, `tests/judge/test_canaries.py::test_one_canary_off_its_side_stops_the_judge_naming_it`, `tests/judge/test_judged_run.py::test_a_judged_run_writes_a_valid_record_tied_to_its_source`, `tests/judge/test_judged_run.py::test_a_verdict_flipped_and_resealed_is_refused_by_its_reply`, `tests/judge/test_order_check.py::test_the_order_check_shows_the_passages_in_reverse_order`, `tests/contract/test_judge_contract.py::test_the_judge_passes_the_contract_against_the_stub` | local until keys (`make judge-local`); reported, not gated, until S6 calibrates the judge |
 | R6 | generate → decision label | `decision-label-and-abstention` | the structured label field (`answer`, `abstain`, `flag-conflict`, `refuse-and-help`), never the text, matches the golden behaviour case; a flag-conflict case whose conflict side was not retrieved expects `answer` with no conflict field (section 3); abstention is scored as its own check (the abstention oracle, a may_quote value allowed when cited), with over-abstention on the answerable cases; behaviour pass^3 on dev is the consistency gate (Q-05, docs/THRESHOLDS.md) | `tests/generation/test_behaviour_checks.py::test_the_decision_label_is_the_field_never_the_text`, `tests/generation/test_behaviour_checks.py::test_a_conflict_side_retrieved_expects_the_flag_and_both_sides_named`, `tests/generation/test_behaviour_checks.py::test_a_conflict_side_not_retrieved_expects_answer_without_a_conflict_field`, `tests/generation/test_behaviour_checks.py::test_an_abstention_may_quote_only_a_cited_chunk_of_its_may_quote_section`, `tests/generation/test_behaviour_checks.py::test_the_results_by_hand`, `tests/retrieval/test_run_record.py::test_a_broken_behaviour_case_is_refused`, `tests/generation/test_consistency_gate.py::test_it_passes_at_the_baseline_minus_the_margin_and_fails_below`, `tests/generation/test_consistency_gate.py::test_a_changed_input_makes_the_baseline_stale` | local until keys (`make gate-local`, `make nightly-local`); nightly |
 | R7 | generate → citations | `citations-subset-of-retrieved` | every cited chunk id was retrieved for that answer (R-02): an answer citing another id is blocked (abstain, status blocked) and the run record refuses such a case | `tests/generation/test_citation_validator.py::test_an_answer_citing_an_unretrieved_id_is_blocked_and_recorded`, `tests/generation/test_citation_validator.py::test_cited_ids_are_a_subset_of_retrieved_on_every_answer`, `tests/retrieval/test_run_record.py::test_a_broken_generation_case_is_refused` | pr-fast |
 | R8 | generate → output guards | `secrets-and-pii-withheld` | an answer never repeats the planted secret or personal details (R-19), and must-not-block answers still pass | from S7 | release |
@@ -352,11 +352,18 @@ golden set v1 (S4, datasheet v1.1): 34 retrieval questions and 40 behaviour case
   3 refuse-and-help); 27 dev and 13 test cases, the test split run only nightly or at a release;
   S3's probes P-01 to P-03 among them; label groups for restated rules; make check-dataset stops a
   malformed file before any run (datasets/DATASHEET.md)
-judges: <from S5 and S6: faithfulness, answer relevancy, contextual precision/recall; kappa on 30 labels>
+judges (S5, reported until S6): judge-v2 on the local Ministral 3 14B
+  (ministral-3:14b-instruct-2512-q4_K_M, tag and digest pinned, another family than the
+  generator), one binary verdict per criterion of docs/CRITERIA.md (grounded, cites_support,
+  correct, relevant, abstains, refuses_and_helps, context_sufficient); the canary set a hard
+  stop before any judged call; the judge's repeatability and order checks; DeepEval 4.3.1
+  fenced in tools/deepeval-check; <from S6: kappa on 30 labels>
 abstention (no judge, S4): the structured label on every abstain case, scored by the abstention
   oracle (label abstain, no unattributed value: a may_quote value only when its chunk is cited,
   no canary of the other tenant), its rate, over-abstention on the answerable cases and the
-  four-way table of label and stated value; the metric canary from S5
+  four-way table of label and stated value; the metric canary (S5): P-01's invented five
+  attempts, which grounded and abstains must fail (datasets/canaries.judge.jsonl, C-01 and
+  C-02) before the judge grades anything
 security: <from S7: planted instruction, two tenants, poisoned duplicate; the attack files are
   ready and loaded only by raglab.ingest.attacks>
 report: <from S8: per case cause (ingestion/retrieval/generation/abstention), intervals, paired diff>

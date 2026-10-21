@@ -20,12 +20,13 @@ RANGE ?= --all
 # re-reads only the PNG it rendered, fastembed loads a text model, and the API takes no files.
 # The advisories are named by their GitHub ids, which pip-audit matches as aliases. pip-audit
 # reported eight on 2026-10-21; GitHub's database has a ninth (GHSA-8g5g-8vmr-9782, JPEG), skipped
-# ahead of pip-audit's database.
+# ahead of pip-audit's database. The DeepEval tool's audit line skips the same: its own lock
+# resolves the same pillow 12.3.0 through raglab.
 AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8g5g-8vmr-9782 \
 	GHSA-c6hw-5grf-ff96 GHSA-p4wg-p73j-c528 GHSA-pchr-8j38-3x4p GHSA-q45j-58j2-45rg \
 	GHSA-vx6w-vv9f-6gvg
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -42,8 +43,14 @@ deps:
 	uv run deptry .
 	uv run vulture
 
+# S5 (AC10): also the DeepEval tool project's pinned requirements, exported with their hashes from
+# its own lock and audited without installing them (the main environment never installs DeepEval)
 audit:
 	uv run pip-audit --skip-editable $(foreach id,$(AUDIT_SKIP),--ignore-vuln $(id))
+	mkdir -p runs/tmp
+	uv export --project tools/deepeval-check --locked --no-emit-project --no-emit-local \
+		--format requirements-txt --quiet -o runs/tmp/deepeval-check.requirements.txt
+	uv run pip-audit -r runs/tmp/deepeval-check.requirements.txt --disable-pip --require-hashes $(foreach id,$(AUDIT_SKIP),--ignore-vuln $(id))
 
 sast:
 	uv run bandit -q -r src scripts
@@ -146,6 +153,66 @@ release-local:
 	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(RELEASE_CONFIG) \
 		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
 		--run "uv run raglab eval --suite generation --config $(RELEASE_CONFIG) --gate release"
+
+# S5 AC3: the judge's live contract test in a session of its own. A judge config's session serves
+# the judge's pinned model (its size and digest checked by the preflight before the server starts),
+# never the generator's: one model per session. It judges hand-written contract items only, never a
+# golden answer, probes both response formats, and writes each call's format, seconds and tokens to
+# runs/tmp/judge-contract/. The session stops the server and runs the postcheck, as eval-local does.
+JUDGE_CONFIG := config/judge-local.toml
+judge-contract:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
+		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py"
+
+# S5: a short judge session: the judge's live contract test, then the canary set alone (raglab
+# canaries), which prints each item's verdict, seconds and tokens and writes them to
+# runs/tmp/canaries/; it measures the judge's seconds per call before the judged run's cap is set
+judge-canaries:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
+		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py" \
+		--run "uv run raglab canaries --config $(JUDGE_CONFIG)"
+
+# S5 AC7, AC8: a judge session on a finished generation run, RUN=<its id or directory>: the judge's
+# live contract test, then raglab judge, which runs the canaries first (one off its side stops the
+# session before any judged call, and no record is written), then every answer on its criteria and
+# the checks on the judge, written to runs/tmp. The judged run's wall-clock cap is the judge
+# config's [judging] run_timeout_s.
+judge-local:
+	@test -n "$(RUN)" || (echo "give the run to judge: make judge-local RUN=<run id>" >&2; exit 2)
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
+		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py" \
+		--run "uv run raglab judge --run $(RUN) --config $(JUDGE_CONFIG)"
+
+# S5 AC10: DeepEval 4.3.1 lives in tools/deepeval-check, a uv project with its own lock; the main
+# environment never installs it. deepeval-test runs that project's offline tests in its own
+# environment (telemetry off, a loopback-only socket guard, DeepEval's pytest plugin not loaded);
+# deepeval-check runs its checks (AC11) in a judge session: the judge's live contract test, the
+# canaries, then the checks, JUDGED=<a judged run> for the cross-check. Neither is in make check.
+DEEPEVAL := tools/deepeval-check
+deepeval-test:
+	DEEPEVAL_TELEMETRY_OPT_OUT=1 uv run --project $(DEEPEVAL) --locked pytest $(DEEPEVAL)/tests
+
+deepeval-check:
+	@test -n "$(JUDGED)" || (echo "give a judged run: make deepeval-check JUDGED=<run id>" >&2; exit 2)
+	DEEPEVAL_TELEMETRY_OPT_OUT=1 PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(JUDGE_CONFIG) \
+		--run "uv run pytest -m live -s tests/contract/test_judge_contract.py" \
+		--run "uv run raglab canaries --config $(JUDGE_CONFIG)" \
+		--run "uv run --project $(DEEPEVAL) --locked python -m deepeval_check --judged runs/published/$(JUDGED)"
+
+# S5 AC12: a published judged record's measured tokens priced with config/prices.toml per call,
+# case-trial, run and month for each option of config/cost-assumptions.toml (no model, no network)
+cost:
+	@test -n "$(JUDGED)" || (echo "give a judged run: make cost JUDGED=<run id>" >&2; exit 2)
+	uv run raglab cost --judged $(JUDGED)
+
+# S5 AC9: the position test, one generator session: the generator's live contract test, then each
+# position case with its answering chunk first, in the middle and last of a long context, written
+# to runs/tmp; its judge's correct comes after, in a judge session (make judge-local RUN=<it>).
+POSITION_CONFIG := config/position-local.toml
+position-local:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(POSITION_CONFIG) \
+		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
+		--run "uv run raglab position --config $(POSITION_CONFIG)"
 
 # S3 AC10, AC11: the container with the fake model and the baked-in embedder (deploy/Dockerfile),
 # run on 127.0.0.1 only, and the ZAP baseline scan against it (deploy/zap/)

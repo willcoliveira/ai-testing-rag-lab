@@ -30,6 +30,7 @@ class Location:
     doc: str
     section: str
     side: str | None  # its side of a planted conflict: old/new, company/external, tenant-a/b
+    values: tuple[str, ...] = ()  # S5: the values the section states, as the answer key writes them
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class Feature:
     conflict: str | None  # version, external or tenant
     silence: Silence | None
     must_not_contain: tuple[str, ...]
+    reference_answer: str | None = None  # S5: what the judge is shown for a contact feature
 
 
 def _strings(value: object) -> tuple[str, ...]:
@@ -77,6 +79,7 @@ def features(root: Path) -> dict[str, Feature]:
                     str(location["doc"]),
                     str(location["section"]),
                     None if side is None else str(side),
+                    _strings(location.get("values")),
                 )
             )
         rule = entry.get("must_not_appear")
@@ -85,6 +88,7 @@ def features(root: Path) -> dict[str, Feature]:
             proof = cast(dict[str, object], rule)
             silence = Silence(str(proof.get("scope")), _strings(proof.get("phrases")))
         conflict = entry.get("conflict")
+        reference = entry.get("reference_answer")
         feature = Feature(
             id=str(entry.get("id")),
             kind=str(entry.get("kind")),
@@ -94,6 +98,7 @@ def features(root: Path) -> dict[str, Feature]:
             conflict=None if conflict is None else str(conflict),
             silence=silence,
             must_not_contain=_strings(entry.get("answer_must_not_contain")),
+            reference_answer=reference if isinstance(reference, str) else None,
         )
         found[feature.id] = feature
     return found

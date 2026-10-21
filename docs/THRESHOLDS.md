@@ -36,6 +36,64 @@ schedule and on every change to the prompt, the generation code or the model (th
 nightly and eval-on-change), and sets the margin from many more repeats on that runner. Here it
 runs on the Mac by hand until keys exist, and its margin comes from four repeats.
 
+## Judged (S5)
+
+Nothing judged is gated in S5. The criteria are docs/CRITERIA.md's, signed off on 2026-10-20 and
+again on 2026-10-21 (`correct` reworded: judge-v2); the numbers are the judged baseline's,
+`runs/published/20261021T081852Z-judge-local-dev-5aa0ec5/` (its `report.md`): the consistency
+baseline's answers judged by the local judge under judge-v2. The first judged record,
+`runs/published/20261020T195341Z-judge-local-dev-25ccc0d/` (judge-v1), stays published as the
+evidence for the second sign-off; its numbers are not the baseline's.
+
+| Metric | Gate | Threshold | Reason |
+|---|---|---|---|
+| `grounded`, `cites_support`, `correct`, `relevant`, `abstains`, `refuses_and_helps`, `context_sufficient`: the pass rate over judged verdicts (Wilson interval at n = cases), pass^3, the unable_to_verify rate, the split by expected label | reported | none | The judge is uncalibrated until S6: how-to 17 step 10 asks to "calibrate the judge on 30 or more human labels before the threshold gates anything". unable_to_verify is never a pass, and a high rate of it reads as a badly written criterion |
+| The canary set (`datasets/canaries.judge.jsonl`) | a hard stop on the judge, in every judge session, before any judged call | every item on its side | A judge that passes a planted invention, or obeys an instruction planted in its input, should grade nothing; the stop is on the judge, not on the system |
+| The judge's repeatability (trial 1 judged twice) and order agreement (`grounded` with the passages reversed) | reported | none | Measured, not assumed: S4 found that a fixed seed does not reproduce the generator's text on the MLX runner; S6 reads them beside the human labels |
+| The position test: each position's rate and the paired differences middle minus first and middle minus last | reported | none | A test of the generator's long contexts on ten cases, whose intervals are wide; scored by code first, the judge's `correct` beside it |
+| DeepEval 4.3.1's metric canary, hallucination direction and faithfulness cross-check | reported (docs/COMPATIBILITY.md and the S5 ledger: docs/CRITERIA.md is frozen since its sign-off) | none | DeepEval's scores are never the judged numbers (D4: "Own judge; DeepEval fenced (Recommended)"); a hallucination threshold would be written only after its direction is measured, and DeepEval itself points RAG to faithfulness |
+
+## Cost and latency (S5, Q-01, Q-02)
+
+All reported. The formula is code (`raglab cost`, `src/raglab/evals/cost.py`, tested on
+hand-computed values): a call costs (prompt tokens × input price + completion tokens × output
+price) / 1,000,000; a case-trial is its generator call and its judge calls; a run is the sum of
+its case-trials, and of one canary set when the run is judged; a month is the sum over the run
+types of `config/cost-assumptions.toml` of runs per month × cost per run. The judge's
+repeatability and order checks ("Checks per run" in `raglab cost`'s output) are priced apart and
+not counted in the month total: they are S5's measurements of the judge, not part of a routine
+run. The prices are `config/prices.toml`'s, each with its source and read date.
+
+From `make cost JUDGED=20261021T081852Z-judge-local-dev-5aa0ec5` (the published judged baseline,
+147 case-trials; price_table_date 2026-10-21), copied from its output, which ADR-002 quotes in
+full:
+
+| Tokens per case-trial | Prompt | Completion |
+|---|---|---|
+| generator (one call) | 1042.2 | 109.8 |
+| judge (its criteria's calls) | 2150.7 | 347.6 |
+| judge_checks (repeatability and order) | 789.0 | 113.5 |
+
+The canaries (19 calls, 14224 prompt and 1688 completion tokens) run once per run. The monthly
+estimate per option, at the assumed runs a month:
+
+| Option | Per month |
+|---|---|
+| local only | $0.0000 |
+| local generator, Claude Haiku 5.5 judge | $1.21 |
+| local generator, gpt-5-mini judge | $3.83 |
+| local generator, Claude Sonnet 5.5 judge | $24.21 |
+| Claude Haiku 5.5 generator, gpt-5-mini judge | $4.60 |
+| gpt-5-mini generator, Claude Haiku 5.5 judge | $3.53 |
+
+**Q-01, the local latency baseline (reported):** the pipeline's answer time per case-trial (the
+input guards, retrieval, the generator call and the output checks, in-process, without the API
+layer) on the consistency baseline `20261019T172035Z-generation-local-ollama-dev-97011a7`: p50
+1510.180 ms, p95 2743.227 ms (n 147). The local judge's time per call on the judged baseline: p50
+5522.768 ms, p95 10373.613 ms (n 592), on AC power (the session's power line; the S4 baseline's
+power source was not recorded). Both are the maintainer's Mac; a hosted provider's are measured
+after the sign-up.
+
 The test split is never used to set a threshold or to choose a configuration; it runs in
 nightly, release and the capstone only.
 

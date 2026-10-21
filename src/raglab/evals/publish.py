@@ -7,7 +7,9 @@ says fake (provider, revision or digest), when it is partial, when it holds the 
 test or all) under a gate other than nightly or release (S4), when one of its files holds a string
 the answer key says no answer may repeat (the planted secret, personal details and attack
 canaries: `answer_must_not_contain`, R-19; since S4's D3 the plain attack phrases only in attack
-runs), or when the privacy check finds anything in its files. The privacy check reads the files at
+runs), when it is a judged run (S5) whose source run is not published, or that was made under
+another docs/CRITERIA.md or canary set than the tree's (stale), or when the privacy check finds
+anything in its files. The privacy check reads the files at
 their published path (runs/published/<run_id>/), where privacy/allowlist-published.txt applies
 (the planted exception ids and, since D3, the team contact addresses); a refused run's copy is
 removed again. An already published run is replaced only by identical files. `--baseline` makes
@@ -23,7 +25,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
-from raglab.evals import record
+from raglab.evals import judged_record, record
 from raglab.evals.config import held_out_problem
 from raglab.evals.record import Json, as_json
 from raglab.ingest import answer_key
@@ -90,9 +92,14 @@ def banned_strings(root: Path, suite: str) -> dict[str, list[str]]:
 
 def planted_strings(run_dir: Path, root: Path) -> list[str]:
     """Each run file line that holds an answer_must_not_contain string the run's suite may not
-    hold (D3: the plain attack phrases only in attack runs; the rest in every run)."""
+    hold (D3: the plain attack phrases only in attack runs; the rest in every run). A judged run
+    (S5) is held to its source's suite: it quotes its source's answers and adds the judge's
+    reasons."""
     try:
-        suite = str(as_json(json.loads((run_dir / record.MANIFEST).read_text("utf-8")))["suite"])
+        manifest = as_json(json.loads((run_dir / record.MANIFEST).read_text("utf-8")))
+        suite = str(manifest["suite"])
+        if suite == judged_record.JUDGED:
+            suite = str(as_json(manifest["source"])["suite"])
     except (OSError, ValueError, KeyError):  # an unreadable suite is held to every string
         suite = ""
     try:
@@ -138,7 +145,41 @@ def index_entry(manifest: Json) -> Json:
         generator = as_json(manifest["generator"])
         entry["generator"] = f"{generator['model']}@{str(generator['digest'])[:12]}"
         entry["prompt"] = as_json(manifest["prompt"])["version"]
+    if "judge" in manifest:  # a judged run (S5): the judge, its prompt and the run it judged
+        judge = as_json(manifest["judge"])
+        entry["judge"] = f"{judge['model']}@{str(judge['digest'])[:12]}"
+        entry["prompt"] = as_json(manifest["judge_prompt"])["version"]
+        entry["source"] = as_json(manifest["source"])["run_id"]
     return entry
+
+
+def judged_problems(manifest: Json, root: Path) -> list[str]:
+    """Why a judged run may not be published (S5): its source is not published with the manifest
+    it names, or it was made under another docs/CRITERIA.md or another canary set than the ones
+    in the tree now (stale, as a changed prompt fingerprint makes a baseline stale)."""
+    problems: list[str] = []
+    source = as_json(manifest["source"])
+    published = root / PUBLISHED / str(source["run_id"])
+    try:
+        raw = (published / record.MANIFEST).read_bytes()
+    except OSError:
+        problems.append(f"its source run {source['run_id']} is not published")
+    else:
+        if record.sha256_bytes(raw) != source["manifest_sha256"]:
+            problems.append(f"its source run {source['run_id']} is published with another manifest")
+    for part, what in (("criteria", "docs/CRITERIA.md"), ("canaries", "the canary set")):
+        block = as_json(manifest[part])
+        try:
+            current = record.sha256_bytes((root / str(block["path"])).read_bytes())
+        except OSError:
+            current = ""
+        if current != block["sha256"]:
+            now = current[:12] or "none"
+            problems.append(
+                f"it is stale: it was made under another version of {what} "
+                f"({block['path']}, sha256 {str(block['sha256'])[:12]}, now {now})"
+            )
+    return problems
 
 
 def read_index(published: Path) -> Json:
@@ -191,6 +232,8 @@ def publish(
         raise PublishError(f"{manifest['run_id']} is partial")
     if held_out := held_out_problem(str(manifest["split"]), str(manifest["gate"])):
         raise PublishError(f"{manifest['run_id']}: {held_out}")
+    if manifest["suite"] == judged_record.JUDGED and (found := judged_problems(manifest, root)):
+        raise PublishError(f"{manifest['run_id']}: " + "; ".join(found))
     if found := planted_strings(run_dir, root):
         raise PublishError("the run repeats strings no answer may hold:\n" + "\n".join(found))
     published = root / PUBLISHED

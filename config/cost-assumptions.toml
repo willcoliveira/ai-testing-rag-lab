@@ -1,0 +1,63 @@
+# The assumptions of the monthly estimate (S5, ADR-002). These are not measurements: they are the
+# main plan's gate map (docs/plans/2026-10-05-raglab-plan.md, "Gate map") and its budget scenario B,
+# and they are the user's to change. raglab cost (raglab.evals.cost) multiplies them by the tokens a
+# published judged record measured and by config/prices.toml.
+# Read by raglab.evals.cost.load_assumptions (strict).
+
+# Each run type: how many runs a month, its size (cases x trials) and whether its answers are judged.
+[run_types.eval-on-change]
+runs_per_month = 10          # scenario B: "about 10 hosted eval-on-change runs"
+cases = 49                   # the dev slice of golden set v1.1: 22 retrieval questions, 27 cases
+trials = 3                   # "golden dev slice x N, judged"; the plan uses dev slice x3
+judged = true
+
+[run_types.nightly]
+runs_per_month = 30          # every night
+cases = 20                   # "20-case regression slice x3", unjudged in scenario B
+trials = 3
+judged = false
+
+[run_types.weekly]
+runs_per_month = 4
+cases = 74                   # "full judged x5": every case of golden set v1.1, dev and test
+trials = 5
+judged = true
+
+[run_types.release]
+runs_per_month = 1           # at most one release a month
+cases = 25                   # the test slice: 12 retrieval questions, 13 behaviour cases
+trials = 3
+judged = true
+
+# The options ADR-002 prices: the generator and the judge, each "local" or a price id of
+# config/prices.toml. The judge's family differs from the generator's in every option (the local
+# generator is NVIDIA's Nemotron; the local judge, Mistral's Ministral).
+[[option]]
+name = "local only"
+generator = "local"
+judge = "local"
+
+[[option]]
+name = "local generator, Claude Haiku 5.5 judge"
+generator = "local"
+judge = "anthropic-haiku-5.5"
+
+[[option]]
+name = "local generator, gpt-5-mini judge"
+generator = "local"
+judge = "openai-gpt-5-mini"
+
+[[option]]
+name = "local generator, Claude Sonnet 5.5 judge"
+generator = "local"
+judge = "anthropic-sonnet-5.5"
+
+[[option]]
+name = "Claude Haiku 5.5 generator, gpt-5-mini judge"
+generator = "anthropic-haiku-5.5"
+judge = "openai-gpt-5-mini"
+
+[[option]]
+name = "gpt-5-mini generator, Claude Haiku 5.5 judge"
+generator = "openai-gpt-5-mini"
+judge = "anthropic-haiku-5.5"

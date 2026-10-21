@@ -5,6 +5,15 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- S5, judged metrics on local models (plan `docs/plans/2026-10-20-s5-judged-metrics.md`, ledger
+  beside it): `docs/CRITERIA.md` and the canary set, signed off on 2026-10-20 and again on
+  2026-10-21; the `Judge` port and judge-v2 (judge-v1 kept for the first judged record) on a
+  local Ministral 3 14B judge, pinned by tag and digest, its session checking its own model and
+  running on AC power only (AC22); the canaries as a hard stop; the judged baseline of the dev
+  slice and the position test published, reported and not gated until S6; the tokens of every
+  call by role, a dated price table, `raglab cost` and ADR-002, accepted as local only for now
+  (D6: the hosted half deferred); DeepEval 4.3.1 fenced in `tools/deepeval-check` and checked
+  live; S5 before S4b (D1).
 - uv 0.13.4 in CI and on the maintainer's Mac, and the `uv_build` backend at 0.13 (decision: "One
   uv PR after S5's sessions (Recommended)"): uv before 0.13.4 trusts a root CA whose intermediate
   keys were compromised (GHSA-hq85-5cpj-mr62), the root certifi dropped in the line below. The
