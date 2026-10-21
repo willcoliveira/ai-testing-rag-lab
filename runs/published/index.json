@@ -2,6 +2,73 @@
   "schema_version": "published-index.v1",
   "runs": [
     {
+      "run_id": "20261021T092047Z-generation-local-ollama-position-dev-f309594",
+      "path": "20261021T092047Z-generation-local-ollama-position-dev-f309594/",
+      "created_at": "2026-10-21T09:20:47Z",
+      "suite": "generation",
+      "split": "dev",
+      "config": "generation-local-ollama-position",
+      "provenance": "local",
+      "git_sha": "f3095949e6fb9ff8cf6f0498a17c4806f2169a9e",
+      "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
+      "retriever": "dense",
+      "k": 5,
+      "chunk_size": 1200,
+      "n": 90,
+      "metrics": {
+        "status_ok": {
+          "value": 0.988889,
+          "ci_low": 0.867614,
+          "ci_high": 0.999173,
+          "n": 30
+        },
+        "model_citations_retrieved": {
+          "value": 0.988889,
+          "ci_low": 0.867614,
+          "ci_high": 0.999173,
+          "n": 30
+        },
+        "pass^3": {
+          "value": 0.6,
+          "ci_low": 0.423204,
+          "ci_high": 0.754094,
+          "n": 30
+        },
+        "position[first]": {
+          "value": 0.7,
+          "ci_low": 0.396778,
+          "ci_high": 0.892209,
+          "n": 10
+        },
+        "position[middle]": {
+          "value": 0.8,
+          "ci_low": 0.490162,
+          "ci_high": 0.943318,
+          "n": 10
+        },
+        "position[last]": {
+          "value": 0.733333,
+          "ci_low": 0.426777,
+          "ci_high": 0.910374,
+          "n": 10
+        },
+        "position[middle-first]": {
+          "value": 0.1,
+          "ci_low": 0.0,
+          "ci_high": 0.2,
+          "n": 10
+        },
+        "position[middle-last]": {
+          "value": 0.066667,
+          "ci_low": 0.0,
+          "ci_high": 0.166667,
+          "n": 10
+        }
+      },
+      "generator": "nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7dabac",
+      "prompt": "answer-v1"
+    },
+    {
       "run_id": "20261021T081852Z-judge-local-dev-5aa0ec5",
       "path": "20261021T081852Z-judge-local-dev-5aa0ec5/",
       "created_at": "2026-10-21T08:18:52Z",
