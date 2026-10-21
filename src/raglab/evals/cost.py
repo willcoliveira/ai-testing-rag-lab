@@ -371,8 +371,9 @@ def render(
         f"Prices: {table.path}, price_table_date {table.date}. Assumptions: {assumptions.path}.",
         "",
         "| Role | Calls | Prompt | Completion | Unreported | Prompt per call | "
-        "Completion per call | Largest prompt |",
-        "|---|---|---|---|---|---|---|---|",
+        "Completion per call | Largest prompt | Prompt per case-trial | "
+        "Completion per case-trial |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for name in ROLES:
         role = found.roles[name]
@@ -381,11 +382,21 @@ def render(
             if role.reported
             else (0, 0)
         )
+        # per case-trial: every call reported, and a role that runs per case-trial (the canaries
+        # run once per run)
+        trial = (
+            (f"{role.prompt / found.case_trials:.1f}", f"{role.completion / found.case_trials:.1f}")
+            if name != "canaries" and found.case_trials and not role.unreported
+            else ("-", "-")
+        )
         lines.append(
             f"| {name} | {role.calls} | {role.prompt} | {role.completion} | {role.unreported} | "
-            f"{per[0]:.1f} | {per[1]:.1f} | {role.max_prompt} |"
+            f"{per[0]:.1f} | {per[1]:.1f} | {role.max_prompt} | {trial[0]} | {trial[1]} |"
         )
     lines += [
+        "",
+        "Per case-trial: the role's tokens over the run's case-trials (none when a call reported "
+        "none); the canaries run once per run.",
         "",
         "| Run type | Runs a month | Cases | Trials | Judged |",
         "|---|---|---|---|---|",

@@ -5,6 +5,7 @@ price table gives every price its URL and its read date, and the committed assum
 judge's family apart from the generator's."""
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -116,11 +117,11 @@ def test_a_prompt_above_a_prices_tier_is_refused(tmp_path):
 
 def test_the_committed_price_table_gives_every_price_its_url_and_read_date():
     table = cost.load_prices(PRICES)
-    assert table.date == "2026-10-20"
+    assert table.date == "2026-10-21"
     for item in table.prices.values():
         assert item.source.startswith("https://"), item.id
-        assert item.read == "2026-10-20", item.id
-    # the rows the plan saw while planning, read again by the developer on 2026-10-20
+        assert item.read == "2026-10-21", item.id
+    # the rows the plan saw while planning, read again by the developer on 2026-10-20 and 2026-10-21
     expected = {
         "anthropic-haiku-5.5": (0.10, 0.50, 0.05, 0.25),
         "anthropic-sonnet-5.5": (2.0, 10.0, 1.0, 5.0),
@@ -143,10 +144,10 @@ EXTRA = (
 )
 WRONG_TABLES = [
     (lambda t: t.replace(ANTHROPIC, "", 1), "missing \\['source'\\]"),
-    (lambda t: t.replace('read = "2026-10-20"\n', "", 1), "missing \\['read'\\]"),
+    (lambda t: t.replace('read = "2026-10-21"\n', "", 1), "missing \\['read'\\]"),
     (lambda t: t.replace("https://developers", "developers", 1), "https URL"),
-    (lambda t: t.replace('read = "2026-10-20"', 'read = "20 October"', 1), "YYYY-MM-DD"),
-    (lambda t: t.replace('date = "2026-10-20"', 'date = "2026-10-19"', 1), "latest read date"),
+    (lambda t: t.replace('read = "2026-10-21"', 'read = "20 October"', 1), "YYYY-MM-DD"),
+    (lambda t: t.replace('date = "2026-10-21"', 'date = "2026-10-20"', 1), "latest read date"),
     (lambda t: t.replace("input = 0.10", "input = -0.10", 1), "never negative"),
     (lambda t: t.replace("output = 0.50", 'output = "0.50"', 1), "wrong type"),
     (lambda t: t + EXTRA, "unknown key colour"),
@@ -197,9 +198,13 @@ def test_the_cli_prices_a_judged_record(tmp_path, capsys):
     argv += ["--prices", str(PRICES), "--assumptions", str(ASSUMPTIONS)]
     assert main(argv) == 0
     out = capsys.readouterr().out
-    assert "price_table_date 2026-10-20" in out
+    assert "price_table_date 2026-10-21" in out
     assert "| local only | $0.0000 | $0.0000 | $0.0000 | $0.0000 | $0.0000 | $0.0000 |" in out
-    assert "| generator | 14 | 1400 | 280 | 0 | 100.0 | 20.0 | 100 |" in out
+    # per case-trial: the generator's one call per case-trial; the canaries, once per run: "-"
+    assert "| generator | 14 | 1400 | 280 | 0 | 100.0 | 20.0 | 100 | 100.0 | 20.0 |" in out
+    assert re.search(
+        r"^\| canaries \| (\d+ \| ){4}[\d.]+ \| [\d.]+ \| \d+ \| - \| - \|$", out, re.M
+    )
     assert main(["cost", "--judged", str(source), "--root", str(root)]) == 1  # not a judged run
 
 
@@ -209,7 +214,7 @@ def test_the_output_names_its_inputs_relative_to_the_root_so_it_is_the_same_anyw
     for word (AC13)."""
     run_dir = ROOT / "runs" / "published" / "20261021T081852Z-judge-local-dev-5aa0ec5"
     out = cost.report(ROOT, run_dir, Path("config/prices.toml"), ASSUMPTIONS)
-    assert "Prices: config/prices.toml, price_table_date 2026-10-20." in out
+    assert "Prices: config/prices.toml, price_table_date 2026-10-21." in out
     assert "Assumptions: config/cost-assumptions.toml." in out
     assert str(ROOT) not in out
     assert out == cost.report(ROOT, run_dir, PRICES, Path("config/cost-assumptions.toml"))

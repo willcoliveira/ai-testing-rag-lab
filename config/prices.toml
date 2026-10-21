@@ -3,12 +3,13 @@
 # table's date (price_table_date). Prices change: read the pages again before a decision, add a row
 # or change one with its new read date, and the date below follows.
 #
-# Read by the S5 developer on 2026-10-20 from the providers' own pages; they match the planner's
-# reading of the same day. Only the tier our prompts fall in is listed: every prompt S5 measured is
-# far below 100,000 tokens (Claude Haiku 5.5's threshold) and 272,000 (gpt-6-luna's), and
-# max_prompt_tokens makes raglab cost refuse a call above a row's threshold.
+# Read by the S5 developer on 2026-10-20 from the providers' own pages, matching the planner's
+# reading of that day, and read again on 2026-10-21 for ADR-002: every row unchanged (the read
+# dates below are that second reading). Only the tier our prompts fall in is listed: every prompt
+# S5 measured is far below 100,000 tokens (Claude Haiku 5.5's threshold) and 272,000
+# (gpt-6-luna's), and max_prompt_tokens makes raglab cost refuse a call above a row's threshold.
 # Read by raglab.evals.cost.load_prices (strict: an unknown or missing key stops it).
-date = "2026-10-20"
+date = "2026-10-21"
 
 [[price]]
 id = "anthropic-haiku-5.5"
@@ -21,7 +22,7 @@ batch_input = 0.05
 batch_output = 0.25
 max_prompt_tokens = 100000
 source = "https://platform.claude.com/docs/en/about-claude/pricing"
-read = "2026-10-20"
+read = "2026-10-21"
 note = "for prompts up to 100,000 tokens; the model id from https://platform.claude.com/docs/en/models/haiku-5-5/overview"
 
 [[price]]
@@ -33,7 +34,7 @@ output = 10.0
 batch_input = 1.0
 batch_output = 5.0
 source = "https://platform.claude.com/docs/en/about-claude/pricing"
-read = "2026-10-20"
+read = "2026-10-21"
 
 [[price]]
 id = "anthropic-opus-5.5"
@@ -44,7 +45,7 @@ output = 20.0
 batch_input = 2.0
 batch_output = 10.0
 source = "https://platform.claude.com/docs/en/about-claude/pricing"
-read = "2026-10-20"
+read = "2026-10-21"
 
 [[price]]
 id = "anthropic-haiku-4.5"
@@ -55,7 +56,7 @@ output = 5.0
 batch_input = 0.50
 batch_output = 2.50
 source = "https://platform.claude.com/docs/en/about-claude/pricing"
-read = "2026-10-20"
+read = "2026-10-21"
 note = "the main plan's row (2026-10-05)"
 
 [[price]]
@@ -68,7 +69,7 @@ output = 0.40
 batch_input = 0.025
 batch_output = 0.20
 source = "https://developers.openai.com/api/docs/pricing"
-read = "2026-10-20"
+read = "2026-10-21"
 
 [[price]]
 id = "openai-gpt-5-mini"
@@ -80,7 +81,7 @@ output = 2.00
 batch_input = 0.125
 batch_output = 1.00
 source = "https://developers.openai.com/api/docs/pricing"
-read = "2026-10-20"
+read = "2026-10-21"
 
 [[price]]
 id = "openai-gpt-6-luna"
@@ -93,5 +94,5 @@ batch_input = 0.05
 batch_output = 0.25
 max_prompt_tokens = 272000
 source = "https://developers.openai.com/api/docs/pricing"
-read = "2026-10-20"
+read = "2026-10-21"
 note = "short context: 272K input tokens or fewer"
