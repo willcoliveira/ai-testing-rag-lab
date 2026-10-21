@@ -38,9 +38,12 @@ runs on the Mac by hand until keys exist, and its margin comes from four repeats
 
 ## Judged (S5)
 
-Nothing judged is gated in S5. The criteria are docs/CRITERIA.md's, signed off on 2026-10-20; the
-numbers are the judged baseline's, `runs/published/20261020T195341Z-judge-local-dev-25ccc0d/`
-(its `report.md`): the consistency baseline's answers judged by the local judge.
+Nothing judged is gated in S5. The criteria are docs/CRITERIA.md's, signed off on 2026-10-20 and
+again on 2026-10-21 (`correct` reworded: judge-v2); the numbers are the judged baseline's,
+`runs/published/20261021T081852Z-judge-local-dev-5aa0ec5/` (its `report.md`): the consistency
+baseline's answers judged by the local judge under judge-v2. The first judged record,
+`runs/published/20261020T195341Z-judge-local-dev-25ccc0d/` (judge-v1), stays published as the
+evidence for the second sign-off; its numbers are not the baseline's.
 
 | Metric | Gate | Threshold | Reason |
 |---|---|---|---|
@@ -48,7 +51,7 @@ numbers are the judged baseline's, `runs/published/20261020T195341Z-judge-local-
 | The canary set (`datasets/canaries.judge.jsonl`) | a hard stop on the judge, in every judge session, before any judged call | every item on its side | A judge that passes a planted invention, or obeys an instruction planted in its input, should grade nothing; the stop is on the judge, not on the system |
 | The judge's repeatability (trial 1 judged twice) and order agreement (`grounded` with the passages reversed) | reported | none | Measured, not assumed: S4 found that a fixed seed does not reproduce the generator's text on the MLX runner; S6 reads them beside the human labels |
 | The position test: each position's rate and the paired differences middle minus first and middle minus last | reported | none | A test of the generator's long contexts on ten cases, whose intervals are wide; scored by code first, the judge's `correct` beside it |
-| DeepEval 4.3.1's metric canary, hallucination direction and faithfulness cross-check | reported (docs/CRITERIA.md, "Checked at DeepEval 4.3.1") | none | DeepEval's scores are never the judged numbers (D4: "Own judge; DeepEval fenced (Recommended)"); a hallucination threshold would be written only after its direction is measured, and DeepEval itself points RAG to faithfulness |
+| DeepEval 4.3.1's metric canary, hallucination direction and faithfulness cross-check | reported (docs/COMPATIBILITY.md and the S5 ledger: docs/CRITERIA.md is frozen since its sign-off) | none | DeepEval's scores are never the judged numbers (D4: "Own judge; DeepEval fenced (Recommended)"); a hallucination threshold would be written only after its direction is measured, and DeepEval itself points RAG to faithfulness |
 
 ## Cost and latency (S5, Q-01, Q-02)
 
