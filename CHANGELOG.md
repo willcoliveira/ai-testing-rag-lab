@@ -6,10 +6,12 @@ One line per change, newest first, grouped by release. Each pull request adds it
 ## Unreleased
 
 - S5, judged metrics on local models (in progress; plan `docs/plans/2026-10-20-s5-judged-metrics.md`):
-  `docs/CRITERIA.md` and the canary set (drafts for the user's sign-off); the `Judge` port and
-  judge-v1 on a local Ministral 3 14B judge, pinned by tag and digest, whose session checks its
-  own model; the canaries as a hard stop; the judged record, tied to the run it judges; the
-  position test; the tokens of every call by role, a dated price table and `raglab cost`;
+  `docs/CRITERIA.md` and the canary set (signed off on 2026-10-20 and again on 2026-10-21); the
+  `Judge` port and judge-v2 (judge-v1 kept for the first judged record) on a local Ministral 3
+  14B judge, pinned by tag and digest, whose session checks its own model and runs on AC power
+  only; the canaries as a hard stop; the judged record, tied to the run it judges, and the
+  judged baseline published; the position test; the tokens of every call by role, a dated price
+  table, `raglab cost` and ADR-002;
   DeepEval 4.3.1 fenced in `tools/deepeval-check`; S5 before S4b (D1).
 
 ## v0.1.0 (2026-10-20)

@@ -1,10 +1,11 @@
 # Onboarding
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
-guards, and where each concept already lives. It is current as of S5, in progress (2026-10-20):
-the judge, its criteria and canaries (drafts until the user signs them off), the judged record,
-the position test, the cost formula and the fenced DeepEval tool are built offline, and the judge's
-live contract test has run once; no answer is judged yet (the S5 ledger). Every stage that adds a
+guards, and where each concept already lives. It is current as of S5, in progress (2026-10-21):
+the judge, its criteria and canaries (signed off), the judged record, the position test, the cost
+formula and the fenced DeepEval tool are built; the judged baseline and the position test are
+published, ADR-002 waits for the user's provider choice, and a session runs on AC power only (the
+S5 ledger). Every stage that adds a
 command or a concept updates it, and
 `tests/unit/test_onboarding.py` checks that every path, `make` target and `raglab` command named
 here exists, and that the stage this line names is not still in progress once the phase map marks
