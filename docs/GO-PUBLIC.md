@@ -50,7 +50,22 @@ noreply address from 2026-10-18; earlier commits keep the author address they we
    (`contents: read` for the build, `pages: write` and `id-token: write` only on the deploy job,
    actions pinned by SHA), and turn Pages on with "GitHub Actions" as the source. Check the page
    loads `runs/published/index.json` and shows each run's provenance and intervals.
-   *Open: a small workflow pull request, now that the repo is public.*
+   *Done 2026-10-21, pending the maintainer's switch in Settings (the user's go, verbatim: "Small
+   PR now, in parallel (Recommended)"):* `.github/workflows/pages.yml` lays the site out with
+   `python3 scripts/serve_playground.py --out _site` (the layout `make playground` serves, as
+   plain files) and deploys it on a push to `main` that changes the site, or by hand; never on a
+   pull request. No permissions at the top; the build job holds `contents: read`, and only the
+   deploy job holds `pages: write` and `id-token: write`, in the `github-pages` environment and
+   from `main` only. Every action is pinned by SHA; one deploy runs at a time and is never
+   cancelled. `tests/unit/test_pages.py` and `tests/unit/test_workflow_rules.py` check all of
+   it. The page's paths are relative, so they resolve below the project path. The page check was
+   run offline: `tests/unit/test_playground.py` clicks through every published run and checks
+   that each shows its provenance and its intervals, with no error. Generation and judged runs
+   used to stop on an error there; their per-question rows stay retrieval-only. Left for the
+   maintainer: Settings → Pages → Build and deployment → Source: "GitHub Actions". If the
+   workflow's first run on `main` failed before that switch, run it again by hand (Actions →
+   pages → Run workflow), then check the live page at
+   https://willcoliveira.github.io/ai-testing-rag-lab/.
 10. Re-run pr-fast on `main` and check the README status diagram renders.
     *`main`'s CI passed at `fbba9c6` (run 39160869584) just before the flip; the diagram is for
     the reviewer to check on the repo page.*

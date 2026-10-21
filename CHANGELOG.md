@@ -5,6 +5,14 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- The playground on GitHub Pages (`docs/GO-PUBLIC.md` step 9; decision: "Small PR now, in parallel
+  (Recommended)"): `.github/workflows/pages.yml` publishes `playground/` with `runs/published/`
+  beside it, laid out by `scripts/serve_playground.py --out` as `make playground` serves it, on a
+  push to `main` or by hand, never on a pull request; only the deploy job holds `pages: write` and
+  `id-token: write`, and every action is pinned by SHA (`tests/unit/test_pages.py`). A generation
+  or judged run no longer stops the page on an error; per-question rows stay retrieval-only. Live
+  at https://willcoliveira.github.io/ai-testing-rag-lab/ once Settings → Pages → Source is
+  "GitHub Actions".
 - S5, judged metrics on local models (plan `docs/plans/2026-10-20-s5-judged-metrics.md`, ledger
   beside it): `docs/CRITERIA.md` and the canary set, signed off on 2026-10-20 and again on
   2026-10-21; the `Judge` port and judge-v2 (judge-v1 kept for the first judged record) on a

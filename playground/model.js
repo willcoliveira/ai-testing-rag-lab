@@ -21,6 +21,7 @@ export function runRows(index) {
     runId: String(run.run_id),
     path: String(run.path),
     created: String(run.created_at),
+    suite: String(run.suite),
     config: String(run.config),
     split: String(run.split),
     retriever: `${run.retriever}, k ${run.k}`,
@@ -70,9 +71,13 @@ export function caseRows(cases) {
   }));
 }
 
-// The manifest lines shown above a run's questions.
+// The manifest lines shown above a run's questions. A retrieval run's intervals are bootstrapped;
+// a generation or judged run names its per-case intervals in `intervals` instead.
 export function manifestRows(manifest) {
   const e = manifest.embedder;
+  const b = manifest.bootstrap;
+  const i = manifest.intervals;
+  const percent = (level) => `${Math.round(level * 100)}%`;
   return [
     ["Run", manifest.run_id],
     ["Provenance", manifest.provenance],
@@ -81,9 +86,8 @@ export function manifestRows(manifest) {
     ["Embedder", `${e.model} at ${String(e.revision).slice(0, 12)}`],
     ["Chunker", `${manifest.chunker.chunk_size} characters, overlap ${manifest.chunker.overlap}`],
     ["Dataset", `${manifest.dataset.path}, ${manifest.dataset.questions} questions`],
-    [
-      "Bootstrap",
-      `${manifest.bootstrap.resamples} resamples, seed ${manifest.bootstrap.seed}, ${Math.round(manifest.bootstrap.level * 100)}%`,
-    ],
+    b
+      ? ["Bootstrap", `${b.resamples} resamples, seed ${b.seed}, ${percent(b.level)}`]
+      : ["Intervals", i ? `${i.method}, ${percent(i.level)}, per ${i.unit}` : "n/a"],
   ].map(([label, value]) => ({ label, value: String(value) }));
 }
