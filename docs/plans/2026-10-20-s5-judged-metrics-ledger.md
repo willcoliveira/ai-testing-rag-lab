@@ -30,6 +30,7 @@ The user's answers (2026-10-20), verbatim (quoted in the plan's Approval):
 | D5 The hosted half | "One PR" | The hosted criteria AC16 to AC21 belong to this stage, after the sign-up; D6 is asked mid-stage, once ADR-002's costs exist. Nothing hosted is built yet |
 | The download | "You run it (Recommended)" | The orchestrator ran the pull (below); the developer pinned the digest |
 | D7 This plan | "Approve and start (Recommended)" | The build started on `feat/s5-judged-metrics` at `22569e0` |
+| D6 What to sign up for (2026-10-21, about 11:02 WEST; the question: "D6: what should S5 sign up for (ADR-002's options above)?") | In the user's own words, not a listed option: "let's use a local model for now and then we need to identify all the signups and everything that I need to do" | Local only for now: no sign-up and nothing hosted in S5; AC16 to AC21 "not applicable, by D6"; the pull request no longer waits for a sign-up. "For now" defers the hosted half and does not cancel it: the hosted judge is revisited after the list of sign-ups and tasks the user asked for, which the orchestrator compiles with the user (not built here). ADR-002 quotes it and is accepted |
 
 **The sign-off of docs/CRITERIA.md and the canary set (2026-10-20).** At 20:33 WEST, through the
 orchestrator's question prompt, the user chose, verbatim: "Sign off with the clause (Recommended)".
@@ -171,12 +172,12 @@ below.
 | AC8 | met: repeatability 92 of 92 pairs agree, order 46 of 48, in both published records | The repeatability pass (trial 1 of every behaviour case judged again) and the order pass (grounded on trial 1 of every case with the passages reversed), both after every answer is judged, both in the record and validated (`tests/judge/test_order_check.py`, 4 tests) | The order check given the passages in their original order (`reverse=False` in `judged.run`): "2 failed, 2 passed", restored "4 passed" |
 | AC9 | met: the position run `20261021T092047Z-generation-local-ollama-position-dev-f309594` (one generator session, scored by code) and the judge's `correct` on it `20261021T092819Z-judge-local-dev-9fa9004`, both published (the position section below) | `tests/generation/test_position_contexts.py` (20 tests): first, middle (n // 2) and last; the fillers are the tenant's other chunks in rank order, never a labelled section or a group member, nor another tenant's or a shared chunk; the fit to the budget; the measured characters per token are the fewest; a value is stated as the answer key writes it or by its numbers and units (11 cases); the committed config names the ten cases, derived from the golden file; a position run writes a valid generation record; a moved answering chunk, a labelled filler and forged checks are refused; the judge's `correct` runs on a position run | (1) the answering chunk put first at every position (`index = 0` in `place`): "3 failed, 17 passed", restored "20 passed". (2) a group member allowed as filler (only plain labels excluded in `fillers`): "1 failed, 19 passed", restored "20 passed" |
 | AC10 | met offline and live (the opt-out set before the import, the guard on and catching 0 attempts, every metric in mode `llm`, every call through raglab's adapter: the DeepEval section below); needs CI for `make audit`, red until the dependency pull request (Notes) | `tools/deepeval-check` locks `deepeval==4.3.1` (94 packages resolved); the main environment never installs it (`uv sync --locked` unchanged, the main `uv.lock` holds no deepeval, `find_spec("deepeval")` is None and no `deepeval` pytest plugin is registered: `test_the_main_environment_never_installs_deepeval`); rule 6 forbids a deepeval import anywhere under `src/` (`test_deepeval_is_imported_nowhere_in_the_package_adapters_included`, 12 cases); `make audit` exports its 92 pinned requirements with their hashes and audits them without installing ("No known vulnerabilities found"); deptry leaves `tools/` to its own lock; Dependabot watches it, a DeepEval bump in a PR of its own. `make deepeval-test`: "8 passed" (the opt-out set before the first DeepEval import, recorded by an import hook; the guard lets nothing but the loopback Ollama port through; the custom-LLM API returns the schema's instance and records tokens; a whole FaithfulnessMetric in mode llm through the wrapper against a stub, with no connection attempted; the direction report; the canary reading) | (1) `import deepeval` added to `src/raglab/adapters/openai_compat.py`: `make architecture` "1 architecture violations" ("src/raglab/adapters/openai_compat.py:28: deepeval is fenced in tools/deepeval-check and imported nowhere in raglab, adapters included"), restored "0 architecture violations". (2) The opt-out unset with the guard on (a probe outside the repository: DeepEval imported and a FaithfulnessMetric run against a stub judge, the guard installed before the import and kept until the interpreter exits): no attempt during the import or the metric, then at exit "[PostHog] error uploading: HTTPSConnectionPool(host='us.i.posthog.com', port=443)": 12 lookups of `us.i.posthog.com:443`, every one caught. With the opt-out set to 1 before the import: no attempt at all, exit included |
-| AC11 | partly met: the live checks ran at 4.3.1 (the DeepEval section below): the custom-LLM API works; the metric canary and the hallucination direction scored 0.0 throughout, so they read nothing; the cross-check did not run (a reply cut off at 512 tokens); a second session is the orchestrator's call. Deviation from its wording: the results go to COMPATIBILITY.md and this ledger, not CRITERIA.md, which is frozen (a third sign-off would be needed; the pull request reports it) | The checks are code (`tools/deepeval-check/src/deepeval_check/checks.py`): the custom-LLM API, the metric canary (C-01 and C-03 with penalize_ambiguous_claims off and on), the hallucination direction (G-01's labelled passage, a consistent and a contradicting output, the page's sentence and its read date), the cross-check against the own judge's grounded on trial 1 of the dev answer cases; every metric in mode llm. Offline: `test_the_direction_report_names_the_output_that_scored_higher` (3 cases) and `test_the_canary_reading_follows_the_invented_answers_verdict` | The direction report's scores swapped (`x, c = ...`): `make deepeval-test` "2 failed, 6 passed", restored "8 passed" |
+| AC11 | met, with a caveat and a deviation: the second session (the DeepEval sections below) recorded the custom-LLM API, the metric canary's four scores with their steps and its reading ("not separated"), the hallucination direction's two scores and is_successful() beside the page (its steps computed but not written: fixed since in `33ca073`, not re-run), and the cross-check's table (13 of 17 agree) with DeepEval's calls and tokens. Deviation from its wording: the results go to COMPATIBILITY.md and this ledger, not CRITERIA.md, which is frozen (a third sign-off would be needed; the pull request reports it) | The checks are code (`tools/deepeval-check/src/deepeval_check/checks.py`): the custom-LLM API, the metric canary (C-01 and C-03 with penalize_ambiguous_claims off and on), the hallucination direction (G-01's labelled passage, a consistent and a contradicting output, the page's sentence and its read date), the cross-check against the own judge's grounded on trial 1 of the dev answer cases; every metric in mode llm. Offline: `test_the_direction_report_names_the_output_that_scored_higher` (3 cases) and `test_the_canary_reading_follows_the_invented_answers_verdict` | The direction report's scores swapped (`x, c = ...`): `make deepeval-test` "2 failed, 6 passed", restored "8 passed" |
 | AC12 | met: `make cost` over the judge-v2 baseline (step 5 below), the table read again on 2026-10-21 (unchanged), THRESHOLDS.md's cost section and Q-01 from the output and the records | `config/prices.toml` (seven rows, each with its source URL and read date 2026-10-20; the table's date is its latest read date); `config/cost-assumptions.toml`; `raglab cost --judged` (`tests/unit/test_cost.py`, 15 tests: a call's cost by hand; the estimate by hand, per call, per case-trial, per run and per month; a prompt above a price's tier refused; the committed table's rows and dates; eight wrong tables refused; the committed options keep the judge's family apart; an option naming no price refused; the CLI on a judged record). THRESHOLDS.md states the formula | (1) the output price applied to prompt tokens (`prompt * price.output` in `call_cost`): "2 failed, 13 passed" (`0.0022 == 0.0012`), restored "15 passed". (2) one price's `source` line removed from `config/prices.toml`: "7 failed, 8 passed" ("price 5 (openai-gpt-5-nano): missing ['source']"), restored "15 passed" |
-| AC13 | ADR-002 written from `raglab cost`'s output (`91a9a16`), with its test; not met until the user's choice (D6) is quoted in it | `docs/decisions/ADR-002-providers.md`; `tests/unit/test_adr.py` (2 tests) | a cost edited by hand in the ADR ($1.21 to $0.99): the test failed; restored from git |
+| AC13 | met: ADR-002 written from `raglab cost`'s output (`91a9a16`), with its test, and the user's choice (D6) quoted verbatim in it; accepted, local only for now | `docs/decisions/ADR-002-providers.md`; `tests/unit/test_adr.py` (2 tests) | a cost edited by hand in the ADR ($1.21 to $0.99): the test failed; restored from git |
 | AC14 | met but for ARCHITECTURE and README marking S5 `done`, which waits for the pull request; LOCAL-MODEL now has the judge sessions' measured times and the power rule | TEST-PLAN R5 names its tests (nine) and its gate ("local until keys (`make judge-local`); reported, not gated, until S6 calibrates the judge"), its oracle says what is judged and what stays label-based; section 10's judges line and the metric canary line; Q-01 and Q-02 point at THRESHOLDS.md; the Test column names the judged criteria (reported) for R-01, R-03 to R-07, R-10, R-11, R-14 and R-18 (`tests/unit/test_test_plan.py`, two new tests); LOCAL-MODEL, COMPATIBILITY, ONBOARDING (current as of S5, in progress), ARCHITECTURE and README (S5 `wip`; S5 before S4b), a CHANGELOG line. The measured numbers (THRESHOLDS cost and Q-01, the judge's session time on the judged run, COMPATIBILITY's DeepEval lines) wait for the runs | |
 | AC15 | met locally (the tail below); needs CI (pr-fast) | No new runtime dependency in the main project (`pyproject.toml` changed only in tool settings: deptry's `extend_exclude`, ruff's per-file ignores for the tool's tests); `make gate` passes; every published record validates | |
-| AC16 to AC21 | not started: after the sign-up (D5), if D6 picks a provider | | |
+| AC16 to AC21 | not applicable, by D6 (2026-10-21: local only for now; the hosted half is deferred, not cancelled) | the D6 row above; ADR-002 | |
 | AC22 | met offline (the live power line follows with the next session) | The preflight's power check and the watcher in `raglab.runtime.ollama`; 16 tests in `tests/unit/test_ollama_session.py` with a fake power reader (the AC22 section below) | the preflight's check removed: 9 of the 16 power tests fail; the watcher never started: all 5 mid-session tests fail (restored from git) |
 
 ## The judge's live contract test (AC3), the one live session before the sign-off
@@ -875,6 +876,78 @@ not the own judge's) and the metrics' intermediate verdicts recorded would let t
 and might explain the zeros, at about 30 minutes of Mac time; or the cross-check is cut, the
 plan's first cut, and AC11 stays partly met.
 
+### DeepEval's second and last session (2026-10-21)
+
+The user chose, verbatim, "One more session (Recommended)"; the option read: "About 30 min of
+Mac time on AC: a larger output cap for DeepEval's requests, recording each metric's claims,
+verdicts and reasons, and running the cross-check. Whatever it shows is recorded; no further
+sessions." Built first, offline (`28c6dc1`): DeepEval's own requests ask for up to 2,048 output
+tokens (`DEEPEVAL_MAX_TOKENS`: four times the 512 its `Truths` list was cut off at; a passage is
+at most 1,200 characters, about 300 tokens, so truths over five of them fit, and a prompt of the
+cross-check's size plus 2,048 stays inside the server's 8,192-token context), while
+`config/judge-local.toml` keeps 512 for the own judge; each metric's `truths`, `claims`,
+`verdicts` and `reason` are recorded after `measure` (the attribute names read by introspection
+on a stub run, no source read); and the metric canary's reading says "not separated" when the
+honest twin and the invented answer score the same or the honest twin fails. **The reading's
+break:** the old logic, the invented answer's verdict alone, put back: 3 of the 5 reading cases
+failed; restored from git: 14 of 14.
+
+`make deepeval-check JUDGED=20261021T081852Z-judge-local-dev-5aa0ec5` at `28c6dc1`: one guarded
+judge session, 11:06:15 to 11:18:58 WEST, **exit 0**. The preflight said "memory: 23.0 GiB
+available" and "power: the Mac draws from 'AC Power'"; the judge's live contract test passed (log
+`runs/tmp/judge-contract/20261021T100617Z.jsonl`); "canaries: all 19 on their side"; the tool
+wrote `runs/tmp/deepeval-check/20261021T101857Z.json` with "guard attempts: 0"; "postcheck
+passed". From that file: `max_tokens` `{"deepeval": 2048, "own_judge": 512}`; the opt-out `1`
+before the import; no guard attempt; every reply fitting its schema (`off_schema` 0 in every
+check).
+
+- **The custom-LLM API:** `Probe` returned, 1 call.
+- **The metric canary** (16 calls: 16,856 prompt and 1,974 completion tokens): the four scores
+  0.0 again; the reading, now: "not separated: the honest twin and the invented answer both
+  scored 0, so the run supports no reading". The steps: 13 truths from the five passages; the
+  invented answer's one claim, "Five password reset attempts are allowed per day (Identity and
+  Access FAQ, Q2).", verdict "no" ("The retrieval context specifies that **5–10 login attempts**
+  are allowed before an account is frozen (lockout), not password reset attempts."): a right fail.
+  The honest twin's two claims, "The company's documents do not set a limit on password reset
+  attempts per day" and "I cannot give a number", got one verdict, "no": "The retrieval context
+  explicitly states that **account lockout, if used, allows 5–10 login attempts** before freezing
+  the account, implying a limit on password reset attempts exists (even if throttling is
+  preferred). The claim that 'no limit' is set contradicts this." The 5 to 10 attempts are the
+  reference passage's (`X-NCSC@1.0/1/1`), not a company rule: the honest twin fails on the
+  model's misreading inside DeepEval's verdict step, with one verdict for two claims. Penalize on
+  and off gave the same, as no verdict was ambiguous.
+- **The hallucination direction** (4 calls: 3,802 and 288): both outputs 0.0 again, neither
+  passing, "undecided: both outputs scored the same". The metric's verdicts and reasons were
+  computed but not written: `direction_report` kept only each output's score and pass. That was
+  a defect of the change for this session; fixed since, with a test (`33ca073`), for any later
+  run. Not re-run: the user allowed one session. DeepEval 4.3.1's own runtime warning, seen in the
+  offline introspection run on 2026-10-21 against the stub server (Python hides it outside
+  `__main__`, so the live logs do not show it): "'HallucinationMetric' now scores in the same
+  direction as every other deepeval metric: 1 is a pass, 0 is a failure, and 'threshold' is the
+  MINIMUM passing score." That settles the direction as the page says; the live run does not say
+  why both outputs scored 0.
+- **The cross-check** (68 calls, 4 a case: 72,060 prompt and 10,223 completion tokens) on trial 1
+  of the 17 dev `answer` cases, against the own judge's `grounded` on the judge-v2 baseline:
+
+  | | DeepEval passes | DeepEval fails |
+  |---|---|---|
+  | The own judge passes | 12 | 2 (G-11, G-31) |
+  | The own judge fails | 2 (G-12 at 0.5, G-17) | 1 (G-01) |
+
+  They agree on 13 of 17. DeepEval's scores were 1.0, 0.5 and 0.0. On G-31 ("64" for the length a
+  password must have) DeepEval's verdict was "no" ("The retrieval context states that **passwords
+  must be at least 12 characters long**, not 64."), although a passage states 64 (the length a
+  system must accept). In 4.3.1 a verdict can be "borderline", and it counted as truthful: G-08,
+  G-14 and G-36 scored 1.0 on one "borderline" verdict each. The longest truths list, G-12's, held
+  33 truths, inside the 2,048 cap.
+
+**The reading the data supports:** through the local judge, DeepEval's faithfulness agrees with
+the own judge's `grounded` on 13 of 17 answers; the degenerate scores are the canary's and the
+hallucination check's only. The canary's are explained by its steps, a judge misreading in the
+verdict step. The hallucination check's cause is not recorded. DeepEval's scores stay out of the
+judged numbers (D4). AC11 is met, with the deviation from its wording (CRITERIA.md frozen) and
+this caveat.
+
 ### `raglab cost` and ADR-002 (phase 2, step 5)
 
 The price pages were read again on 2026-10-21 for the ADR: Anthropic's pricing page (Claude Haiku
@@ -907,9 +980,41 @@ $0.99: the test failed ("ADR-002's estimate is not raglab cost's output: run mak
 it word for word"); restored from git: 2 passed.
 
 **Mac time, phase 2:** the sessions ran 2026-10-20 20:42 to 22:34 (judged run 1, with the 36.5
-minutes of hibernation) and 2026-10-21 09:16 to 10:43 (the judge-v2 canaries, the judged run 2,
-the position test's two sessions and DeepEval's): about 3 hours 20 minutes of wall-clock time in
-all, under the plan's 4 hours.
+minutes of hibernation), 2026-10-21 09:16 to 10:43 (the judge-v2 canaries, the judged run 2, the
+position test's two sessions and DeepEval's first) and 11:06 to 11:19 (DeepEval's second): about
+3 hours 32 minutes of wall-clock time in all, under the plan's 4 hours.
+
+## For the pull request body
+
+Ready to copy; each has its section above.
+
+- **D6, local only for now** (the user's words: "let's use a local model for now and then we need
+  to identify all the signups and everything that I need to do"): AC16 to AC21 are not applicable,
+  by D6; the hosted half is deferred, not cancelled; ADR-002 is accepted and keeps its estimate
+  and recommendation for when it is revisited. The pull request does not wait for a sign-up.
+- **The second sign-off made a new prompt version, judge-v2,** rather than judge-v1 edited in
+  place as the orchestrator first worded it: the validator ties a record to its version's
+  fingerprint, so the first judged record (judge-v1) stays valid as history; CRITERIA.md's
+  Grader lines name judge-v2, the one edit beyond the previewed rule.
+- **AC11's wording:** DeepEval's results are in docs/COMPATIBILITY.md and this ledger, not in
+  CRITERIA.md, which is frozen; writing them there would need a third sign-off. The hallucination
+  metric's steps were not written in the one session the user allowed (fixed since, not re-run).
+- **A possible telemetry event (phase 1).** One run of the DeepEval tool's offline tests, before
+  `956d9e4`, ran without the opt-out in the shell: DeepEval's own pytest plugin loaded at start,
+  before the tests set the opt-out, and the socket guard covered only the metric run, where it
+  recorded nothing, so the process's exit was not guarded. A run that sends DeepEval's telemetry
+  would have reached PostHog then; no attempt was seen when the same tests were run again under
+  the guard from the start of the process. Since then the plugin never loads (`-p no:deepeval`),
+  the conftest sets the opt-out at collection and guards every test, and `make deepeval-test` and
+  `make deepeval-check` set it in the environment.
+- **A second `make judge-contract` start (phase 1)** was AC3's break: with the digest replaced in
+  `config/judge-local.toml` (`4760...` to `5760...`), the session's preflight refused before any
+  server started ("a session never serves other weights than its config pins"); restored from git.
+- **The Mac's hibernation** during the first judged run (on battery, down to 1%, 36.5 minutes),
+  and AC22, the power guard the user then asked for: every session since says its power source.
+- **`make audit` is red** on the known certifi and pillow advisories; the dependency pull request
+  fixes it, then this branch merges main and re-locks the DeepEval tool (the orchestrator says
+  when).
 
 ## Decisions needed
 

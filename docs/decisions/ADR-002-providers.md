@@ -1,6 +1,6 @@
 # ADR-002: Providers for the generator and the judge
 
-**Status:** proposed; waiting for the user's choice (D6). **Date:** 2026-10-21. **Stage:** S5.
+**Status:** accepted: local only for now (D6, 2026-10-21). **Date:** 2026-10-21. **Stage:** S5.
 
 ## Context
 
@@ -134,18 +134,34 @@ needed in S5, and AC16 to AC21 become "not applicable, by D6".
 
 ## Decision (D6)
 
-Waiting for the user's choice, to be quoted here verbatim with its date.
+On 2026-10-21, at about 11:02 WEST, asked through the orchestrator's prompt "D6: what should S5
+sign up for (ADR-002's options above)?", the user wrote, in their own words rather than a listed
+option, verbatim:
 
-## Consequences, if a provider is chosen
+> let's use a local model for now and then we need to identify all the signups and everything that
+> I need to do
 
-- **Keys** only in a local `.env` (gitignored) or a GitHub Environment secret, never in the repo
-  or a config file.
-- **A hard spend limit at the provider, set before the first call:** an Anthropic workspace other
-  than the default one, or an OpenAI project, with its own limit. Neither page offers a limit per
-  key, and OpenAI's says enforcement "is not instantaneous" [A3], [O2] (as the S5 plan read them on
-  2026-10-20). A per-run budget abort from the price table backs it (AC18).
-- **CI:** the hosted judge's contract tests run with the key (marker `live`, skipped without it);
-  judged gates move to CI only after S6 calibrates the judge.
+**Local only for now.** No provider is signed up for in S5, and no key exists: the generator and
+the judge stay on the maintainer's Mac. The recommendation above is not taken now; it stays here
+for when the hosted judge is revisited.
+
+## Consequences
+
+- **In S5:** nothing hosted is built or signed up for; AC16 to AC21 are "not applicable, by D6",
+  and the pull request does not wait for a sign-up. The judged numbers stay local and reported.
+- **Later:** "for now" defers the hosted half; it does not cancel it. The hosted judge is
+  revisited after the list of sign-ups and tasks the user asked for, which the orchestrator
+  compiles with the user; this record is the starting point then, with its estimate re-run from
+  the records and prices of that day.
+- **When a provider is chosen then:**
+  - **keys** only in a local `.env` (gitignored) or a GitHub Environment secret, never in the
+    repo or a config file;
+  - **a hard spend limit at the provider, set before the first call:** an Anthropic workspace
+    other than the default one, or an OpenAI project, with its own limit. Neither page offers a
+    limit per key, and OpenAI's says enforcement "is not instantaneous" [A3], [O2] (as the S5 plan
+    read them on 2026-10-20). A per-run budget abort from the price table backs it (AC18);
+  - **CI:** the hosted judge's contract tests run with the key (marker `live`, skipped without
+    it); judged gates move to CI only after S6 calibrates the judge.
 
 ## Sources
 

@@ -50,9 +50,41 @@ loopback-only guard on: it caught 0 attempts). Results, from
   ("EOF while parsing a string": the judge config caps a reply at 512 tokens), so the reply did
   not fit the schema, DeepEval raised, and the check reported the error (the session exited 2).
 
-Why every score was 0.0 is not known: the check records each metric's score and calls, not
-DeepEval's intermediate claims and verdicts. DeepEval's scores are never the judged numbers (D4);
-the own judge's verdicts are.
+That session recorded each metric's score and calls only, not DeepEval's intermediate steps.
+
+**A second and last session** (the user's choice, "One more session (Recommended)"), 2026-10-21,
+11:06 to 11:18 WEST, exit 0, the guard catching 0 attempts. DeepEval's own requests asked for up
+to 2,048 output tokens (the own judge's config keeps 512), and each metric's truths, claims,
+verdicts and reason were recorded after `measure`. Results, from
+`runs/tmp/deepeval-check/20261021T101857Z.json` (S5 ledger):
+
+- **The metric canary still separates nothing, and the steps show why.** The four scores are 0.0
+  again. The invented answer's one claim, "Five password reset attempts are allowed per day
+  (Identity and Access FAQ, Q2).", got the verdict "no": rightly. The honest twin's two claims
+  ("The company's documents do not set a limit on password reset attempts per day", "I cannot
+  give a number") got one verdict back, a "no": the judge read the reference passage's 5 to 10
+  login attempts before an account freezes as a company limit that "no limit" contradicts. So
+  the honest twin fails on the model's misreading inside DeepEval's verdict step (and a verdict
+  list shorter than the claims), not on how DeepEval counts claims: the run supports no reading of
+  that, as the corrected reading now says ("not separated").
+- **The hallucination direction stays undecided by the live run:** both outputs scored 0.0 again,
+  neither passing. Their verdicts and reasons were computed but not written (the direction report
+  kept only the scores; fixed since). DeepEval 4.3.1 itself, run offline against a stub server on
+  2026-10-21, warns: "'HallucinationMetric' now scores in the same direction as every other
+  deepeval metric: 1 is a pass, 0 is a failure, and 'threshold' is the MINIMUM passing score".
+  That is the page's "Higher is better", and it is why 0.0 does not pass.
+- **The cross-check ran** on trial 1 of the 17 dev `answer` cases (68 calls: 72,060 prompt and
+  10,223 completion tokens, every reply fitting its schema; the longest list, G-12's, held 33
+  truths), against the own judge's `grounded` on the judge-v2 baseline: both pass 12, both fail 1
+  (G-01), the own judge passing and DeepEval failing 2 (G-11, G-31), the own judge failing and
+  DeepEval passing 2 (G-12 at 0.5, G-17): they agree on 13 of 17. On G-31 ("64" for the length a
+  password must have), DeepEval failed a value a passage does state, reading it against a
+  12-character minimum. In 4.3.1 a verdict can be "borderline", which counted as truthful: G-08,
+  G-14 and G-36 scored 1.0 on a single "borderline" verdict.
+
+So the scores are degenerate on the canary and the hallucination check only: on the cross-check
+DeepEval gave 1.0, 0.5 and 0.0. DeepEval's scores are never the judged numbers (D4); the own
+judge's verdicts are.
 
 Known limits of that combination (docs/LOCAL-MODEL.md):
 

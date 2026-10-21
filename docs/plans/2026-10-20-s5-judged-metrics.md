@@ -485,6 +485,14 @@ AC16 to AC21 start after your sign-up, and this stage's pull request waits for i
 is none (local only), they are "not applicable, by D6": ADR-002 records local only, and the report
 counts them so.
 
+**D6, answered on 2026-10-21 (at about 11:02 WEST), in your own words rather than a listed
+option:** "let's use a local model for now and then we need to identify all the signups and
+everything that I need to do". So S5 is local only for now: nothing hosted is built or signed up
+for in this stage, AC16 to AC21 are "not applicable, by D6", and the pull request no longer waits
+for a sign-up. "For now" defers the hosted half; it does not cancel it: the hosted judge is
+revisited after the list of sign-ups and tasks you asked for, which the orchestrator compiles with
+you (ADR-002, Consequences).
+
 ## Your review tasks and time
 
 My estimates, updated for your answers (one pull request under D5; the orchestrator runs the

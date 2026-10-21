@@ -1,11 +1,11 @@
 # Onboarding
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
-guards, and where each concept already lives. It is current as of S5, in progress (2026-10-21):
-the judge, its criteria and canaries (signed off), the judged record, the position test, the cost
-formula and the fenced DeepEval tool are built; the judged baseline and the position test are
-published, ADR-002 waits for the user's provider choice, and a session runs on AC power only (the
-S5 ledger). Every stage that adds a
+guards, and where each concept already lives. It is current as of S5 (2026-10-21): the judge, its
+criteria and canaries (signed off), the judged record, the position test, the cost formula and the
+fenced DeepEval tool are built; the judged baseline and the position test are published; ADR-002
+records the user's choice, local only for now; and a session runs on AC power only (the S5
+ledger). Every stage that adds a
 command or a concept updates it, and
 `tests/unit/test_onboarding.py` checks that every path, `make` target and `raglab` command named
 here exists, and that the stage this line names is not still in progress once the phase map marks
@@ -148,13 +148,13 @@ playground reads only published runs (`tests/unit/test_playground.py`).
 
 ## Not testable yet
 
-Judged quality starts in S5: the judge is built, and it judges nothing until the user signs off docs/CRITERIA.md and the canary set; S3 and S4 check only what code can count.
+Judged quality started in S5: the local judge has judged the dev slice under the signed-off criteria, reported and not gated until S6 calibrates it; S3 and S4 check only what code can count.
 
 | Capability | Arrives in |
 |---|---|
 | A deployed demo: the fake model first, then a real model with rate and budget limits | S3h (start of P3), then S10 |
 | Behaviour cases (abstain, flag a conflict, refuse but help) and the dataset consistency gate | S4 (40 cases), S4b (about 120) |
-| Judged numbers on the dev slice, the checks on DeepEval, the provider and cost decision (ADR-002) | S5, after the sign-off |
+| A hosted judge and judged gates in CI | after S6's calibration, once the hosted half deferred by D6 is taken up (ADR-002: local only for now) |
 | A judge calibrated against human labels (kappa) | S6 |
 | Prompt injection, poisoned documents, red team, Guardrails AI (the attack documents are in the corpus but kept out of the default ingest) | S7 |
 | Every failure tagged with its cause, a suite audit and GATES.md | S8 |
