@@ -5,6 +5,10 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- uv 0.13.4 in CI and on the maintainer's Mac, and the `uv_build` backend at 0.13 (decision: "One
+  uv PR after S5's sessions (Recommended)"): uv before 0.13.4 trusts a root CA whose intermediate
+  keys were compromised (GHSA-hq85-5cpj-mr62), the root certifi dropped in the line below. The
+  lock is unchanged (`uv lock --check` passes under 0.13.4). Replaces Dependabot's #14 and #2.
 - `make audit` green again after the advisories of 2026-10-20 (decision: "Dependency PR, Pillow
   exception (Recommended)"): certifi 2026.10.19 (GHSA-6q48-6c7w-9gw2, revoked intermediates of
   a bundled root); Pillow 12.3.0's nine advisories skipped, with the reason in the Makefile, until
