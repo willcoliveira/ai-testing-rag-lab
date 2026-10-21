@@ -60,10 +60,37 @@ hand-computed values): a call costs (prompt tokens × input price + completion t
 price) / 1,000,000; a case-trial is its generator call and its judge calls; a run is the sum of
 its case-trials and one canary set; a month is the sum over the run types of
 `config/cost-assumptions.toml` of runs per month × cost per run. The prices are
-`config/prices.toml`'s, each with its source and read date. The tokens per case-trial by role, the
-monthly estimate per option with the price table's date, and Q-01's local p50 and p95 are written
-here from the published judged baseline, once it exists; no number is written before a run
-produces it.
+`config/prices.toml`'s, each with its source and read date.
+
+From `make cost JUDGED=20261021T081852Z-judge-local-dev-5aa0ec5` (the published judged baseline,
+147 case-trials; price_table_date 2026-10-21), copied from its output, which ADR-002 quotes in
+full:
+
+| Tokens per case-trial | Prompt | Completion |
+|---|---|---|
+| generator (one call) | 1042.2 | 109.8 |
+| judge (its criteria's calls) | 2150.7 | 347.6 |
+| judge_checks (repeatability and order) | 789.0 | 113.5 |
+
+The canaries (19 calls, 14224 prompt and 1688 completion tokens) run once per run. The monthly
+estimate per option, at the assumed runs a month:
+
+| Option | Per month |
+|---|---|
+| local only | $0.0000 |
+| local generator, Claude Haiku 5.5 judge | $1.21 |
+| local generator, gpt-5-mini judge | $3.83 |
+| local generator, Claude Sonnet 5.5 judge | $24.21 |
+| Claude Haiku 5.5 generator, gpt-5-mini judge | $4.60 |
+| gpt-5-mini generator, Claude Haiku 5.5 judge | $3.53 |
+
+**Q-01, the local latency baseline (reported):** the pipeline's answer time per case-trial (the
+input guards, retrieval, the generator call and the output checks, in-process, without the API
+layer) on the consistency baseline `20261019T172035Z-generation-local-ollama-dev-97011a7`: p50
+1510.180 ms, p95 2743.227 ms (n 147). The local judge's time per call on the judged baseline: p50
+5522.768 ms, p95 10373.613 ms (n 592), on AC power (the session's power line; the S4 baseline's
+power source was not recorded). Both are the maintainer's Mac; a hosted provider's are measured
+after the sign-up.
 
 The test split is never used to set a threshold or to choose a configuration; it runs in
 nightly, release and the capstone only.

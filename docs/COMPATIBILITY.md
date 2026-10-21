@@ -26,9 +26,33 @@ environment never installs it). Checked at 4.3.1 so far, offline (`make deepeval
 whole `FaithfulnessMetric` in eval mode `llm` through raglab's adapter against a stub server, and
 the telemetry opt-out: with `DEEPEVAL_TELEMETRY_OPT_OUT` unset, DeepEval's PostHog client tried to
 reach `us.i.posthog.com:443` at the interpreter's exit, and the loopback-only socket guard caught
-every attempt; with it set to `1` before the import, there was none (S5 ledger). The checks against
-the local judge (the metric canary, the hallucination direction, the cross-check) run in a judge
-session after the sign-off of docs/CRITERIA.md, and are written here then.
+every attempt; with it set to `1` before the import, there was none (S5 ledger).
+
+Checked live at 4.3.1 against the local judge
+(`ministral-3:14b-instruct-2512-q4_K_M@4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7`,
+Ollama 0.40.6, its judge config: temperature 0, 512 output tokens, `json_schema`) on 2026-10-21,
+in one judge session (`make deepeval-check`, the telemetry opt-out set before the import, the
+loopback-only guard on: it caught 0 attempts). Results, from
+`runs/tmp/deepeval-check/20261021T094309Z.json` (S5 ledger):
+
+- **The custom-LLM interface works:** called with a schema, the subclass returned its instance
+  (1 call); every one of the 20 calls of the next two checks fitted the schema DeepEval asked for.
+- **The metric canary separates nothing:** `FaithfulnessMetric` gave 0.0 to the honest twin and
+  to the invented answer, with `penalize_ambiguous_claims` off and on (4 scores, 4 calls each);
+  none passes the default threshold of 0.5. Since the honest answer, which states no value, also
+  scored 0.0, the run supports no reading of how an unsupported claim is counted.
+- **The hallucination direction is undecided:** `HallucinationMetric` gave 0.0 to both the output
+  consistent with G-01's passage and the one that contradicts it (2 calls each). At the default
+  threshold of 0.5 a score of 0.0 does not pass (`is_successful()` false), so this version treats
+  the threshold as a minimum, as the page read on 2026-10-20 says ("Higher is better").
+- **The cross-check did not run:** its first `FaithfulnessMetric` call asked for DeepEval's
+  `Truths` schema over a case's five passages, and the judge's reply was cut off mid-string
+  ("EOF while parsing a string": the judge config caps a reply at 512 tokens), so the reply did
+  not fit the schema, DeepEval raised, and the check reported the error (the session exited 2).
+
+Why every score was 0.0 is not known: the check records each metric's score and calls, not
+DeepEval's intermediate claims and verdicts. DeepEval's scores are never the judged numbers (D4);
+the own judge's verdicts are.
 
 Known limits of that combination (docs/LOCAL-MODEL.md):
 

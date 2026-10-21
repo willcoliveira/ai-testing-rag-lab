@@ -170,11 +170,11 @@ below.
 | AC7 | met at `20261021T081852Z-judge-local-dev-5aa0ec5` (judge-v2): the consistency baseline judged and published, every number in the ledger copied from the record; the first record, under judge-v1, stays published as history | `raglab judge`, `make judge-local RUN=`; THRESHOLDS.md marks every judged criterion reported with the reason (`57f6fad`) | The verdict no longer read again from its reply (only the quote, ids and reason compared): the flipped-verdict test "1 failed, 21 passed", restored "22 passed". The plan's break on the published record waits for it |
 | AC8 | met: repeatability 92 of 92 pairs agree, order 46 of 48, in both published records | The repeatability pass (trial 1 of every behaviour case judged again) and the order pass (grounded on trial 1 of every case with the passages reversed), both after every answer is judged, both in the record and validated (`tests/judge/test_order_check.py`, 4 tests) | The order check given the passages in their original order (`reverse=False` in `judged.run`): "2 failed, 2 passed", restored "4 passed" |
 | AC9 | met: the position run `20261021T092047Z-generation-local-ollama-position-dev-f309594` (one generator session, scored by code) and the judge's `correct` on it `20261021T092819Z-judge-local-dev-9fa9004`, both published (the position section below) | `tests/generation/test_position_contexts.py` (20 tests): first, middle (n // 2) and last; the fillers are the tenant's other chunks in rank order, never a labelled section or a group member, nor another tenant's or a shared chunk; the fit to the budget; the measured characters per token are the fewest; a value is stated as the answer key writes it or by its numbers and units (11 cases); the committed config names the ten cases, derived from the golden file; a position run writes a valid generation record; a moved answering chunk, a labelled filler and forged checks are refused; the judge's `correct` runs on a position run | (1) the answering chunk put first at every position (`index = 0` in `place`): "3 failed, 17 passed", restored "20 passed". (2) a group member allowed as filler (only plain labels excluded in `fillers`): "1 failed, 19 passed", restored "20 passed" |
-| AC10 | met offline; needs CI for `make audit` on the runner | `tools/deepeval-check` locks `deepeval==4.3.1` (94 packages resolved); the main environment never installs it (`uv sync --locked` unchanged, the main `uv.lock` holds no deepeval, `find_spec("deepeval")` is None and no `deepeval` pytest plugin is registered: `test_the_main_environment_never_installs_deepeval`); rule 6 forbids a deepeval import anywhere under `src/` (`test_deepeval_is_imported_nowhere_in_the_package_adapters_included`, 12 cases); `make audit` exports its 92 pinned requirements with their hashes and audits them without installing ("No known vulnerabilities found"); deptry leaves `tools/` to its own lock; Dependabot watches it, a DeepEval bump in a PR of its own. `make deepeval-test`: "8 passed" (the opt-out set before the first DeepEval import, recorded by an import hook; the guard lets nothing but the loopback Ollama port through; the custom-LLM API returns the schema's instance and records tokens; a whole FaithfulnessMetric in mode llm through the wrapper against a stub, with no connection attempted; the direction report; the canary reading) | (1) `import deepeval` added to `src/raglab/adapters/openai_compat.py`: `make architecture` "1 architecture violations" ("src/raglab/adapters/openai_compat.py:28: deepeval is fenced in tools/deepeval-check and imported nowhere in raglab, adapters included"), restored "0 architecture violations". (2) The opt-out unset with the guard on (a probe outside the repository: DeepEval imported and a FaithfulnessMetric run against a stub judge, the guard installed before the import and kept until the interpreter exits): no attempt during the import or the metric, then at exit "[PostHog] error uploading: HTTPSConnectionPool(host='us.i.posthog.com', port=443)": 12 lookups of `us.i.posthog.com:443`, every one caught. With the opt-out set to 1 before the import: no attempt at all, exit included |
-| AC11 | offline parts met; the live checks wait for phase 2. Deviation from its wording: the results go to COMPATIBILITY.md and this ledger, not CRITERIA.md, which is frozen (a third sign-off would be needed; the pull request reports it) | The checks are code (`tools/deepeval-check/src/deepeval_check/checks.py`): the custom-LLM API, the metric canary (C-01 and C-03 with penalize_ambiguous_claims off and on), the hallucination direction (G-01's labelled passage, a consistent and a contradicting output, the page's sentence and its read date), the cross-check against the own judge's grounded on trial 1 of the dev answer cases; every metric in mode llm. Offline: `test_the_direction_report_names_the_output_that_scored_higher` (3 cases) and `test_the_canary_reading_follows_the_invented_answers_verdict` | The direction report's scores swapped (`x, c = ...`): `make deepeval-test` "2 failed, 6 passed", restored "8 passed" |
-| AC12 | the code and the table met offline; the estimate waits for a judged record | `config/prices.toml` (seven rows, each with its source URL and read date 2026-10-20; the table's date is its latest read date); `config/cost-assumptions.toml`; `raglab cost --judged` (`tests/unit/test_cost.py`, 15 tests: a call's cost by hand; the estimate by hand, per call, per case-trial, per run and per month; a prompt above a price's tier refused; the committed table's rows and dates; eight wrong tables refused; the committed options keep the judge's family apart; an option naming no price refused; the CLI on a judged record). THRESHOLDS.md states the formula | (1) the output price applied to prompt tokens (`prompt * price.output` in `call_cost`): "2 failed, 13 passed" (`0.0022 == 0.0012`), restored "15 passed". (2) one price's `source` line removed from `config/prices.toml`: "7 failed, 8 passed" ("price 5 (openai-gpt-5-nano): missing ['source']"), restored "15 passed" |
-| AC13 | not started (phase 2: ADR-002 from `raglab cost`'s output, then D6) | | |
-| AC14 | the parts that need no run met | TEST-PLAN R5 names its tests (nine) and its gate ("local until keys (`make judge-local`); reported, not gated, until S6 calibrates the judge"), its oracle says what is judged and what stays label-based; section 10's judges line and the metric canary line; Q-01 and Q-02 point at THRESHOLDS.md; the Test column names the judged criteria (reported) for R-01, R-03 to R-07, R-10, R-11, R-14 and R-18 (`tests/unit/test_test_plan.py`, two new tests); LOCAL-MODEL, COMPATIBILITY, ONBOARDING (current as of S5, in progress), ARCHITECTURE and README (S5 `wip`; S5 before S4b), a CHANGELOG line. The measured numbers (THRESHOLDS cost and Q-01, the judge's session time on the judged run, COMPATIBILITY's DeepEval lines) wait for the runs | |
+| AC10 | met offline and live (the opt-out set before the import, the guard on and catching 0 attempts, every metric in mode `llm`, every call through raglab's adapter: the DeepEval section below); needs CI for `make audit`, red until the dependency pull request (Notes) | `tools/deepeval-check` locks `deepeval==4.3.1` (94 packages resolved); the main environment never installs it (`uv sync --locked` unchanged, the main `uv.lock` holds no deepeval, `find_spec("deepeval")` is None and no `deepeval` pytest plugin is registered: `test_the_main_environment_never_installs_deepeval`); rule 6 forbids a deepeval import anywhere under `src/` (`test_deepeval_is_imported_nowhere_in_the_package_adapters_included`, 12 cases); `make audit` exports its 92 pinned requirements with their hashes and audits them without installing ("No known vulnerabilities found"); deptry leaves `tools/` to its own lock; Dependabot watches it, a DeepEval bump in a PR of its own. `make deepeval-test`: "8 passed" (the opt-out set before the first DeepEval import, recorded by an import hook; the guard lets nothing but the loopback Ollama port through; the custom-LLM API returns the schema's instance and records tokens; a whole FaithfulnessMetric in mode llm through the wrapper against a stub, with no connection attempted; the direction report; the canary reading) | (1) `import deepeval` added to `src/raglab/adapters/openai_compat.py`: `make architecture` "1 architecture violations" ("src/raglab/adapters/openai_compat.py:28: deepeval is fenced in tools/deepeval-check and imported nowhere in raglab, adapters included"), restored "0 architecture violations". (2) The opt-out unset with the guard on (a probe outside the repository: DeepEval imported and a FaithfulnessMetric run against a stub judge, the guard installed before the import and kept until the interpreter exits): no attempt during the import or the metric, then at exit "[PostHog] error uploading: HTTPSConnectionPool(host='us.i.posthog.com', port=443)": 12 lookups of `us.i.posthog.com:443`, every one caught. With the opt-out set to 1 before the import: no attempt at all, exit included |
+| AC11 | partly met: the live checks ran at 4.3.1 (the DeepEval section below): the custom-LLM API works; the metric canary and the hallucination direction scored 0.0 throughout, so they read nothing; the cross-check did not run (a reply cut off at 512 tokens); a second session is the orchestrator's call. Deviation from its wording: the results go to COMPATIBILITY.md and this ledger, not CRITERIA.md, which is frozen (a third sign-off would be needed; the pull request reports it) | The checks are code (`tools/deepeval-check/src/deepeval_check/checks.py`): the custom-LLM API, the metric canary (C-01 and C-03 with penalize_ambiguous_claims off and on), the hallucination direction (G-01's labelled passage, a consistent and a contradicting output, the page's sentence and its read date), the cross-check against the own judge's grounded on trial 1 of the dev answer cases; every metric in mode llm. Offline: `test_the_direction_report_names_the_output_that_scored_higher` (3 cases) and `test_the_canary_reading_follows_the_invented_answers_verdict` | The direction report's scores swapped (`x, c = ...`): `make deepeval-test` "2 failed, 6 passed", restored "8 passed" |
+| AC12 | met: `make cost` over the judge-v2 baseline (step 5 below), the table read again on 2026-10-21 (unchanged), THRESHOLDS.md's cost section and Q-01 from the output and the records | `config/prices.toml` (seven rows, each with its source URL and read date 2026-10-20; the table's date is its latest read date); `config/cost-assumptions.toml`; `raglab cost --judged` (`tests/unit/test_cost.py`, 15 tests: a call's cost by hand; the estimate by hand, per call, per case-trial, per run and per month; a prompt above a price's tier refused; the committed table's rows and dates; eight wrong tables refused; the committed options keep the judge's family apart; an option naming no price refused; the CLI on a judged record). THRESHOLDS.md states the formula | (1) the output price applied to prompt tokens (`prompt * price.output` in `call_cost`): "2 failed, 13 passed" (`0.0022 == 0.0012`), restored "15 passed". (2) one price's `source` line removed from `config/prices.toml`: "7 failed, 8 passed" ("price 5 (openai-gpt-5-nano): missing ['source']"), restored "15 passed" |
+| AC13 | ADR-002 written from `raglab cost`'s output (`91a9a16`), with its test; not met until the user's choice (D6) is quoted in it | `docs/decisions/ADR-002-providers.md`; `tests/unit/test_adr.py` (2 tests) | a cost edited by hand in the ADR ($1.21 to $0.99): the test failed; restored from git |
+| AC14 | met but for ARCHITECTURE and README marking S5 `done`, which waits for the pull request; LOCAL-MODEL now has the judge sessions' measured times and the power rule | TEST-PLAN R5 names its tests (nine) and its gate ("local until keys (`make judge-local`); reported, not gated, until S6 calibrates the judge"), its oracle says what is judged and what stays label-based; section 10's judges line and the metric canary line; Q-01 and Q-02 point at THRESHOLDS.md; the Test column names the judged criteria (reported) for R-01, R-03 to R-07, R-10, R-11, R-14 and R-18 (`tests/unit/test_test_plan.py`, two new tests); LOCAL-MODEL, COMPATIBILITY, ONBOARDING (current as of S5, in progress), ARCHITECTURE and README (S5 `wip`; S5 before S4b), a CHANGELOG line. The measured numbers (THRESHOLDS cost and Q-01, the judge's session time on the judged run, COMPATIBILITY's DeepEval lines) wait for the runs | |
 | AC15 | met locally (the tail below); needs CI (pr-fast) | No new runtime dependency in the main project (`pyproject.toml` changed only in tool settings: deptry's `extend_exclude`, ruff's per-file ignores for the tool's tests); `make gate` passes; every published record validates | |
 | AC16 to AC21 | not started: after the sign-up (D5), if D6 picks a provider | | |
 | AC22 | met offline (the live power line follows with the next session) | The preflight's power check and the watcher in `raglab.runtime.ollama`; 16 tests in `tests/unit/test_ollama_session.py` with a fake power reader (the AC22 section below) | the preflight's check removed: 9 of the 16 power tests fail; the watcher never started: all 5 mid-session tests fail (restored from git) |
@@ -832,6 +832,82 @@ middle most often, the judge last); both are reported. Tokens (from the manifest
 7981 completion; canaries 19 calls,
 14224 and 1688; none unreported. The judge's
 latency: p50 3465.03 ms, p95 6335.938 ms (n 108).
+
+### DeepEval's checks (phase 2, step 4)
+
+`make deepeval-check JUDGED=20261021T081852Z-judge-local-dev-5aa0ec5` at `826ab69`: one guarded
+judge session, 10:38:01 to 10:43:10 WEST, **exit 2**. The preflight said "memory: 29.1 GiB
+available" and "power: the Mac draws from 'AC Power'"; the judge's live contract test passed (log
+`runs/tmp/judge-contract/20261021T093802Z.jsonl`); "canaries: all 19 on their side"; then
+`tools/deepeval-check`, which wrote `runs/tmp/deepeval-check/20261021T094309Z.json` and exited 1
+because a check could not run; the model unloaded, the server stopped, "postcheck passed". From
+that file:
+
+- DeepEval `4.3.1`; `DEEPEVAL_TELEMETRY_OPT_OUT` `1`, set before the import
+  (`opted_out_before_import`: true); the loopback-only guard caught **0** attempts.
+- **The custom-LLM API:** called with a schema, `RaglabJudgeLLM` returned an instance of it
+  (`Probe`, `is_instance` true); 1 call, 586 prompt and 26 completion tokens.
+- **The metric canary** (`FaithfulnessMetric`, eval mode `llm`, on C-03, the honest twin, and
+  C-01, the invented answer, with `penalize_ambiguous_claims` off and on): all four scores **0.0**,
+  none passing the default threshold of 0.5, 4 calls each (16 calls, 16,856 prompt and 1,974
+  completion tokens, every reply fitting its schema). The tool's automatic reading, "only
+  supported claims count: the invented value failed", is not what the run supports: the honest
+  twin, which states no value, also scored 0.0, so the canary separated nothing.
+- **The hallucination direction** (`HallucinationMetric` with G-01's labelled passage): the
+  consistent output **0.0** and the contradicting output **0.0**, "undecided: both outputs scored
+  the same"; neither passes the default threshold (`is_successful()` false at 0.0), so 4.3.1
+  treats the threshold as a minimum, as the page read on 2026-10-20 says ("Higher is better"). 4
+  calls, 3,802 prompt and 288 completion tokens, every reply fitting its schema.
+- **The cross-check did not run.** Its first `FaithfulnessMetric` call asked for DeepEval's
+  `Truths` schema over a case's five passages; the reply was cut off ("ValidationError: 1
+  validation error for Truths / Invalid JSON: EOF while parsing a string at line 20 column 95"),
+  at the judge config's cap of 512 output tokens. The wrapper never repairs a reply, so DeepEval
+  raised and the check reported it. 5 calls, 5,687 prompt and 1,195 completion tokens, 1 off the
+  schema.
+
+Why every score was 0.0 is not known: the check records each metric's score and calls, not
+DeepEval's intermediate claims, truths and verdicts. Recorded in docs/COMPATIBILITY.md and here,
+not in CRITERIA.md (the deviation from AC11's wording, above). **For the orchestrator, not done:**
+a second DeepEval session with a larger output cap for DeepEval's calls (the wrapper's requests,
+not the own judge's) and the metrics' intermediate verdicts recorded would let the cross-check run
+and might explain the zeros, at about 30 minutes of Mac time; or the cross-check is cut, the
+plan's first cut, and AC11 stays partly met.
+
+### `raglab cost` and ADR-002 (phase 2, step 5)
+
+The price pages were read again on 2026-10-21 for the ADR: Anthropic's pricing page (Claude Haiku
+5.5 for prompts up to 100,000 tokens $0.10 and $0.50, batch $0.05 and $0.25; Sonnet 5.5 $2 and
+$10, batch $1 and $5; Opus 5.5 $4 and $20, batch $2 and $10; Haiku 4.5 $1 and $5, batch $0.50 and
+$2.50), Claude Haiku 5.5's overview (the model id `claude-haiku-5-5`; the tokenizer sentence
+quoted in the ADR; "Omit `temperature`, `top_p`, and `top_k`"), and OpenAI's pricing page
+(gpt-5-nano $0.05 and $0.40, batch $0.025 and $0.20; gpt-5-mini $0.25 and $2.00, batch $0.125 and
+$1.00; gpt-6-luna up to 272K input tokens $0.10 and $0.50, batch $0.05 and $0.25). Every row was
+unchanged, so `config/prices.toml` keeps its prices and its read dates became 2026-10-21
+(`f27238d`).
+
+`raglab cost` now names its inputs relative to the repository (`3b31621`), so its output is the
+same on any machine, and prints each role's tokens per case-trial (`f27238d`), which AC12 asks
+for. `make cost JUDGED=20261021T081852Z-judge-local-dev-5aa0ec5` (exit 0) is quoted word for word
+in docs/decisions/ADR-002-providers.md (`91a9a16`), and THRESHOLDS.md copies its tokens per
+case-trial by role and the monthly estimate per option (each of their 32 numbers checked against
+the output), with Q-01's local p50 and p95 from the consistency baseline's record (1510.180 ms,
+2743.227 ms, n 147) and the judge's per call from the judged baseline's (5522.768 ms, 10373.613
+ms, n 592). The monthly estimate per option: local only $0.0000; the local generator with a Claude
+Haiku 5.5 judge $1.21, a gpt-5-mini judge $3.83, a Claude Sonnet 5.5 judge $24.21; Claude Haiku
+5.5 with a gpt-5-mini judge $4.60; gpt-5-mini with a Claude Haiku 5.5 judge $3.53.
+
+The ADR's recommendation: the local generator with a Claude Haiku 5.5 judge, the local judge kept
+for offline work and as the fallback; local only stays a sound choice if S6 should calibrate the
+local judge first. Its decision section waits for D6. `tests/unit/test_adr.py` renders `raglab
+cost`'s output again from the committed record, table and assumptions and finds it in the ADR.
+**AC13's break:** the Haiku 5.5 option's monthly cost edited by hand in the ADR, from $1.21 to
+$0.99: the test failed ("ADR-002's estimate is not raglab cost's output: run make cost and copy
+it word for word"); restored from git: 2 passed.
+
+**Mac time, phase 2:** the sessions ran 2026-10-20 20:42 to 22:34 (judged run 1, with the 36.5
+minutes of hibernation) and 2026-10-21 09:16 to 10:43 (the judge-v2 canaries, the judged run 2,
+the position test's two sessions and DeepEval's): about 3 hours 20 minutes of wall-clock time in
+all, under the plan's 4 hours.
 
 ## Decisions needed
 
