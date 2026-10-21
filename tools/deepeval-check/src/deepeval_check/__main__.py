@@ -8,11 +8,29 @@ import argparse
 import json
 import os
 import sys
+from dataclasses import replace
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from deepeval_check import guard
+
+if TYPE_CHECKING:
+    from raglab.evals.config import JudgeConfig
+
+# The output cap of DeepEval's own requests. The own judge's verdicts fit its config's 512 tokens;
+# DeepEval's steps can be longer: on 2026-10-21 its Truths list over a case's five passages was cut
+# off at 512 (S5 ledger). 2,048 is four times that, and a passage is at most 1,200 characters (about
+# 300 tokens), so a list of truths over five of them fits; a prompt of the cross-check's size plus
+# 2,048 stays inside the server's 8,192-token context.
+DEEPEVAL_MAX_TOKENS = 2048
+
+
+def deepeval_config(config: "JudgeConfig") -> "JudgeConfig":
+    """The judge config DeepEval's requests use: the same model, server and settings, with
+    DEEPEVAL_MAX_TOKENS as its output cap. The config the own judge uses is unchanged."""
+    return replace(config, judge=replace(config.judge, max_tokens=DEEPEVAL_MAX_TOKENS))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,14 +49,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     root: Path = args.root
     config = eval_config.load_judge(root / args.config, root)
-    structured, _, _ = judge_from_config(config)
-    plain, _, _ = judge_from_config(config, response_format="none")
+    deepeval = deepeval_config(config)
+    structured, _, _ = judge_from_config(deepeval)
+    plain, _, _ = judge_from_config(deepeval, response_format="none")
     llm = RaglabJudgeLLM(structured.chat, plain.chat, config.judging.seed)
     results: dict[str, object] = {
         "deepeval": version("deepeval"),
         "telemetry_opt_out": os.environ.get(guard.OPT_OUT),
         "opted_out_before_import": not imported_before,
         "judge": structured.describe(),
+        "max_tokens": {"deepeval": DEEPEVAL_MAX_TOKENS, "own_judge": config.judge.max_tokens},
     }
     failed = False
     for name, run in (

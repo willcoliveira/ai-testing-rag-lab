@@ -219,8 +219,63 @@ def test_the_direction_report_names_the_output_that_scored_higher(
     assert report["page_read"] == HALLUCINATION_PAGE_READ
 
 
-def test_the_canary_reading_follows_the_invented_answers_verdict():
+@pytest.mark.parametrize(
+    ("honest", "invented", "reading"),
+    [
+        ((0.0, False), (0.0, False), "not separated: the honest twin and the invented answer both"),
+        ((1.0, True), (1.0, True), "not separated: the honest twin and the invented answer both"),
+        ((0.3, False), (0.0, False), "not separated: the honest twin failed too"),
+        ((1.0, True), (0.6, True), "not contradicted counts as truthful"),
+        ((1.0, True), (0.0, False), "only supported claims count"),
+    ],
+)
+def test_the_canary_reading_says_when_the_canary_separates_nothing(honest, invented, reading):
+    """Fixed on 2026-10-21: the live run of that day read "only supported claims count: the
+    invented value failed" from the invented answer alone, when the honest twin had scored 0.0 as
+    well. Two answers that score the same are not separated, and the reading says so."""
     from deepeval_check.checks import canary_reading
 
-    assert canary_reading({"passes": True}).startswith("not contradicted counts as truthful")
-    assert canary_reading({"passes": False}).startswith("only supported claims count")
+    found = canary_reading(
+        {"score": honest[0], "passes": honest[1]}, {"score": invented[0], "passes": invented[1]}
+    )
+    assert found.startswith(reading), found
+    if honest[0] == invented[0] or not honest[1]:
+        assert "only supported claims count" not in found
+        assert "counts as truthful" not in found
+
+
+def test_each_metric_records_the_steps_its_score_comes_from():
+    """After measure, a FaithfulnessMetric's truths, claims, verdicts and reason, and a
+    HallucinationMetric's verdicts and reason, are recorded beside the score."""
+    from deepeval_check import checks
+
+    llm = judge_llm(schema_reply, [])
+    with guard.SocketGuard() as sockets:
+        found = checks.faithfulness(llm, "q?", "a.", ["p."], penalize=False)
+        seen = checks.hallucination(llm, "q?", "a.", ["p."])
+    assert {"truths", "claims", "verdicts", "reason"} <= set(found)
+    assert isinstance(found["claims"], list)
+    assert isinstance(found["reason"], str)
+    assert {"verdicts", "reason"} <= set(seen)
+    assert sockets.attempts == []
+    json.dumps(found)  # plain data: the results file holds it
+
+
+def test_deepevals_requests_get_their_own_output_cap_and_the_judge_config_is_unchanged():
+    """DeepEval's requests ask for up to DEEPEVAL_MAX_TOKENS (its Truths list was cut off at the
+    own judge's 512 on 2026-10-21); the committed judge config keeps 512, and nothing else of the
+    judge changes."""
+    from dataclasses import replace
+    from pathlib import Path
+
+    from deepeval_check.__main__ import DEEPEVAL_MAX_TOKENS, deepeval_config
+
+    from raglab.evals import config as eval_config
+
+    root = Path(__file__).resolve().parents[3]
+    config = eval_config.load_judge(root / "config" / "judge-local.toml", root)
+    raised = deepeval_config(config)
+    assert DEEPEVAL_MAX_TOKENS == 2048
+    assert (config.judge.max_tokens, raised.judge.max_tokens) == (512, 2048)
+    assert replace(raised.judge, max_tokens=config.judge.max_tokens) == config.judge
+    assert (raised.judging, raised.ollama) == (config.judging, config.ollama)

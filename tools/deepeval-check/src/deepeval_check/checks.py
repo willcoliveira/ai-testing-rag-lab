@@ -63,6 +63,23 @@ def custom_llm_api(llm: RaglabJudgeLLM) -> Json:
     return {"returned": type(out).__name__, "is_instance": isinstance(out, Probe)}
 
 
+def _plain(value: object) -> object:
+    """A metric's intermediate output as JSON data: a pydantic model as its fields, a list item by
+    item, anything else as it is."""
+    if isinstance(value, BaseModel):
+        return value.model_dump()
+    if isinstance(value, list):
+        return [_plain(item) for item in cast(list[object], value)]
+    return value
+
+
+def _steps(metric: object, names: Sequence[str]) -> Json:
+    """What a metric worked from after measure, read from its public attributes (DeepEval 4.3.1:
+    a FaithfulnessMetric's truths, claims, verdicts and reason; a HallucinationMetric's verdicts
+    and reason), so a score can be read from its steps."""
+    return {name: _plain(getattr(metric, name, None)) for name in names}
+
+
 def faithfulness(
     llm: RaglabJudgeLLM, question: str, answer: str, passages: Sequence[str], penalize: bool
 ) -> Json:
@@ -78,6 +95,7 @@ def faithfulness(
         "passes": metric.is_successful(),
         "threshold": metric.threshold,
         "calls": len(llm.calls) - before,
+        **_steps(metric, ("truths", "claims", "verdicts", "reason")),
     }
 
 
@@ -90,16 +108,32 @@ def hallucination(llm: RaglabJudgeLLM, question: str, output: str, context: Sequ
         "passes": metric.is_successful(),
         "threshold": metric.threshold,
         "calls": len(llm.calls) - before,
+        **_steps(metric, ("verdicts", "reason")),
     }
 
 
-def canary_reading(invented_penalize_off: Json) -> str:
-    """Which of the faithfulness page's readings a run supports, from the invented answer's
-    verdict with penalize_ambiguous_claims off: passing means an unsupported claim that nothing
-    contradicts counted as truthful; failing means only supported claims counted."""
-    if invented_penalize_off["passes"]:
-        return "not contradicted counts as truthful: the invented value passed"
-    return "only supported claims count: the invented value failed"
+def canary_reading(honest: Json, invented: Json) -> str:
+    """Which of the faithfulness page's readings a run supports, from the honest twin's and the
+    invented answer's scores with penalize_ambiguous_claims off. The canary separates them only
+    when they score differently and the honest twin passes: then the invented answer passing means
+    an unsupported claim that nothing contradicts counted as truthful, and failing means only
+    supported claims counted. Otherwise the run supports no reading, and says so."""
+    h, i = float(cast(float, honest["score"])), float(cast(float, invented["score"]))
+    if h == i:
+        return (
+            f"not separated: the honest twin and the invented answer both scored {h:g}, so the "
+            "run supports no reading"
+        )
+    if not honest["passes"]:
+        return (
+            f"not separated: the honest twin failed too ({h:g}, the invented answer {i:g}), so "
+            "the run supports no reading"
+        )
+    if invented["passes"]:
+        return (
+            "not contradicted counts as truthful: the invented value passed beside the honest twin"
+        )
+    return "only supported claims count: the invented value failed and the honest twin passed"
 
 
 def direction_report(consistent: Json, contradicting: Json) -> Json:
@@ -136,7 +170,9 @@ def metric_canary(llm: RaglabJudgeLLM, root: Path) -> Json:
             scores[key] = faithfulness(llm, P01, str(item.answer), texts, penalize)
     return {
         "scores": scores,
-        "reading": canary_reading(cast(Json, scores["invented, penalize off"])),
+        "reading": canary_reading(
+            cast(Json, scores["honest, penalize off"]), cast(Json, scores["invented, penalize off"])
+        ),
     }
 
 
