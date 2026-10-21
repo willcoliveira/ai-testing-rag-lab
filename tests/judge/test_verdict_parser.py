@@ -12,7 +12,7 @@ import pytest
 from raglab.adapters.fake import FakeChat
 from raglab.core.types import ChatTimeout, ChatUnavailable, JudgeItem, Passage, Status
 from raglab.judge.llm import LLMJudge
-from raglab.judge.prompts import judge_v1 as prompt
+from raglab.judge.prompts import judge_v2 as prompt
 from tests.retrieval_support import PACK
 
 pytestmark = pytest.mark.unit
@@ -150,7 +150,7 @@ def test_a_verdict_keeps_what_it_was_shown_and_what_it_cost():
 def test_the_judge_describes_its_model_and_its_prompt():
     judge = LLMJudge(FakeChat(name="fake-judge"))
     assert judge.describe() == {"provider": "fake", "model": "fake-judge", "digest": "fake"}
-    assert (judge.version, judge.fingerprint()) == ("judge-v1", prompt.fingerprint())
+    assert (judge.version, judge.fingerprint()) == ("judge-v2", prompt.fingerprint())
 
 
 def test_a_verdict_off_the_schema_or_without_a_reply_is_never_a_pass():

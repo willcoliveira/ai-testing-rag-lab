@@ -7,7 +7,7 @@ judged, so a stop names every item off its side, not only the first.
 
 One JSON object per line (datasets/canaries.judge.jsonl): `id`, `criterion`, `side` (pass or
 fail), `purpose` (what the item plants), and exactly the inputs its criterion sees
-(raglab.judge.prompts.judge_v1.RULES): `question`, `passages`, `reference`, `answer`. A passage is
+(raglab.judge.prompts.judge_v2.RULES): `question`, `passages`, `reference`, `answer`. A passage is
 a corpus chunk id, whose text is read from the register's documents at the default chunk settings
 (1,200 characters, overlap 1), the settings the ids are written at; or an object written by hand
 (`chunk_id`, `document`, `version`, `section`, `status`, `text`), for a passage the corpus does not
@@ -24,7 +24,7 @@ from raglab.chunk.sections import ChunkSettings
 from raglab.core.ports import Judge
 from raglab.core.types import CRITERIA, JudgeItem, Passage, Status, Verdict
 from raglab.ingest import pipeline
-from raglab.judge.prompts import judge_v1
+from raglab.judge.prompts import judge_v2
 
 type Json = dict[str, object]
 SIDES = ("pass", "fail")
@@ -90,7 +90,7 @@ def parse_line(line: str, where: str) -> Canary:
         raise CanaryError(f"{where}: criterion {criterion!r} is not one of {list(CRITERIA)}")
     if side not in SIDES:
         raise CanaryError(f"{where}: side {side!r} is not pass or fail")
-    sees = judge_v1.RULES[criterion].sees
+    sees = judge_v2.RULES[criterion].sees
     inputs = set(row) - {"id", "criterion", "side", "purpose"}
     if inputs != set(sees):
         raise CanaryError(

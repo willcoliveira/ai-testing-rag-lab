@@ -134,7 +134,7 @@ around them.
 | Generation | Checks without a judge, Wilson intervals and pass^k | `src/raglab/evals/generation_record.py`, `src/raglab/evals/generation.py` | `tests/retrieval/test_run_record.py` |
 | Engineering | An API that fails closed on tenant, with security headers, and a page with labels | `src/raglab/api/`, `src/raglab/web/` | `tests/api/test_api.py`, `tests/api/test_page.py`, `tests/e2e/test_e2e_fake.py` |
 | Engineering | A local model for one session only, with usage guards | `src/raglab/runtime/ollama.py`, `docs/LOCAL-MODEL.md` | `tests/unit/test_ollama_session.py` |
-| Evaluation | Criteria written first: one binary behaviour each, its pass and fail rules the judge prompt's words | `docs/CRITERIA.md`, `src/raglab/judge/prompts/judge_v1.py` | `tests/unit/test_criteria.py`, `tests/judge/test_judge_prompt.py` |
+| Evaluation | Criteria written first: one binary behaviour each, its pass and fail rules the judge prompt's words | `docs/CRITERIA.md`, `src/raglab/judge/prompts/judge_v2.py` | `tests/unit/test_criteria.py`, `tests/judge/test_judge_prompt.py` |
 | Evaluation | An LLM judge behind a port, with frames its input cannot close and a strict verdict parser | `src/raglab/core/ports.py`, `src/raglab/judge/llm.py` | `tests/judge/test_verdict_parser.py`, `tests/contract/test_judge_contract.py` |
 | Evaluation | Canaries: a hard stop on the judge, before any judged call | `datasets/canaries.judge.jsonl`, `src/raglab/judge/canaries.py` | `tests/judge/test_canaries.py` |
 | Evaluation | A judged record tied line by line to the run it judges, each verdict read again from its reply | `src/raglab/evals/judged.py`, `src/raglab/evals/judged_record.py` | `tests/judge/test_judged_run.py`, `tests/judge/test_order_check.py` |

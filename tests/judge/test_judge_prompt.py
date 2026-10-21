@@ -4,18 +4,23 @@ fingerprint, the sha256 of its texts, frames, criteria and schema, is recorded h
 reviewed); every input sits in a frame its text cannot close or open; a criterion is shown exactly
 the inputs it sees; and the text carries no developer comments.
 
-To change the prompt: write judge_v2 (or bump VERSION), add its fingerprint below and its
-snapshot under tests/snapshots/, and review both diffs in the pull request. judge-v1 is frozen
-since the user signed off docs/CRITERIA.md on 2026-10-20 with one clause, the end of grounded's
-pass rule, which is in the fingerprint below; no record used the draft's text.
+To change the prompt: write a new version (judge_v3, as judge_v2 was written), add its
+fingerprint below and its snapshot under tests/snapshots/, and review both diffs in the pull
+request. Every version stays as it was reviewed, because a judged record names its version and the
+validator checks the record against that version's fingerprint. judge-v1: the user's first
+sign-off of docs/CRITERIA.md (2026-10-20, with the clause at the end of grounded's pass rule); the
+prompt of the first judged record. judge-v2, the current one: the second sign-off (2026-10-21),
+correct's pass rule reworded and nothing else.
 """
 
 import re
+from types import ModuleType
 
 import pytest
 
 from raglab.core.types import CRITERIA, JudgeItem, Passage
-from raglab.judge.prompts import judge_v1 as prompt
+from raglab.judge.prompts import judge_v1, judge_v2
+from raglab.judge.prompts import judge_v2 as prompt
 from tests.conftest import ROOT
 from tests.retrieval_support import PACK
 
@@ -24,17 +29,25 @@ pytestmark = pytest.mark.unit
 # the reviewed fingerprint of each judge prompt version; never edit a line, add one
 REVIEWED = {
     "judge-v1": "10d96ed31467c42c13e2b037956fef94e9a011b47156ffb88d095a40c3955368",
+    "judge-v2": "e90d9d8d8bcbeca8cc4f3ea73a46ca486f20b1f750506185c3dd8952ec4dd90a",
 }
-SNAPSHOT = ROOT / "tests" / "snapshots" / "judge-v1.txt"
+VERSIONS = (judge_v1, judge_v2)
+SNAPSHOT = ROOT / "tests" / "snapshots" / "judge-v2.txt"
+
+
+def snapshot(module: ModuleType):
+    return ROOT / "tests" / "snapshots" / f"{module.VERSION}.txt"
+
+
 QUESTION = "How long must a password be?"
 ANSWER = "Passwords must be at least 15 characters."
 REFERENCE = "At least 15 characters (Password Standard, section 4.1)."
 PASSAGES = tuple(Passage.of(c) for c in PACK[:2])
 
 
-def item(criterion: str, **inputs: object) -> JudgeItem:
+def item(criterion: str, module: ModuleType = prompt, /, **inputs: object) -> JudgeItem:
     """The fixed item, showing exactly what the criterion sees."""
-    sees = prompt.RULES[criterion].sees
+    sees = module.RULES[criterion].sees
     values = {
         "question": QUESTION,
         "passages": PASSAGES,
@@ -53,27 +66,58 @@ def item(criterion: str, **inputs: object) -> JudgeItem:
     )
 
 
-def assembled() -> str:
+def assembled(module: ModuleType = prompt) -> str:
     parts = []
     for criterion in CRITERIA:
-        system, user = prompt.build(item(criterion))
+        system, user = module.build(item(criterion, module))
         if not parts:
             parts.append(f"=== system ===\n{system}")
         parts.append(f"=== user: {criterion} ===\n{user}\n")
     return "\n".join(parts)
 
 
-def test_the_assembled_prompt_equals_its_reviewed_snapshot():
-    assert assembled() == SNAPSHOT.read_text(encoding="utf-8"), (
-        "the judge prompt changed: review the diff, bump VERSION and update the snapshot"
+@pytest.mark.parametrize("module", VERSIONS, ids=lambda m: m.VERSION)
+def test_the_assembled_prompt_equals_its_reviewed_snapshot(module):
+    assert assembled(module) == snapshot(module).read_text(encoding="utf-8"), (
+        "the judge prompt changed: review the diff, write a new version and its snapshot"
     )
 
 
-def test_the_prompt_cannot_change_without_a_new_version():
-    assert prompt.VERSION in REVIEWED, f"{prompt.VERSION} has no reviewed fingerprint"
-    assert prompt.fingerprint() == REVIEWED[prompt.VERSION], (
-        f"the text of {prompt.VERSION} changed without a new VERSION"
+@pytest.mark.parametrize("module", VERSIONS, ids=lambda m: m.VERSION)
+def test_the_prompt_cannot_change_without_a_new_version(module):
+    assert module.VERSION in REVIEWED, f"{module.VERSION} has no reviewed fingerprint"
+    assert module.fingerprint() == REVIEWED[module.VERSION], (
+        f"the text of {module.VERSION} changed without a new VERSION"
     )
+
+
+def test_the_judge_uses_the_newest_reviewed_version():
+    from raglab.evals import judged_record
+    from raglab.judge.llm import LLMJudge
+
+    assert prompt.VERSION == list(REVIEWED)[-1] == judged_record.CURRENT
+    assert LLMJudge(None).version == prompt.VERSION  # type: ignore[arg-type]
+    assert set(judged_record.PROMPTS) == set(REVIEWED)
+
+
+def test_judge_v2_is_judge_v1_with_corrects_pass_rule_reworded_and_nothing_else():
+    """The second sign-off (2026-10-21) changed one rule; the model reads no version name, so a
+    judge-v2 call differs from a judge-v1 call only there."""
+    changed = {n for n in CRITERIA if judge_v1.RULES[n] != judge_v2.RULES[n]}
+    assert changed == {"correct"}
+    old, new = judge_v1.RULES["correct"], judge_v2.RULES["correct"]
+    assert (old.sees, old.fails) == (new.sees, new.fails)
+    assert "the governing rule" in old.passes
+    assert "the governing rule" not in new.passes
+    assert new.passes.endswith(
+        "; the document and section a reference names are its sources, not decisive facts"
+    )
+    for criterion in CRITERIA:
+        if criterion != "correct":
+            assert judge_v1.build(item(criterion, judge_v1)) == judge_v2.build(
+                item(criterion, judge_v2)
+            )
+    assert judge_v1.VERSION not in "".join(judge_v1.build(item("correct", judge_v1)))
 
 
 def test_every_criterion_has_rules_and_sees_only_known_inputs():

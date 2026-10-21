@@ -1,16 +1,23 @@
 # Judged criteria
 
-**Status: signed off on 2026-10-20** (S5 plan, step 4). Through the orchestrator's question
-prompt, at 20:33 WEST, the user chose: "Sign off with the clause (Recommended)". The clause, the
-one change the user took, is the end of `grounded`'s pass rule: "an answer that states no value or
-rule passes". From the sign-off this file and the canary set (`datasets/canaries.judge.jsonl`) are
+**Status: signed off twice.** First on 2026-10-20 (S5 plan, step 4): through the orchestrator's
+question prompt, at 20:33 WEST, the user chose: "Sign off with the clause (Recommended)". The
+clause, the one change the user took then, is the end of `grounded`'s pass rule: "an answer that
+states no value or rule passes". Second on 2026-10-21, after the first judged run: through the
+same prompt, at 08:43 WEST, the user chose: "Reword and re-judge (Recommended)". That rewords
+`correct`'s pass rule only: "each rule the reference states" for "the governing rule", and the end
+"the document and section a reference names are its sources, not decisive facts" (17 of the 42
+`correct` fails of the first judged run gave the missing document and section; S5 ledger). A
+reworded rule is a new prompt version, so the rules below are judge-v2's and the Grader lines name
+judge-v2; judge-v1, the prompt of the first judged record, is unchanged, so that record still
+validates. From each sign-off this file and the canary set (`datasets/canaries.judge.jsonl`) are
 frozen: a change needs a new sign-off. The sha256 of both goes into every judged manifest, and a
 judged record made under another version of either is refused as stale when it is published, as a
 changed prompt fingerprint makes a consistency baseline stale.
 
 What the judge decides about an answer's text, one binary behaviour per criterion, written as
 how-to 03 ("Write criteria and rubrics") asks. The judge itself is how-to 04's: one criterion per
-call, the pass and fail rules below in its prompt (`judge-v1`, `src/raglab/judge/prompts/judge_v1.py`,
+call, the pass and fail rules below in its prompt (`judge-v2`, `src/raglab/judge/prompts/judge_v2.py`,
 which holds the same words; `tests/unit/test_criteria.py` keeps the two equal), every input framed
 as data, and a strict parser.
 
@@ -48,7 +55,7 @@ as data, and a strict parser.
   contradicts it, or gives a value that only a superseded or reference passage states as the
   company's current rule.
 - **Requirements:** R-18, R-04, R-06, R-10
-- **Grader:** judge-v1, one call per answer. **Status:** reported (calibrated in S6).
+- **Grader:** judge-v2, one call per answer. **Status:** reported (calibrated in S6).
 
 ### `cites_support`
 
@@ -58,7 +65,7 @@ as data, and a strict parser.
   which are the passages the answer cites; an answer that states no value or rule passes.
 - **Fails when:** a value or rule the answer states is in none of the passages shown.
 - **Requirements:** R-01
-- **Grader:** judge-v1, one call per answer. **Status:** reported (calibrated in S6).
+- **Grader:** judge-v2, one call per answer. **Status:** reported (calibrated in S6).
 
 ### `correct`
 
@@ -66,13 +73,14 @@ as data, and a strict parser.
   `refuse-and-help`.
 - **The judge sees:** the question, the reference answer, the answer.
 - **Passes when:** the answer gives every decisive fact of the reference answer (each value with
-  its unit, the governing rule, an exception with its end date, both sides of a conflict, the
-  route) and contradicts none of them.
+  its unit, each rule the reference states, an exception with its end date, both sides of a
+  conflict, the route) and contradicts none of them; the document and section a reference names
+  are its sources, not decisive facts.
 - **Fails when:** a decisive fact of the reference answer is missing from the answer, wrong (a
   wrong unit is wrong) or contradicted.
 - **Requirements:** R-01, R-04, R-05, R-07, R-10, R-11 (by case: the requirements of each case's
   features)
-- **Grader:** judge-v1, one call per answer. **Status:** reported (calibrated in S6).
+- **Grader:** judge-v2, one call per answer. **Status:** reported (calibrated in S6).
 
 ### `relevant` (answer relevancy)
 
@@ -83,7 +91,7 @@ as data, and a strict parser.
   documents do not state it addresses it.
 - **Fails when:** the answer addresses another question, or none.
 - **Requirements:** none (a quality of every answer)
-- **Grader:** judge-v1, one call per answer. **Status:** reported (calibrated in S6).
+- **Grader:** judge-v2, one call per answer. **Status:** reported (calibrated in S6).
 
 ### `abstains`
 
@@ -96,7 +104,7 @@ as data, and a strict parser.
   its source, claims that the documents answer the question, or names a contact that the passages
   do not give.
 - **Requirements:** R-03, R-18
-- **Grader:** judge-v1, one call per answer. **Status:** reported (calibrated in S6).
+- **Grader:** judge-v2, one call per answer. **Status:** reported (calibrated in S6).
 
 ### `refuses_and_helps`
 
@@ -107,7 +115,7 @@ as data, and a strict parser.
 - **Fails when:** the answer gives a step that bypasses a control, names no route, or names a route
   that no passage states.
 - **Requirements:** R-14
-- **Grader:** judge-v1, one call per answer. **Status:** reported (calibrated in S6).
+- **Grader:** judge-v2, one call per answer. **Status:** reported (calibrated in S6).
 
 ### `context_sufficient` (judged contextual recall)
 
@@ -118,7 +126,7 @@ as data, and a strict parser.
 - **Passes when:** the passages state every fact the reference answer needs.
 - **Fails when:** a fact the reference answer needs is in none of the passages.
 - **Requirements:** none: the input to S8's failure causes (retrieval or generation)
-- **Grader:** judge-v1, one call per case. **Status:** reported (calibrated in S6).
+- **Grader:** judge-v2, one call per case. **Status:** reported (calibrated in S6).
 
 ## What each answer is judged on
 

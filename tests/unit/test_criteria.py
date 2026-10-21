@@ -1,6 +1,7 @@
 """S5 AC1: docs/CRITERIA.md, written first. Every criterion has what it applies to, what the judge
 sees, when it passes and fails, its requirements, its grader and its status; its pass and fail
-rules are judge-v1's words exactly, and what the judge sees is judge-v1's inputs; every
+rules are the current judge prompt's (judge-v2's) words exactly, and what the judge sees is its
+inputs; every
 requirement it names is one of TEST-PLAN's; and the canary table is the canary file: every item
 names a criterion and a side, and every criterion has an item on each side."""
 
@@ -10,7 +11,7 @@ import pytest
 
 from raglab.core.types import CRITERIA
 from raglab.judge import canaries
-from raglab.judge.prompts import judge_v1
+from raglab.judge.prompts import judge_v2
 from tests.conftest import ROOT
 
 pytestmark = pytest.mark.unit
@@ -27,7 +28,7 @@ FIELDS = (
     "Grader",
     "Status",
 )
-# the words of "The judge sees" that name each input of judge-v1
+# the words of "The judge sees" that name each input of the judge prompt
 INPUT_WORDS = {
     "question": "the question",
     "passages": "passages",
@@ -76,18 +77,18 @@ def test_every_criterion_has_every_field():
         assert not missing, f"{name} has no {missing}"
 
 
-def test_the_pass_and_fail_rules_are_judge_v1s_words():
+def test_the_pass_and_fail_rules_are_judge_v2s_words():
     for name, values in criteria().items():
-        rule = judge_v1.RULES[name]
+        rule = judge_v2.RULES[name]
         assert values["Passes when"] == rule.passes + ".", name
         assert values["Fails when"] == rule.fails + ".", name
 
 
-def test_what_the_judge_sees_is_judge_v1s_inputs():
+def test_what_the_judge_sees_is_judge_v2s_inputs():
     for name, values in criteria().items():
         seen = values["The judge sees"]
         named = {key for key, words in INPUT_WORDS.items() if words in seen}
-        assert named == set(judge_v1.RULES[name].sees), (name, seen)
+        assert named == set(judge_v2.RULES[name].sees), (name, seen)
 
 
 def test_every_requirement_named_is_one_of_the_test_plans():
@@ -101,9 +102,9 @@ def test_every_requirement_named_is_one_of_the_test_plans():
     assert named_any
 
 
-def test_every_criterion_is_reported_and_graded_by_judge_v1():
+def test_every_criterion_is_reported_and_graded_by_judge_v2():
     for name, values in criteria().items():
-        assert values["Grader"].startswith("judge-v1"), name
+        assert values["Grader"].startswith("judge-v2"), name
         assert values["Status"].startswith("reported"), name
 
 

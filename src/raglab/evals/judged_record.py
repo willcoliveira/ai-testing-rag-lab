@@ -43,7 +43,7 @@ from raglab.core.types import CRITERIA, VERDICTS, Status
 from raglab.evals import golden, metrics
 from raglab.ingest import answer_key
 from raglab.judge import canaries as canary_set
-from raglab.judge.prompts import judge_v1
+from raglab.judge.prompts import judge_v1, judge_v2
 
 type Json = dict[str, object]
 
@@ -61,7 +61,9 @@ POSITION_CRITERIA = ("correct",)
 REFERENCE_LABELS = ("answer", "flag-conflict", "refuse-and-help")
 GROUPS = ("answer", "flag-conflict", "refuse-and-help", "abstain", "retrieval", "position")
 # the parser of each judge prompt version a record may name
-PROMPTS = {judge_v1.VERSION: judge_v1}
+PROMPTS = {judge_v1.VERSION: judge_v1, judge_v2.VERSION: judge_v2}
+# the version a new judged run uses (raglab.judge.llm), since the second sign-off (2026-10-21)
+CURRENT = judge_v2.VERSION
 STATUSES = (Status.OK.value, Status.INVALID_OUTPUT.value, Status.UNAVAILABLE.value)
 PUBLISHED = "runs/published"
 # the manifest fields of a judged run, and those of a generation run it has none of
@@ -146,11 +148,13 @@ def cited_ids(case: Json) -> list[str]:
     return [i for i in dict.fromkeys(ids) if i in retrieved]
 
 
-def shown_ids(criterion: str, source_case: Json, reverse: bool = False) -> list[str]:
+def shown_ids(
+    criterion: str, source_case: Json, reverse: bool = False, version: str = CURRENT
+) -> list[str]:
     """The passage ids a criterion's call is shown for a source case: the retrieved passages in
     rank order (reversed for the order check), the cited ones for cites_support, none for a
     criterion that sees no passages."""
-    sees = judge_v1.RULES[criterion].sees
+    sees = PROMPTS[version].RULES[criterion].sees
     if "passages" not in sees:
         return []
     ids = cited_ids(source_case) if criterion == "cites_support" else retrieved_ids(source_case)
@@ -597,8 +601,8 @@ def line_problems(
         return [f"{where}: judged on {sorted(verdicts)}, not its criteria {sorted(wanted)}"]
     answer = str(source["answer"])
     for criterion, verdict in verdicts.items():
-        sees_answer = "answer" in judge_v1.RULES[criterion].sees
-        shown = shown_ids(criterion, source)
+        sees_answer = "answer" in PROMPTS[version].RULES[criterion].sees
+        shown = shown_ids(criterion, source, version=version)
         problems += verdict_problems(
             verdict, criterion, version, shown, answer if sees_answer else None, where
         )
@@ -612,12 +616,12 @@ def line_problems(
         problems.append(f"{where}: repeated {sorted(repeat)}, not {sorted(wanted_repeat)}")
     else:
         for criterion, verdict in repeat.items():
-            sees_answer = "answer" in judge_v1.RULES[criterion].sees
+            sees_answer = "answer" in PROMPTS[version].RULES[criterion].sees
             problems += verdict_problems(
                 verdict,
                 criterion,
                 version,
-                shown_ids(criterion, source),
+                shown_ids(criterion, source, version=version),
                 answer if sees_answer else None,
                 f"{where} (repeat)",
             )
@@ -631,7 +635,7 @@ def line_problems(
             reversed_[GROUNDED],
             GROUNDED,
             version,
-            shown_ids(GROUNDED, source, reverse=True),
+            shown_ids(GROUNDED, source, reverse=True, version=version),
             answer,
             f"{where} (reversed)",
         )
@@ -695,7 +699,7 @@ def canary_problems(manifest: Json, root: Path) -> list[str]:
         if canary is None:
             continue
         shown = [p if isinstance(p, str) else p.chunk_id for p in canary.passages or ()]
-        sees_answer = "answer" in judge_v1.RULES[canary.criterion].sees
+        sees_answer = "answer" in PROMPTS[version].RULES[canary.criterion].sees
         problems += verdict_problems(
             row,
             canary.criterion,

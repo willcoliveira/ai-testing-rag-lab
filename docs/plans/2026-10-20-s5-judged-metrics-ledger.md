@@ -65,6 +65,42 @@ user answered all three:
 | "The `correct` rule: reword it as above (second sign-off) and judge the baseline again before the position test?" (2026-10-21, 08:43 WEST) | "Reword and re-judge (Recommended)" | The second sign-off (below), then the baseline judged again |
 | The `make audit` failure (new certifi and pillow advisories) | A dependency pull request from main: certifi to 2026.10.19, and Pillow's eight advisories skipped in `make audit` with a written reason and a review date | No dependency change in S5. The orchestrator builds that pull request and the user merges it; S5 then merges main and re-locks the DeepEval tool. Until then `make -k check`'s only failure is the known audit one |
 
+**The second sign-off of docs/CRITERIA.md (2026-10-21).** At 08:43 WEST, through the
+orchestrator's question prompt ("The `correct` rule: reword it as above (second sign-off) and
+judge the baseline again before the position test?"), the user chose, verbatim: "Reword and
+re-judge (Recommended)". The preview the user saw showed the old and the new pass rule. The
+reason: in the first judged record (`20261020T195341Z-judge-local-dev-25ccc0d`), 17 of the 42
+`correct` fails gave the missing document and section as their reason, when the signed-off rule
+listed "the governing rule" among a reference answer's decisive facts and the judge sees the
+answer's text, not its citations (the step 2 section below). The new pass rule, word for word in
+CRITERIA.md and in the prompt: "the answer gives every decisive fact of the reference answer
+(each value with its unit, each rule the reference states, an exception with its end date, both
+sides of a conflict, the route) and contradicts none of them; the document and section a
+reference names are its sources, not decisive facts". The fail rule did not change. No canary
+changed side (C-09 and C-10 keep theirs), and the canary file did not change.
+
+**A new prompt version, judge-v2, not judge-v1 edited in place (a deviation from the
+orchestrator's wording, "judge_v1.RULES["correct"].passes").** The validator checks a judged
+record's prompt fingerprint against its version's (`judged_record.PROMPTS[version]`), so judge-v1
+edited in place would have made the first judged record invalid, when it stays published as
+history; and AC2 (and `tests/judge/test_judge_prompt.py`) say a changed prompt is a new version.
+So `src/raglab/judge/prompts/judge_v2.py` is judge-v1 with `correct`'s pass rule replaced and
+nothing else (its system prompt, frames, schema, parser and other rules are judge-v1's, imported);
+judge-v1 is unchanged (its helpers now take a version's rules as an argument; its fingerprint and
+snapshot are the same, and the tests pin both versions). The model reads no version name, so a
+judge-v2 call differs from a judge-v1 call only in `correct`'s pass rule (a test holds that). The
+judge, the canary loader and the judged run use judge-v2; the validator keeps both. The one edit
+to CRITERIA.md beyond the rule and the status paragraph follows from it: the prompt it names, in
+its introduction and in the seven Grader lines, is now `judge-v2`.
+
+**Frozen, in the commit of the second sign-off:** docs/CRITERIA.md sha256
+`8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e`; the canary set sha256
+`4ca54c3ced557118f26306543164dc01c7509d1866e9e77f6cd4f2d3284b328f` (unchanged); judge-v2's
+fingerprint `e90d9d8d8bcbeca8cc4f3ea73a46ca486f20b1f750506185c3dd8952ec4dd90a`, with its
+reviewed snapshot `tests/snapshots/judge-v2.txt` (one line differs from judge-v1's: `correct`'s
+pass rule); judge-v1's stays `10d96ed31467c42c13e2b037956fef94e9a011b47156ffb88d095a40c3955368`.
+Both published records validate after the change.
+
 ## The judge model, pinned
 
 The orchestrator pulled the judge on 2026-10-20 at 17:00, in one guarded session (`make

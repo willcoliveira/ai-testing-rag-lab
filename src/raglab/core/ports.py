@@ -111,7 +111,8 @@ class Judge(Protocol):
 
     @property
     def version(self) -> str:
-        """The judge prompt's version (judge-v1), recorded with every judged run."""
+        """The judge prompt's version (judge-v2 since the second sign-off), recorded with every
+        judged run."""
         ...
 
     def fingerprint(self) -> str:

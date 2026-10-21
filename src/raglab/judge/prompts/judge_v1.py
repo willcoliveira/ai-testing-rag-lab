@@ -21,7 +21,7 @@ text of the prompt carries no developer comments; the reasons live here, in the 
 import hashlib
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import cast
 
@@ -162,9 +162,15 @@ class Parsed:
 def fingerprint() -> str:
     """sha256 of everything that makes up this prompt: the texts, the frames, every criterion's
     inputs and rules, and the schema."""
-    rules = {name: [list(r.sees), r.passes, r.fails] for name, r in RULES.items()}
+    return fingerprint_of(VERSION, RULES)
+
+
+def fingerprint_of(version: str, criteria: Mapping[str, Rule]) -> str:
+    """The fingerprint of a prompt made of these texts, frames and schema with a version's own
+    rules (judge-v2 shares everything else with judge-v1)."""
+    rules = {name: [list(r.sees), r.passes, r.fails] for name, r in criteria.items()}
     parts = [
-        VERSION,
+        version,
         SYSTEM,
         CRITERION_BLOCK,
         QUESTION_FRAME,
@@ -208,7 +214,12 @@ def _passages(passages: Sequence[Passage]) -> str:
 
 def check_inputs(item: JudgeItem) -> None:
     """ValueError unless the item shows exactly the inputs its criterion sees."""
-    sees = RULES[item.criterion].sees
+    check_inputs_of(item, RULES)
+
+
+def check_inputs_of(item: JudgeItem, criteria: Mapping[str, Rule]) -> None:
+    """check_inputs against a version's own rules."""
+    sees = criteria[item.criterion].sees
     given = {
         "question": item.question is not None,
         "passages": item.passages is not None,
@@ -226,8 +237,13 @@ def check_inputs(item: JudgeItem) -> None:
 def build(item: JudgeItem) -> tuple[str, str]:
     """(system prompt, user message) of one judge call: the criterion's rules, then each input it
     sees, in the order question, passages, reference answer, answer."""
-    check_inputs(item)
-    rule = RULES[item.criterion]
+    return build_of(item, RULES)
+
+
+def build_of(item: JudgeItem, criteria: Mapping[str, Rule]) -> tuple[str, str]:
+    """build with a version's own rules."""
+    check_inputs_of(item, criteria)
+    rule = criteria[item.criterion]
     parts = [CRITERION_BLOCK.format(name=item.criterion, passes=rule.passes, fails=rule.fails)]
     if item.question is not None:
         parts.append(QUESTION_FRAME.format(question=as_data(item.question)))

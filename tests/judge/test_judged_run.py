@@ -50,8 +50,8 @@ def test_a_judged_run_writes_a_valid_record_tied_to_its_source(tmp_path):
         (c["case_id"], c["trial"]) for c in source_lines
     ]
     assert manifest["judge_prompt"] == {
-        "version": "judge-v1",
-        "sha256": "10d96ed31467c42c13e2b037956fef94e9a011b47156ffb88d095a40c3955368",
+        "version": "judge-v2",
+        "sha256": "e90d9d8d8bcbeca8cc4f3ea73a46ca486f20b1f750506185c3dd8952ec4dd90a",
     }
     assert manifest["criteria"]["sha256"] == record.sha256_bytes(
         (root / "CRITERIA.md").read_bytes()
@@ -351,7 +351,7 @@ def test_publish_requires_the_source_run_published(tmp_path):
     index = publish.read_index(root / publish.PUBLISHED)
     entry = next(r for r in index["runs"] if r["run_id"] == run_dir.name)  # type: ignore[index]
     assert entry["judge"] == f"stub-judge:1b@{'a' * 12}"
-    assert (entry["prompt"], entry["source"]) == ("judge-v1", source.name)
+    assert (entry["prompt"], entry["source"]) == ("judge-v2", source.name)
 
 
 def test_a_judged_run_under_an_edited_criteria_file_is_refused_as_stale(tmp_path):

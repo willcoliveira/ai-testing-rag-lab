@@ -33,7 +33,7 @@ from raglab.evals import judged_record, record, retrieval
 from raglab.evals.config import JudgeConfig, canonical_sha256
 from raglab.ingest import pipeline
 from raglab.judge import canaries
-from raglab.judge.prompts import judge_v1
+from raglab.judge.prompts import judge_v2
 
 type Json = dict[str, object]
 CONTEXT = judged_record.CONTEXT
@@ -53,7 +53,7 @@ def judge_item(
     reverse: bool = False,
 ) -> JudgeItem:
     """The call of one criterion on one source answer: exactly the inputs the criterion sees."""
-    sees = judge_v1.RULES[criterion].sees
+    sees = judge_v2.RULES[criterion].sees
     ids = judged_record.shown_ids(criterion, source, reverse)
     if "reference" in sees and reference is None:
         raise JudgedError(f"case {source['case_id']}: {criterion} needs a reference answer")

@@ -25,7 +25,7 @@ from raglab.core.types import JudgeItem, Passage, Status
 from raglab.evals import config as eval_config
 from raglab.judge.build import judge_from_config
 from raglab.judge.llm import LLMJudge
-from raglab.judge.prompts import judge_v1 as prompt
+from raglab.judge.prompts import judge_v2 as prompt
 from tests.conftest import ROOT
 from tests.generation_support import completion, stub_client, stub_ollama
 

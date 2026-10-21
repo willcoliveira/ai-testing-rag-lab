@@ -1,4 +1,4 @@
-"""The judge over the ChatModel port (S5): one criterion per call, the judge-v1 prompt, the verdict
+"""The judge over the ChatModel port (S5): one criterion per call, the judge-v2 prompt, the verdict
 schema as the request's response format (when the model's config asks for it), and the strict
 parser. The judge model is one more configuration of a chat adapter (raglab.adapters: the local
 OpenAI-compatible server in S5, a hosted provider after the sign-up), and FakeChat scripts its
@@ -23,7 +23,7 @@ from raglab.core.types import (
     Status,
     Verdict,
 )
-from raglab.judge.prompts import judge_v1 as prompt
+from raglab.judge.prompts import judge_v2 as prompt
 
 
 class LLMJudge:
