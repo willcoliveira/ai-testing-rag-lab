@@ -59,7 +59,9 @@ All reported. The formula is code (`raglab cost`, `src/raglab/evals/cost.py`, te
 hand-computed values): a call costs (prompt tokens × input price + completion tokens × output
 price) / 1,000,000; a case-trial is its generator call and its judge calls; a run is the sum of
 its case-trials and one canary set; a month is the sum over the run types of
-`config/cost-assumptions.toml` of runs per month × cost per run. The prices are
+`config/cost-assumptions.toml` of runs per month × cost per run. The judge's repeatability and
+order checks ("Checks per run" in `raglab cost`'s output) are priced apart and not counted in the
+month total: they are S5's measurements of the judge, not part of a routine run. The prices are
 `config/prices.toml`'s, each with its source and read date.
 
 From `make cost JUDGED=20261021T081852Z-judge-local-dev-5aa0ec5` (the published judged baseline,

@@ -71,9 +71,11 @@ Per case-trial: the role's tokens over the run's case-trials (none when a call r
 How to read it: a call costs (prompt tokens × the input price + completion tokens × the output
 price) / 1,000,000; a case-trial is its generator call and its judge calls; a run is its
 case-trials and one canary set; "Checks per run" is the judge's repeatability and order checks,
-priced apart; a month sums the run types (`src/raglab/evals/cost.py`, tested on hand-computed
-values). The runs a month are assumptions, the main plan's gate map and its budget scenario B,
-and the user's to change.
+priced apart and **not counted in the month total**: they are S5's measurements of the judge, not
+part of a routine run; a month sums the run types' runs, each its generator calls, its judge calls
+when the run type is judged and one canary set (`src/raglab/evals/cost.py`, tested on
+hand-computed values). The runs a month are assumptions, the main plan's gate map and its budget
+scenario B, and the user's to change.
 
 ## The prices
 
