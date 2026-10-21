@@ -2,6 +2,44 @@
   "schema_version": "published-index.v1",
   "runs": [
     {
+      "run_id": "20261021T092819Z-judge-local-dev-9fa9004",
+      "path": "20261021T092819Z-judge-local-dev-9fa9004/",
+      "created_at": "2026-10-21T09:28:19Z",
+      "suite": "judged",
+      "split": "dev",
+      "config": "judge-local",
+      "provenance": "local",
+      "git_sha": "9fa90046864ccd602d976380de7e3349cc2580a4",
+      "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
+      "retriever": "dense",
+      "k": 5,
+      "chunk_size": 1200,
+      "n": 90,
+      "metrics": {
+        "correct": {
+          "value": 0.707865,
+          "ci_low": 0.529252,
+          "ci_high": 0.839287,
+          "n": 30
+        },
+        "correct[position]": {
+          "value": 0.707865,
+          "ci_low": 0.529252,
+          "ci_high": 0.839287,
+          "n": 30
+        },
+        "correct_pass^3": {
+          "value": 0.433333,
+          "ci_low": 0.273775,
+          "ci_high": 0.608027,
+          "n": 30
+        }
+      },
+      "judge": "ministral-3:14b-instruct-2512-q4_K_M@4760c35aeb9d",
+      "prompt": "judge-v2",
+      "source": "20261021T092047Z-generation-local-ollama-position-dev-f309594"
+    },
+    {
       "run_id": "20261021T092047Z-generation-local-ollama-position-dev-f309594",
       "path": "20261021T092047Z-generation-local-ollama-position-dev-f309594/",
       "created_at": "2026-10-21T09:20:47Z",
