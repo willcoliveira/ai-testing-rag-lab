@@ -136,6 +136,17 @@ def canary_reading(honest: Json, invented: Json) -> str:
     return "only supported claims count: the invented value failed and the honest twin passed"
 
 
+def _scored(found: Json, score: float) -> Json:
+    """One output's side of the direction report: its score and pass, and the metric's steps
+    (verdicts and reason) when it recorded them. The session of 2026-10-21 kept only the score and
+    the pass, so its steps were lost (S5 ledger); they are carried since."""
+    return {
+        "score": score,
+        "passes": found["passes"],
+        **{k: found[k] for k in ("verdicts", "reason") if k in found},
+    }
+
+
 def direction_report(consistent: Json, contradicting: Json) -> Json:
     """The hallucination direction, measured: which output scored higher, and the reading that
     follows (the consistent output higher means higher is better, as the page says)."""
@@ -147,8 +158,8 @@ def direction_report(consistent: Json, contradicting: Json) -> Json:
         "neither": "undecided: both outputs scored the same",
     }[higher]
     return {
-        "consistent": {"score": c, "passes": consistent["passes"]},
-        "contradicting": {"score": x, "passes": contradicting["passes"]},
+        "consistent": _scored(consistent, c),
+        "contradicting": _scored(contradicting, x),
         "higher": higher,
         "reading": reading,
         "page": HALLUCINATION_PAGE,

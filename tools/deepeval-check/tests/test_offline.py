@@ -261,6 +261,19 @@ def test_each_metric_records_the_steps_its_score_comes_from():
     json.dumps(found)  # plain data: the results file holds it
 
 
+def test_the_direction_report_keeps_each_outputs_steps():
+    """The session of 2026-10-21 recorded the hallucination metric's verdicts and reason, but the
+    direction report kept only each output's score and pass, so they were lost; it keeps them."""
+    from deepeval_check.checks import direction_report
+
+    steps = {"verdicts": [{"verdict": "no", "reason": "r"}], "reason": "why"}
+    report = direction_report(
+        {"score": 0.0, "passes": False, **steps}, {"score": 1.0, "passes": True, **steps}
+    )
+    assert report["consistent"] == {"score": 0.0, "passes": False, **steps}
+    assert report["contradicting"]["verdicts"] == steps["verdicts"]
+
+
 def test_deepevals_requests_get_their_own_output_cap_and_the_judge_config_is_unchanged():
     """DeepEval's requests ask for up to DEEPEVAL_MAX_TOKENS (its Truths list was cut off at the
     own judge's 512 on 2026-10-21); the committed judge config keeps 512, and nothing else of the
