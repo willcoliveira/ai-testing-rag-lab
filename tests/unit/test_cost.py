@@ -201,3 +201,15 @@ def test_the_cli_prices_a_judged_record(tmp_path, capsys):
     assert "| local only | $0.0000 | $0.0000 | $0.0000 | $0.0000 | $0.0000 | $0.0000 |" in out
     assert "| generator | 14 | 1400 | 280 | 0 | 100.0 | 20.0 | 100 |" in out
     assert main(["cost", "--judged", str(source), "--root", str(root)]) == 1  # not a judged run
+
+
+def test_the_output_names_its_inputs_relative_to_the_root_so_it_is_the_same_anywhere():
+    """raglab cost's output (cost.report) over the published judged baseline names the price table
+    and the assumptions as repository paths, never this machine's, so ADR-002 can quote it word
+    for word (AC13)."""
+    run_dir = ROOT / "runs" / "published" / "20261021T081852Z-judge-local-dev-5aa0ec5"
+    out = cost.report(ROOT, run_dir, Path("config/prices.toml"), ASSUMPTIONS)
+    assert "Prices: config/prices.toml, price_table_date 2026-10-20." in out
+    assert "Assumptions: config/cost-assumptions.toml." in out
+    assert str(ROOT) not in out
+    assert out == cost.report(ROOT, run_dir, PRICES, Path("config/cost-assumptions.toml"))

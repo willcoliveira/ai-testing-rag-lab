@@ -404,12 +404,7 @@ def cost_estimate(args: argparse.Namespace) -> int:
     root: Path = args.root
     try:
         run_dir = _run_dir(root, args.judged)
-        table = cost.load_prices(args.prices if args.prices.is_absolute() else root / args.prices)
-        assumptions = cost.load_assumptions(
-            args.assumptions if args.assumptions.is_absolute() else root / args.assumptions, table
-        )
-        found = cost.measured(run_dir)
-        print(cost.render(found, table, assumptions, cost.estimate(found, table, assumptions)))
+        print(cost.report(root, run_dir, args.prices, args.assumptions))
     except (cost.CostError, FileNotFoundError, KeyError, ValueError) as error:
         print(f"cost failed: {error}", file=sys.stderr)
         return 1

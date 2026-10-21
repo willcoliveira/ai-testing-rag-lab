@@ -409,3 +409,26 @@ def render(
     if unreported:
         lines += ["", f"{unreported} call(s) reported no tokens: counted, never priced."]
     return "\n".join(lines) + "\n"
+
+
+def _shown(path: Path, root: Path) -> str:
+    """A path as an estimate names it: relative to the repository when it is inside it."""
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def report(root: Path, run_dir: Path, prices: Path, assumptions: Path) -> str:
+    """`raglab cost`'s output: the judged record's measured tokens priced with the table, for the
+    assumptions, rendered. Relative paths are read from root, and the output names every input
+    relative to it, so it is the same on any machine, and ADR-002 quotes it word for word (AC13:
+    tests/unit/test_adr.py renders it again from the committed record and table)."""
+    prices_path = prices if prices.is_absolute() else root / prices
+    assumptions_path = assumptions if assumptions.is_absolute() else root / assumptions
+    table = load_prices(prices_path)
+    table = PriceTable(_shown(prices_path, root), table.date, table.prices)
+    loaded = load_assumptions(assumptions_path, table)
+    loaded = Assumptions(_shown(assumptions_path, root), loaded.run_types, loaded.options)
+    found = measured(run_dir)
+    return render(found, table, loaded, estimate(found, table, loaded))
