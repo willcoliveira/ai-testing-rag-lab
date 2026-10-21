@@ -69,11 +69,12 @@ Per case-trial: the role's tokens over the run's case-trials (none when a call r
 | gpt-5-mini generator, Claude Haiku 5.5 judge | $0.0005 | $0.0001 | $0.0009 | $0.1300 | $0.0199 | $3.53 |
 
 How to read it: a call costs (prompt tokens × the input price + completion tokens × the output
-price) / 1,000,000; a case-trial is its generator call and its judge calls; a run is its
-case-trials and one canary set; "Checks per run" is the judge's repeatability and order checks,
+price) / 1,000,000; a case-trial is its generator call and its judge calls; a run ("Per run",
+priced as the measured run, which is judged) is its case-trials and one canary set, which only a
+judged run has; "Checks per run" is the judge's repeatability and order checks,
 priced apart and **not counted in the month total**: they are S5's measurements of the judge, not
-part of a routine run; a month sums the run types' runs, each its generator calls, its judge calls
-when the run type is judged and one canary set (`src/raglab/evals/cost.py`, tested on
+part of a routine run; a month sums the run types' runs, each its generator calls, and its judge
+calls and one canary set when the run type is judged (`src/raglab/evals/cost.py`, tested on
 hand-computed values). The runs a month are assumptions, the main plan's gate map and its budget
 scenario B, and the user's to change.
 
