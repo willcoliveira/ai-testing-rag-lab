@@ -7,7 +7,7 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 - `make audit` green again after the advisories of 2026-10-20 (decision: "Dependency PR, Pillow
   exception (Recommended)"): certifi 2026.10.19 (GHSA-6q48-6c7w-9gw2, revoked intermediates of
-  a bundled root); Pillow 12.3.0's eight advisories skipped, with the reason in the Makefile, until
+  a bundled root); Pillow 12.3.0's nine advisories skipped, with the reason in the Makefile, until
   Pillow 13 can be used (fastembed 0.9.0 still requires pillow<13); review by 2026-11-21, enforced
   by `tests/unit/test_audit_exceptions.py`.
 
