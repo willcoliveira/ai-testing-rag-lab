@@ -492,7 +492,8 @@ def ollama(args: argparse.Namespace) -> int:
             print("ollama session: give at least one --run command", file=sys.stderr)
             return 2
         try:
-            return session.run([shlex.split(c) for c in args.run], runtime.run_command)
+            # the default runner ends a command when the session is halted (S5 AC22: power)
+            return session.run([shlex.split(c) for c in args.run])
         except KeyboardInterrupt:
             # Ctrl-C (judge S3-J13): Session.run has already run its stop, and its lines are
             # above, so one line here instead of a traceback, and 128 + SIGINT. A SIGTERM or

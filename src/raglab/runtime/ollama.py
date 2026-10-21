@@ -26,7 +26,18 @@ Usage guards (each refusal names its reason, and nothing is started):
   without that layer refuses it too (fails closed); a digest the config has not pinned yet (the
   lifecycle commands of a generation config, for a pull) is not checked, and the session says so;
 - once up, the server's version is at least MIN_VERSION (0.40.6: the first that runs the pinned
-  model; 0.40.4 refused it with "requires a newer version of Ollama").
+  model; 0.40.4 refused it with "requires a newer version of Ollama");
+- (S5 AC22) the Mac draws from AC power: on macOS the source `pmset -g batt` names must be
+  'AC Power', and a source it cannot read refuses too (fails closed); off macOS it is not checked,
+  and the session says so (CI runs no live session).
+
+The power guard also watches a running session (AC22): a thread reads the source every
+POWER_INTERVAL_S while the commands run, and the first reading that is not AC power (or none)
+halts the session: the running command's whole process group is ended (run_command), the model is
+unloaded, the server stopped and the postcheck run as on any stop, so the command writes no run
+record and nothing is published; the session then says one STOPPED line and exits POWER_EXIT. A
+judged run of 2026-10-20 ran the Mac's battery down to 1% and macOS hibernated it mid-run (S5
+ledger).
 
 The postcheck fails loudly unless the port is closed and no ollama executable is running (a
 loaded model lives in a runner process, so none means no model is resident). The per-request
@@ -45,6 +56,7 @@ import shutil
 import signal
 import socket
 import subprocess  # nosec B404
+import threading
 import time
 import urllib.request
 from collections.abc import Callable, Sequence
@@ -59,6 +71,14 @@ STATE_DIR = "runs/tmp/ollama"
 GIB = 1 << 30
 # the layer of a local manifest that names the registry manifest, whose digest /api/tags reports
 REGISTRY_MANIFEST = "application/vnd.docker.distribution.manifest.v2+json"
+# S5 AC22: the source a session may run on, as pmset -g batt names it ("Now drawing from 'AC
+# Power'"; on battery 'Battery Power', on a UPS 'UPS Power'), and how often a running session
+# reads it again
+AC_POWER = "AC Power"
+POWER_INTERVAL_S = 15.0
+# a session stopped because the Mac left AC power exits with EX_TEMPFAIL (sysexits.h, 75): plug
+# the charger in, then run the target again
+POWER_EXIT = 75
 
 
 class SessionError(RuntimeError):
@@ -196,6 +216,17 @@ class Host:
     def sleep(self, seconds: float) -> None:
         time.sleep(seconds)
 
+    def power_source(self) -> str | None:
+        """The source the Mac draws power from, as `pmset -g batt` names it ('AC Power', 'Battery
+        Power', 'UPS Power'); None off macOS, where it is not checked. On macOS a source that
+        cannot be read raises SessionError: the power guard fails closed (S5 AC22)."""
+        if platform.system() != "Darwin":
+            return None
+        found = re.search(r"Now drawing from '([^']+)'", _run(["pmset", "-g", "batt"]))
+        if not found:
+            raise SessionError("the power source cannot be read from pmset -g batt")
+        return found.group(1)
+
     def models_dir(self) -> Path:
         configured = os.environ.get("OLLAMA_MODELS")
         return Path(configured) if configured else Path.home() / ".ollama" / "models"
@@ -218,6 +249,12 @@ class Session:
     host: Host = field(default_factory=Host)
     say: Callable[[str], None] = say_now
     digest: str | None = None  # the pinned digest; None or unpinned: not checked (said)
+    # S5 AC22: how often a running session reads the power source again; the event that halts
+    # its commands; why it was halted; whether the preflight read a source to watch (macOS)
+    power_interval_s: float = POWER_INTERVAL_S
+    halt: threading.Event = field(default_factory=threading.Event, repr=False)
+    power_lost: str | None = None
+    power_watched: bool = False
 
     @property
     def address(self) -> tuple[str, int]:
@@ -344,7 +381,28 @@ class Session:
                     f"{needed / GIB:.1f} GiB needed (model {size / GIB:.1f} GiB + margin "
                     f"{self.settings.memory_margin_gb:g} GiB)"
                 )
-        return problems
+        return problems + self.power_problems()
+
+    def power_problems(self) -> list[str]:
+        """S5 AC22: a session runs on AC power only. On macOS the source pmset names is said and
+        must be 'AC Power' (one it cannot read refuses: fails closed), and the session then
+        watches it; off macOS it is not checked, and the session says so."""
+        self.power_watched = False
+        try:
+            source = self.host.power_source()
+        except SessionError as error:
+            return [f"{error}: a session runs on AC power only (AC22), so it does not start"]
+        if source is None:
+            self.say("power: not checked (not macOS)")
+            return []
+        self.say(f"power: the Mac draws from '{source}'")
+        if source != AC_POWER:
+            return [
+                f"the Mac draws from '{source}', not '{AC_POWER}': a session runs on AC power "
+                "only (AC22); plug the charger in"
+            ]
+        self.power_watched = True
+        return []
 
     def up(self, wait_s: float = 60) -> int:
         """Start the server after the preflight; its pid. Refuses with every problem found."""
@@ -440,6 +498,10 @@ class Session:
                 loaded = self.host.http("GET", f"{self.base_url}/api/ps")
             except (OSError, ValueError):
                 loaded = "unreadable"
+        try:
+            power = self.host.power_source() or "not checked (not macOS)"
+        except SessionError as error:
+            power = f"unreadable ({error})"
         return {
             "pid": self.our_pid(),
             "port_open": self.host.port_open(name, port),
@@ -447,6 +509,7 @@ class Session:
             "processes": self.host.ollama_processes(),
             "services": self.host.registered_services(),
             "available_gib": round(self.host.available_memory_bytes() / GIB, 1),
+            "power": power,
         }
 
     def _first_signal(self, number: int, _frame: object) -> None:
@@ -468,17 +531,54 @@ class Session:
             name = signal.Signals(number).name
             self.say(f"a second signal ({name}) arrived; the stop continues")
 
-    def run(self, commands: Sequence[Sequence[str]], runner: Callable[[Sequence[str]], int]) -> int:
+    def _watch_power(self, done: threading.Event) -> None:
+        """The power watcher (S5 AC22), a thread while the session's commands run: it reads the
+        source every power_interval_s until done is set. The first reading that is not AC power,
+        or none (fails closed), is kept in power_lost and sets halt, which ends the running
+        command (run_command) and the session's commands."""
+        while not done.wait(self.power_interval_s):
+            try:
+                source = self.host.power_source()
+            except SessionError as error:
+                reason = str(error)
+            else:
+                if source in (AC_POWER, None):
+                    continue
+                reason = f"the Mac went on '{source}'"
+            if done.is_set():  # the commands ended while it read: nothing left to halt
+                return
+            self.power_lost = f"{reason} at {time.strftime('%H:%M:%S')}"
+            self.halt.set()
+            return
+
+    def run_halting(self, command: Sequence[str]) -> int:
+        """A session command through run_command, ended when the session is halted."""
+        return run_command(command, halt=self.halt)
+
+    def run(
+        self,
+        commands: Sequence[Sequence[str]],
+        runner: Callable[[Sequence[str]], int] | None = None,
+    ) -> int:
         """up, each command in turn (stopping at the first that fails), then down and the
         postcheck, in a finally block: on success, on failure, on Ctrl-C (SIGINT), on `kill`
         (SIGTERM) and on a closed terminal (SIGHUP). The first such signal ends the session;
         while the stop runs, further ones are only said (judge S3-J8), here and when a signal
         arrives during `up`. The signal handlers in place before the session are restored after
         it. SIGKILL cannot be caught: the server then stays up until `make ollama-down`, and the
-        pid file makes the next `up` refuse until then. The exit code: the first failing
-        command's, else 1 when the postcheck fails, else 0."""
+        pid file makes the next `up` refuse until then. On macOS the power source is watched
+        while the commands run (S5 AC22): when the Mac leaves AC power the running command is
+        ended (the default runner, run_halting: run_command with the halt), no further command
+        starts, the stop runs as above, and the session says one STOPPED line and returns
+        POWER_EXIT. Otherwise the exit code: the first failing command's, else 1 when the
+        postcheck fails, else 0."""
+        run_one = runner or self.run_halting
+        self.halt.clear()
+        self.power_lost = None
         code = 0
         problems: list[str] = []
+        watched = threading.Event()
+        watcher: threading.Thread | None = None
         previous = _install_stop_handlers(self._first_signal)
         try:
             try:
@@ -488,14 +588,24 @@ class Session:
                 if self.our_pid() is not None:  # a signal while the server was starting
                     self.down()
                 raise
+            if self.power_watched:
+                watcher = threading.Thread(
+                    target=self._watch_power, args=(watched,), name="power-watch", daemon=True
+                )
+                watcher.start()
             try:
                 for command in commands:
+                    if self.halt.is_set():
+                        break
                     self.say(f"session: {' '.join(command)}")
-                    code = runner(command)
-                    if code != 0:
+                    code = run_one(command)
+                    if code != 0 or self.halt.is_set():
                         break
             finally:
                 _install_stop_handlers(self._late_signal)
+                watched.set()
+                if watcher is not None:
+                    watcher.join()  # bounded: a pmset read times out after 30 s
                 problems = self.down()
                 if problems:
                     self.say("POSTCHECK FAILED: " + "; ".join(problems))
@@ -503,6 +613,14 @@ class Session:
                     self.say("postcheck passed: port closed, no ollama process, no model loaded")
         finally:
             _restore_handlers(previous)
+        if self.power_lost is not None:
+            self.say(
+                f"STOPPED: {self.power_lost}; a session runs on AC power only (AC22). The "
+                "command running then was ended and wrote no run record, the model was unloaded "
+                "and the server stopped (the postcheck above); plug the charger in, then run the "
+                "target again"
+            )
+            return POWER_EXIT
         return code or (1 if problems else 0)
 
 
@@ -588,6 +706,8 @@ def group_alive(pgid: int) -> bool:
 
 # how long a session command's process group gets after SIGTERM, before SIGKILL
 COMMAND_GRACE_S = 5.0
+# how often a session command's wait looks at the session's halt (S5 AC22)
+COMMAND_POLL_S = 0.5
 
 
 def stop_command(process: subprocess.Popen[bytes], grace_s: float = COMMAND_GRACE_S) -> None:
@@ -604,13 +724,16 @@ def stop_command(process: subprocess.Popen[bytes], grace_s: float = COMMAND_GRAC
     process.wait()
 
 
-def run_command(command: Sequence[str]) -> int:
+def run_command(command: Sequence[str], halt: threading.Event | None = None) -> int:
     """A session command: run as given (no shell, offline for the model hub, no stdin) in a
     process group of its own (start_new_session), so the session can end the command's whole
     tree, its grandchildren included (`uv run` starts the python that does the work): on any
     interruption, a signal or Ctrl-C or an error, the group gets SIGTERM, then SIGKILL after
     COMMAND_GRACE_S, before the session stops the server (judge S3-J11). A terminal's Ctrl-C no
-    longer reaches the command itself: it reaches the session, which stops the group."""
+    longer reaches the command itself: it reaches the session, which stops the group. With a halt
+    event (S5 AC22: the session's power watcher sets it) the wait looks at it every
+    COMMAND_POLL_S, and once it is set the group is ended the same way; the exit code is then the
+    command's, as the signal left it."""
     executable = shutil.which(command[0]) or command[0]
     env = {**os.environ, "HF_HUB_OFFLINE": "1"}
     # commands come from the Makefile's eval-local target, never from a request
@@ -618,7 +741,15 @@ def run_command(command: Sequence[str]) -> int:
         [executable, *command[1:]], env=env, stdin=subprocess.DEVNULL, start_new_session=True
     )
     try:
-        return process.wait()
+        if halt is None:
+            return process.wait()
+        while True:
+            try:
+                return process.wait(timeout=COMMAND_POLL_S)
+            except subprocess.TimeoutExpired:
+                if halt.is_set():
+                    stop_command(process)
+                    return process.wait()
     except BaseException:
         stop_command(process)
         raise

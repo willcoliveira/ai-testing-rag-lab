@@ -7,6 +7,7 @@ import re
 import signal
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -36,6 +37,17 @@ class FakeHost(Host):
     started: list[tuple[list[str], dict[str, str]]] = field(default_factory=list)
     signals: list[int] = field(default_factory=list[int])
     unloaded: list[str] = field(default_factory=list[str])
+    # S5 AC22: the power readings in turn (the last one repeats): a source, None (not macOS) or
+    # an exception to raise (unreadable)
+    power: list[object] = field(default_factory=lambda: ["AC Power"])
+    power_reads: int = 0
+
+    def power_source(self) -> str | None:
+        self.power_reads += 1
+        reading = self.power[0] if len(self.power) == 1 else self.power.pop(0)
+        if isinstance(reading, Exception):
+            raise reading
+        return cast(str | None, reading)
 
     def which_ollama(self):
         return self.binary
@@ -962,3 +974,265 @@ def test_the_cli_ends_a_signalled_session_without_a_traceback(tmp_path, sig, cod
     assert proc.returncode == code, (proc.returncode, err[-2000:])
     assert "postcheck passed: port closed, no ollama process, no model loaded" in out
     assert err.count(INTERRUPTED) == (1 if sig == "SIGINT" else 0), err[-2000:]
+
+
+# ------------------------------------------------- S5 AC22: the power guard
+
+POSTCHECK = "postcheck passed: port closed, no ollama process, no model loaded"
+# a session command that writes its run record only when it runs to its end (30 s)
+RECORDING = (
+    "import pathlib, sys, time\n"
+    "pathlib.Path(sys.argv[1]).write_text('running')\n"
+    "time.sleep(30)\n"
+    "pathlib.Path(sys.argv[2]).write_text('record')\n"
+)
+
+
+def test_on_ac_power_the_preflight_says_the_source_and_the_session_proceeds(tmp_path):
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path)
+    s.say = said.append
+    assert s.preflight() == []
+    assert "power: the Mac draws from 'AC Power'" in said
+    # beside the model and memory lines
+    assert [line.split(":")[0] for line in said] == ["model", "memory", "power"]
+    assert s.power_watched is True
+    assert fake.power_reads == 1
+
+
+@pytest.mark.parametrize("source", ["Battery Power", "UPS Power"])
+def test_off_ac_power_the_session_refuses_and_nothing_starts(tmp_path, source):
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path, power=[source])
+    s.say = said.append
+    with pytest.raises(SessionError, match=f"draws from '{source}', not 'AC Power'"):
+        s.up()
+    assert fake.started == []
+    assert f"power: the Mac draws from '{source}'" in said
+
+
+def test_an_unreadable_power_source_on_macos_refuses_the_session(tmp_path):
+    """The guard fails closed: no reading, no session."""
+    pulled(tmp_path)
+    s, fake, said = session(
+        tmp_path, power=[SessionError("the power source cannot be read from pmset -g batt")]
+    )
+    s.say = said.append
+    with pytest.raises(SessionError, match="cannot be read from pmset -g batt: a session runs"):
+        s.up()
+    assert fake.started == []
+
+
+def test_off_macos_the_power_is_not_checked_and_the_session_says_so(tmp_path):
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path, power=[None])
+    s.say = said.append
+    s.power_interval_s = 0.01
+    assert s.run([["first"]], lambda command: 0) == 0
+    assert "power: not checked (not macOS)" in said
+    assert s.power_watched is False
+    assert fake.power_reads == 1  # the preflight's: no watcher off macOS
+
+
+@pytest.mark.parametrize(
+    ("system", "pmset", "expected"),
+    [
+        (
+            "Darwin",
+            "Now drawing from 'AC Power'\n -InternalBattery-0\t80%; AC attached\n",
+            "AC Power",
+        ),
+        ("Darwin", "Now drawing from 'Battery Power'\n -InternalBattery-0\t43%\n", "Battery Power"),
+        ("Darwin", "", SessionError),
+        ("Darwin", "something else\n", SessionError),
+        ("Linux", "", None),
+    ],
+)
+def test_the_real_host_reads_the_power_source_from_pmset(monkeypatch, system, pmset, expected):
+    calls: list[list[str]] = []
+
+    def fake_run(command):
+        calls.append(list(command))
+        return pmset
+
+    monkeypatch.setattr(ollama.platform, "system", lambda: system)
+    monkeypatch.setattr(ollama, "_run", fake_run)
+    if expected is SessionError:
+        with pytest.raises(SessionError, match="cannot be read from pmset -g batt"):
+            Host().power_source()
+    else:
+        assert Host().power_source() == expected
+    assert calls == ([["pmset", "-g", "batt"]] if system == "Darwin" else [])
+
+
+def test_going_on_battery_mid_session_stops_it_cleanly_and_writes_no_record(tmp_path):
+    """The watcher reads AC, AC, then battery: the running command is halted (this runner ends
+    when the halt is set, as run_command does) and writes no record, no further command starts,
+    the model is unloaded and the server stopped, the postcheck passes, and one STOPPED line
+    comes last; the exit is POWER_EXIT."""
+    import threading
+
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path, power=["AC Power", "AC Power", "AC Power", "Battery Power"])
+    s.say = said.append
+    s.power_interval_s = 0.01
+    fake.loaded = [MODEL]
+    record = tmp_path / "record.json"
+
+    def runner(command):
+        if s.halt.wait(10):
+            return -signal.SIGTERM
+        record.write_text("{}", encoding="utf-8")
+        return 0
+
+    assert s.run([["judge"], ["second"]], runner) == ollama.POWER_EXIT
+    assert not record.exists()
+    assert "session: second" not in said
+    assert fake.unloaded == [MODEL]
+    assert signal.SIGTERM in fake.signals
+    assert fake.running is False
+    assert POSTCHECK in said
+    stopped = said[-1]
+    assert stopped.startswith("STOPPED: the Mac went on 'Battery Power' at ")
+    assert "a session runs on AC power only (AC22)" in stopped
+    assert said.index(POSTCHECK) < len(said) - 1
+    assert not [t for t in threading.enumerate() if t.name == "power-watch"]
+
+
+def test_an_unreadable_source_mid_session_stops_it_too(tmp_path):
+    """Fails closed while the session runs as well."""
+    pulled(tmp_path)
+    s, fake, said = session(
+        tmp_path, power=["AC Power", SessionError("the power source cannot be read from pmset")]
+    )
+    s.say = said.append
+    s.power_interval_s = 0.01
+    assert s.run([["judge"]], lambda command: -15 if s.halt.wait(10) else 0) == ollama.POWER_EXIT
+    assert said[-1].startswith("STOPPED: the power source cannot be read from pmset at ")
+    assert fake.running is False
+
+
+def test_a_session_that_stays_on_ac_power_is_not_stopped(tmp_path):
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path)
+    s.say = said.append
+    s.power_interval_s = 0.01
+
+    def runner(command):
+        assert not s.halt.wait(0.2)  # the watcher reads AC power many times meanwhile
+        return 0
+
+    assert s.run([["first"]], runner) == 0
+    assert fake.power_reads > 2
+    assert not any(line.startswith("STOPPED") for line in said)
+
+
+def test_a_halt_ends_the_running_commands_whole_process_tree(tmp_path):
+    """run_command with a halt (the session's default runner): set while the command runs (here
+    a command that starts a grandchild sleep 30), the whole group is ended within the poll and
+    the grace, not after 30 s."""
+    import contextlib
+    import os
+    import sys
+    import threading
+    import time
+
+    pids = tmp_path / "sleep.pid"
+    halt = threading.Event()
+    timer = threading.Timer(0.5, halt.set)
+    timer.start()
+    started = time.monotonic()
+    try:
+        code = ollama.run_command([sys.executable, "-c", GRANDCHILD, str(pids)], halt=halt)
+    finally:
+        timer.cancel()
+    assert time.monotonic() - started < 15
+    assert code != 0
+    sleep_pid = int(pids.read_text(encoding="utf-8"))
+    deadline = time.monotonic() + 5
+    alive = True
+    while alive and time.monotonic() < deadline:
+        try:
+            os.kill(sleep_pid, 0)
+        except ProcessLookupError:
+            alive = False
+        else:
+            time.sleep(0.1)
+    if alive:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(sleep_pid, signal.SIGKILL)
+    assert not alive, f"the command's grandchild sleep {sleep_pid} survived the halt"
+
+
+def test_the_session_halts_a_real_command_that_then_writes_no_record(tmp_path):
+    """The session's default runner, a real command (python, 30 s, then its record): the Mac
+    goes on battery while it runs; the command is ended and its record never written."""
+    import sys
+    import time
+
+    pulled(tmp_path)
+    s, fake, said = session(tmp_path, power=["AC Power", "AC Power", "Battery Power"])
+    s.say = said.append
+    s.power_interval_s = 0.2
+    running, record = tmp_path / "running", tmp_path / "record"
+    started = time.monotonic()
+    code = s.run([[sys.executable, "-c", RECORDING, str(running), str(record)]])
+    assert code == ollama.POWER_EXIT
+    assert time.monotonic() - started < 20
+    assert running.exists()
+    assert not record.exists()
+    assert fake.running is False
+    assert said[-1].startswith("STOPPED: the Mac went on 'Battery Power' at ")
+
+
+POWER_CLI_SESSION = """
+import sys
+from pathlib import Path
+sys.path.insert(0, {root!r})
+from tests.unit.test_ollama_session import FakeHost, pulled
+from raglab.runtime import ollama
+from raglab.__main__ import main
+lab = Path({lab!r})
+pulled(lab)
+real = ollama.session_for
+def on_battery_soon(config, root, host=None):
+    host = FakeHost(tmp=lab, power=["AC Power", "AC Power", "AC Power", "Battery Power"])
+    found = real(config, lab, host)
+    found.power_interval_s = 0.2
+    return found
+ollama.session_for = on_battery_soon
+sys.exit(main({argv!r}))
+"""
+
+
+def test_the_cli_exits_power_exit_with_one_stopped_line_and_no_record(tmp_path):
+    """`raglab ollama session` (the make targets' path) when the Mac goes on battery while its
+    command runs: exit 75, no traceback, the postcheck, one STOPPED line, and the command's
+    record never written."""
+    import shlex
+    import subprocess
+    import sys
+
+    running, record = tmp_path / "running", tmp_path / "record"
+    argv = [
+        "ollama",
+        "session",
+        "--config",
+        str(ROOT / "config" / "local-ollama.toml"),
+        "--root",
+        str(ROOT),
+        "--run",
+        shlex.join([sys.executable, "-c", RECORDING, str(running), str(record)]),
+    ]
+    script = POWER_CLI_SESSION.format(root=str(ROOT), lab=str(tmp_path / "lab"), argv=argv)
+    done = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=60, check=False
+    )
+    assert "Traceback" not in done.stderr, done.stderr[-2000:]
+    assert done.returncode == ollama.POWER_EXIT, (done.returncode, done.stderr[-2000:])
+    lines = done.stdout.splitlines()
+    assert POSTCHECK in lines
+    assert [line for line in lines if line.startswith("STOPPED")] == [lines[-1]]
+    assert lines[-1].startswith("STOPPED: the Mac went on 'Battery Power' at ")
+    assert running.exists()
+    assert not record.exists()

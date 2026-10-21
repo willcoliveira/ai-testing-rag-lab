@@ -54,6 +54,17 @@ is wrong, the stage stops and reports, and a change needs a new sign-off. CRITER
 DeepEval 4.3.1" section therefore stays as signed off ("Not run yet"); DeepEval's results go to
 docs/COMPATIBILITY.md and this ledger.
 
+**After the judged run (asked 2026-10-20 at about 22:05 WEST, answered by 2026-10-21 08:43 WEST;
+the prompt does not record the minute).** The developer stopped after phase 2's step 2 and
+reported three things (the step 2 section below); through the orchestrator's question prompt the
+user answered all three:
+
+| Question | Answer, verbatim | What was done |
+|---|---|---|
+| "Should local model sessions get a power guard, given the judged run drained the Mac to 1%?" | "Add it in S5 now (Recommended)". The option said: "Before the next live session: a session refuses to start unless the Mac is on AC power, and stops cleanly (model unloaded, Ollama down, nothing published) if it goes on battery mid-run. One new S5 criterion with tests; about 30 to 60 min of developer time." | A new criterion, AC22, in the plan's table with this quote; built before the next live session (the AC22 section below) |
+| "The `correct` rule: reword it as above (second sign-off) and judge the baseline again before the position test?" (2026-10-21, 08:43 WEST) | "Reword and re-judge (Recommended)" | The second sign-off (below), then the baseline judged again |
+| The `make audit` failure (new certifi and pillow advisories) | A dependency pull request from main: certifi to 2026.10.19, and Pillow's eight advisories skipped in `make audit` with a written reason and a review date | No dependency change in S5. The orchestrator builds that pull request and the user merges it; S5 then merges main and re-locks the DeepEval tool. Until then `make -k check`'s only failure is the known audit one |
+
 ## The judge model, pinned
 
 The orchestrator pulled the judge on 2026-10-20 at 17:00, in one guarded session (`make

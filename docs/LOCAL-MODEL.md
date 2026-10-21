@@ -18,8 +18,9 @@ safely.
 | `make release-local` | The test slice, once per release (v0.1, `runbooks/release.md`): the default retrieval configuration on the test split with the embedder only, then one session with the live contract test and the generation suite on the test split x3 (`config/local-ollama-release.toml`, the local config with split test: a generation run uses its config's split), both with `--gate release` |
 | `make ollama-up` | Starts the server for manual work (after the preflight); stop it with `make ollama-down` |
 | `make ollama-down` | Unloads every loaded model, stops the server and runs the postcheck |
-| `make ollama-status` | This project's server pid, the port, the loaded models, any ollama process, any registered Ollama service, and the memory available |
+| `make ollama-status` | This project's server pid, the port, the loaded models, any ollama process, any registered Ollama service, the memory available, and the power source (S5) |
 | `make judge-contract` | S5: a judge session (`config/judge-local.toml`): the server serves the judge, `ministral-3:14b-instruct-2512-q4_K_M`, never the generator, and the session runs the judge's live contract test only (`tests/contract/test_judge_contract.py -m live`), on hand-written items, never a golden answer; it probes both response formats and writes each call's format, seconds and tokens to `runs/tmp/judge-contract/`. The first session (2026-10-20) took 31 s from launch to the postcheck: the first call, which loads the model, 6.9 s, each warm call about 3 s (S5 ledger) |
+| `make judge-canaries` | S5: a short judge session: the judge's live contract test, then the canary set alone (`raglab canaries`), which prints each item's verdict, seconds and tokens and writes them to `runs/tmp/canaries/`. It measures the judge's seconds per call before a judged run's cap is set; the first one (2026-10-20) took 2 minutes from launch to the postcheck, the 19 canary calls 2.487 to 9.196 s each (S5 ledger) |
 | `make judge-local RUN=<run>` | S5: a judge session on a finished generation run: the live contract test, then `raglab judge`, which runs the canaries first and stops the session before any judged call when one is off its side; the judged run's wall-clock cap is `[judging] run_timeout_s` |
 | `make position-local` | S5: a generator session (`config/position-local.toml`, the local config with a `[position]` table): the generator's live contract test, then the position test (`raglab position`) |
 | `make deepeval-check JUDGED=<run>` | S5: a judge session for DeepEval's checks: the live contract test, `raglab canaries`, then `tools/deepeval-check` with DeepEval's telemetry off and a loopback-only socket guard |
@@ -64,7 +65,23 @@ Before the server starts (the preflight), the session refuses, and starts nothin
   layer, whose digest is the one `/api/tags` reports, names another digest, or no such layer is
   there to check (fails closed). The session checks the model of its config's suite: a generation
   config's generator, a judge config's judge;
-- the memory available is below the model's size plus the margin.
+- the memory available is below the model's size plus the margin;
+- (S5, AC22) the Mac does not draw from AC power: the source `pmset -g batt` names ("Now drawing
+  from 'AC Power'") must be `AC Power`, and one it cannot read refuses too (fails closed). Off
+  macOS power is not checked, and the session says so; CI runs no live session. The preflight says
+  the source in a `power:` line beside its `model:` and `memory:` lines.
+
+**A session runs on AC power only, from start to end (S5, AC22).** On 2026-10-20 a judged run on
+battery took the Mac down to 1%, and macOS hibernated it for 36 minutes in the middle of the run
+(S5 ledger). While a session's commands run, a watcher reads the power source every 15 s; when
+the Mac leaves AC power (or the source cannot be read), the running command's whole process group
+is ended (SIGTERM, then SIGKILL after 5 s), no further command starts, the model is unloaded, the
+server stopped and the postcheck run, as on any stop. The interrupted command writes no run record
+(a record is written when a run ends), and a session never publishes anything. The session's last
+line is one `STOPPED:` line that names the source and the time, and it exits 75 (EX_TEMPFAIL):
+plug the charger in, then run the target again. `make ollama-up` checks the source when it
+starts, but a server started that way is not watched: stop it with `make ollama-down` before
+unplugging. `make ollama-status` shows the source (`power`).
 
 The judge's limits are the generator's, from `config/judge-local.toml`'s `[ollama]` table (the
 same loopback interface, one model, one request, a context of 8,192, a keep-alive of 2 minutes, a
@@ -100,7 +117,8 @@ directly; the session then stops the command's group.
 
 Each guard is tested offline with a fake host (`tests/unit/test_ollama_session.py`): low memory, a
 registered service, a held port, a missing binary, an unpulled model, an old server, a server that
-will not stop, a leftover process, and a session that fails or is interrupted.
+will not stop, a leftover process, a session that fails or is interrupted, and (S5) a battery or
+an unreadable power source, before the session and while it runs.
 
 ## What this Ollama build does (0.40.6, Homebrew, MLX runner; checked 2026-10-18)
 
