@@ -132,6 +132,7 @@ below.
 | AC14 | the parts that need no run met | TEST-PLAN R5 names its tests (nine) and its gate ("local until keys (`make judge-local`); reported, not gated, until S6 calibrates the judge"), its oracle says what is judged and what stays label-based; section 10's judges line and the metric canary line; Q-01 and Q-02 point at THRESHOLDS.md; the Test column names the judged criteria (reported) for R-01, R-03 to R-07, R-10, R-11, R-14 and R-18 (`tests/unit/test_test_plan.py`, two new tests); LOCAL-MODEL, COMPATIBILITY, ONBOARDING (current as of S5, in progress), ARCHITECTURE and README (S5 `wip`; S5 before S4b), a CHANGELOG line. The measured numbers (THRESHOLDS cost and Q-01, the judge's session time on the judged run, COMPATIBILITY's DeepEval lines) wait for the runs | |
 | AC15 | met locally (the tail below); needs CI (pr-fast) | No new runtime dependency in the main project (`pyproject.toml` changed only in tool settings: deptry's `extend_exclude`, ruff's per-file ignores for the tool's tests); `make gate` passes; every published record validates | |
 | AC16 to AC21 | not started: after the sign-up (D5), if D6 picks a provider | | |
+| AC22 | met offline (the live power line follows with the next session) | The preflight's power check and the watcher in `raglab.runtime.ollama`; 16 tests in `tests/unit/test_ollama_session.py` with a fake power reader (the AC22 section below) | the preflight's check removed: 9 of the 16 power tests fail; the watcher never started: all 5 mid-session tests fail (restored from git) |
 
 ## The judge's live contract test (AC3), the one live session before the sign-off
 
@@ -377,8 +378,10 @@ minutes); it woke when the 140 W adapter was attached. Every process, the server
 included, was frozen in between, and the run went on after the wake. From the server's request log
 (Ollama's GIN lines, all HTTP 200): before the sleep, 213 judged calls at a mean of 6.80 s (median
 6.23, the longest 19.44); the call in flight at the sleep returned 1m1s of awake time after the
-wake; the next 8 calls took 22.49 s on average while the model's memory came back from the
-hibernation image; by 22:01 the last 10 calls were back to a mean of 4.04 s (median 3.51).
+wake; the next 8 calls took 22.49 s on average; by 22:01 the last 10 calls were back to a mean of
+4.04 s (median 3.51). Why the calls after the wake were slow was not measured; the developer's
+reading, not a measurement, is that the model's memory was being read back from the hibernation
+image.
 
 **The clock.** The run's cap, its `duration_s` and each verdict's `latency_ms` are measured with
 Python's `time.monotonic()` and `time.perf_counter()`, which on macOS are `mach_absolute_time()`
@@ -501,6 +504,55 @@ Tokens and time (AC6):
    P-03 ("When is a leaver's account disabled?"), an abstain case, trial 1 answered "24 hours".
 3. **The checks:** the 92 repeated verdicts agree with the first in every pair; the order check
    agrees in 46 of 48.
+
+## AC22: the power guard (developer, 2026-10-21)
+
+Built in `1c20e08`, before any further live session, by the user's choice above.
+
+- **The preflight** (`raglab.runtime.ollama`, `Session.power_problems`): on macOS it reads the
+  source `pmset -g batt` names ("Now drawing from 'AC Power'") and says it in a `power:` line after
+  the `model:` and `memory:` lines. It refuses the session, and starts nothing, unless the source
+  is `AC Power` (on battery, 'Battery Power'; on a UPS, 'UPS Power'), and when it cannot read one
+  (fails closed). Off macOS it says "power: not checked (not macOS)"; CI runs no live session.
+  `make ollama-up` goes through the same preflight; `make ollama-status` shows the source.
+- **While the commands run:** a watcher thread reads the source every 15 s (`POWER_INTERVAL_S`).
+  The first reading that is not AC power, or none, halts the session. The session's default
+  runner (`run_command` with the halt) looks at it every 0.5 s and ends the running command's
+  whole process group (SIGTERM, then SIGKILL after 5 s), and no further command starts. The stop
+  then runs as on any interruption: the model unloaded, the server stopped, the postcheck. The
+  interrupted command writes no run record, because a record is written when a run ends, and a
+  session never publishes. The last line is one `STOPPED:` line naming the source and the time,
+  and the exit is 75 (EX_TEMPFAIL). The watcher raises nothing in the main thread: the halt is an
+  event the runner polls, so the stop's own finally block cannot be cut short.
+- **Tests** (`tests/unit/test_ollama_session.py`, 16 new, with a fake power reader):
+  - AC power proceeds, with the `power:` line beside the model and memory lines;
+  - 'Battery Power' and 'UPS Power' refuse, and nothing starts;
+  - an unreadable source refuses on macOS;
+  - off macOS: not checked, no watcher;
+  - the real host's reading of `pmset -g batt` (AC, battery, empty and unexpected output, Linux);
+  - on battery mid-session, with a fake runner: the command halted and its record never
+    written, no second command, the model unloaded, the server stopped, the postcheck, one
+    STOPPED line last, exit 75;
+  - an unreadable source mid-session stops it too;
+  - a session that stays on AC power is not stopped;
+  - `run_command` with a halt ends a command's whole process tree (a grandchild `sleep 30`);
+  - the session's default runner halts a real command (30 s, then its record): the record is
+    never written;
+  - `raglab ollama session` through the CLI: exit 75, no traceback, the postcheck, one STOPPED
+    line last, no record.
+- **Breaks, each restored from git:**
+  - the preflight's power check removed (`return problems` instead of `return problems +
+    self.power_problems()`): 9 of the 16 power tests failed (the `power:` line, the battery,
+    UPS and unreadable refusals, the not-macOS line, and the four mid-session tests, since
+    without the check no watcher starts);
+  - the watcher never started (`if False:` for `if self.power_watched:`): all 5 mid-session
+    tests failed;
+  - restored: 64 of 64 session tests pass.
+- `make -k check` after it: 1323 passed; the only failure is `audit`, the known advisories
+  (Notes).
+- **Docs:** LOCAL-MODEL.md's guards (the rule, the watcher, exit 75, `make ollama-up` is not
+  watched) and its commands table (`make judge-canaries`; `make ollama-status` shows the power).
+- **Live evidence:** the `power:` line of the next session's log (below).
 
 ## Decisions needed
 
