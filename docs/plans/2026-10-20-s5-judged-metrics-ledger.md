@@ -173,12 +173,12 @@ below.
 | AC7 | met at `20261021T081852Z-judge-local-dev-5aa0ec5` (judge-v2): the consistency baseline judged and published, every number in the ledger copied from the record; the first record, under judge-v1, stays published as history | `raglab judge`, `make judge-local RUN=`; THRESHOLDS.md marks every judged criterion reported with the reason (`57f6fad`) | The verdict no longer read again from its reply (only the quote, ids and reason compared): the flipped-verdict test "1 failed, 21 passed", restored "22 passed". The plan's break on the published record waits for it |
 | AC8 | met: repeatability 92 of 92 pairs agree, order 46 of 48, in both published records | The repeatability pass (trial 1 of every behaviour case judged again) and the order pass (grounded on trial 1 of every case with the passages reversed), both after every answer is judged, both in the record and validated (`tests/judge/test_order_check.py`, 4 tests) | The order check given the passages in their original order (`reverse=False` in `judged.run`): "2 failed, 2 passed", restored "4 passed" |
 | AC9 | met: the position run `20261021T092047Z-generation-local-ollama-position-dev-f309594` (one generator session, scored by code) and the judge's `correct` on it `20261021T092819Z-judge-local-dev-9fa9004`, both published (the position section below) | `tests/generation/test_position_contexts.py` (20 tests): first, middle (n // 2) and last; the fillers are the tenant's other chunks in rank order, never a labelled section or a group member, nor another tenant's or a shared chunk; the fit to the budget; the measured characters per token are the fewest; a value is stated as the answer key writes it or by its numbers and units (11 cases); the committed config names the ten cases, derived from the golden file; a position run writes a valid generation record; a moved answering chunk, a labelled filler and forged checks are refused; the judge's `correct` runs on a position run | (1) the answering chunk put first at every position (`index = 0` in `place`): "3 failed, 17 passed", restored "20 passed". (2) a group member allowed as filler (only plain labels excluded in `fillers`): "1 failed, 19 passed", restored "20 passed" |
-| AC10 | met offline and live (the opt-out set before the import, the guard on and catching 0 attempts, every metric in mode `llm`, every call through raglab's adapter: the DeepEval section below); needs CI for `make audit`, red until the dependency pull request (Notes) | `tools/deepeval-check` locks `deepeval==4.3.1` (94 packages resolved); the main environment never installs it (`uv sync --locked` unchanged, the main `uv.lock` holds no deepeval, `find_spec("deepeval")` is None and no `deepeval` pytest plugin is registered: `test_the_main_environment_never_installs_deepeval`); rule 6 forbids a deepeval import anywhere under `src/` (`test_deepeval_is_imported_nowhere_in_the_package_adapters_included`, 12 cases); `make audit` exports its 92 pinned requirements with their hashes and audits them without installing ("No known vulnerabilities found"); deptry leaves `tools/` to its own lock; Dependabot watches it, a DeepEval bump in a PR of its own. `make deepeval-test`: "8 passed" (the opt-out set before the first DeepEval import, recorded by an import hook; the guard lets nothing but the loopback Ollama port through; the custom-LLM API returns the schema's instance and records tokens; a whole FaithfulnessMetric in mode llm through the wrapper against a stub, with no connection attempted; the direction report; the canary reading) | (1) `import deepeval` added to `src/raglab/adapters/openai_compat.py`: `make architecture` "1 architecture violations" ("src/raglab/adapters/openai_compat.py:28: deepeval is fenced in tools/deepeval-check and imported nowhere in raglab, adapters included"), restored "0 architecture violations". (2) The opt-out unset with the guard on (a probe outside the repository: DeepEval imported and a FaithfulnessMetric run against a stub judge, the guard installed before the import and kept until the interpreter exits): no attempt during the import or the metric, then at exit "[PostHog] error uploading: HTTPSConnectionPool(host='us.i.posthog.com', port=443)": 12 lookups of `us.i.posthog.com:443`, every one caught. With the opt-out set to 1 before the import: no attempt at all, exit included |
+| AC10 | met offline and live (the opt-out set before the import, the guard on and catching 0 attempts, every metric in mode `llm`, every call through raglab's adapter: the DeepEval section below); `make audit` green locally since the merge of main (`da96564`), both audit lines; met locally, CI pending on the pull request | `tools/deepeval-check` locks `deepeval==4.3.1` (94 packages resolved); the main environment never installs it (`uv sync --locked` unchanged, the main `uv.lock` holds no deepeval, `find_spec("deepeval")` is None and no `deepeval` pytest plugin is registered: `test_the_main_environment_never_installs_deepeval`); rule 6 forbids a deepeval import anywhere under `src/` (`test_deepeval_is_imported_nowhere_in_the_package_adapters_included`, 12 cases); `make audit` exports its 92 pinned requirements with their hashes and audits them without installing ("No known vulnerabilities found"); deptry leaves `tools/` to its own lock; Dependabot watches it, a DeepEval bump in a PR of its own. `make deepeval-test`: "8 passed" (the opt-out set before the first DeepEval import, recorded by an import hook; the guard lets nothing but the loopback Ollama port through; the custom-LLM API returns the schema's instance and records tokens; a whole FaithfulnessMetric in mode llm through the wrapper against a stub, with no connection attempted; the direction report; the canary reading) | (1) `import deepeval` added to `src/raglab/adapters/openai_compat.py`: `make architecture` "1 architecture violations" ("src/raglab/adapters/openai_compat.py:28: deepeval is fenced in tools/deepeval-check and imported nowhere in raglab, adapters included"), restored "0 architecture violations". (2) The opt-out unset with the guard on (a probe outside the repository: DeepEval imported and a FaithfulnessMetric run against a stub judge, the guard installed before the import and kept until the interpreter exits): no attempt during the import or the metric, then at exit "[PostHog] error uploading: HTTPSConnectionPool(host='us.i.posthog.com', port=443)": 12 lookups of `us.i.posthog.com:443`, every one caught. With the opt-out set to 1 before the import: no attempt at all, exit included |
 | AC11 | met, with a caveat and a deviation: the second session (the DeepEval sections below) recorded the custom-LLM API, the metric canary's four scores with their steps and its reading ("not separated"), the hallucination direction's two scores and is_successful() beside the page (its steps computed but not written: fixed since in `33ca073`, not re-run), and the cross-check's table (13 of 17 agree) with DeepEval's calls and tokens. Deviation from its wording: the results go to COMPATIBILITY.md and this ledger, not CRITERIA.md, which is frozen (a third sign-off would be needed; the pull request reports it) | The checks are code (`tools/deepeval-check/src/deepeval_check/checks.py`): the custom-LLM API, the metric canary (C-01 and C-03 with penalize_ambiguous_claims off and on), the hallucination direction (G-01's labelled passage, a consistent and a contradicting output, the page's sentence and its read date), the cross-check against the own judge's grounded on trial 1 of the dev answer cases; every metric in mode llm. Offline: `test_the_direction_report_names_the_output_that_scored_higher` (3 cases) and `test_the_canary_reading_follows_the_invented_answers_verdict` | The direction report's scores swapped (`x, c = ...`): `make deepeval-test` "2 failed, 6 passed", restored "8 passed" |
 | AC12 | met: `make cost` over the judge-v2 baseline (step 5 below), the table read again on 2026-10-21 (unchanged), THRESHOLDS.md's cost section and Q-01 from the output and the records | `config/prices.toml` (seven rows, each with its source URL and read date: 2026-10-21 since the second reading, every row unchanged from the first, 2026-10-20; the table's date is its latest read date); `config/cost-assumptions.toml`; `raglab cost --judged` (`tests/unit/test_cost.py`, 15 tests: a call's cost by hand; the estimate by hand, per call, per case-trial, per run and per month; a prompt above a price's tier refused; the committed table's rows and dates; eight wrong tables refused; the committed options keep the judge's family apart; an option naming no price refused; the CLI on a judged record). THRESHOLDS.md states the formula | (1) the output price applied to prompt tokens (`prompt * price.output` in `call_cost`): "2 failed, 13 passed" (`0.0022 == 0.0012`), restored "15 passed". (2) one price's `source` line removed from `config/prices.toml`: "7 failed, 8 passed" ("price 5 (openai-gpt-5-nano): missing ['source']"), restored "15 passed" |
 | AC13 | met: ADR-002 written from `raglab cost`'s output (`91a9a16`), with its test, and the user's choice (D6) quoted verbatim in it; accepted, local only for now | `docs/decisions/ADR-002-providers.md`; `tests/unit/test_adr.py` (2 tests) | a cost edited by hand in the ADR ($1.21 to $0.99): the test failed; restored from git |
 | AC14 | met: ARCHITECTURE and README mark S5 `done` (`a8d0958`); LOCAL-MODEL has the judge sessions' measured times and the power rule | TEST-PLAN R5 names its tests (nine) and its gate ("local until keys (`make judge-local`); reported, not gated, until S6 calibrates the judge"), its oracle says what is judged and what stays label-based; section 10's judges line and the metric canary line; Q-01 and Q-02 point at THRESHOLDS.md; the Test column names the judged criteria (reported) for R-01, R-03 to R-07, R-10, R-11, R-14 and R-18 (`tests/unit/test_test_plan.py`, two new tests); LOCAL-MODEL, COMPATIBILITY, ONBOARDING (current as of S5), ARCHITECTURE and README (S5 `done` since `a8d0958`; S5 before S4b), a CHANGELOG line. The measured numbers (THRESHOLDS cost and Q-01, the judge's session time on the judged run, COMPATIBILITY's DeepEval lines) wait for the runs | |
-| AC15 | every step of `make -k check` passes but `audit` (1330 tests, the gate, the API smoke test; 2026-10-21), which is red on the known certifi and pillow advisories until the dependency pull request; needs CI (pr-fast) | No new runtime dependency in the main project (`pyproject.toml` changed only in tool settings: deptry's `extend_exclude`, ruff's per-file ignores for the tool's tests); `make gate` passes; every published record validates | |
+| AC15 | met locally, CI pending on the pull request: `make check` exit 0 after the merge of main (2026-10-21, `6263a0c`: 1333 tests passed, both audit lines "No known vulnerabilities found, 8 ignored", the gate, the API smoke test) | No new runtime dependency in the main project (`pyproject.toml` changed only in tool settings: deptry's `extend_exclude`, ruff's per-file ignores for the tool's tests); `make gate` passes; every published record validates | |
 | AC16 to AC21 | not applicable, by D6 (2026-10-21: local only for now; the hosted half is deferred, not cancelled) | the D6 row above; ADR-002 | |
 | AC22 | met: offline (the tests and their breaks) and live: each of the six model sessions since (`make judge-canaries`, the two `make judge-local`, `make position-local`, the two `make deepeval-check`) printed "power: the Mac draws from 'AC Power'" | The preflight's power check and the watcher in `raglab.runtime.ollama`; 16 tests in `tests/unit/test_ollama_session.py` with a fake power reader (the AC22 section below) | the preflight's check removed: 9 of the 16 power tests fail; the watcher never started: all 5 mid-session tests fail (restored from git) |
 
@@ -1053,6 +1053,45 @@ its report saved by the orchestrator in the session's scratchpad, `s5-judge/repo
   `pip-audit -r ...` line, and the tool's lock must be re-locked; both wait for the merge of
   main after the dependency pull request, as the orchestrator directs.
 
+## Fix round 2 (2026-10-21)
+
+**Part 1** (`62ac3c8`, wording only), after the judge's re-check of round 1 at `33b7529` (S5-J1
+to S5-J4 fixed, the tests green, only the known audit failure): **S5-J8 (info)**, ADR-002 and
+THRESHOLDS.md now say a run counts one canary set only when it is judged, as `cost.py` adds it
+(`canary_run if t.judged else 0.0`), and ADR-002's "Per run" is the measured run, which is
+judged; the quoted `raglab cost` output is unchanged and `tests/unit/test_adr.py` passes. Two
+stale ledger phrases: the opening now points at the criteria judge's section, and the AC1 row
+records the date check as done and the live form of its break as holding, checked on 2026-10-21
+with `publish.judged_problems`: the first judged record is refused as stale ("it is stale: it was
+made under another version of docs/CRITERIA.md (docs/CRITERIA.md, sha256 7e3a522335c7, now
+8c8f973a3306)"), the judge-v2 record not.
+
+**Part 2: the merge of main** (`4ad9365`: #16, certifi 2026.10.19 and the Pillow exception, and
+#17, CI on uv 0.13.4 and `uv_build>=0.13,<0.14`), the Mac's uv now 0.13.4 too.
+
+- `git merge origin/main`: the merge commit `da96564` ("Merge remote-tracking branch
+  'origin/main' into feat/s5-judged-metrics"), parents `62ac3c8` and `4ad9365`. Two conflicts,
+  both expected: `CHANGELOG.md` (S5's line kept first, newest first, then main's two) and the
+  `Makefile`. `pyproject.toml` merged on its own (main's `uv_build` and S5's tool settings both
+  kept); `uv.lock`, the CI requirements and `tests/unit/test_audit_exceptions.py` came from main.
+- **The Makefile:** main's comment block and `AUDIT_SKIP` kept as they are, with one sentence added
+  for the tool line; S5's `.PHONY` line (it names S5's targets); in `audit`, main's line exactly
+  (`uv run pip-audit --skip-editable $(foreach id,$(AUDIT_SKIP),--ignore-vuln $(id))`), then
+  S5's export of the tool's requirements and the tool's line with the same skips (S5-J7). A test
+  in the same style holds the tool line (`6263a0c`); its break, the skips taken off, failed the
+  main line's test and the new one (2 failed), restored 3 passed.
+- **The tool:** `uv_build>=0.13,<0.14` in `tools/deepeval-check/pyproject.toml`, as main
+  (`6263a0c`). `uv lock --project tools/deepeval-check` under uv 0.13.4: "Resolved 94 packages",
+  the lock unchanged: it already held certifi 2026.10.19, as it was first locked on 2026-10-20,
+  after that release. Its `uv export --locked` succeeds; its audit without the skips found only
+  Pillow 12.3.0's eight advisories, and with them "No known vulnerabilities found, 8 ignored".
+  `make deepeval-test`: 15 passed.
+- **`make check`, exit 0** (2026-10-21, before the merge commit): "All checks passed!"; both audit
+  lines "No known vulnerabilities found, 8 ignored"; "1333 passed, 2 deselected, 1 warning"; the
+  gate; "api-smoke: passed".
+- AC10 and AC15: met locally, CI pending on the pull request. S5-J5 (AC4's live break, on AC
+  power) is the judge's to re-run.
+
 ## For the pull request body
 
 Ready to copy; each has its section above.
@@ -1081,9 +1120,9 @@ Ready to copy; each has its section above.
   server started ("a session never serves other weights than its config pins"); restored from git.
 - **The Mac's hibernation** during the first judged run (on battery, down to 1%, 36.5 minutes),
   and AC22, the power guard the user then asked for: every session since says its power source.
-- **`make audit` is red** on the known certifi and pillow advisories; the dependency pull request
-  fixes it, then this branch merges main and re-locks the DeepEval tool (the orchestrator says
-  when).
+- **`make audit` was red** on the certifi and pillow advisories of 2026-10-20 until the dependency
+  pull request (#16) and the uv one (#17) were merged into main; this branch merged main
+  (`da96564`) and its `make check` is green, both audit lines included (fix round 2, above).
 
 ## Decisions needed
 
@@ -1141,7 +1180,10 @@ reworded and the run above is the next one. `make deepeval-test`, outside `make 
   and pytesseract, and fpdf2 and the dev group). Every other step of `make -k check` passed (1307
   tests, the gate, the API smoke test). Bumping them is a dependency change for the user or a
   Dependabot pull request, not part of this stage; until then pr-fast's audit fails too, and the
-  bump needs the tool's re-lock (next note).
+  bump needs the tool's re-lock (next note). **Resolved on 2026-10-21:** #16 moved certifi to
+  2026.10.19 and skips Pillow's nine advisories (`AUDIT_SKIP`, with its reason and a review
+  date, 2026-11-21); this branch merged main and applies the same skips to the tool's audit
+  line (fix round 2).
 - **For a pull request that changes the main dependencies** (a Dependabot root PR included): run
   `uv lock --project tools/deepeval-check` in it and commit `tools/deepeval-check/uv.lock` with
   the change, or `make audit` (pr-fast), `make deepeval-test` and `make deepeval-check` refuse the
