@@ -8,6 +8,24 @@ PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
 
+# Advisories `make audit` skips (decision of 2026-10-21, verbatim: "Dependency PR, Pillow exception
+# (Recommended)"). Review by 2026-11-21: tests/unit/test_audit_exceptions.py fails after that date,
+# so the exception is looked at again, not kept by default.
+# Pillow 12.3.0 has nine advisories fixed only in Pillow 13, and fastembed 0.9.0, the newest,
+# still requires pillow<13; the corpus build also pins pillow==12.3.0, since the scanned page is
+# drawn with the font Pillow bundles and tests/unit/test_corpus_build.py checks that a rebuild
+# gives the same pixels. Each advisory needs a file an attacker made: a PDF appended to, a GIF, a
+# JPEG, a PPM or PGM, a TIFF, an EPS. raglab decodes no image it did not make: OCR hands the
+# committed PNG's path to Tesseract (pytesseract opens no image for a path), the corpus build
+# re-reads only the PNG it rendered, fastembed loads a text model, and the API takes no files.
+# The advisories are named by their GitHub ids, which pip-audit matches as aliases. pip-audit
+# reported eight on 2026-10-21; GitHub's database has a ninth (GHSA-8g5g-8vmr-9782, JPEG), skipped
+# ahead of pip-audit's database. The DeepEval tool's audit line skips the same: its own lock
+# resolves the same pillow 12.3.0 through raglab.
+AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8g5g-8vmr-9782 \
+	GHSA-c6hw-5grf-ff96 GHSA-p4wg-p73j-c528 GHSA-pchr-8j38-3x4p GHSA-q45j-58j2-45rg \
+	GHSA-vx6w-vv9f-6gvg
+
 .PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
@@ -28,11 +46,11 @@ deps:
 # S5 (AC10): also the DeepEval tool project's pinned requirements, exported with their hashes from
 # its own lock and audited without installing them (the main environment never installs DeepEval)
 audit:
-	uv run pip-audit --skip-editable
+	uv run pip-audit --skip-editable $(foreach id,$(AUDIT_SKIP),--ignore-vuln $(id))
 	mkdir -p runs/tmp
 	uv export --project tools/deepeval-check --locked --no-emit-project --no-emit-local \
 		--format requirements-txt --quiet -o runs/tmp/deepeval-check.requirements.txt
-	uv run pip-audit -r runs/tmp/deepeval-check.requirements.txt --disable-pip --require-hashes
+	uv run pip-audit -r runs/tmp/deepeval-check.requirements.txt --disable-pip --require-hashes $(foreach id,$(AUDIT_SKIP),--ignore-vuln $(id))
 
 sast:
 	uv run bandit -q -r src scripts
