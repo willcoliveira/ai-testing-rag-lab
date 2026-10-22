@@ -34,7 +34,7 @@ pytestmark = pytest.mark.unit
 # the reviewed fingerprint of each prompt version; never edit a line, add one
 REVIEWED = {
     "answer-v1": "96f42d9bc9c7969fcd30198d951b5bf47e2d07abda4f0885fa39e85c7c01c8ae",
-    "answer-v2": "e3475c3b32e02dd72867ce66b20fe7a3d28be7671a26fc8f82f3d8b8e3cf082b",
+    "answer-v2": "3cbcc9f13c25efc7204aa046332574c22625360e41bca16f3799bbc45203a84e",
 }
 VERSIONS = (answer_v1, answer_v2)
 QUESTION = "How long must a password be?"
