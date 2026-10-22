@@ -114,7 +114,7 @@ Each break was made on a committed file with `PYTHONDONTWRITEBYTECODE=1`, run, a
 | AV3 | met offline, for the fake runs and the API; the live contract test sends the current prompt in every session | The fake generation run records `{"version": "answer-v2", "sha256": CURRENT.fingerprint()}` (`tests/retrieval/test_run_record.py::test_a_generation_run_writes_a_valid_record`), and so does the fake position run (`tests/generation/test_position_contexts.py::test_a_position_run_writes_a_valid_generation_record`); `/version` and `/ask` report `answer-v2` (`tests/api/test_api.py`); `make api-smoke`: "api-smoke: passed", its `/version` line naming answer-v2; a local run is indexed with prompt `answer-v2` (`tests/retrieval/test_publish.py`); `test_the_current_prompt_is_chosen_once_in_code_and_read_everywhere` (the pipeline, the generation suite and the position suite read `CURRENT`; no config line names a prompt version). `git diff origin/main -- config/`: empty | The position suite left on answer-v1 (`from raglab.generate.prompts import answer_v1 as prompt` in `raglab/evals/position.py`): "2 failed, 34 passed": the position manifest test (`assert {'version': '...e85c7c01c8ae'} == {'version': '...17180c53ed91'}`) and the current-prompt test; restored "36 passed" |
 | AV4 | met offline; the judged-record form of its break waits for B's judged record | `git diff origin/main --stat` over the behaviour checks, the oracle, the generation record, the gate's code, `raglab compare`, the record and its schema, the metrics, the judged run and record, `src/raglab/judge/`, `schemas/`, docs/CRITERIA.md, `datasets/`, `config/`, `runs/published/`, answer-v1 and its snapshot: empty. `shasum -a 256`: docs/CRITERIA.md `8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e`, the canary set `4ca54c3ced557118f26306543164dc01c7509d1866e9e77f6cd4f2d3284b328f`, `config/judge-local.toml` `228a720045d8...` (the file sha256 in `5aa0ec5`'s manifest), equal to `5aa0ec5`'s manifest. `tests/judge/test_answer_v2_one_judge.py` (above); the committed-runs test validates every published record | (1) the oracle made to skip a list of section numbers (after a reference word, every number that follows a comma, in `policy_values`): the committed-runs test failed on the S4 baseline: "case G-25 trial 1: checks {... 'no_value': False ...} do not follow from the fields"; restored "1 passed". (2) docs/CRITERIA.md given one more line: the one-judge test failed ("AssertionError: docs/CRITERIA.md"), and `publish.judged_problems` on `5aa0ec5`'s record: "it is stale: it was made under another version of docs/CRITERIA.md (docs/CRITERIA.md, sha256 8c8f973a3306, now 800eb3fcecb0)"; restored "1 passed" |
 | AV5 | met (live, dev only): three drafts, D1's budget, each committed before its one session; the stop rule froze draft 3, the first to meet P and G1 to G4 | The iteration table below, each number copied from its record or from `raglab.evals.compare.compare`; every iteration manifest split dev, gate manual, a clean tree; the three runs in this worktree's `runs/tmp` | none (the criteria judge recomputes each number from the records in `runs/tmp`) |
-| AV6 | waits for the user's sign-off of the frozen text | | |
+| AV6 | in progress: the frozen text signed off on 2026-10-22 ("Sign off draft 3 as frozen (Recommended)", the freeze section); the five runs and the judged record follow, at F | | |
 | AV7 | not started | | |
 | AV8 | not started | | |
 | AV9 | not started: written after the decision, as the plan's "How it will run" step 6 orders it (with answer-v2 current and answer-v1's baseline in the index, the currency test is red by construction: that is its break) | | |
@@ -301,8 +301,11 @@ abstention 0.444; over-abstention 0.016. Label agreement: 21 of 27 cases.
   example's unit), and R-Q25 trial 1, "The superseded version paid forty pence a mile.", the
   example's note word for word (found by a search of every answer, conflict note and citation of
   the run for the examples' words and ids, made at the freeze; the first reading of the trials
-  found only G-31's). Two trials of 147; no check reads a conflict note's words (R-Q25 trial 1
-  passes S3's checks), so the examples can be copied unseen.
+  found only G-31's). Two trials of 147. No check looks for the examples' words: on a behaviour
+  case, `behaviour.checks` reads the conflict note only for the other tenant's canaries and the
+  case's `answer_must_not_contain` strings (`no_canary`, `must_not_contain`; G-31 trial 3 passed
+  both), and a retrieval question's checks never read the note (R-Q25 trial 1 passes S3's
+  checks). So a copied example can pass unseen.
 
 ### Draft 3: what changes, and why
 
@@ -404,13 +407,17 @@ abstention 0.556; over-abstention 0.016. Label agreement: 23 of 27 cases.
 - **The examples are still copied, once:** R-Q18 trial 2's conflict note reads "The superseded
   version required every 60 days a mile." (the same search as for draft 2, over every answer,
   conflict note and citation: one hit). The "form only" sentence cut the copies from two to one;
-  it did not stop them, and no check reads a conflict note's words (R-Q18 trial 2 passes S3's
-  checks).
+  it did not stop them. No check looks for the examples' words, and a retrieval question's checks
+  never read the conflict note (R-Q18 trial 2 passes S3's checks).
 - **Abstentions cite nothing.** 16 of the 18 `abstain` trials have empty `cited_ids` (R-Q05 trial
   2 and G-22 trial 1 cite one passage each), as the `abstain` example does, although rule 6 says
-  "the citations go in cited_ids". No check or judged criterion reads an abstention's citations,
-  so nothing fails; A's two `abstain` trials cited one passage (G-19 trial 1) and none (G-26
-  trial 2). The example wins over the sentence here; the frozen text is not changed for it.
+  "the citations go in cited_ids". No check requires an abstention to cite:
+  `model_citations_retrieved` holds for an empty list, and the oracle reads an abstention's
+  citations only to allow a number that a cited chunk of the case's may_quote section states
+  (D-03), so an uncited abstention may quote no number at all; and no judged criterion of an
+  abstain case is shown its citations (`grounded` and `abstains` see the retrieved passages). So
+  nothing fails; A's two `abstain` trials cited one passage (G-19 trial 1) and none (G-26 trial
+  2). The example wins over the sentence here; the frozen text is not changed for it.
 
 ## The freeze (2026-10-22)
 
@@ -421,10 +428,23 @@ it**, with no polishing after that. The frozen text is answer-v2 at `e4c65bc`, f
 snapshot are never edited. Its run, `20261022T093610Z-generation-local-ollama-dev-fd6eef2`, only
 decided the freeze: it is never B, and it stays unpublished in `runs/tmp`.
 
-**What waits for the user:** the sign-off of the frozen text (the plan's review task 2: its diff
-against answer-v1, the trace table and the iteration table), quoted here verbatim when it comes.
-No run is made before it. Then the five `make eval-local` sessions at the frozen commit F on a
-clean tree, the first of them B.
+**The sign-off (AV6).** The orchestrator brought the frozen text to the user (the plan's review
+task 2: its diff against answer-v1, the trace table and the iteration table). The question,
+through the orchestrator's question prompt: "Do you sign off answer-v2 draft 3 (e4c65bc) as the
+frozen text for the five runs?" The user's answer, verbatim, on 2026-10-22 at about 20:00 WEST:
+"Sign off draft 3 as frozen (Recommended)". The commit that records it is the frozen commit F. It
+touches this ledger only, so `git diff e4c65bc F -- src tests uv.lock` is empty, and every run
+below is made at F on a clean tree, with the prompt fingerprint `3cbcc9f13c25...`. No run was
+made between the freeze and the sign-off.
+
+**A correction in F (the orchestrator's, 2026-10-22).** The stop-1 report and this ledger's
+wording at `ada1dd6` said that no check reads a conflict note's text. That was wrong:
+`behaviour.checks` reads the note, through `_text` (`src/raglab/evals/behaviour.py`), for
+`no_canary` and `must_not_contain` on every behaviour case. What is true, and what the draft 2
+and draft 3 sections now say: no check looks for the examples' words, and a retrieval question's
+checks never read the note. The same reading corrected the developer's sentence on uncited
+abstentions above: the oracle reads an abstention's citations for the D-03 allowance, and
+`model_citations_retrieved` reads every reply's.
 
 **Mac time so far:** three generator sessions, 4 min 25 s, 4 min 12 s and 4 min 9 s by the shell's
 clock, about 12 min 46 s in all.
