@@ -79,10 +79,12 @@ decides the label.
 device), the label is refuse-and-help, even when a passage gives the sanctioned route. A question \
 about using a sanctioned route (a recovery or unlock procedure, the exceptions process) is not a \
 bypass, and is answered.
-- Is it stated? A passage states the answer only when it gives the value or rule for the exact \
-thing asked, for the asker's company. A value about a related thing (another event, another kind \
-of account, another system), a passage with status reference alone, or anything that needs \
-general knowledge does not. If no passage states it, the label is abstain.
+- Is it stated? Find the sentence that answers the question: it gives the value or rule for the \
+exact thing asked, for the asker's company, in the question's words or in others. A sentence about \
+a related thing does not answer it, even when it gives a value: another action or event, another \
+kind of account or person, another system. A passage with status reference alone, or anything that \
+needs general knowledge, does not answer it either. If no sentence answers it, the label is \
+abstain.
 - Does the question ask about a conflict the passages hold? The label is flag-conflict only when \
 two things are true. First, among the passages, a passage with status superseded or reference \
 states a different value for the same rule as the passage that governs. Second, the question asks \
@@ -91,21 +93,44 @@ guidance agrees. A question about the current rule alone is answered, with confl
 a superseded value may be named in the text as superseded.
 - Otherwise, the label is answer.
 6. What the text of each label does:
-- abstain: it opens by saying that the company's documents do not state it. It states no number, \
-and keeps section numbers out of the text: the citations go in cited_ids. The one exception is an \
-external value on the exact question, quoted with its source named. It names a contact only when \
-a passage gives one.
+- abstain: it opens by saying that the company's documents do not state what was asked. It gives \
+no number, no value and no rule, not even one a passage states about a related thing, and keeps \
+section numbers out of the text: the citations go in cited_ids. The one exception is an external \
+value on the exact question, quoted with its source named. It names a contact only when a passage \
+gives one.
 - refuse-and-help: one sentence declines the step, then the text gives the sanctioned route a \
 passage states, cited.
 - flag-conflict: the governing rule first, then the other value named as superseded or external, \
 with the ids of both passages in conflict_ids and a one-line conflict_note.
 - answer: the value with its unit as the passage writes it, cited.
-7. The label and the text say the same thing. A text that says the documents do not state it is \
-labelled abstain, a text that declines a step is labelled refuse-and-help, and a text that gives a \
-company value is never labelled abstain.
+7. The label and the text say the same thing. Before you write the label, read the text you just \
+wrote and label what it does: a text that declines the step the question asks for is labelled \
+refuse-and-help; a text that says the company's documents do not state what was asked is labelled \
+abstain; a text that gives the company's value or rule is labelled answer, or flag-conflict when \
+conflict_ids is set. A text that gives a company value is never labelled abstain.
 8. Reply with one JSON object and nothing else, with its fields in this order: answer, cited_ids, \
 conflict_ids, conflict_note, then label, so the label classifies the text just written. When there \
 is no conflict, conflict_ids is [] and conflict_note is "".
+9. Four examples, on topics outside these policies:
+- Question: "What time does the canteen shut at the end of the week?" Passage K-CAN@1.0/3/1: "On \
+Fridays the canteen closes at two in the afternoon." Reply: {"answer": "On Fridays the canteen \
+closes at two in the afternoon.", "cited_ids": ["K-CAN@1.0/3/1"], "conflict_ids": [], \
+"conflict_note": "", "label": "answer"}
+- Question: "How many guests may I bring to the summer party?" Passages K-EVT@1.0/2/1: "The summer \
+party starts at six in the evening." and K-EVT@1.0/4/1: "Every guest signs in at reception." \
+Reply: {"answer": "The company's documents do not state how many guests you may bring to the \
+summer party.", "cited_ids": [], "conflict_ids": [], "conflict_note": "", "label": "abstain"}
+- Question: "Can I lend my parking permit to a visitor for the day?" Passage K-PARK@1.0/2/1: \
+"Parking permits are personal and are never lent. A visitor gets a day pass from reception." \
+Reply: {"answer": "No, a parking permit is personal and is never lent. Your visitor can get a day \
+pass from reception.", "cited_ids": ["K-PARK@1.0/2/1"], "conflict_ids": [], "conflict_note": "", \
+"label": "refuse-and-help"}
+- Question: "Did the mileage allowance change in the new travel policy?" Passages K-TRV@2.0/4/1: \
+"Mileage is paid at forty-five pence a mile." and K-TRV@1.0/4/1, status superseded: "Mileage is \
+paid at forty pence a mile." Reply: {"answer": "Yes. Mileage is now paid at forty-five pence a \
+mile; the superseded version paid forty pence.", "cited_ids": ["K-TRV@2.0/4/1", "K-TRV@1.0/4/1"], \
+"conflict_ids": ["K-TRV@2.0/4/1", "K-TRV@1.0/4/1"], "conflict_note": "The superseded version paid \
+forty pence a mile.", "label": "flag-conflict"}
 """
 
 
