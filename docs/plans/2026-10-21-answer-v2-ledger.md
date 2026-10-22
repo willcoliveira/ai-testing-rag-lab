@@ -296,10 +296,13 @@ abstention 0.444; over-abstention 0.016. Label agreement: 21 of 27 cases.
   label.
 - G-12, which draft 1 passed, cites only the superseded version's chunks for the current rule in
   all three trials, so `cites_label` fails.
-- **An example's words leaked once:** G-31 trial 3 set a conflict field whose note reads "The
-  superseded version required at least 12 characters a mile." ("a mile" is the travel example's
-  unit). It is one trial of 147, on a case that never passes (its labelled section is never
-  retrieved); it shows that the examples can be copied.
+- **An example's words leaked twice**, both into a conflict note under `flag-conflict`: G-31 trial
+  3, "The superseded version required at least 12 characters a mile." ("a mile" is the travel
+  example's unit), and R-Q25 trial 1, "The superseded version paid forty pence a mile.", the
+  example's note word for word (found by a search of every answer, conflict note and citation of
+  the run for the examples' words and ids, made at the freeze; the first reading of the trials
+  found only G-31's). Two trials of 147; no check reads a conflict note's words (R-Q25 trial 1
+  passes S3's checks), so the examples can be copied unseen.
 
 ### Draft 3: what changes, and why
 
@@ -398,6 +401,16 @@ abstention 0.556; over-abstention 0.016. Label agreement: 23 of 27 cases.
   failed `cites_label` in A too) and the judge's `grounded` will.
 - P-03 and G-28 still give a number a passage states for something else in all three trials, and
   P-02 in trial 3; P-01 and G-25 abstain in all three.
+- **The examples are still copied, once:** R-Q18 trial 2's conflict note reads "The superseded
+  version required every 60 days a mile." (the same search as for draft 2, over every answer,
+  conflict note and citation: one hit). The "form only" sentence cut the copies from two to one;
+  it did not stop them, and no check reads a conflict note's words (R-Q18 trial 2 passes S3's
+  checks).
+- **Abstentions cite nothing.** 16 of the 18 `abstain` trials have empty `cited_ids` (R-Q05 trial
+  2 and G-22 trial 1 cite one passage each), as the `abstain` example does, although rule 6 says
+  "the citations go in cited_ids". No check or judged criterion reads an abstention's citations,
+  so nothing fails; A's two `abstain` trials cited one passage (G-19 trial 1) and none (G-26
+  trial 2). The example wins over the sentence here; the frozen text is not changed for it.
 
 ## The freeze (2026-10-22)
 
