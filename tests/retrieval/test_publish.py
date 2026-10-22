@@ -334,7 +334,7 @@ def test_a_local_generation_run_is_published_with_its_model_in_the_index(tmp_pat
     assert (entry["suite"], entry["generator"], entry["prompt"]) == (
         "generation",
         "stub-model:1b@aaaaaaaaaaaa",
-        "answer-v1",
+        "answer-v2",
     )
     assert "pass^2" in entry["metrics"]
 

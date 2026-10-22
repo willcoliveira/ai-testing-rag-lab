@@ -13,6 +13,7 @@ import pytest
 from raglab.evals import record
 from raglab.evals.config import canonical_sha256
 from raglab.evals.schema import SchemaError, Validator
+from raglab.generate import prompts
 from tests.conftest import ROOT
 from tests.retrieval_support import GIT, PACK, fake_run, lab_root, read_run, reseal
 
@@ -581,7 +582,7 @@ def test_a_generation_run_writes_a_valid_record(tmp_path):
         "fake",
         2,
     )
-    assert manifest["prompt"]["version"] == "answer-v1"
+    assert manifest["prompt"] == {"version": "answer-v2", "sha256": prompts.CURRENT.fingerprint()}
     assert manifest["guards"] == ["tenant", "input-limits", "citations"]
     assert manifest["generator"]["model"] == "fake-echo"
     assert manifest["intervals"] == {"method": "wilson", "level": 0.95, "unit": "case"}

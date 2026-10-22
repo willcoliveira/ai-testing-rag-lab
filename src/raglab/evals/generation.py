@@ -33,7 +33,7 @@ from raglab.evals.config import GenerationConfig, canonical_sha256
 from raglab.evals.oracle import abstention_oracle, policy_values
 from raglab.generate.assemble import Assembled
 from raglab.generate.pipeline import Outcome
-from raglab.generate.prompts import answer_v1 as prompt
+from raglab.generate.prompts import CURRENT as prompt
 from raglab.ingest import answer_key
 
 type Json = dict[str, object]

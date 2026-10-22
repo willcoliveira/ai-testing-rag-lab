@@ -8,9 +8,9 @@ own position bias is the order check (raglab.evals.judged_record).
 - **Context**: the answering chunk and filler chunks of the asker's tenant that belong to none of
   the case's labelled sections or group members, in the retriever's rank order (the config's
   retriever ranking every chunk the tenant may see), as many as fit the prompt budget: the
-  answer-v1 prompt's characters over the measured characters per token (`measure`, from a
-  generation record's reported prompt tokens) stay within the budget. The count is recorded on
-  every line.
+  current prompt's characters (raglab.generate.prompts.CURRENT; answer-v1 when S5 measured and
+  ran it) over the measured characters per token (`measure`, from a generation record's reported
+  prompt tokens) stay within the budget. The count is recorded on every line.
 - **Positions**: first, middle (index n // 2 of the n + 1 chunks) and last, each case at each
   position for the config's trials, at the config's sampling, through the pipeline's guards with
   the context in place of retrieval.
@@ -38,7 +38,7 @@ from raglab.evals.config import GenerationConfig, canonical_sha256
 from raglab.evals.position_record import POSITION, POSITIONS, answering_index, checks
 from raglab.generate.assemble import Assembled
 from raglab.generate.pipeline import Pipeline
-from raglab.generate.prompts import answer_v1
+from raglab.generate.prompts import CURRENT as prompt
 from raglab.ingest.answer_key import Feature
 
 type Json = dict[str, object]
@@ -80,8 +80,8 @@ def place(answering: Chunk, filler: Sequence[Chunk], position: str) -> list[Chun
 
 
 def prompt_chars(question: golden.Question, context: Sequence[Chunk]) -> int:
-    """The characters of the answer-v1 prompt (system and user message) for this context."""
-    system, user = answer_v1.build(
+    """The characters of the current prompt (system and user message) for this context."""
+    system, user = prompt.build(
         question.question, question.tenant, [ScoredChunk(c, 0.0) for c in context]
     )
     return len(system) + len(user)
@@ -279,7 +279,7 @@ def run(
         "embedder": {**embedder_json, "sha256": canonical_sha256(embedder_json)},
         "retriever": {**retriever_json, "sha256": canonical_sha256(retriever_json)},
         "generator": {**generator_json, "sha256": canonical_sha256(generator_json)},
-        "prompt": {"version": answer_v1.VERSION, "sha256": answer_v1.fingerprint()},
+        "prompt": {"version": prompt.VERSION, "sha256": prompt.fingerprint()},
         "guards": [guard.name for guard in built.pipeline.guards],
         "intervals": {"method": "wilson", "level": config.generation.level, "unit": "case"},
         "position": position_json,
