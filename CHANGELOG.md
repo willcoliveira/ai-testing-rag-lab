@@ -5,6 +5,9 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- S5's AC4 live break (the criteria judge's S5-J5), run on AC power on 2026-10-22 after S5 merged
+  and recorded in S5's ledger: with C-05 flipped, the canaries stopped the judge before any judged
+  call. S5 ends at 16 criteria met, 6 not applicable by D6, 0 not met.
 - S5, judged metrics on local models (plan `docs/plans/2026-10-20-s5-judged-metrics.md`, ledger
   beside it): `docs/CRITERIA.md` and the canary set, signed off on 2026-10-20 and again on
   2026-10-21; the `Judge` port and judge-v2 (judge-v1 kept for the first judged record) on a
