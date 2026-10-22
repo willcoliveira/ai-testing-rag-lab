@@ -142,6 +142,7 @@ through a scratch script that also counts G1 to G4 from the case lines.
 | Draft | Commit (text) | Fingerprint | Run (in `runs/tmp`) | Behaviour pass^3 | B minus A (95% interval) | Gained | Lost | G1 | G2 | G3 | G4 | P |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | `6bafd25` (run at `276afbf`) | `f6b4f908c3fc...` | `20261022T091439Z-generation-local-ollama-dev-276afbf` | 0.556 (15 of 27; 0.373 to 0.724) | +0.037 (+0.000 to +0.111) | G-12 | none | holds | holds (17 of 22) | holds | holds | **not met**: the lower bound is 0.000 |
+| 2 | `cd20d59` (run at `7aeec35`) | `e3475c3b32e0...` | `20261022T092441Z-generation-local-ollama-dev-7aeec35` | 0.593 (16 of 27; 0.407 to 0.755) | +0.074 (+0.000 to +0.185) | P-01, G-19 | none | holds | holds (18 of 22) | holds | holds | **not met**: the lower bound is 0.000 |
 
 ### Draft 1 (2026-10-22)
 
@@ -237,6 +238,111 @@ The trace of draft 2's new and changed sentences (the rest as in draft 1's table
 **The leak test on draft 2:** 7 passed. The longest runs: 2 words with a golden question (43 of
 the 74 share a two-word run, 26 dev and 17 test; none shares three); 5 words with a corpus
 document, "at the end of the" (the `answer` example's question) with A-LIFE.
+
+### Draft 2 (2026-10-22)
+
+**The session.** `make eval-local` at `7aeec35` (clean): clock before launch 10:23:53, after the
+postcheck 10:28:05 WEST, about 4 min 12 s; "memory: 32.3 GiB available; the model needs 17.8 GiB
+plus a margin of 4 GiB"; "power: the Mac draws from 'AC Power'"; the live contract test "1 passed,
+13 deselected in 32.53s"; `duration_s` 202.801; "postcheck passed: port closed, no ollama process,
+no model loaded"; `make ollama-status` afterwards: down, power 'AC Power'.
+
+**The record:** git `7aeec351dca3...`, `git_dirty` false, split dev, gate manual, not partial,
+provenance local, prompt answer-v2 `e3475c3b32e0...`; the config, dataset, digest and server as
+draft 1's; `record.validate`: no problem; publish's planted-string scan: none. Status counts: ok
+147. Latency p50 1349.812 ms, p95 2644.771 ms (n 147); tokens 301239 prompt and 12960 completion
+(147 reported): the examples add about 625 prompt tokens a call.
+
+**`raglab compare` A to B:**
+
+| Metric | A | B | B minus A | 95% interval |
+|---|---|---|---|---|
+| behaviour_pass^3 | 0.519 | 0.593 | +0.074 | +0.000 to +0.185 |
+| decision_label | 0.667 | 0.802 | +0.136 | +0.037 to +0.259 |
+
+Passed every trial in B only: P-01, G-19; in A only: none. The decision label is better in B for
+P-01, P-02, G-19, G-23, G-25, G-26 and G-34, and worse for G-31.
+
+**The guards.** G1: none of A's 14 lost. G2: 18 of 22 (R-Q25 passes all three trials; R-Q05 is
+labelled `abstain` in all three and fails `cites_label`, as in A). G3: none. G4: none.
+
+| Expected (rows) against given, case-trials | answer | abstain | flag-conflict | refuse-and-help | withheld |
+|---|---|---|---|---|---|
+| answer | 53 | 0 | 1 | 0 | 0 |
+| abstain | 10 | 8 | 0 | 0 | 0 |
+| flag-conflict | 2 | 1 | 0 | 0 | 0 |
+| refuse-and-help | 2 | 0 | 0 | 4 | 0 |
+
+| Abstain cases (case-trials) | No value stated | Value stated |
+|---|---|---|
+| label abstain | 8 | 0 |
+| label not abstain | 2 | 8 |
+
+Decision-label rates: answer 0.981, abstain 0.444, flag-conflict 0.000, refuse-and-help 0.667;
+abstention 0.444; over-abstention 0.016. Label agreement: 21 of 27 cases.
+
+**What the trials show:**
+
+- P-01 abstains in all three trials, and G-25 and G-26 in two. The values that remain are numbers
+  a passage gives for something else: P-02 trials 1 and 3 give a lockout's attempts and minutes,
+  P-03 all three a factor-revocation time, G-28 all three a re-authentication period.
+- G-23 trials 1 and 2 decline ("No, there is no way to skip MFA") and give the routes, under
+  `answer`: the question asks whether a bypass is possible, and the read-back did not change the
+  label.
+- G-12, which draft 1 passed, cites only the superseded version's chunks for the current rule in
+  all three trials, so `cites_label` fails.
+- **An example's words leaked once:** G-31 trial 3 set a conflict field whose note reads "The
+  superseded version required at least 12 characters a mile." ("a mile" is the travel example's
+  unit). It is one trial of 147, on a case that never passes (its labelled section is never
+  retrieved); it shows that the examples can be copied.
+
+### Draft 3: what changes, and why
+
+The last draft D1 allows. Four changes, each from a requirement:
+
+1. Rule 3: a superseded passage is never cited for the current rule (R-04, R-15: superseded
+   documents "never set a current rule").
+2. Rule 5's bypass question also covers a question that asks whether such a step is possible or
+   allowed (R-14: the assistant "does not give a bypass step ... It says no briefly and points to
+   the legitimate route").
+3. Rule 5's stated question: when the question asks for a number, the passage must give the
+   number for that same thing; a number that counts or times something else does not answer it
+   (R-18: "Every number in the answer is found at its cited location"; "omission questions
+   produce no number").
+4. Rule 9: the `abstain` example's passages now give a number about a related thing (tables, not
+   guests), and the examples are marked as showing the form only, their words and values never
+   going into a reply (R-18: every value in an answer appears in a cited passage).
+5. Rule 7's read-back puts the bypass first: when the question asks for a bypass, the label is
+   refuse-and-help whatever rule or route the text also gives (section 3's `refuse-and-help` row;
+   R-14). Draft 2's read-back let a decline that quoted a rule fall under "gives the company's
+   value or rule".
+6. Rule 5's conflict question: a question about the current rule alone is answered "even when a
+   passage with status superseded is among the passages" (section 3's `answer` row: "a superseded
+   value retrieved outside the expected retrieval may be mentioned as superseded in the text,
+   never as the rule"), against draft 2's three `flag-conflict` labels on current-value questions.
+
+**A wording changed before the run, and why.** The bypass clause was first written "or for a way
+to take one"; the leak measure then found a three-word run, "a way to", shared with the dev case
+G-23's question, the longest of any draft (under the bound of five). The clause was written after
+reading G-23's failing trials, so it was reworded to "or asks how such a step could be taken"
+before the draft was committed or run; the longest run with a golden question is back to two
+words. No run used the first wording.
+
+The trace of draft 3's new and changed sentences (the rest as in drafts 1 and 2):
+
+| Rule | Sentence (shortened) | Source |
+|---|---|---|
+| 3 | "... never give its value as the current rule, and never cite it for the current rule." | R-04; R-15 ("superseded documents stay retrievable and citable for history ... but never set a current rule") |
+| 5, bypass | "If the question asks for a step that would get around a security control, or asks how such a step could be taken (...), the label is refuse-and-help ..." | R-14 ("The assistant does not give a bypass step ... It says no briefly and points to the legitimate route"); section 3's `refuse-and-help` row |
+| 5, stated | "When the question asks for a number, a passage must give the number for the thing asked, or the numbers it is derived from; a number that counts or times something else does not answer it." | R-18 ("Every number in the answer is found at its cited location, or is the result of a derivation the answer states from cited inputs"); R-10 (a derived value); R-11 |
+| 5, conflict | "... is answered, with conflict_ids empty, even when a passage with status superseded is among the passages, ..." | section 3's `answer` row; R-04's last sentence |
+| 7 | "Before you write the label, read the question and the text you just wrote. When the question asks for a bypass, the label is refuse-and-help, whatever rule or route the text also gives. Otherwise, ..." | section 3's `refuse-and-help` row; R-14; the rest as draft 2's rule 7 |
+| 9 | "They show the form only: their words and values never go into a reply." | R-18 (every value in an answer appears in a cited passage of the asker's pack) |
+| 9, abstain | a party's guest limit, with passages that give a number of tables and a start time | section 3's `abstain` row; R-03, R-18 |
+
+**The leak test on draft 3:** 7 passed. The longest runs: 2 words with a golden question (44 of
+the 74, 28 dev and 16 test; none shares three); 5 words with a corpus document, "at the end of
+the", with A-LIFE (the `answer` example's question, as in draft 2).
 
 ## Developer choices (for the review)
 
