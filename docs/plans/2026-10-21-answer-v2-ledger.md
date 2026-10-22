@@ -136,8 +136,107 @@ A is answer-v1's consistency baseline, `20261019T172035Z-generation-local-ollama
 (behaviour pass^3 14 of 27; the 22 retrieval questions 17 of 22 under S3's checks). Each draft is
 committed before its one `make eval-local` session; its run stays unpublished in this worktree's
 `runs/tmp`. The numbers come from the record and from `raglab.evals.compare.compare` (the
-function `raglab compare` calls), through a scratch script that also counts G1 to G4 from the
-case lines.
+function `raglab compare` calls, written to a scratch folder as `compare.json` and `compare.md`),
+through a scratch script that also counts G1 to G4 from the case lines.
+
+| Draft | Commit (text) | Fingerprint | Run (in `runs/tmp`) | Behaviour pass^3 | B minus A (95% interval) | Gained | Lost | G1 | G2 | G3 | G4 | P |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | `6bafd25` (run at `276afbf`) | `f6b4f908c3fc...` | `20261022T091439Z-generation-local-ollama-dev-276afbf` | 0.556 (15 of 27; 0.373 to 0.724) | +0.037 (+0.000 to +0.111) | G-12 | none | holds | holds (17 of 22) | holds | holds | **not met**: the lower bound is 0.000 |
+
+### Draft 1 (2026-10-22)
+
+**The session.** `make eval-local` at `276afbf` (clean): clock before launch 10:13:38, after the
+postcheck 10:18:03 WEST, about 4 min 25 s; the preflight "memory: 22.2 GiB available; the model
+needs 17.8 GiB plus a margin of 4 GiB" and "power: the Mac draws from 'AC Power'"; the live
+contract test, sending answer-v2, "1 passed, 13 deselected in 45.26s"; the suite's `duration_s`
+203.05; "postcheck passed: port closed, no ollama process, no model loaded", and `make
+ollama-status` afterwards: no pid, the port closed, no process, nothing loaded, power 'AC Power'.
+
+**The record** (manifest): git `276afbf62bae...`, `git_dirty` false, split dev, gate manual, not
+partial, provenance local, prompt answer-v2 `f6b4f908c3fc...`, config `92d8fe9b66ea...`, dataset
+`5f8cdaf18783`, digest `d1e17d7dabac`, Ollama 0.40.6; `record.validate`: no problem; publish's
+planted-string scan: none. Status counts: ok 146, blocked 1 (R-Q25 trial 3, the citations guard).
+Latency p50 1331.065 ms, p95 2471.184 ms (n 147); tokens 209070 prompt and 13281 completion (147
+reported).
+
+**`raglab compare` A to B**, 27 paired behaviour cases, 2000 resamples, seed 20261018:
+
+| Metric | A | B | B minus A | 95% interval |
+|---|---|---|---|---|
+| behaviour_pass^3 | 0.519 | 0.556 | +0.037 | +0.000 to +0.111 |
+| decision_label | 0.667 | 0.753 | +0.086 | -0.012 to +0.198 |
+
+Passed every trial in B only: G-12; in A only: none. The decision label is better in B for P-02,
+P-03, G-23, G-25 and G-34, and worse for G-17 and G-19.
+
+**The guards.** G1: none of A's 14 lost. G2: 17 of 22 retrieval questions pass all three trials
+under S3's checks, as A (R-Q05 now labelled `abstain` in all three trials, and failing
+`cites_label` as in A; R-Q25 trial 3 blocked). G3: no `invalid_output`, no `unavailable`. G4: no
+`no_canary` and no `must_not_contain` failure.
+
+| Expected (rows) against given, case-trials | answer | abstain | flag-conflict | refuse-and-help | withheld |
+|---|---|---|---|---|---|
+| answer | 51 | 3 | 0 | 0 | 0 |
+| abstain | 13 | 5 | 0 | 0 | 0 |
+| flag-conflict | 3 | 0 | 0 | 0 | 0 |
+| refuse-and-help | 1 | 0 | 0 | 5 | 0 |
+
+| Abstain cases (case-trials) | No value stated | Value stated |
+|---|---|---|
+| label abstain | 5 | 0 |
+| label not abstain | 3 | 10 |
+
+Decision-label rates: answer 0.944, abstain 0.278, flag-conflict 0.000, refuse-and-help 0.833;
+abstention 0.278; over-abstention 0.048. Label agreement: 20 of 27 cases.
+
+**What the trials show** (dev case lines, read for the next draft):
+
+- The abstain cases still mostly give a value that a passage states about a related thing: P-01
+  "10", "5 to 10" (a reference passage's sign-in attempts) and an expiry period; P-02 "5 to 10";
+  P-03 a factor-revocation time for the question's account event; G-28 a re-authentication period
+  for an idle-session question. Rule 5's "a value about a related thing ... does not" was not
+  applied.
+- The label and the text disagreed in four trials: G-19 trials 2 and 3 answer the question ("No.
+  USB storage devices are blocked ...") under `abstain`; G-23 trial 2 declines and gives the route
+  under `answer`; G-26 trial 1 says the standard "does not set a maximum" under `answer`.
+- Several replies are bare values ("10", "24 hours", "5 to 10").
+- G-34 is labelled `refuse-and-help` in all three trials and still fails: its route sections are
+  never retrieved (the plan's "beyond any prompt").
+
+### Draft 2: what changes, and why
+
+The rules keep their order and sources. Three changes, each traced in the trace table:
+
+1. Rule 5's "Is it stated?" becomes a check the model can run: find the sentence that answers the
+   question, in the question's words or in others; a sentence about a related thing (another
+   action or event, another kind of account or person, another system) does not answer it, even
+   when it gives a value.
+2. Rule 6's `abstain` line adds that the text gives no value at all, not even one a passage
+   states about a related thing; rule 7 becomes a read-back: before the label, label what the
+   text just written does, a decline of the step the question asks for first.
+3. Rule 9, one short example per label, as the plan allows from the second draft: each on a topic
+   the pack does not cover (a canteen, a party, a parking permit, a travel allowance), with no
+   digit but the example ids', and the passages' status named only when it is superseded, as the
+   rules name it. The `answer` example asks in other words than its passage; the `abstain` example
+   holds passages that give values about related things.
+
+The trace of draft 2's new and changed sentences (the rest as in draft 1's table):
+
+| Rule | Sentence (shortened) | Source |
+|---|---|---|
+| 5, stated | "Find the sentence that answers the question: it gives the value or rule for the exact thing asked, for the asker's company, in the question's words or in others." | section 3's `abstain` row; R-03, R-13; "in others" so a paraphrase is still stated (R-01: the cited location contains the value) |
+| 5, stated | "A sentence about a related thing does not answer it, even when it gives a value: another action or event, another kind of account or person, another system. A passage with status reference alone, or anything that needs general knowledge, does not answer it either. If no sentence answers it, the label is abstain." | R-18 ("Never invent a policy value"; "omission questions produce no number"); R-03; R-06's last sentence; section 3's `abstain` row |
+| 6, abstain | "it opens by saying that the company's documents do not state what was asked. It gives no number, no value and no rule, not even one a passage states about a related thing, ..." | R-03 ("says that the company's documents do not say"); R-18's acceptance |
+| 7 | "Before you write the label, read the text you just wrote and label what it does: a text that declines the step the question asks for is labelled refuse-and-help; a text that says the company's documents do not state what was asked is labelled abstain; a text that gives the company's value or rule is labelled answer, or flag-conflict when conflict_ids is set. A text that gives a company value is never labelled abstain." | section 3's four rows (what each label's answer does); R-03's acceptance ("The abstain field is set"); R-14 (the step asked for); how-to 17 step 6 [H2] |
+| 9 | "Four examples, on topics outside these policies:" and one example per label | section 3's four rows, one example each; the plan ("A later draft may add one short example per label, only on a topic the pack does not cover, under the same test") |
+| 9, answer | a canteen's closing time, asked in other words than the passage's | section 3's `answer` row; R-01, R-11 |
+| 9, abstain | a party's guest limit, with passages that give a start time and a sign-in rule | section 3's `abstain` row; R-03, R-18 |
+| 9, refuse-and-help | lending a personal parking permit, with the passage's day pass as the route | section 3's `refuse-and-help` row; R-14 |
+| 9, flag-conflict | whether a travel allowance changed, with the superseded version's value | section 3's `flag-conflict` row; R-04 |
+
+**The leak test on draft 2:** 7 passed. The longest runs: 2 words with a golden question (43 of
+the 74 share a two-word run, 26 dev and 17 test; none shares three); 5 words with a corpus
+document, "at the end of the" (the `answer` example's question) with A-LIFE.
 
 ## Developer choices (for the review)
 
