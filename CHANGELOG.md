@@ -9,9 +9,10 @@ One line per change, newest first, grouped by release. Each pull request adds it
   numpy 2.5.4, ruff 0.17.0, `uv_build>=0.13.1` (both projects), actions/setup-node 7.1.0, and the
   DeepEval tool re-locked with them. pypdf stays at 6.19.0 (decision: "Keep 6.19.0, skip its 4
   advisories (Recommended)"): 6.20.0 to 6.21.1 change plain text extraction and fail the corpus
-  build's checks, so its advisories (five, one published after the decision) join `make audit`'s
+  build's checks, so its advisories (eight, four published after the decision) join `make audit`'s
   skips with the reason in the Makefile, under the same review date, and Dependabot ignores those
-  versions. Seven more Pillow 12.3.0 advisories of the same kinds join the Pillow exception.
+  versions. Twenty-seven more Pillow 12.3.0 advisories of the same kinds (seven on 2026-10-21,
+  twenty on 2026-10-22) join the Pillow exception.
 - S5, judged metrics on local models (plan `docs/plans/2026-10-20-s5-judged-metrics.md`, ledger
   beside it): `docs/CRITERIA.md` and the canary set, signed off on 2026-10-20 and again on
   2026-10-21; the `Judge` port and judge-v2 (judge-v1 kept for the first judged record) on a
