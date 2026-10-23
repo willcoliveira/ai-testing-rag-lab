@@ -4,11 +4,13 @@ the how-to 17 test plan, one named check per pipeline arrow (S1b AC1)."""
 import ast
 import json
 import re
+from pathlib import Path
 
 import pytest
 import yaml
 
 from tests.conftest import ROOT
+from tests.golden_support import maintenance
 
 pytestmark = pytest.mark.unit
 
@@ -95,7 +97,7 @@ def test_every_requirement_is_in_the_traceability_table():
         assert cell.strip().startswith("gap") or re.search(r"F-\d+", cell), rid
 
 
-# ---------------------------------------------------------------- the Golden case column (S4)
+# ---------------------------------------------------------------- the Golden case column (S4, S4b)
 
 # the cells that said "tbd (S4)" (the S4 plan, "Requirements the cases cover"), and S4b's
 S4_CELLS = (
@@ -103,10 +105,16 @@ S4_CELLS = (
     "R-10", "R-11", "R-12", "R-14", "R-18", "R-23",
 )  # fmt: skip
 S4B_CELLS = ("R-08", "R-09", "R-13", "R-15", "R-16", "R-17", "R-19", "R-22")
-# a case named by design, not by its features' requirements (datasets/DATASHEET.md, the R-06 row)
-BY_DESIGN = {"R-06": {"G-26"}}
-CASE_RANGE = re.compile(r"\b([GP])-(\d{2}) to \1-(\d{2})\b")
-CASE_ID = re.compile(r"\b[GP]-\d{2}\b")
+# S4b's cells that say what the golden set does not test, beside their cases (the S4b plan, GV9)
+S4B_NOTES = {
+    "R-15": "clean runs; the attack runs are S7's",
+    "R-17": "clean runs; the attack runs are S7's",
+    "R-19": "the allow list; the deny list is S7's",
+}
+# R-22 stays a gap: the maintainer's D3 answer, "No corpus change; R-22 stays a gap (Recommended)"
+R22_CELL = "none: a gap, no planted feature (S4b, D3)"
+CASE_RANGE = re.compile(r"\b([GP])-(\d{2,3}) to \1-(\d{2,3})\b")
+CASE_ID = re.compile(r"\b[GP]-\d{2,3}\b")
 
 
 def golden_case_cells() -> dict[str, str]:
@@ -125,12 +133,21 @@ def case_ids(cell: str) -> set[str]:
     return ids | set(CASE_ID.findall(CASE_RANGE.sub("", cell)))
 
 
-def covering_cases() -> tuple[set[str], dict[str, set[str]]]:
-    """The committed golden file's behaviour case ids, and each requirement's cases: a case
-    covers the requirements its features name in the answer key."""
+def latest_golden() -> tuple[str, Path]:
+    """The golden set's latest version and its file: the highest version of the datasheet's
+    Maintenance table (whose S4 form, with no File column, versions golden.v1.jsonl)."""
+    rows = maintenance((ROOT / "datasets" / "DATASHEET.md").read_text(encoding="utf-8"))
+    row = max(rows, key=lambda r: tuple(int(part) for part in r.version[1:].split(".")))
+    return row.version, ROOT / "datasets" / (row.file or "golden.v1.jsonl")
+
+
+def covering_cases(path: Path) -> tuple[set[str], dict[str, set[str]], set[str]]:
+    """A golden file's behaviour case ids; each requirement's cases (a case covers the
+    requirements its features name in the answer key); and the cases with may_quote, which name
+    R-06 by design (datasets/DATASHEET.md: the attributed external quote, D-03)."""
     key = yaml.safe_load((ROOT / "corpus" / "answer-key.yaml").read_text(encoding="utf-8"))
     requirements = {f["id"]: f["requirements"] for f in key["features"]}
-    text = (ROOT / "datasets" / "golden.v1.jsonl").read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8")
     lines = [json.loads(line) for line in text.splitlines() if line.strip()]
     cases = [line for line in lines if line["kind"] == "behaviour"]
     covering: dict[str, set[str]] = {}
@@ -138,30 +155,82 @@ def covering_cases() -> tuple[set[str], dict[str, set[str]]]:
         for feature in case["feature_ids"]:
             for rid in requirements[feature]:
                 covering.setdefault(rid, set()).add(case["id"])
-    return {case["id"] for case in cases}, covering
+    quoted = {case["id"] for case in cases if "may_quote" in case}
+    return {case["id"] for case in cases}, covering, quoted
+
+
+def golden_case_problems(cells: dict[str, str], version: str, path: Path) -> list[str]:
+    """Each Golden case cell that is not derived from the golden file at path, at version: a cell
+    names the behaviour cases whose features carry its requirement (and, for R-06, the may_quote
+    cases, by design); R-02 applies to every case. At v1.1 S4b's cells say "tbd (S4b)"; from v2
+    they name their cases too, R-15, R-17 and R-19 saying what S7 tests, and R-22 stays a gap."""
+    problems = [
+        f"{rid}: S4 fills every cell it covers" for rid, c in cells.items() if "tbd (S4)" in c
+    ]
+    if cells["R-02"] != "every case (`model_citations_retrieved`)":
+        problems.append("R-02: every case")
+    behaviour, covering, quoted = covering_cases(path)
+    if quoted & covering.get("R-06", set()):
+        problems.append(f"R-06: {sorted(quoted)} are not by design")
+    filled = [rid for rid in S4_CELLS if rid != "R-02"]
+    if version == "v1.1":
+        problems += [f"{rid} is S4b's" for rid in S4B_CELLS if cells[rid] != "tbd (S4b)"]
+    else:
+        filled += [rid for rid in S4B_CELLS if rid != "R-22"]
+        if cells["R-22"] != R22_CELL:
+            problems.append(f"R-22: the cell is {cells['R-22']!r}, not {R22_CELL!r}")
+        problems += [
+            f"{rid}: the cell does not say {note!r}"
+            for rid, note in S4B_NOTES.items()
+            if f"({note})" not in cells[rid]
+        ]
+    for rid in filled:
+        named = case_ids(cells[rid])
+        if not named <= behaviour:
+            problems.append(f"{rid}: {sorted(named - behaviour)} are not behaviour cases")
+        wanted = covering.get(rid, set()) | (quoted if rid == "R-06" else set())
+        if named != wanted:
+            problems.append(f"{rid}: the cell names {sorted(named)}, not {sorted(wanted)}")
+    return problems
 
 
 def test_the_golden_case_column_names_the_cases_that_cover_each_requirement():
-    """S4 AC13: every "tbd (S4)" cell names the behaviour cases whose features carry its
-    requirement (and the one case named by design); R-02 applies to every case; S4b's cells
-    stay."""
+    """S4 AC13 and S4b GV9 on the committed files: the Golden case column is derived from the
+    golden set's latest version, the datasheet's highest Maintenance row and its file."""
     cells = golden_case_cells()
     assert set(cells) == set(defined_requirements())
-    left = [rid for rid, cell in cells.items() if "tbd (S4)" in cell]
-    assert not left, f"{left}: S4 fills every cell it covers"
-    for rid in S4B_CELLS:
-        assert cells[rid] == "tbd (S4b)", f"{rid} is S4b's"
-    assert cells["R-02"] == "every case (`model_citations_retrieved`)"
-    behaviour, covering = covering_cases()
-    for rid, extra in BY_DESIGN.items():
-        assert not extra & covering.get(rid, set()), f"{rid}: {extra} is not by design"
-    for rid in S4_CELLS:
-        if rid == "R-02":
-            continue
-        named = case_ids(cells[rid])
-        assert named <= behaviour, f"{rid}: {sorted(named - behaviour)} are not behaviour cases"
-        wanted = covering.get(rid, set()) | BY_DESIGN.get(rid, set())
-        assert named == wanted, f"{rid}: the cell names {sorted(named)}, not {sorted(wanted)}"
+    version, path = latest_golden()
+    assert golden_case_problems(cells, version, path) == []
+
+
+def cell_of(ids: set[str], note: str | None = None) -> str:
+    """A Golden case cell naming the ids in order, as the column writes them."""
+    ordered = sorted(ids, key=lambda i: (i[0] != "P", int(i.split("-")[1])))
+    return ", ".join(ordered) + (f" ({note})" if note else "")
+
+
+def test_on_a_planted_v2_s4bs_cells_name_their_cases_and_each_break_is_named(tmp_path):
+    """GV9 before the cases land: the planted v2 (tests/dataset_support.py) with the cells
+    written from it passes; R-08's cell back to "tbd (S4b)", or a case dropped from R-13's cell,
+    is named."""
+    from tests.dataset_support import write_v2
+
+    path = write_v2(tmp_path)
+    _, covering, quoted = covering_cases(path)
+    cells = {rid: cell_of(covering.get(rid, set()), S4B_NOTES.get(rid)) for rid in covering}
+    cells.update({"R-02": "every case (`model_citations_retrieved`)", "R-22": R22_CELL})
+    cells["R-06"] = cell_of(covering["R-06"] | quoted)
+    assert golden_case_problems(cells, "v2", path) == []
+    assert golden_case_problems(cells, "v1.1", path) == [f"{rid} is S4b's" for rid in S4B_CELLS]
+    back = {**cells, "R-08": "tbd (S4b)"}
+    assert golden_case_problems(back, "v2", path) == [
+        f"R-08: the cell names [], not {sorted(covering['R-08'])}"
+    ]
+    dropped = sorted(covering["R-13"])[0]
+    fewer = {**cells, "R-13": cell_of(covering["R-13"] - {dropped})}
+    [problem] = golden_case_problems(fewer, "v2", path)
+    assert problem.startswith("R-13: the cell names")
+    assert f"'{dropped}'" in problem
 
 
 def test_case_ids_reads_ranges_and_lists():
@@ -172,6 +241,9 @@ def test_case_ids_reads_ranges_and_lists():
         "G-22",
         "G-26",
     }
+    assert case_ids("G-98 to G-101, G-117 (clean runs; the attack runs are S7's)") == {
+        "G-98", "G-99", "G-100", "G-101", "G-117",
+    }  # fmt: skip
 
 
 # ---------------------------------------------------------------- part 2 (S1b AC1)
@@ -261,7 +333,7 @@ def test_the_stages_so_far_are_filled_in():
     assert not re.search(r"<[^=\s]", ingestion), "the ingestion line has a <placeholder> left"
     retrieval = template.split("retrieval (every commit, no judge):", 1)[1].split("\ngolden", 1)[0]
     assert not re.search(r"<[^=\s]", retrieval), "the retrieval line has a <placeholder> left"
-    golden_set = template.split("\ngolden set v1", 1)[1].split("\njudges", 1)[0]
+    golden_set = re.split(r"\ngolden set v\d", template, maxsplit=1)[1].split("\njudges", 1)[0]
     assert not re.search(r"<[^=\s]", golden_set), "the golden-set line has a <placeholder> left"
 
 
