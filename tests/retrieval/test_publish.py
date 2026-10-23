@@ -12,6 +12,7 @@ import pytest
 
 from raglab.evals import gate, publish, record, retrieval
 from tests.conftest import ROOT
+from tests.golden_support import maintenance
 from tests.retrieval_support import fake_run, lab_root, local_run, read_run, reseal
 
 pytestmark = [pytest.mark.unit, pytest.mark.retrieval]
@@ -235,25 +236,31 @@ DATASHEET = ROOT / "datasets" / "DATASHEET.md"
 
 
 def listed_dataset_versions(datasheet: Any) -> dict[str, str]:
-    """The datasheet's Maintenance table: each version's sha256 of the golden file, read from the
+    """The datasheet's Maintenance table: each version's sha256 of its golden file, read from the
     table's rows (never copied here), as {sha256: version}."""
-    text = datasheet.read_text(encoding="utf-8")
-    table = text.split("\n## Maintenance\n", 1)[1].split("\n## ", 1)[0]
-    rows = re.findall(r"^\| (v\d+(?:\.\d+)*) \|.*\| `([0-9a-f]{64})` \|$", table, flags=re.M)
-    assert len({sha for _, sha in rows}) == len(rows), "a sha256 is listed twice"
-    return {sha: version for version, sha in rows}
+    rows = maintenance(datasheet.read_text(encoding="utf-8"))
+    assert len({row.sha256 for row in rows}) == len(rows), "a sha256 is listed twice"
+    return {row.sha256: row.version for row in rows}
 
 
 def unlisted_dataset_problems(published: Any, datasheet: Any) -> list[str]:
-    """Each published run whose manifest's dataset.sha256 is no version the datasheet lists."""
-    listed = listed_dataset_versions(datasheet)
+    """Each published run whose manifest's dataset.sha256 is no version the datasheet lists, or
+    whose dataset path is not the file its version's row names (S4b: the File column)."""
+    rows = {row.sha256: row for row in maintenance(datasheet.read_text(encoding="utf-8"))}
     problems: list[str] = []
     for path in sorted(published.glob(f"*/{record.MANIFEST}")):
-        sha = json.loads(path.read_text(encoding="utf-8"))["dataset"]["sha256"]
-        if sha not in listed:
+        dataset = json.loads(path.read_text(encoding="utf-8"))["dataset"]
+        sha, name = dataset["sha256"], dataset["path"].rsplit("/", 1)[-1]
+        row = rows.get(sha)
+        if row is None:
             problems.append(
                 f"{path.parent.name}: dataset.sha256 {sha} is no version the datasheet's "
                 "Maintenance table lists"
+            )
+        elif row.file is not None and row.file != name:
+            problems.append(
+                f"{path.parent.name}: dataset {dataset['path']} is {row.version} by its sha256, "
+                f"whose row names {row.file}"
             )
     return problems
 
@@ -263,13 +270,40 @@ def test_every_published_run_names_a_dataset_version_the_datasheet_lists():
     (fix round 2). The validator derives a record's labels and behaviour fields again only when
     the record claims the golden file's current sha256, so a record that misstated its dataset
     would keep them unchecked, as history. Every published record must therefore name a version
-    the datasheet's Maintenance table lists: today v1 (the S2 and S3 runs) and v1.1 (S4's). The
-    index entries hold no dataset sha256, so the manifests are what is read."""
+    the datasheet's Maintenance table lists, read from the table: v1 (the S2 and S3 runs) and
+    v1.1 (S4's and later runs on golden.v1.jsonl), and from S4b's runs v2 (golden.v2.jsonl), each
+    in the file its row names. The index entries hold no dataset sha256, so the manifests are
+    what is read."""
     listed = listed_dataset_versions(DATASHEET)
     assert {"v1", "v1.1"} <= set(listed.values())
     index = publish.read_index(ROOT / publish.PUBLISHED)
     assert not any("dataset" in record.as_json(run) for run in record.as_list(index["runs"]))
     assert unlisted_dataset_problems(ROOT / publish.PUBLISHED, DATASHEET) == []
+
+
+def test_a_published_run_whose_file_is_not_its_versions_is_named(tmp_path):
+    """S4b (GV8): with a File column, a record must also name the file of its version's row. A
+    copy of a published v1.1 run that claims golden.v2.jsonl, checked against a datasheet whose
+    rows name their files (in a temporary folder), is named."""
+    from tests.dataset_support import maintenance as datasheet_of
+
+    rows = maintenance(DATASHEET.read_text(encoding="utf-8"))
+    planted = tmp_path / "DATASHEET.md"
+    planted.write_text(
+        datasheet_of(*((r.version, "golden.v1.jsonl", r.sha256) for r in rows)), encoding="utf-8"
+    )
+    run_id = "20261019T174018Z-generation-local-ollama-dev-97011a7"
+    published = tmp_path / "runs" / "published"
+    shutil.copytree(ROOT / publish.PUBLISHED / run_id, published / run_id)
+    assert unlisted_dataset_problems(published, planted) == []
+    manifest_path = published / run_id / record.MANIFEST
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["dataset"]["path"] = "datasets/golden.v2.jsonl"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    assert unlisted_dataset_problems(published, planted) == [
+        f"{run_id}: dataset datasets/golden.v2.jsonl is v1.1 by its sha256, whose row names "
+        "golden.v1.jsonl"
+    ]
 
 
 def test_a_published_run_with_a_dataset_hash_no_version_has_is_named(tmp_path):
@@ -289,13 +323,18 @@ def test_a_published_run_with_a_dataset_hash_no_version_has_is_named(tmp_path):
 
 def test_the_versions_are_read_from_the_maintenance_table_only():
     """S4-J11 (fix round 3): the committed datasheet mentions more 64-hex strings than it lists
-    versions (the labels judge's seal, in its agreement section, is the third), and only the
-    Maintenance table's rows are versions."""
+    versions (a labels judge's seal, in the agreement section, is one), and only the Maintenance
+    table's rows are versions. Since S4b the counts are read from the datasheet, never written
+    here: every row of the Maintenance section's table that starts with a version is listed,
+    with its own sha256, and at least one hash of the datasheet is outside the table."""
     text = DATASHEET.read_text(encoding="utf-8")
-    assert len(set(re.findall(r"[0-9a-f]{64}", text))) == 3
+    every = set(re.findall(r"[0-9a-f]{64}", text))
+    section = text.split("\n## Maintenance\n", 1)[1].split("\n## ", 1)[0]
+    version_rows = re.findall(r"^\| \*{0,2}(v\d+(?:\.\d+)*)\*{0,2} \|", section, flags=re.M)
     listed = listed_dataset_versions(DATASHEET)
-    assert sorted(listed.values()) == ["v1", "v1.1"]
-    assert len(listed) == 2
+    assert sorted(listed.values()) == sorted(version_rows)
+    assert {"v1", "v1.1"} <= set(listed.values())
+    assert set(listed) < every, "a hash outside the Maintenance table (the seal) is no version"
 
 
 def test_a_hash_outside_the_maintenance_table_is_no_version(tmp_path):
@@ -304,12 +343,12 @@ def test_a_hash_outside_the_maintenance_table_is_no_version(tmp_path):
     section: neither is listed, and the Maintenance rows are."""
     text = DATASHEET.read_text(encoding="utf-8")
     prose, row = "1" * 64, "2" * 64
-    head, maintenance = text.split("\n## Maintenance\n", 1)
+    head, tail = text.split("\n## Maintenance\n", 1)
     planted = (
         f"{head}\n\nA hash in prose: `{prose}`.\n\n"
         "| Version | Date | Stage | What changed | sha256 |\n|---|---|---|---|---|\n"
         f"| v9 | 2026-10-20 | S9 | planted | `{row}` |\n"
-        f"\n## Maintenance\n{maintenance}"
+        f"\n## Maintenance\n{tail}"
     )
     copy = tmp_path / "DATASHEET.md"
     copy.write_text(planted, encoding="utf-8")
