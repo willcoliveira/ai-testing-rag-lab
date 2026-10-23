@@ -119,7 +119,7 @@ Each break was made on a committed file with `PYTHONDONTWRITEBYTECODE=1`, run, a
 | AV8 | not applicable: answer-v2 was not adopted. answer-v1 stays the default prompt and the consistency baseline (the index unchanged), and THRESHOLDS.md and its margin are unchanged; no baseline mark, row or gate step was made | | |
 | AV9 | met locally; needs CI (pr-fast): the committed-runs tests learn the consistency baseline, which is current with answer-v1 current and A in the index | `tests/retrieval/test_publish.py::test_the_committed_consistency_baseline_is_current` ("The not-adopted path" below) | `CURRENT` pointed at answer-v2 with A in the index: the test fails, naming the prompt fingerprint; restored |
 | AV10 | met, for the not-adopted outcome: the plan's status, the CHANGELOG line, the main plan's note, TEST-PLAN section 10's generation line and ONBOARDING; the docs that name answer-v1 as current are unchanged and still true | `tests/unit/test_test_plan.py`, `test_onboarding.py`, `test_readme.py`, `test_diagram.py`: pass; review | |
-| AV11 | met locally but `audit`, which fails on pypdf and Pillow until main's pull request #22 is merged into this branch (after this stop, by the orchestrator's rule) | "make -k check at stop point 2" below | |
+| AV11 | met locally; needs CI (pr-fast): after the merge of main (#22), `make check` exits 0, both audit lines "No known vulnerabilities found, 43 ignored"; no new dependency in this branch; the retrieval gate passes; every published record validates | "The merge of main and make check" below | |
 
 ## make -k check after the offline build
 
@@ -809,6 +809,45 @@ As the plan says for "Not adopted", with no Mac time:
   and GUARDRAILS name answer-v1 and its baseline, still current, and are unchanged.
   `tests/unit/test_onboarding.py`, `test_test_plan.py`, `test_readme.py`, `test_diagram.py`,
   `test_repo_docs.py` and `test_changelog_check.py`: "184 passed".
+
+## The merge of main and make check (2026-10-23, AV11)
+
+Main's pull request #22 merged at 09:32 on 2026-10-23 as `8e7a4db` (fastembed 0.9.0, numpy
+2.5.4, ruff 0.17.0, `uv_build>=0.13.1`, the DeepEval tool re-locked, and the Pillow and pypdf
+advisories joining `make audit`'s skips). By the orchestrator's rule it was merged here only after
+B's judged record was published and stop point 2 reported, so that A, the drafts and the five
+runs all ran on the same lock and nothing but the prompt differed between A and B.
+
+- `git merge origin/main`, the merge commit `30d1941` ("Merge remote-tracking branch 'origin/main'
+  into feat/answer-v2"), parents `aa3ef26` and `8e7a4db`. One conflict, `CHANGELOG.md`, resolved
+  with every line kept, newest first: this branch's two lines (answer-v2's and S5's AC4 break),
+  then #22's, then the rest. Everything else (`Makefile`, `pyproject.toml`, `uv.lock`, the tool's
+  lock and `pyproject.toml`, the workflow and Dependabot's settings) came from main unchanged.
+- The environment synced to the lock: fastembed 0.9.0, numpy 2.5.4, ruff 0.17.0 (pypdf 6.19.0 and
+  Pillow 12.3.0, as main keeps them). ruff 0.17.0 reformats nothing: "249 files already
+  formatted", "All checks passed!", so no formatting commit was needed.
+- **`make check`, exit 0** (`/usr/bin/time -p`: 213.04 s real, 194.01 s user):
+
+      249 files already formatted
+      All checks passed!
+      0 errors, 0 warnings, 0 informations
+      Success! No dependency issues found.
+      No known vulnerabilities found, 43 ignored
+      No known vulnerabilities found, 43 ignored
+      no leaks found
+      no leaks found
+      0 hits across 364 files (42 rules)
+      0 architecture violations in src/raglab
+      check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+      ========== 1353 passed, 2 deselected, 1 warning in 166.55s (0:02:46) ===========
+      retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+      api-smoke: passed
+
+  The two audit lines are the main environment's and the DeepEval tool's exported lock; the two
+  deselected tests are the live contract tests. The retrieval gate's value is unchanged under
+  fastembed 0.9.0.
+- `make privacy-history RANGE=origin/main..HEAD`: "0 hits in 22 commits (42 rules)". Nothing
+  pushed.
 
 ## Developer choices (for the review)
 
