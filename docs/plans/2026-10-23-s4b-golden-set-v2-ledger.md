@@ -95,6 +95,32 @@ architecture violations in src/raglab", "check-dataset: datasets/golden.v1.jsonl
 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)", "1369 passed, 2 deselected, 1
 warning in 168.06s", "recall@5 0.682 (n 22) passes", "api-smoke: passed".
 
+## make -k check at STOP 0 (the offline build, waiting for the cases)
+
+`4f236fa`, a clean tree, this Mac (`make -k check`, 2026-10-23 at about 23:41 WEST): exit 2, and
+`audit` is the only red target. pip-audit now finds **6** advisories outside the skip list, one
+more than at the plan commit: filelock 4.0.12 (fixed in 4.2.1), published since, beside the two
+Pillow and three pypdf ones above (its CVE id left out, as above; the coordinator's list of five
+does not have it). The failed recipe stops before its second line, the DeepEval tool's audit.
+Every other target passed:
+
+    256 files already formatted
+    All checks passed!
+    0 errors, 0 warnings, 0 informations
+    Success! No dependency issues found.
+    Found 6 known vulnerabilities, ignored 43 in 3 packages
+    make: *** [audit] Error 1
+    no leaks found
+    no leaks found
+    0 hits across 372 files (42 rules)
+    0 architecture violations in src/raglab
+    check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    ===== 1409 passed, 3 skipped, 2 deselected, 1 warning in 172.05s (0:02:52) =====
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+The 3 skipped tests are the checks of the committed `golden.v2.jsonl`, which does not exist yet.
+
 ## Developer choices (for the review)
 
 1. **The version a file is held to** (the plan leaves the how to the developer): the latest
