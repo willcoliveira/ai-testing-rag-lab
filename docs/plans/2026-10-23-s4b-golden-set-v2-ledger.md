@@ -156,6 +156,12 @@ The 3 skipped tests are the checks of the committed `golden.v2.jsonl`, which doe
 12. **No stricter wording rule for v2's new cases.** S4's AC1 test (no behaviour question holds
     a retrieval question's words in order) stays on v1.1; for v2 the plan's rule 2 asks for no
     exact repeat by one tenant (rule 1) and S2's measure, reported with no threshold.
+13. **Which tests read which file** (the plan's "read both files, or v2 where a config is
+    meant"): `test_golden_behaviour.py` stays S4's AC1 on v1.1 and `test_golden_v2.py` reads v2,
+    so both files are read; `test_golden_retrieval.py` stays on v1.1, because GV1 holds v2's first
+    74 lines byte for byte, so the 34 retrieval questions it checks are the same lines in v2;
+    `test_e2e_fake.py`, `test_e2e_golden_suite.py` and `test_eval_config.py` read the file their
+    config names (v1.1 until F, v2 from it); `tests/dataset_support.py` builds both versions.
 
 ## Notes
 

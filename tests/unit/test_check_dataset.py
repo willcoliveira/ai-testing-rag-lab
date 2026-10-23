@@ -75,7 +75,8 @@ def test_the_valid_copies_and_the_committed_files_pass(tmp_path, capsys):
 def test_both_files_are_checked_and_one_failing_file_fails_the_command(tmp_path, capsys):
     v1 = write_dataset(tmp_path / "v1")
     v2 = write_v2(tmp_path / "v2", edited_lines(v2_lines(), "G-38", mix="multi-chunk"))
-    assert main(["check-dataset", "--dataset", str(v1), "--dataset", str(v2)]) == 1
+    command = ["check-dataset", "--dataset", str(v1), "--dataset", str(v2), "--root", str(ROOT)]
+    assert main(command) == 1
     out = capsys.readouterr().out
     assert f"check-dataset: {v1} passes as v1.1" in out
     assert "golden.v2.jsonl: rule 9 (mix): 44 single-chunk case(s), the mix asks for 45" in out
