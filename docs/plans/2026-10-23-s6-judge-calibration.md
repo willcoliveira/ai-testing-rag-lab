@@ -4,7 +4,7 @@ name: judge-calibration
 nodes: [S6]
 date: 2026-10-23
 branch: feat/s6-judge-calibration
-status: draft, awaiting the maintainer's approval
+status: approved
 ---
 
 # S6: Judge calibration on 30 blind labels
@@ -742,7 +742,30 @@ S4b's? Each writes its plan only, in its own worktree, and stops for your approv
 asked: "can we launch more sub agents in parallel to that one to speed up the development phase for
 upcoming steps into the plan?"
 
-Your answers to D1 to D5: to be quoted here, verbatim, with each question.
+**The approval (2026-10-23, about 23:30 WEST).** The question, verbatim: "S6, judge calibration.
+Approve with all five recommended answers? D1: calibrate grounded and abstains, 15 labels each. D2:
+kappa 0.80 or more trusts a criterion, under 0.60 stops it. D3: you label alone, plus a blind
+re-label of 12 at least a day later. D4: a miss is recorded and fixed in a follow-up PR. D5: approve
+and start. Your time is about 3 h 20 min to 5 h 20 min, and the Mac needs one judge session of
+about 2 h 15 min after S4b merges."
+
+Your answer, verbatim: "All five as recommended (Recommended)".
+
+The answer selects each decision's recommended option:
+
+- **D1:** "grounded and abstains, 15 each (Recommended)". 15 items per criterion, 7 judge passes
+  and 8 judge fails, from the judged baseline on v2; the other five criteria stay reported,
+  uncalibrated and never gated until labels of their own calibrate them.
+- **D2:** "kappa 0.80 trusts, under 0.60 stops (Recommended)". Per criterion, kappa 0.80 or more
+  is trusted (S8 may gate on it), 0.60 to under 0.80 reported only, under 0.60 not trusted.
+- **D3:** "One labeller, plus a blind re-label of 12 (Recommended)". The single-labeller caveat,
+  and a blind re-label of 12 of the 30 (6 per criterion, drawn with the seed, in a new order) at
+  least a day after the seal, through the same CLI.
+- **D4:** "Record it; fix in a follow-up (Recommended)". A criterion that misses the bar is
+  recorded with its classified causes and the follow-up named in the record's "next" line; nothing
+  is signed off again or judged again in S6.
+- **D5:** "Approve and start (Recommended)". The offline build starts on
+  `feat/s6-judge-calibration`; the first live step waits for S4b's merge.
 
 ## Sources (read 2026-10-23)
 
