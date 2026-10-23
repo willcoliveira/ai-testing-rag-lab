@@ -1,21 +1,28 @@
-# Datasheet: golden set v1.1
+# Datasheet: golden set v2
 
-File: [`golden.v1.jsonl`](golden.v1.jsonl). Version **v1.1**, stage S4 (2026-10-19), sha256
-`5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a`.
-Licence: **CC BY 4.0** (see [Licensing](#licensing)).
+Two files, one datasheet:
 
-The file has two parts, one JSON object per line:
+- [`golden.v2.jsonl`](golden.v2.jsonl): version **v2**, stage S4b (2026-10-23), 154 lines.
+- [`golden.v1.jsonl`](golden.v1.jsonl): version **v1.1**, stage S4 (2026-10-19), 74 lines, frozen.
+
+Each file's sha256 is on its latest row of the [Maintenance](#maintenance) table. Licence:
+**CC BY 4.0** (see [Licensing](#licensing)).
+
+Each file has two parts, one JSON object per line:
 
 - **Retrieval questions** (`kind: retrieval`, `R-Q01` to `R-Q34`), written in S2: did the
   retriever return the sections the answer needs?
-- **Behaviour cases** (`kind: behaviour`, `P-01` to `P-03` and `G-01` to `G-37`), written in S4:
-  did the assistant take the right decision (answer, abstain, flag a conflict, or refuse and help)?
+- **Behaviour cases** (`kind: behaviour`): did the assistant take the right decision (answer,
+  abstain, flag a conflict, or refuse and help)? `P-01` to `P-03` and `G-01` to `G-37` were written
+  in S4 (v1.1); `G-38` to `G-117` in S4b (v2).
 
-The file keeps its name: the main plan calls S4's set "golden set v1" and S4b's set "v2". Adding
-the behaviour cases and grouping labels made a new version, v1.1 ([Maintenance](#maintenance)).
-The sections follow how-to 02 of the AI testing handbook ("Build a golden set", step 6):
-motivation, composition, collection process, labelling, splits, licensing and maintenance, then
-the known limits.
+`golden.v2.jsonl` holds `golden.v1.jsonl`'s 74 lines unchanged, in their order, and then the 80 new
+behaviour cases. `golden.v1.jsonl` keeps its bytes, so every record made on v1.1 is still checked
+in full against the file it names (S4b plan, "The file"). The main plan calls S4's set "golden set
+v1" and S4b's set "v2"; adding the behaviour cases and grouping labels in S4 made v1.1. The
+sections follow how-to 02 of the AI testing handbook ("Build a golden set", step 6): motivation,
+composition, collection process, labelling, splits, licensing and maintenance, then the known
+limits. Where a section speaks of v1.1 only, it says so.
 
 ## Motivation
 
@@ -37,6 +44,16 @@ split is what the S4 consistency gate compares with its baseline (TEST-PLAN Q-05
 answer text is right (the value, faithfulness, a refusal without a bypass step, the six
 containment steps in order) is judged in S5.
 
+**Why v2.** v1.1's 40 cases left some decisions with a handful of cases on dev: one case moved the
+dev abstain rate by 16.7 points (1 of 6), and the refuse-and-help and flag-conflict rates (1 of 2)
+by 50. v2 grows
+the behaviour cases to 120 in the build project's shape, tripled (45/24/24/12/15), and inside it
+grows the labels the runs showed to be thin: abstain to 27, flag-conflict to 13, refuse-and-help
+to 16 and their other side, must-not-block, to 11. Tenant B grows from 8 cases to 33, under answer,
+abstain and refuse-and-help. Every feature kind of the answer key starts a case, except the planted
+secret, the planted personal details and the near-duplicate FAQ (S4b plan, "Size and mix"). The
+34 retrieval questions are the same in both files.
+
 ## Composition
 
 ### What a retrieval line holds
@@ -56,15 +73,15 @@ containment steps in order) is judged in S5.
 
 | Field | Meaning |
 |---|---|
-| `id` | `P-01` to `P-03` (the S3 abstention probes, ids kept) and `G-01` to `G-37`; stable, never reused |
+| `id` | `P-01` to `P-03` (the S3 abstention probes, ids kept), `G-01` to `G-37` (v1.1) and `G-38` to `G-117` (v2); stable, never reused |
 | `kind` | `behaviour` |
-| `tenant`, `question`, `split` | as for the retrieval questions |
+| `tenant`, `question`, `split` | as for the retrieval questions; the 80 new cases of v2 get their split from the seeded script ([Splits](#splits)), never from their author |
 | `mix` | `single-chunk`, `multi-chunk`, `unanswerable`, `version-conflict`, `paraphrase` or `misspelling`: the build project's five kinds, the last two sharing one slot |
 | `expected` | `answer`, `abstain`, `flag-conflict` or `refuse-and-help` (TEST-PLAN section 3): the clean-run label of the case's first feature |
 | `feature_ids` | answer-key features; the first is the one the case is built on, the others carry the locations of its group members |
 | `reference_answer` | written from the first feature's reference answer in the answer key; `null` for `abstain` |
 | `relevant` | the sections that answer it, groups allowed; empty for `abstain` |
-| `may_quote` | `abstain` only, optional: one shared reference section, `{doc_id, section_id}`, whose value the answer may quote, attributed to its source (decision D-03). One case has it (G-26) |
+| `may_quote` | `abstain` only, optional: one shared reference section, `{doc_id, section_id}`, whose value the answer may quote, attributed to its source (decision D-03). One case of v1.1 has it (G-26); four of v2 (G-26, G-84, G-85, G-93) |
 | `origin` | `synthetic` on every case (how-to 02, step 2) |
 
 Labels are kept at **section** level, not chunk level. The pipeline resolves each section to its
@@ -95,7 +112,7 @@ answer key at run time, so each has one source.
 - 16 questions have two or more relevant entries, and 18 have one. Seven have label groups
   (R-Q14, R-Q18, R-Q19, R-Q21, R-Q23, R-Q25, R-Q33).
 
-### Behaviour cases by mix and split
+### Golden set v1.1: behaviour cases by mix and split
 
 The mix is the build project's, stage 4: 15 single-chunk, 8 multi-chunk, 8 unanswerable, 4
 version conflicts and 5 paraphrased or misspelled. No chunk spans two sections (inventory
@@ -116,7 +133,7 @@ cases sit inside the five kinds.
 The test cases are G-02, G-04, G-07, G-13, G-15, G-18, G-20, G-24, G-27, G-30, G-32, G-35 and
 G-37.
 
-### Behaviour cases by label
+### Golden set v1.1: behaviour cases by label
 
 | expected | single-chunk | multi-chunk | unanswerable | version-conflict | paraphrase | misspelling | dev | test | Total |
 |---|---|---|---|---|---|---|---|---|---|
@@ -130,7 +147,7 @@ G-37.
   sanctioned route asked about plainly, which is answered, not refused (R-14).
 - 32 cases are asked as tenant A and 8 as tenant B (6 dev, 2 test).
 
-### Requirements the behaviour cases cover
+### Golden set v1.1: requirements the behaviour cases cover
 
 Every requirement whose golden case was "tbd (S4)" in the TEST-PLAN traceability table has at
 least one case. A case covers the requirements its features name in the answer key; R-02
@@ -155,6 +172,127 @@ least one case. A case covers the requirements its features name in the answer k
 They also reach three requirements that S4b covers in depth: R-13 and R-16 (the eight tenant B
 cases, and the canary check on every answer in both directions) and R-19's allow list (G-09, a
 team contact).
+
+### Golden set v2: behaviour cases by mix, tenant and label
+
+v2 holds v1.1's 40 cases and 80 new ones. A mix kind and a label mean what they mean in v1.1
+(above). The dev and test columns of v2 come from the seeded split and are added once it has run
+([Splits](#splits)).
+
+| mix slot | v1.1 | new: tenant A | new: tenant B | new | v2 |
+|---|---|---|---|---|---|
+| single-chunk | 15 | 18 | 12 | 30 | 45 |
+| multi-chunk | 8 | 15 | 1 | 16 | 24 |
+| unanswerable | 8 | 7 | 9 | 16 | 24 |
+| version-conflict | 4 | 8 | 0 | 8 | 12 |
+| paraphrased or misspelled | 5 | 7 | 3 | 10 | 15 |
+| **Total** | **40** | **55** | **25** | **80** | **120** |
+
+| expected | single-chunk | multi-chunk | unanswerable | version-conflict | paraphrase | misspelling | new: tenant A | new: tenant B | new | v1.1 | v2 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| answer | 22 | 11 | 0 | 3 | 2 | 1 | 28 | 11 | 39 | 25 | 64 |
+| abstain | 0 | 0 | 16 | 0 | 0 | 2 | 8 | 10 | 18 | 9 | 27 |
+| flag-conflict | 0 | 2 | 0 | 5 | 2 | 1 | 10 | 0 | 10 | 3 | 13 |
+| refuse-and-help | 8 | 3 | 0 | 0 | 1 | 1 | 9 | 4 | 13 | 3 | 16 |
+| **Total** | **30** | **16** | **16** | **8** | **5** | **5** | **55** | **25** | **80** | **40** | **120** |
+
+The mix columns of the second table count the new cases only.
+
+- **Tenants.** v2 asks 87 cases as tenant A and 33 as tenant B (8 of them from v1.1). Tenant B has
+  13 answer, 16 abstain and 4 refuse-and-help cases, and no flag-conflict case: the pack plants no
+  tenant B conflict (corpus/SPEC.md, section 9), a known limit.
+- **Must-not-block.** 11 answer cases ask about a sanctioned route plainly, their first feature a
+  must-not-block feature: G-12 and G-33 (v1.1), G-41 to G-44, G-50, G-64, G-82, G-83 and G-108.
+- **Attributed quotes (D-03).** Four abstain cases may quote a shared reference section,
+  attributed to its source: G-26 and G-85 (NIST SP 800-63B-4, section 3.1.1.2), G-84 and G-93
+  (section 3.2.2). G-84 and G-85 are asked as tenant B, G-93 as tenant A.
+
+**The new cases by mix kind**, each with its first feature (B: asked as tenant B):
+
+| mix | Cases (first feature) |
+|---|---|
+| single-chunk | G-38 (F-20), G-39 (F-15), G-40 (F-84), G-41 (F-54), G-42 (F-94), G-43 (F-95), G-44 (F-93), G-45 (F-42), G-46 (F-43), G-47 (F-92), G-48 (F-41), G-49 (F-68), G-50 (F-98), G-51 (F-31), G-52 (F-92), G-53 (F-47), G-54 (F-48), G-55 (F-49), G-56 (F-34, B), G-57 (F-35, B), G-58 (F-36, B), G-59 (F-38, B), G-60 (F-39, B), G-61 to G-63 (F-89, B), G-64 (F-90, B), G-65 to G-67 (F-91, B) |
+| multi-chunk | G-68, G-69 (F-08), G-70 (F-13), G-71 (F-14), G-72 (F-18), G-73 (F-19), G-74 (F-11), G-75 (F-21), G-76 (F-57), G-77 (F-65, with F-22: a derivation), G-78 (F-16), G-79 (F-41), G-80 (F-92), G-81 (F-91, B), G-82 (F-93), G-83 (F-55) |
+| unanswerable | G-84 to G-92 (F-40, B), G-93 (F-96), G-94 to G-99 (F-97) |
+| version-conflict | G-100 to G-102 and G-104 (F-88, history), G-103 (F-04, history), G-105 (F-06), G-106 (F-05), G-107 (F-58) |
+| paraphrase | G-108 (F-90, B), G-109 (F-04), G-110 (F-08), G-111 (F-41), G-112 (F-57) |
+| misspelling | G-113 (F-37, B), G-114 (F-97), G-115 (F-43), G-116 (F-40, B), G-117 (F-88) |
+
+### Golden set v2: question types
+
+Every feature kind of the answer key starts at least one case of v2 (as its first feature),
+except secret-in-doc and pii-in-doc (F-44, F-45: S7, with the output guard) and near-duplicate
+(F-53, which counts through label groups, as in v1.1). A kind with two or more cases needs a dev
+case, which the split decides.
+
+| Feature kind (first feature) | v1.1 cases | New cases |
+|---|---|---|
+| plain-rule | G-01, G-02 | G-61 to G-63 |
+| version-conflict | G-29 to G-32 | G-100 to G-106, G-109, G-117 |
+| external-conflict | G-22 | G-68, G-69, G-110 |
+| table-only | G-03, G-04 | none |
+| table-only, glossary-dependent | none | G-74 |
+| external-attribution | none | G-70, G-71 |
+| rule-plus-exception | G-05 | G-39 |
+| exception-overrides-rule | G-18 | G-78 |
+| expired-exception | G-19 | none |
+| cross-reference | none | G-72, G-73 |
+| glossary-dependent | none | G-38, G-75 |
+| multi-hop | G-16, G-17 | none |
+| numeric | G-06, G-07, G-10, G-11, G-35, G-36 | G-51 |
+| omission | G-27, G-37, P-01, P-02 | G-93 to G-99, G-114 |
+| scanned-page | G-08 | none |
+| tenant-isolation | G-14, G-15 | G-56 to G-60, G-113 |
+| tenant-isolation-abstain | G-24 to G-26, G-28, P-03 | G-84 to G-92, G-116 |
+| refuse-and-help | G-13, G-23, G-34 | G-45 to G-48, G-52, G-65 to G-67, G-79 to G-81, G-111, G-115 |
+| contact (must-not-block) | G-09 | none |
+| attack-hidden-instruction | none | G-53 (clean run) |
+| attack-poisoned-duplicate | none | G-54 (clean run) |
+| attack-fake-update | none | G-55 (clean run) |
+| must-not-block | G-12, G-33 | G-41 to G-44, G-50, G-64, G-82, G-83, G-108 |
+| procedure | G-20 | G-76, G-112 |
+| version-history | none | G-107 |
+| background | none | G-40, G-49, G-77 |
+| conditional-rule | G-21 | none |
+
+### Golden set v2: requirements the behaviour cases cover
+
+A case covers the requirements its features name in the answer key, as TEST-PLAN's traceability
+test counts them; R-02 (`model_citations_retrieved`) applies to every case. Every requirement with
+a planted feature has a case. R-20 and R-21 have no planted feature by design (S3's API tests and
+S7's attack suite test them), and R-22 has none: S4b plants no unresolved conflict and the corpus
+does not change (the S4b plan's decision D3), so R-22 stays a gap.
+
+| R-id | v1.1 cases | New cases |
+|---|---|---|
+| R-01 | G-01, G-02, G-07, G-09, G-13, G-17, G-19, G-21 to G-23, G-29 to G-31, G-34, G-35 | G-41, G-45, G-46, G-48, G-53, G-68, G-69, G-79, G-80, G-100, G-101, G-103, G-105, G-106, G-109 to G-111, G-115, G-117 |
+| R-02 | every case | every case |
+| R-03 | G-24 to G-28, G-37, P-01 to P-03 | G-84 to G-99, G-114, G-116 |
+| R-04 | G-29 to G-32 | G-100 to G-107, G-109, G-117 |
+| R-05 | G-11, G-18, G-19 | G-78 |
+| R-06 | G-22 (and G-26 by design) | G-68 to G-71, G-93, G-110 |
+| R-07 | G-05 | G-39 |
+| R-08 | none | G-72, G-73 |
+| R-09 | none | G-38, G-74, G-75 |
+| R-10 | G-16, G-17 | G-77 |
+| R-11 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36 | G-40, G-49, G-51, G-73, G-77, G-79, G-111 |
+| R-12 | G-03 to G-06, G-08, G-12, G-32 | G-39, G-52, G-54, G-70, G-71, G-74, G-100 to G-102, G-104, G-117 |
+| R-13 | G-14, G-15, G-24 to G-26, G-28, P-03 | G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 |
+| R-14 | G-12, G-13, G-23, G-33, G-34 | G-41 to G-48, G-50, G-52, G-64 to G-67, G-79 to G-83, G-108, G-111, G-115 |
+| R-15 | none | G-54, G-55 |
+| R-16 | G-14, G-15, G-24 to G-26, G-28, P-03 | G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 |
+| R-17 | none | G-53, G-55 |
+| R-18 | G-16, G-27, G-37, P-01, P-02 | G-54, G-70, G-77, G-93 to G-99, G-114 |
+| R-19 | G-09 | G-64, G-108 |
+| R-23 | G-20 | G-76, G-112 |
+
+- **New in v2:** R-08 (a cross-reference followed to its value), R-09 (the glossary's
+  definitions), R-15 and R-17 (clean runs of the three attack features: the attack runs are S7's),
+  and R-19's allow list for tenant B (Mirrowfen IT Support, G-64 and G-108). R-13 and R-16 grow
+  from eight tenant B cases to 33. R-19's deny list (the planted secret and personal details, F-44
+  and F-45) waits for S7.
+- **R-01 by design:** most of v2's R-01 cases come through the FAQ group members (F-53) and the
+  café feature (F-86), not through a first feature's requirements, as in v1.1.
 
 ## Collection process
 
@@ -222,6 +360,123 @@ team contact).
   (the Account-Compromise Incident Runbook, section 3.2); the answer key holds it, and the
   published allowlist covers it in a run's answers (decision D3). Exceptions are named by their
   team and rule.
+
+### Behaviour cases (S4b)
+
+The S4b plan's rules for the question author, 1 to 11, and how the 80 new cases meet them.
+
+- **One author, from the answer key and the requirements** (rule 1). One question author, a model
+  in a context of its own, wrote the new cases, their labels and reference answers, and the
+  answer-key additions, never from a model's output. Lab practice, as in S4: production samples
+  real traffic first (how-to 02, steps 1 and 2). **What the author was given:** the S4b plan;
+  `CLAUDE.md` and `CONTRIBUTING.md`; `corpus/answer-key.yaml`; `corpus/SPEC.md`, sections 6 to 9;
+  `docs/TEST-PLAN.md`, sections 2, 3 and 7; the register, the inventory snapshot's section ids and
+  the 18 register documents (the attack files only through SPEC's briefs and a search for the
+  silence phrases); `golden.v1.jsonl`, this datasheet and `probes.s3.jsonl`; and the code and tests
+  that define the file's format (`raglab.evals.golden`, `raglab.evals.dataset_check`,
+  `tests/unit/test_answer_key.py`, `tests/retrieval/test_golden_behaviour.py`,
+  `tests/unit/test_check_dataset.py`). Nothing under `runs/`, no stage ledger and no model output.
+- **Features.** The plan's draft by feature id, with eleven answer-key additions, F-88 to F-98
+  ([Behaviour labels](#behaviour-labels)). The key's ids have two digits and F-99 is the id the
+  check-dataset tests use for a feature that does not exist, so the additions stop at F-98, and
+  four of them hold several topics, as F-40 does: Mirrowfen's own rules (F-89), Mirrowfen's
+  refusals (F-91), the Device Policy's bypasses (F-92) and tenant A's near-miss silences (F-97).
+  Inside the draft's rows:
+  - **History (R-04):** the version 1.0 values of F-05 to F-07 in one feature, F-88, with three
+    pairs of sides (G-100 to G-102, G-104, G-117); F-04 in two more wordings (G-103, G-109); F-58
+    once (G-107); current-value cases on F-05 and F-06 (G-105, G-106).
+  - **External guidance (R-06):** F-08 in three more wordings (G-68, G-69, G-110); F-13 and F-14
+    asked as attribution (G-70, G-71).
+  - **Refusals (R-14):** F-41 to F-43 in new wordings (a factor lent to a colleague, the Service
+    Desk asked to switch MFA off, a break-glass account without an outage, lockout or expiry
+    switched off); F-92 for the Device Policy's bypasses (the USB block, device management, the
+    kiosk settings); F-91 for tenant B.
+  - **Must-not-block (R-14):** F-54 and F-55 again (G-41, G-83); F-93 (an exception asked for
+    plainly), F-94 (break-glass use), F-95 (a stand-in's own access) and F-98 (enrolling a device);
+    and, for tenant B, F-90 in place of F-52, whose kind (tenant-isolation) would not count as
+    must-not-block.
+  - **Multi-hop (R-10):** F-65 with F-22 (G-77), as R-Q15 pairs them; F-22 and F-23 keep their
+    v1.1 cases.
+  - **Exceptions (R-05, R-07):** F-16 asked about its device condition (G-78) and F-15 again
+    (G-39); F-17 and F-51 keep their v1.1 cases, and F-50 and F-84 are background (F-84 starts
+    G-40).
+  - **Procedures (R-23):** F-57 twice (G-76, G-112), since G-20 is in test; the split decides which
+    is dev.
+  - **Formats and numbers (R-11, R-12):** the PDF table's privileged column through the glossary
+    (F-11, G-74), the HTML export (F-31, G-51; F-15, G-39), the scanned page (G-52), and background
+    features as first features (F-68, F-84, F-65).
+  - **Tenant B (R-13, R-16):** F-34 to F-38 start new cases, F-39 another (G-60); F-52 keeps
+    G-15; F-89 asks Mirrowfen's factors, administrators' key and composition rule; F-90 its
+    contact and lost-factor route; F-40 nine new silences.
+  - **Clean runs (R-15, R-17):** F-47, F-48 and F-49 start one case each (G-53, G-54, G-55),
+    labelled with the governing rule's sections through a second feature (F-86, F-09) or F-49's own
+    locations. The questions avoid the attack phrases, and none is about password expiry, so a
+    correct answer has no reason to repeat one.
+  - **Left out:** F-44 and F-45 (S7, with the output guard); the attack runs of F-47 to F-49 (S7);
+    R-22, not planted (D3).
+- **No repeats, and S2's measure** (rule 2). No new question repeats another line's question for
+  the same tenant, and none holds a retrieval question's words in order, or is held by them. S2's
+  script, run again over the new questions: the longest run a new case shares with a document is
+  4 words, with a retrieval question 4 words, and with another case 4 words. Over all 120 cases of
+  v2, as in v1.1, the longest run a behaviour case shares with a document is 4 words, and with the
+  34 retrieval questions: the longest shared run is 4 words; between two cases it is 4 words,
+  except P-01 and P-02, the same S3 question asked as two tenants (9 words).
+- **No planted strings** (rule 3). No new question or reference answer holds an
+  `answer_must_not_contain` string or a canary of the other tenant, in any letter case.
+- **SPEC section 9 binds the cases** (rule 4). No case turns on an exception's dates: G-78 turns on
+  the exception's device condition, and its Status decides. No case says a standard account can be
+  locked within 15 minutes of the first failure. NIST's and the NCSC's ranges are asked as
+  attribution, labelled `answer` (G-70, G-71).
+- **Silence is proven** (rule 5). Each abstain case names a feature whose `must_not_appear`
+  phrases are absent from a scope that covers its tenant: F-40 (tenant B, its phrases extended for
+  the new topics), F-96 (tenant A), F-97 (the whole corpus), F-32 and F-87 (the whole corpus). The
+  author also read each tenant's documents for each topic. Every `may_quote` section is a shared
+  reference section.
+- **The label fits the question** (rule 6). A flag-conflict case asks what an older version said
+  or whether external guidance agrees; a current-value case labels the current version only (G-105,
+  G-106).
+- **Refusals have twins** (rule 7). Each refuse-and-help case asks for a step R-14 names as a
+  bypass and labels the route a passage states. Its must-not-block twin asks for the route plainly:
+  - a factor lent to a colleague (G-111) or MFA switched off by the Service Desk (G-48), and the
+    temporary access pass (G-41);
+  - a break-glass account without a declared outage (G-79), and break-glass use during one (G-42);
+  - a password given to a manager (G-45), and a stand-in's own access (G-43);
+  - lockout or expiry switched off (G-46, G-115), and an exception asked for plainly (G-44);
+  - the USB block worked around (G-80), and an exception to it asked for (G-82);
+  - device management avoided on a phone (G-47), and the phone enrolled (G-50);
+  - for tenant B, MFA switched off by IT Support (G-81), and the recovery code (G-108).
+
+  No twin: the kiosk settings (G-52), where the pack's only route is to save work before stepping
+  away, and tenant B's password shared or reused (G-65, G-67) and factor lent (G-66), whose routes
+  (the colleague's own account, the approved password manager, the asker's own factors) have no
+  must-not-block feature.
+- **Near-miss omissions** (rule 8). 9 of the 18 new abstain cases ask about a topic next to a
+  planted value: tenant A's G-93 (a successful sign-in, next to Table 1's lockout and counting
+  window), G-94 (notice before a move, next to the joiner's 5 business days), G-95 (a contractor
+  extension, next to the 6-month end date), G-96 (a visitor account, next to the contractor
+  account), G-97 (the Service Desk's response, next to the SOC's 15-minute acknowledgement), G-98
+  (a VPN session's total length, next to its 60-minute idle timeout and SSO's 12 hours), G-99
+  (renewals, next to at most 12 months), G-114 (a cap on factors, next to at least two), and
+  tenant B's G-84 (delays between attempts, next to Mirrowfen's own lockout). The other tenant B
+  abstain cases ask about tenant A topics that Mirrowfen's pack does not cover. The neighbouring
+  values are listed in the notes of F-96 and F-97 for the review page.
+- **Tenant B in its own words** (rule 9). Tenant B cases say "Mirrowfen", "the Mirrowfen
+  directory", "Mirrowfen IT Support" and "Mirrowfen systems", and each has a tenant A counterpart
+  in the pack, so a leak would show: the factors and the administrators' key (Multi-Factor
+  Authentication Standard 3.1, which adds passkeys, and 4.1), composition, expiry, lockout and
+  delays (Password and Authentication Standard 4.3, 4.4, Table 1), revocation and re-prompts (MFA
+  Standard 6.1, 7.1), the temporary access pass, the Service Desk, sharing and reuse (Password and
+  Authentication Standard 4.6), autofill (4.6), the screen lock, USB storage, lost devices,
+  inactive accounts, joiners, break-glass accounts, service account secrets and access reviews.
+- **No split while writing** (rule 10). The new cases were written without a `split`; the seeded
+  script assigns it.
+- **No email address, phone number or exception-register id** (rule 11). G-64's reference answer
+  names where Mirrowfen IT Support's contacts are (the Mirrowfen Password Standard, section 6);
+  the answer key holds them (F-90). The on-call rota's exception is named by its team and rule
+  (G-78).
+- **Paraphrased or misspelled.** Five cases are informal (G-108 to G-112) and five have typing
+  errors (G-113 to G-117).
+- **No attack documents** are targeted or labelled: the clean-run cases label approved sections.
 
 ## Labelling
 
@@ -293,21 +548,29 @@ The near-duplicate decision S2 deferred to S4 (S2 ledger, 2026-10-06, "Defer to 
   - two sections that were already locations of another feature: the Password and Authentication
     Standard 4.5 (F-62), which with FAQ Q8 restates the Runbook's 1-hour reporting rule for a
     password typed into a fake page (G-35), and the Data Classification Policy A.2 (F-77), which
-    states Device Policy 3.3's 10-minute screen lock for Internal Use systems (G-36).
+    states Device Policy 3.3's 10-minute screen lock for Internal Use systems (G-36);
+  - since v2, restatements that are locations of the S4b features: FAQ Q11 restates the Policy
+    Exceptions Process 3.2 (F-93; G-44, G-82), FAQ Q9 restates when the Privileged Access Standard
+    6.3 lets a break-glass account be used and that every use alerts the SOC (F-94; G-42), FAQ Q7
+    restates the Device Policy 6.2's route (F-92; G-80), and FAQ Q10 is a location of F-95 as well
+    as of F-53 (G-43). The new cases use the groups of v1.1 for the other FAQ entries.
 - **The carrying feature is listed.** A case whose group holds a member of another feature lists
   that feature after its first one: F-53 for the FAQ entries (so the seven regrouped retrieval
   questions gain F-53 in `feature_ids`), F-62 and F-77 for the two above.
 - **One member in two groups.** An entry that restates two primaries is a member of both groups,
   because it states both: FAQ Q3 in R-Q14 and G-17 (MFA Standard 3.1 and 3.2), FAQ Q6 in G-21
-  (three groups), FAQ Q11 in G-34 (Policy Exceptions Process 2.1 and 3.1). Retrieving it finds
-  both things.
+  (three groups), FAQ Q11 in G-34 (Policy Exceptions Process 2.1 and 3.1) and in G-82 (3.1 and
+  3.2), FAQ Q7 in G-80 (Device Policy 6.1 and 6.2). Retrieving it finds both things.
 - **Not members:** a superseded version (it never governs); an external excerpt (it is quoted with
   attribution, never as a company rule); a pointer that names a rule without its value (the
   Privileged Access Standard 4.1 for Table 1); a partial restatement (the MFA Standard 6.2 states
   one containment step without the order R-23 needs, FAQ Q9 the break-glass exception without the
-  administrators' rule); and two restatements outside the answer-key additions D2 allowed: the MFA
+  administrators' rule, though it is a member for G-42, which asks only when a break-glass account
+  may be used); and two restatements outside the answer-key additions D2 allowed: the MFA
   Standard 8 and the Privileged Access Standard 9 repeat the Policy Exceptions Process 2.1, but no
-  feature lists them, so citing them scores no citation hit on G-34 (a candidate for S4b); and the
+  feature lists them, so citing them scores no citation hit on G-34 (a candidate S4b leaves as it
+  is: listing them on F-43 would add locations to an existing feature, and no new case needs
+  them); and the
   Runbook's worked example, A.3, which narrates the six containment steps 5.1 to 5.6 in order in
   one chunk: it is a narrative training example in the past tense, beside A.1 and A.2 (the planted
   personal details and secret), not a statement of the procedure, so it is no member of G-20's
@@ -368,6 +631,44 @@ The near-duplicate decision S2 deferred to S4 (S2 ledger, 2026-10-06, "Defer to 
   value, which FAQ Q4, a member of G-33's group, does not restate (S4-L3; the user's answer on
   D-b).
 
+**The new cases of v2 (S4b)** follow the same rules, and the expected label is still the clean-run
+label of the case's first feature:
+
+- **flag-conflict:** a history question on the length, composition or lockout rule labels version
+  2.0's section and version 1.0's (F-88: version 2.0, section 4.1 with version 1.0, section 4.1;
+  4.3 with 4.2; Table 1 with 4.4); F-04 and F-08 as in v1.1. A current-value case on the same rules
+  labels version 2.0 only (G-105, G-106).
+- **answer on an attack feature:** a clean-run case on F-47, F-48 or F-49 labels the approved
+  sections that state the governing rule (G-53: the Remote Access Policy 4.3 with FAQ Q6; G-54:
+  Table 1; G-55: the MFA Standard 7.1). A page outside the register changes no answer and sets no
+  conflict field.
+- **refuse-and-help:** the route sections the reference answer names: the temporary access pass,
+  the exceptions process or the rule that forbids the step (F-41 to F-43, F-92), and for tenant B
+  the recovery code, the asker's own factors, the colleague's own account and the approved password
+  manager (F-91). G-79 and G-111 also label the rule the request would break (the Privileged
+  Access Standard 6.3, through F-84; the MFA Standard 3.3, through F-83).
+- **must-not-block:** the sections of the sanctioned route (F-54, F-55, F-90, F-93, F-94, F-95,
+  F-98). The reference answer says the route is answered, not refused.
+- **abstain:** no reference answer and no labelled section. The new silences are F-40's extended
+  phrases (tenant B), F-96 (whether a successful sign-in resets the failed-attempt count, tenant A)
+  and F-97 (seven tenant A topics next to planted values). G-84 and G-93 may quote NIST SP
+  800-63B-4, section 3.2.2, and G-85 section 3.1.1.2, attributed and never as the company rule
+  (D-03).
+- **Reference answers** follow the first feature's reference answer in the answer key, with their
+  citations, and give only what the question asks: G-42's and G-44's leave out what their FAQ
+  group member does not restate (the break-glass password's 24 hours, a single rejection closing a
+  request), as G-33's does. A derived value states its step and cites its inputs (G-77, D-02).
+- **Answer-key additions (S4b, additions only):** F-88 to F-98, each with its SPEC section 8 row,
+  its locations and verbatim values, its clean-run label and its requirements: F-88 (the version
+  1.0 history, sides old and new at places that were already sides of F-05 to F-07), F-89 (Mirrowfen's
+  MFA scope, factors, administrators' key and composition rule), F-90 (Mirrowfen IT Support's
+  contact and lost-factor route, must-not-block, R-19's allow list), F-91 (Mirrowfen's
+  refusals), F-92 (the Device Policy's bypasses), F-93 (the exceptions process), F-94
+  (break-glass use), F-95 (a stand-in's own access), F-96 (the successful sign-in, D-03), F-97
+  (tenant A's near-miss silences) and F-98 (enrolling a device); and F-40's phrase list extended
+  for the new tenant B topics. No existing value, label, reference answer or side changed, and the
+  `canaries` and every `answer_must_not_contain` list are as they were.
+
 ### Second labeller and agreement
 
 The S4 labels judge, a model in a context of its own, labelled every behaviour case's decision
@@ -390,20 +691,38 @@ step 3); the repository has no threshold, so S4 reports the agreement and sets n
 | Cohen's kappa | 1.0000 |
 | Disagreements and how each was settled | none: no label and no first feature differs |
 
+**S4b, the 80 new cases of v2.** The S4b labels judge (a different model, in a context of its own)
+labels the decision of each new case blind, from its id, tenant and question and the answer key,
+and seals its labels (sha256 and time) before it opens the golden file or this datasheet (S4b
+plan, "The labels judge"). Its seal, what it had, the matches of 80, the observed and chance
+agreement, Cohen's kappa, and each disagreement with how it was settled are recorded here from its
+sealed labels once it has run. Until then this part holds no number.
+
 ### Review
 
 Each part has an independent review against the chunk text and the answer key: S2's label review
-for the retrieval questions (S2 ledger) and S4's labels judge for the behaviour cases and the
-groups (S4 ledger). Their findings go into the ledgers, not this file.
+for the retrieval questions (S2 ledger), S4's labels judge for the behaviour cases of v1.1 and the
+groups (S4 ledger), and S4b's labels judge for the 80 new cases, their groups and the answer-key
+additions (S4b ledger). Their findings go into the ledgers, not this file.
 
 ## Splits
 
 - **Retrieval questions:** about two thirds dev and one third test, stratified by
   `question_kind`: each kind with three questions has two in dev and one in test, each kind with
   two has one in each, and tenant-b (four questions) has three in dev and one in test.
-- **Behaviour cases:** 27 dev and 13 test, stratified by mix kind and by expected label: every mix
-  kind and every label has at least one test case, and the three S3 probes are in dev. The test
-  split holds one refuse-and-help case (G-13) and one flag-conflict case (G-30).
+- **Behaviour cases of v1.1:** 27 dev and 13 test, stratified by mix kind and by expected label:
+  every mix kind and every label has at least one test case, and the three S3 probes are in dev.
+  The test split holds one refuse-and-help case (G-13) and one flag-conflict case (G-30). v2 keeps
+  these 40 cases' splits.
+- **The 80 new behaviour cases of v2** are split by a committed script with seed 20261023, a rule
+  written in the S4b plan before any case existed; their author wrote them without a split. Within
+  each stratum (mix slot, expected label, tenant), the cases are sorted by id and shuffled with the
+  seed, and one third, rounded, goes to test. A stratum of one or two cases is pooled with its
+  label's other strata, so that every mix slot, every label and each tenant has test cases. The
+  developer runs the script once, before the labels judge and before any run, and a test runs it
+  again and compares. About two thirds of the new cases go to dev. Its result (the counts by mix
+  slot, label and tenant, the test case ids, and the features and sections the test cases share
+  with dev lines) is recorded here once it has run.
 - **dev** is for development, the baselines, the gates' margins and any later prompt work.
 - **test** runs only in nightly, release and the capstone. It is never used to choose a
   configuration, a threshold or a prompt. If a test case or question is ever used for tuning, it
@@ -433,53 +752,73 @@ v3.0), as listed in `corpus/SOURCES.md`.
 
 ## Maintenance
 
-| Version | Date | Stage | What changed | sha256 of golden.v1.jsonl |
-|---|---|---|---|---|
-| v1 | 2026-10-06 | S2 | 34 retrieval questions | `ffb8c5a54b2277bd90efd9bdebda4b91494eb472c3c604b6f057146b19436104` |
-| v1.1 | 2026-10-19 | S4 | 40 behaviour cases; label groups on seven retrieval questions, whose feature ids gain F-53; after the labels judge's review, G-33's reference answer trimmed to the route (made before the sign-off, so still v1.1) | `5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a` |
+| Version | Date | Stage | File | What changed | sha256 of the file |
+|---|---|---|---|---|---|
+| v1 | 2026-10-06 | S2 | `golden.v1.jsonl` | 34 retrieval questions | `ffb8c5a54b2277bd90efd9bdebda4b91494eb472c3c604b6f057146b19436104` |
+| v1.1 | 2026-10-19 | S4 | `golden.v1.jsonl` | 40 behaviour cases; label groups on seven retrieval questions, whose feature ids gain F-53; after the labels judge's review, G-33's reference answer trimmed to the route (made before the sign-off, so still v1.1) | `5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a` |
+| v2 | 2026-10-23 | S4b | `golden.v2.jsonl` | v1.1's 74 lines unchanged, then 80 new behaviour cases (G-38 to G-117): 120 behaviour cases in the mix 45/24/24/12/15, 33 of them asked as tenant B; answer-key additions F-88 to F-98 and F-40's new silence phrases; the new cases' splits from the seeded script (seed 20261023) | `154536a96941123b3f709fd021598e40536e342527ee144c4bffdb0db4e6a502` |
 
 - A dataset version is a build input like the model and the prompt: every run manifest records
-  the file's sha256, so a run names its version. The latest row above carries the sha256 of the
-  committed file, and `check-dataset` refuses the file when it does not.
+  the file's sha256, so a run names its version. The latest row for each file carries the sha256
+  of that committed file, and `check-dataset` refuses the file when it does not.
+- `golden.v1.jsonl` is frozen at v1.1: the records made on it are checked against its bytes. v2 is
+  a new file rather than a new version of the same file for that reason (S4b plan, "The file").
 - Adding, removing or relabelling a case, changing a question's wording, labels or split, or
   regrouping labels makes a new version. A label that a review finds wrong is fixed with the case
   id in the stage ledger.
-- `check-dataset` is the hard stop on this file before every run: the shapes of each label, the
-  silence proofs, the mix and the split (S4 plan, "check-dataset: the hard stop").
-- S4b plans a v2 of about 120 cases.
+- `check-dataset` is the hard stop on each file before every run: the shapes of each label, the
+  silence proofs, the mix and the split, each file held to its version's rules (S4 plan,
+  "check-dataset: the hard stop"; S4b plan, "check-dataset for two versions").
 
 ## Known limits
 
-- **Synthetic, one author.** One author wrote the behaviour cases, their labels and their
-  reference answers from the answer key, as S2's author did for the retrieval questions. They are
-  closer to the planted features than real traffic would be, and no real user asked them.
-- **Small.** 40 behaviour cases is far below how-to 02's "about 30 cases per failure mode": most
-  kinds have one to three cases per label. One case moves a rate by about 3.7 points on dev (27)
-  and about 7.7 points on test (13); on the retrieval part, one question moves hit rate by about
-  4.5 points on dev (22) and about 8 points on test (12). Every interval is wide, which is why
-  each run reports n and an interval with every metric. S4b grows the set.
+- **Synthetic, one author per stage.** One author wrote v1.1's behaviour cases and one wrote v2's
+  80 new cases, with their labels and reference answers, from the answer key, as S2's author did
+  for the retrieval questions. They are closer to the planted features than real traffic would be,
+  and no real user asked them.
+- **Small.** 40 behaviour cases was far below how-to 02's "about 30 cases per failure mode": in
+  v1.1 one case moves a rate by about 3.7 points on dev (27) and about 7.7 points on test (13); on
+  the retrieval part, one question moves hit rate by about 4.5 points on dev (22) and about 8
+  points on test (12). v2's 120 cases still give most kinds fewer than 30 cases per label, and its
+  per-case weights follow from the split. Every interval is wide, which is why each run reports n
+  and an interval with every metric.
 - **Features shared across splits** (see [Splits](#splits)): a test case is new as a question,
   not as a planted value.
 - **F-57 at k = 5.** The containment procedure of the Account-Compromise Incident Runbook is seven
   sections (5 and 5.1 to 5.6), more than the retriever's k = 5, so no run can retrieve all of it
-  for G-20. The case stays, its labels stay whole, and S4 does not tune k or the chunker for it.
-  The Runbook's worked example, A.3, narrates the six steps in order in one chunk; it is a
-  restatement left out of the labels ([Label groups](#label-groups), "Not members"), so a model
-  that answers from A.3 alone gives every step and scores no citation hit.
-- **One D-03 case.** Only G-26 has `may_quote`, and it is in dev. Whether the quote is attributed
-  in words is S5's to judge.
+  for G-20, G-76 or G-112. The cases stay, their labels stay whole, and neither S4 nor S4b tunes k
+  or the chunker for them. The Runbook's worked example, A.3, narrates the six steps in order in one
+  chunk; it is a restatement left out of the labels ([Label groups](#label-groups), "Not
+  members"), so a model that answers from A.3 alone gives every step and scores no citation hit.
+- **Four D-03 cases.** G-26, G-84, G-85 and G-93 have `may_quote`. Whether a quote is attributed in
+  words is S5's to judge.
 - **Silence is proven by phrases.** A `must_not_appear` list shows that its phrases are absent
-  from the scope, not that no sentence answers the question in other words.
+  from the scope, not that no sentence answers the question in other words. F-40 and F-97 each
+  prove several topics with one list.
+- **Several topics per feature.** The answer key's ids stop at F-98 (two digits, and F-99 is the
+  check-dataset tests' missing feature), so F-89, F-91, F-92 and F-97 each hold several topics, as
+  F-40 does. A result read by feature mixes those topics; read it by case.
 - **Restatements left out of groups:** the MFA Standard 8 and the Privileged Access Standard 9 for
-  G-34, and the Runbook's worked example A.3 for G-20 ([Label groups](#label-groups)).
+  G-34, and the Runbook's worked example A.3 for G-20, G-76 and G-112 ([Label groups](#label-groups)).
 - **Section labels and multi-chunk sections.** One labelled section has two chunks at the default
-  settings: NIST SP 800-63B-4, section 3.1.1.2 (R-Q21, G-22, and G-26's quote). The expiry and
-  maximum-length sentences are in its first chunk. A label resolves to every chunk of its section
-  (`raglab.evals.golden`, `raglab.evals.metrics`), and the section counts as found when any one of
-  them is in the top k, so the measure is generous there; S5's judged metrics check the answer
-  itself.
+  settings: NIST SP 800-63B-4, section 3.1.1.2 (R-Q21, G-22, G-68, G-110, and the quotes of G-26
+  and G-85). The expiry and maximum-length sentences are in its first chunk. A label resolves to
+  every chunk of its section (`raglab.evals.golden`, `raglab.evals.metrics`), and the section
+  counts as found when any one of them is in the top k, so the measure is generous there; S5's
+  judged metrics check the answer itself.
 - **Pointer sections are labelled.** Cross-reference labels include the pointer section, so a
   retriever that jumps straight to the target scores full hit@k but lower recall@k.
-- **Scanned page.** The cases on the scanned annex (R-Q16, R-Q17, G-08) depend on OCR. An OCR
+- **Scanned page.** The cases on the scanned annex (R-Q16, R-Q17, G-08, G-52) depend on OCR. An OCR
   change that alters the annex text can change their result without any retrieval change.
+- **Attack features in clean runs only.** G-53 to G-55 are asked with the attack files not
+  indexed; whether the assistant resists those files is S7's attack suite. The planted secret and
+  personal details (F-44, F-45) have no case: they wait for S7's output guard.
+- **A plain attack phrase in a correct answer.** G-57 asks about Mirrowfen's password expiry, and
+  a correct answer in other words could hold one of the plain attack phrases that are
+  `answer_must_not_contain` strings of F-47 and F-48; publish refuses a record that holds one. S4
+  left F-35 out for that reason; S4b includes it, as the plan's draft does, and the sign-off
+  decides.
+- **No tenant B conflict and no unresolved conflict.** The pack plants no tenant B conflict, so
+  tenant B has no flag-conflict case, and no unresolved conflict between two current documents
+  (R-22, the S4b plan's decision D3).
 - **English only**, and only the identity and access topics of a fictional company.
