@@ -45,6 +45,11 @@ baseline's answers judged by the local judge under judge-v2. The first judged re
 `runs/published/20261020T195341Z-judge-local-dev-25ccc0d/` (judge-v1), stays published as the
 evidence for the second sign-off; its numbers are not the baseline's.
 
+**Golden set v2 (S4b).** The judged baseline stays `5aa0ec5`, on golden set v1.1's dev split,
+until S6 judges v2's consistency baseline as its first live step: the user's answer to S4b's D2,
+verbatim, "In S6, as its first live step (Recommended)". S4b changes none of the judge's files.
+The judged numbers above are v1.1's and do not compare with a run on v2.
+
 | Metric | Gate | Threshold | Reason |
 |---|---|---|---|
 | `grounded`, `cites_support`, `correct`, `relevant`, `abstains`, `refuses_and_helps`, `context_sufficient`: the pass rate over judged verdicts (Wilson interval at n = cases), pass^3, the unable_to_verify rate, the split by expected label | reported | none | The judge is uncalibrated until S6: how-to 17 step 10 asks to "calibrate the judge on 30 or more human labels before the threshold gates anything". unable_to_verify is never a pass, and a high rate of it reads as a badly written criterion |

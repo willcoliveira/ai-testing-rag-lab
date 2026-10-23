@@ -5,6 +5,13 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- S4b, golden set v2 (plan `docs/plans/2026-10-23-s4b-golden-set-v2.md`, ledger beside it), in
+  progress: `raglab check-dataset` checks every golden file and holds each to its own version,
+  read from the datasheet's Maintenance row for the file (v1.1 keeps S4's 15/8/8/4/5; v2 has the
+  mix 45/24/24/12/15, its label, must-not-block, may_quote and tenant B floors and a tenant B test
+  case under each of its labels); `scripts/split_golden.py`, the seeded split of v2's new cases
+  (seed 20261023), committed before any case existed; `make eval-retrieval` for the three
+  retrieval runs. The cases, the sign-off and the runs on v2 come next.
 - answer-v2, the prompt fix for abstention (plan `docs/plans/2026-10-21-answer-v2.md`, ledger
   beside it), measured on dev and not adopted (the user's decision, verbatim: "Not adopted, runs
   stay published (Recommended)"): its first run after the sign-off gained four cases on answer-v1's

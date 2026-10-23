@@ -461,6 +461,18 @@ answer-v2's runs stay published as a measured result (`docs/plans/2026-10-21-ans
 | S7 | Attack, guardrails, red team | 7 / step 9 | THREAT-MODEL.md (OWASP LLM Top 10 2026 mapping); promptfoo red-team run with findings turned into cases; planted instruction (including "nothing is sent out"), two tenants, poisoned duplicate: each fails without the defence and passes with it; must-block and must-not-block suites per filter, both error rates and latency; Guardrails AI extra (see below) |
 | S8 | Gates, failure causes, suite audit | 8 / step 11 | suite audit (how-to 09 B) in `docs/audits/`; GATES.md with how-to 08 columns; THRESHOLDS.md gives a reason for every gated and every reported metric; every failure tagged with a cause (ingestion, retrieval, generation, abstention); embedder-swap branch shows what moved; upgrade record (how-to 10); flake policy |
 
+Decision (2026-10-23): S4b's judged baseline on golden set v2 moves to S6. Asked "S4b D2: the
+judged baseline on v2 is one long local judge session, about 2 h 15 min (estimate). That is over
+the judge's 2-hour cap. Where should it run?", the user answered, verbatim: "In S6, as its first
+live step (Recommended)". S4b leaves the judge's files byte for byte; the judged baseline stays
+`5aa0ec5`, on golden set v1.1, until S6 judges v2's consistency baseline, and the S4b ledger gives
+S6 the design count of judge calls for v2's dev slice to set the cap from. Asked "S4b D3: R-22 (an
+unresolved conflict between two current documents) is the only requirement with no planted
+feature. Change the corpus for it?", the user answered, verbatim: "No corpus change; R-22 stays a
+gap (Recommended)": v2 is written over the existing corpus, and R-22 waits for S8's suite audit,
+which plants it in a corpus pull request of its own or records it as not covered. The S4b plan
+(`docs/plans/2026-10-23-s4b-golden-set-v2.md`) quotes both questions.
+
 **v0.3 (S9, S3h, S10, S11).** Production practices and the public demo.
 
 | # | Stage | Build project / how-to step | Key acceptance criteria |
