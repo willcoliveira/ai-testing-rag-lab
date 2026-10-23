@@ -4,7 +4,7 @@ name: golden-set-v2
 nodes: [S4b]
 date: 2026-10-23
 branch: feat/s4b-golden-set-v2
-status: draft, awaiting the maintainer's approval
+status: approved
 ---
 
 # S4b: Golden set v2, about 120 behaviour cases over both tenants
@@ -689,7 +689,23 @@ The go for this draft (2026-10-23, about 22:10 WEST), verbatim: "S4b planner now
 the answer to "answer-v2 is merged and cleaned up. The main plan's next stage is S4b: golden set
 v2, about 120 cases, covering every question type and both tenants. Start it?"
 
-Your answers to D1 to D4: to be quoted here, verbatim, with each question.
+Your answers (2026-10-23, about 22:50 WEST, through the orchestrator's question prompt), each with
+its question, verbatim:
+
+- **D1.** Question: "S4b D1: v2 makes answer-v1's consistency baseline (14 of 27 on v1.1 dev)
+  stale. Re-run it on v2 in S4b?" Answer: "Re-run on v2 in S4b (Recommended)". It means option A:
+  at F, five `make eval-local` sessions on v2's dev slice, run 1 the baseline (GV11).
+- **D2.** Question: "S4b D2: the judged baseline on v2 is one long local judge session, about 2 h
+  15 min (estimate). That is over the judge's 2-hour cap. Where should it run?" Answer: "In S6, as
+  its first live step (Recommended)". It means option A: no judge session in S4b; `5aa0ec5` stays
+  the judged baseline, on v1.1, until S6 (GV12).
+- **D3.** Question: "S4b D3: R-22 (an unresolved conflict between two current documents) is the
+  only requirement with no planted feature. Change the corpus for it?" Answer: "No corpus change;
+  R-22 stays a gap (Recommended)". It means option A: no corpus change; R-22 stays a gap for S8's
+  suite audit.
+- **D4.** Question: "S4b D4: approve the S4b plan? Your time over the stage is about 4–5 h
+  (estimate), most of it the v2 sign-off." Answer: "Approve and start (Recommended)". It means:
+  the build and the cases start on `feat/s4b-golden-set-v2`.
 
 ## Sources (read 2026-10-23)
 
