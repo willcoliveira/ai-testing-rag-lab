@@ -756,7 +756,7 @@ v3.0), as listed in `corpus/SOURCES.md`.
 |---|---|---|---|---|---|
 | v1 | 2026-10-06 | S2 | `golden.v1.jsonl` | 34 retrieval questions | `ffb8c5a54b2277bd90efd9bdebda4b91494eb472c3c604b6f057146b19436104` |
 | v1.1 | 2026-10-19 | S4 | `golden.v1.jsonl` | 40 behaviour cases; label groups on seven retrieval questions, whose feature ids gain F-53; after the labels judge's review, G-33's reference answer trimmed to the route (made before the sign-off, so still v1.1) | `5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a` |
-| v2 | 2026-10-23 | S4b | `golden.v2.jsonl` | v1.1's 74 lines unchanged, then 80 new behaviour cases (G-38 to G-117): 120 behaviour cases in the mix 45/24/24/12/15, 33 of them asked as tenant B; answer-key additions F-88 to F-98 and F-40's new silence phrases; the new cases' splits from the seeded script (seed 20261023) | `154536a96941123b3f709fd021598e40536e342527ee144c4bffdb0db4e6a502` |
+| v2 | 2026-10-23 | S4b | `golden.v2.jsonl` | v1.1's 74 lines unchanged, then 80 new behaviour cases (G-38 to G-117): 120 behaviour cases in the mix 45/24/24/12/15, 33 of them asked as tenant B; answer-key additions F-88 to F-98 and F-40's new silence phrases; the new cases' splits from the seeded script (seed 20261023) | `481063f4375036e4676f170482a4270bd0d0dae0d76d225ea6257192cef0781b` |
 
 - A dataset version is a build input like the model and the prompt: every run manifest records
   the file's sha256, so a run names its version. The latest row for each file carries the sha256
