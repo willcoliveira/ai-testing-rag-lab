@@ -1,0 +1,55 @@
+# The bar of judge calibration c1 (S6), written and committed before the sample is drawn and before
+# any label exists (docs/plans/2026-10-23-s6-judge-calibration.md, "The bar, written before any
+# label"). The maintainer's answers of 2026-10-23, verbatim: D1 "grounded and abstains, 15 each
+# (Recommended)"; D2 "kappa 0.80 trusts, under 0.60 stops (Recommended)"; D3 "One labeller, plus a
+# blind re-label of 12 (Recommended)".
+#
+# Read by `raglab calibrate` and `raglab label` (raglab.evals.calibration), strictly: an unknown or
+# missing key stops them. The sample pins this file's sha256, and `raglab calibrate` refuses a bar
+# that changed since. docs/THRESHOLDS.md states the same bar ("The judge's calibration bar (S6)"),
+# held equal by tests/judge/test_calibration_bar.py.
+name = "judge-v2-c1"
+# the judge prompt version this calibration describes
+judge_prompt = "judge-v2"
+# What the bar reads: Cohen's kappa of the judge's verdict against the maintainer's sealed label, per
+# criterion, on that criterion's items; the point estimate, not its interval. It never reads the
+# weighted TPR and TNR, the pooled kappa, a correction made after the verdicts were seen, or the
+# re-label's numbers: they are reported beside it.
+reads = "kappa"
+# The status when a criterion's kappa is undefined (the labels and the verdicts all fall in one and
+# the same class, so agreement beyond chance cannot be measured): never trusted, never gated.
+undefined = "reported only"
+
+[sample]
+# rule s6-1 (raglab.evals.calibration.draw): the judged record's first-pass verdicts of status ok,
+# pass or fail, on the criteria below; stratified by criterion and the judge's verdict; seeded
+rule = "s6-1"
+# the plan's date, written before the judged record exists
+seed = 20261023
+
+[agreement]
+# the 95% percentile intervals: a bootstrap within strata, with raglab compare's resample count
+resamples = 2000
+level = 0.95
+seed = 20261023
+
+[relabel]
+# D3: the blind re-label of 12 of the 30, 6 per criterion, at least a day after the labels' seal
+per_criterion = 6
+min_gap_hours = 24
+
+# Per calibrated criterion, in the labelling order (D1): the items by the judge's verdict, and the
+# bar's two lines. kappa >= trusted: trusted (S8 may gate on it); stop <= kappa < trusted: reported
+# only; kappa < stop: not trusted (its pass rates are not read as evidence until a fix is
+# calibrated, D4).
+[criteria.grounded]
+judge_pass = 7
+judge_fail = 8
+trusted = 0.80
+stop = 0.60
+
+[criteria.abstains]
+judge_pass = 7
+judge_fail = 8
+trusted = 0.80
+stop = 0.60

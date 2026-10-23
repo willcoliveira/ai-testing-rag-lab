@@ -53,6 +53,33 @@ evidence for the second sign-off; its numbers are not the baseline's.
 | The position test: each position's rate and the paired differences middle minus first and middle minus last | reported | none | A test of the generator's long contexts on ten cases, whose intervals are wide; scored by code first, the judge's `correct` beside it |
 | DeepEval 4.3.1's metric canary, hallucination direction and faithfulness cross-check | reported (docs/COMPATIBILITY.md and the S5 ledger: docs/CRITERIA.md is frozen since its sign-off) | none | DeepEval's scores are never the judged numbers (D4: "Own judge; DeepEval fenced (Recommended)"); a hallucination threshold would be written only after its direction is measured, and DeepEval itself points RAG to faithfulness |
 
+### The judge's calibration bar (S6)
+
+Written before any sample or label exists, in `datasets/calibration/judge-v2-c1/bar.toml`, which
+`raglab calibrate` reads; `tests/judge/test_calibration_bar.py` holds this table equal to that
+file. The maintainer's answers (2026-10-23), verbatim: D1 "grounded and abstains, 15 each
+(Recommended)"; D2 "kappa 0.80 trusts, under 0.60 stops (Recommended)". Per calibrated criterion,
+the bar reads Cohen's kappa of the judge against the maintainer's sealed labels on the criterion's
+items: the point estimate. It never reads the interval, the weighted TPR and TNR, the pooled kappa,
+a correction made after the verdicts were seen, or the re-label's numbers, which are reported
+beside it.
+
+| Criterion | Items (judge pass, judge fail) | Trusted: S8 may gate on it | Reported only | Not trusted | Kappa undefined |
+|---|---|---|---|---|---|
+| `grounded` | 15 (7, 8) | kappa >= 0.80 | 0.60 <= kappa < 0.80 | kappa < 0.60 | reported only |
+| `abstains` | 15 (7, 8) | kappa >= 0.80 | 0.60 <= kappa < 0.80 | kappa < 0.60 | reported only |
+
+Why: how-to 05's template ("kappa >= 0.80 to trust; below 0.60 stop using") and McHugh's reading,
+which treats 0.80 to 0.90 as strong and below 0.60 as weak. On 15 items, trusted means at most one
+disagreement, and two keep a criterion reported only. Not trusted means its pass rates are not read
+as evidence anywhere until a fix is calibrated (D4: "Record it; fix in a follow-up
+(Recommended)"). A kappa is undefined only when the labels and the verdicts all fall in one and the
+same class: agreement beyond chance cannot be measured, so the criterion is never trusted, and it
+stays reported. 30 labels are a precursor, not the calibration study: the intervals are wide, so
+the bar reads the point estimate. The other five criteria (`cites_support`, `correct`, `relevant`,
+`refuses_and_helps`, `context_sufficient`) are not calibrated by these labels: they stay reported
+and are never gated until labels of their own calibrate them.
+
 ## Cost and latency (S5, Q-01, Q-02)
 
 All reported. The formula is code (`raglab cost`, `src/raglab/evals/cost.py`, tested on
