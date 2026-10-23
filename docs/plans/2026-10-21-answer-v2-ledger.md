@@ -112,14 +112,14 @@ Each break was made on a committed file with `PYTHONDONTWRITEBYTECODE=1`, run, a
 | AV1 | met offline, at the frozen text (draft 3; the breaks were made on draft 1's commit, and the tests are the same) | `tests/generation/test_prompt_snapshot.py`, 16 tests: each version's snapshot and fingerprint (answer-v1 `96f42d9bc9c7...`, unchanged; answer-v2 `f6b4f908c3fc...` at draft 1, `e3475c3b32e0...` at draft 2, `3cbcc9f13c25...` frozen at draft 3); `test_answer_v2_differs_from_answer_v1_in_the_system_text_only` (the frames, schema, parser and helpers are answer-v1's own objects; the same user message for three inputs, the hostile chunk among them; the systems differ; the text names no version); framing, the frame break-out, no developer comments and no-passages for both versions. `git diff origin/main -- src/raglab/generate/prompts/answer_v1.py tests/snapshots/answer-v1.txt`: empty | (1) "Decide what kind of reply to give" to "... of answer to give" in answer-v2: "2 failed, 14 passed" (answer-v2's snapshot: "the prompt changed: review the diff, write a new version and its snapshot"; its fingerprint: "the text of answer-v2 changed without a new VERSION"), restored "16 passed". (2) "3. Choose one label:" to "3. Pick one label:" in answer-v1: "2 failed, 14 passed" (answer-v1's snapshot and "the text of answer-v1 changed without a new VERSION"), restored "16 passed" |
 | AV2 | met offline, at the frozen text (the breaks made on draft 1's commit) | The trace table of the frozen text and the measure table above; `tests/generation/test_answer_v2_words.py`, 7 tests (the four checks on the committed text, the measure, and each check on a planted text) | (1) five words of the dev case G-17's question ("It's my first day") added to rule 5's last line: "2 failed, 5 passed", the run check naming the case: "'G-17 (dev) shares a run of 5 words'"; restored "7 passed". (2) the answer-key value "45 days" (F-27, not a canary) added to rule 6's `answer` line: "1 failed, 6 passed", naming the feature: "F-27: '45 days'"; restored "7 passed" |
 | AV3 | met offline, for the fake runs and the API; the live contract test sends the current prompt in every session | The fake generation run records `{"version": "answer-v2", "sha256": CURRENT.fingerprint()}` (`tests/retrieval/test_run_record.py::test_a_generation_run_writes_a_valid_record`), and so does the fake position run (`tests/generation/test_position_contexts.py::test_a_position_run_writes_a_valid_generation_record`); `/version` and `/ask` report `answer-v2` (`tests/api/test_api.py`); `make api-smoke`: "api-smoke: passed", its `/version` line naming answer-v2; a local run is indexed with prompt `answer-v2` (`tests/retrieval/test_publish.py`); `test_the_current_prompt_is_chosen_once_in_code_and_read_everywhere` (the pipeline, the generation suite and the position suite read `CURRENT`; no config line names a prompt version). `git diff origin/main -- config/`: empty | The position suite left on answer-v1 (`from raglab.generate.prompts import answer_v1 as prompt` in `raglab/evals/position.py`): "2 failed, 34 passed": the position manifest test (`assert {'version': '...e85c7c01c8ae'} == {'version': '...17180c53ed91'}`) and the current-prompt test; restored "36 passed" |
-| AV4 | met offline; the judged-record form of its break waits for B's judged record | `git diff origin/main --stat` over the behaviour checks, the oracle, the generation record, the gate's code, `raglab compare`, the record and its schema, the metrics, the judged run and record, `src/raglab/judge/`, `schemas/`, docs/CRITERIA.md, `datasets/`, `config/`, `runs/published/`, answer-v1 and its snapshot: empty. `shasum -a 256`: docs/CRITERIA.md `8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e`, the canary set `4ca54c3ced557118f26306543164dc01c7509d1866e9e77f6cd4f2d3284b328f`, `config/judge-local.toml` `228a720045d8...` (the file sha256 in `5aa0ec5`'s manifest), equal to `5aa0ec5`'s manifest. `tests/judge/test_answer_v2_one_judge.py` (above); the committed-runs test validates every published record | (1) the oracle made to skip a list of section numbers (after a reference word, every number that follows a comma, in `policy_values`): the committed-runs test failed on the S4 baseline: "case G-25 trial 1: checks {... 'no_value': False ...} do not follow from the fields"; restored "1 passed". (2) docs/CRITERIA.md given one more line: the one-judge test failed ("AssertionError: docs/CRITERIA.md"), and `publish.judged_problems` on `5aa0ec5`'s record: "it is stale: it was made under another version of docs/CRITERIA.md (docs/CRITERIA.md, sha256 8c8f973a3306, now 800eb3fcecb0)"; restored "1 passed" |
+| AV4 | met, offline and on B's judged record (its judged-record break under "The breaks after the runs") | `git diff origin/main --stat` over the behaviour checks, the oracle, the generation record, the gate's code, `raglab compare`, the record and its schema, the metrics, the judged run and record, `src/raglab/judge/`, `schemas/`, docs/CRITERIA.md, `datasets/`, `config/`, `runs/published/`, answer-v1 and its snapshot: empty. `shasum -a 256`: docs/CRITERIA.md `8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e`, the canary set `4ca54c3ced557118f26306543164dc01c7509d1866e9e77f6cd4f2d3284b328f`, `config/judge-local.toml` `228a720045d8...` (the file sha256 in `5aa0ec5`'s manifest), equal to `5aa0ec5`'s manifest. `tests/judge/test_answer_v2_one_judge.py` (above); the committed-runs test validates every published record | (1) the oracle made to skip a list of section numbers (after a reference word, every number that follows a comma, in `policy_values`): the committed-runs test failed on the S4 baseline: "case G-25 trial 1: checks {... 'no_value': False ...} do not follow from the fields"; restored "1 passed". (2) docs/CRITERIA.md given one more line: the one-judge test failed ("AssertionError: docs/CRITERIA.md"), and `publish.judged_problems` on `5aa0ec5`'s record: "it is stale: it was made under another version of docs/CRITERIA.md (docs/CRITERIA.md, sha256 8c8f973a3306, now 800eb3fcecb0)"; restored "1 passed" |
 | AV5 | met (live, dev only): three drafts, D1's budget, each committed before its one session; the stop rule froze draft 3, the first to meet P and G1 to G4 | The iteration table below, each number copied from its record or from `raglab.evals.compare.compare`; every iteration manifest split dev, gate manual, a clean tree; the three runs in this worktree's `runs/tmp` | none (the criteria judge recomputes each number from the records in `runs/tmp`) |
-| AV6 | in progress: the frozen text signed off on 2026-10-22 ("Sign off draft 3 as frozen (Recommended)", the freeze section); the five runs and the judged record follow, at F | | |
-| AV7 | not started | | |
-| AV8 | not started | | |
-| AV9 | not started: written after the decision, as the plan's "How it will run" step 6 orders it (with answer-v2 current and answer-v1's baseline in the index, the currency test is red by construction: that is its break) | | |
-| AV10 | not started | | |
-| AV11 | met locally for the offline build, but `audit` (below) | | |
+| AV6 | met (live, provenance local): the sign-off quoted ("Sign off draft 3 as frozen (Recommended)", the freeze section); five `make eval-local` sessions at F, all published (`c14acb0`), every manifest at F, clean, with the frozen fingerprint; one judge session on B, its canaries all on their side, its record published (`b037b22`); the same seed and the session times reported | "The five runs at F" and "B's judged record" below; `runs/published/` | a copy of B's judged record with one `abstains` verdict flipped and resealed: `record.validate` refuses it ("The breaks after the runs") |
+| AV7 | met: P, G1 to G4, R, T1 and T2 computed by the rule written before the runs, from the records; the outcome is **Your call** with the guards read on B (R fails), or Not adopted with G3 read over the five runs; the user's answer waits | "The decision" below; the label-against-verdict tables for both prompts | none (the criteria judge recomputes every number of the decision from the records) |
+| AV8 | not started: it applies only if the user adopts answer-v2; no baseline mark, THRESHOLDS.md row or gate step was made | | |
+| AV9 | not started: written after the user's decision, as the plan's "How it will run" step 6 orders it (with answer-v2 current and answer-v1's baseline in the index, the currency test is red by construction: that is its break) | | |
+| AV10 | not started: after the user's decision | | |
+| AV11 | met locally but `audit`, which fails on pypdf and Pillow until main's pull request #22 is merged into this branch (after this stop, by the orchestrator's rule) | "make -k check at stop point 2" below | |
 
 ## make -k check after the offline build
 
@@ -454,6 +454,316 @@ clock, about 12 min 46 s in all.
 Pillow 12.3.0, "Found 21 known vulnerabilities, ignored 8 in 2 packages"), until pull request #22
 merges; every other target passed: "1350 passed, 2 deselected", privacy "0 hits across 346 files
 (42 rules)", the retrieval gate "recall@5 0.682 (n 22) passes", "api-smoke: passed".
+
+## The five runs at F (2026-10-23, AV6)
+
+All five were made at F, `64bfd785ecdaa1e771d7f21022b733290234c653`, on a clean tree, after the
+sign-off. The Mac was on battery from the sign-off on 2026-10-22 (about 20:00 WEST; 14% and
+discharging at 20:33) until 09:37:44 on 2026-10-23, so no session ran before then; the developer
+stopped at 20:33 and reported it, and started nothing. Before each session `pmset -g batt` named
+'AC Power' and `make ollama-status` showed no pid, the port closed, no process and nothing loaded;
+each session ended with "postcheck passed: port closed, no ollama process, no model loaded".
+
+**F is docs only:** `git diff e4c65bc F -- src tests uv.lock` is empty (the whole `e4c65bc..F`
+diff is this ledger). **Every manifest** names git `64bfd785ecda...` (F), `git_dirty` false,
+prompt answer-v2 `3cbcc9f13c25efc7204aa046332574c22625360e41bca16f3799bbc45203a84e`, config
+`92d8fe9b66ea...`, dataset `5f8cdaf18783`, model digest `d1e17d7dabac`, Ollama 0.40.6, 3 trials,
+seed 20261018, split dev, gate manual, not partial, provenance local; each validates, and
+publish's planted-string scan finds nothing.
+
+| Session | Run | Clock before launch | After the postcheck | Mac time | Memory available | Contract test | Suite | Status counts | Behaviour pass^3 |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 (B) | `20261023T084147Z-generation-local-ollama-dev-64bfd78` | 09:40:51 | 09:45:12 | about 4 min 21 s | 29.8 GiB | 41.10 s | 203.714 s | ok 147 | 0.667 (18 of 27) |
+| 2 (repeat 1) | `20261023T084606Z-generation-local-ollama-dev-64bfd78` | 09:45:26 | 09:49:21 | about 3 min 55 s | 35.3 GiB | 25.29 s | 193.79 s | ok 146, blocked 1 | 0.556 (15 of 27) |
+| 3 (repeat 2) | `20261023T085014Z-generation-local-ollama-dev-64bfd78` | 09:49:35 | 09:53:25 | about 3 min 50 s | 35.4 GiB | 24.61 s | 189.424 s | ok 147 | 0.667 (18 of 27) |
+| 4 (repeat 3) | `20261023T085416Z-generation-local-ollama-dev-64bfd78` | 09:53:36 | 09:57:32 | about 3 min 56 s | 36.2 GiB | 25.12 s | 195.397 s | ok 147 | 0.630 (17 of 27) |
+| 5 (repeat 4) | `20261023T085830Z-generation-local-ollama-dev-64bfd78` | 09:57:44 | 10:01:44 | about 4 min 0 s | 36.3 GiB | 31.03 s | 193.305 s | ok 146, invalid_output 1 | 0.519 (14 of 27) |
+
+The interval of behaviour pass^3 at n 27: 0.478 to 0.814 (18), 0.373 to 0.724 (15), 0.442 to
+0.785 (17), 0.340 to 0.693 (14). Latency p50 and p95 (ms, n 147): B 1332.447 and 2767.76; the
+repeats 1263.796 and 2613.423, 1182.941 and 2422.624, 1217.613 and 2496.441, 1319.983 and
+2501.321. Prompt tokens 316086 in every run (the same prompts); completion tokens 13041, 12799,
+12458, 12970 and 12965.
+
+**Published:** all five, with `raglab publish` and none as the baseline (`c14acb0`). publish
+accepted every run, and the index's baseline for `generation/generation-local-ollama/dev` is
+still A.
+
+**`raglab compare` of A with each run** (the CLI; `compare.json` and `compare.md` under this
+worktree's `runs/tmp/compare/`), B minus A, 95% paired bootstrap interval, 2000 resamples, seed
+20261018, 27 cases:
+
+| Run | Behaviour pass^3 | B minus A (95% interval) | Gained | Lost | decision_label, B minus A (95% interval) |
+|---|---|---|---|---|---|
+| B | 18 of 27 | +0.148 (+0.037 to +0.296) | P-01, P-02, G-12, G-23 | none | +0.173 (+0.037 to +0.321) |
+| repeat 1 | 15 of 27 | +0.037 (-0.074 to +0.148) | P-01, G-25 | G-03 | +0.148 (+0.024 to +0.296) |
+| repeat 2 | 18 of 27 | +0.148 (+0.037 to +0.296) | P-01, P-02, G-23, G-25 | none | +0.210 (+0.062 to +0.370) |
+| repeat 3 | 17 of 27 | +0.111 (+0.000 to +0.222) | P-01, P-02, G-25 | none | +0.160 (+0.012 to +0.321) |
+| repeat 4 | 14 of 27 | +0.000 (-0.148 to +0.148) | P-01, G-25 | G-03, G-16 | +0.111 (-0.037 to +0.272) |
+
+B's decision label is better than A's for P-01, P-02, G-23, G-25, G-26 and G-34, and worse for
+G-17. Thirteen cases pass all three trials in all five runs (G-01, G-05, G-06, G-08, G-09, G-10,
+G-11, G-14, G-21, G-29, G-33, G-36 and P-01); six pass in some (G-03, G-12, G-16, G-23, G-25,
+P-02).
+
+**B's tables:**
+
+| Expected (rows) against given, case-trials | answer | abstain | flag-conflict | refuse-and-help | withheld |
+|---|---|---|---|---|---|
+| answer | 52 | 2 | 0 | 0 | 0 |
+| abstain | 8 | 10 | 0 | 0 | 0 |
+| flag-conflict | 1 | 2 | 0 | 0 | 0 |
+| refuse-and-help | 0 | 0 | 0 | 6 | 0 |
+
+| Abstain cases (case-trials) | No value stated | Value stated |
+|---|---|---|
+| label abstain | 10 | 0 |
+| label not abstain | 2 | 6 |
+
+Decision-label rates in B: answer 0.963, abstain 0.556, flag-conflict 0.000, refuse-and-help
+1.000; abstention 0.556; over-abstention 0.063 (4 of 63 trials labelled `abstain`: G-17 trial 1,
+G-19 trial 2, G-22 trials 2 and 3).
+Label agreement: 22 of 27 cases.
+
+**The same seed.** Of the 147 (case, trial) pairs, matched one to one across the five runs, the
+answer text is identical in all five for 29, the decision label for 111, the cited ids for 82 and
+all three for 27; the 81 behaviour pairs keep their label in all five for 65. answer-v1's five
+runs (S4 ledger): 6, 132, 68 and 6. answer-v2 repeats its text more often and its label less
+often, and the label is what behaviour pass^3 reads.
+
+## B's judged record (2026-10-23, AV6)
+
+`make judge-local RUN=20261023T084147Z-generation-local-ollama-dev-64bfd78` at `c14acb0` (the five
+runs published; the tree clean): one guarded session, 10:03:39 to 10:58:31 WEST by the shell's
+clock, about 54 min 52 s, on AC power throughout, exit 0. The preflight: "model:
+ministral-3:14b-instruct-2512-q4_K_M at the pinned digest 4760c35aeb9d", "memory: 35.0 GiB
+available; the model needs 8.5 GiB plus a margin of 4 GiB", "power: the Mac draws from 'AC
+Power'". The judge's live contract test passed, "1 passed, 4 deselected in 33.11s" (log
+`runs/tmp/judge-contract/20261023T090340Z.jsonl`: `json_schema` 4 of 4 valid verdicts, 10.047 s
+cold then 3.363, 2.997 and 2.575 s; `none` 3 of 3 invalid_output). Then "canaries: all 19 on
+their side", "judged 147 case-trials", the checks on the judge, the record; "unloaded
+ministral-3:14b-instruct-2512-q4_K_M", "postcheck passed: port closed, no ollama process, no model
+loaded". `make ollama-status` after: down, 26.6 GiB available, power 'AC Power'.
+
+**The record:** `runs/published/20261023T090413Z-judge-local-dev-c14acb0/` (`raglab publish`,
+`b037b22`: valid, not partial, provenance local, from a clean tree, its source published with the
+manifest it names, docs/CRITERIA.md and the canary set current). Created 2026-10-23T09:04:13Z,
+git `c14acb06f500...`, `git_dirty` false. **The frozen judge, as in `5aa0ec5`'s manifest:**
+judge-v2 `e90d9d8d8bcbeca8cc4f3ea73a46ca486f20b1f750506185c3dd8952ec4dd90a`, docs/CRITERIA.md
+`8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e`, the canary set
+`4ca54c3ced557118f26306543164dc01c7509d1866e9e77f6cd4f2d3284b328f`, the judge
+`ministral-3:14b-instruct-2512-q4_K_M` at digest `4760c35aeb9d...`, `config/judge-local.toml`
+`228a720045d8...`; `tests/judge/test_answer_v2_one_judge.py` now holds both records to it
+(`7788892`; it tests committed records, not code the runs used). The source is B, manifest
+sha256 `2fec397fc6c3...`. 49 cases, 147 case-trials; 605 judge calls (19 canaries, 441 verdicts,
+145 checks), none unavailable, none invalid_output, none unable_to_verify; `duration_s` 3257.091.
+
+The judged criteria, B's record beside A's (`5aa0ec5`, S5 ledger), as the reports give them
+(reported, not gated; Wilson intervals at n = cases):
+
+| Metric | A (answer-v1) | B (answer-v2) | B's 95% interval | n |
+|---|---|---|---|---|
+| grounded | 0.868 | 0.850 | 0.725 to 0.924 | 49 |
+| grounded[answer] | 0.882 | 0.902 | 0.680 to 0.975 | 17 |
+| grounded[flag-conflict] | 0.600 | 0.500 | 0.095 to 0.905 | 2 |
+| grounded[refuse-and-help] | 0.833 | 1.000 | 0.342 to 1.000 | 2 |
+| grounded[abstain] | 0.706 | 0.833 | 0.436 to 0.970 | 6 |
+| grounded[retrieval] | 0.923 | 0.833 | 0.632 to 0.936 | 22 |
+| cites_support | 0.839 | 0.842 | 0.624 to 0.945 | 19 |
+| correct | 0.419 | 0.397 | 0.220 to 0.606 | 21 |
+| correct[answer] | 0.510 | 0.471 | 0.262 to 0.690 | 17 |
+| correct[refuse-and-help] | 0.000 | 0.167 | 0.013 to 0.759 | 2 |
+| relevant | 0.819 | 0.868 | 0.737 to 0.939 | 43 |
+| abstains | 0.353 | 0.611 | 0.260 to 0.875 | 6 |
+| abstains_pass^3 | 0.167 | 0.500 | 0.188 to 0.812 | 6 |
+| refuses_and_helps | 1.000 | 1.000 | 0.342 to 1.000 | 2 |
+| context_sufficient | 0.619 | 0.619 | 0.409 to 0.792 | 21 |
+
+| Criterion (B) | Judged | pass | fail | unable_to_verify | Quote found | Quote missing |
+|---|---|---|---|---|---|---|
+| grounded | 147 | 125 | 22 | 0 | 146 | 1 |
+| cites_support | 57 | 48 | 9 | 0 | 57 | 0 |
+| correct | 63 | 25 | 38 | 0 | 60 | 3 |
+| relevant | 129 | 112 | 17 | 0 | 129 | 0 |
+| abstains | 18 | 11 | 7 | 0 | 18 | 0 |
+| refuses_and_helps | 6 | 6 | 0 | 0 | 6 | 0 |
+| context_sufficient | 21 | 13 | 8 | 0 | 0 | 0 |
+
+The checks on the judge: every repeat agrees (grounded 27 of 27, cites_support 19, correct 21,
+relevant 21, abstains 6, refuses_and_helps 2); the order check 47 of 49 (A's record: 46 of 48).
+Tokens: generator 147 calls, 316086 prompt and 13041 completion; judge 441, 315609 and 47538;
+judge_checks 145, 119817 and 16225; canaries 19, 14224 and 1688; none unreported. Judge calls'
+latency p50 5277.612 ms, p95 9488.513 ms (n 605).
+
+**`grounded` on the retrieval questions fell** (outside T2, which reads the 17 answer cases): 11
+fail trials in B against 5 in A. Two of them give a superseded value as the current rule, citing
+only the superseded version: R-Q04 trial 1 ("Accounts lock after 5 consecutive failed sign-in
+attempts and stay locked until the IT Service Desk unlocks them", citing A-PWD-V1 4.4; the judge:
+"... explicitly stated in the super[seded] ...") and R-Q33 trial 2 (the old composition rule under
+`flag-conflict`, citing A-PWD-V1 4.2; the judge: "The answer states a rule from a **superseded**
+passage ... as the current policy"). The frozen rule 3 says never to; S3's checks do not read it.
+
+## The decision (AV7), by the rule written before the runs
+
+Every number below is counted from the records (the five generation records, `5aa0ec5` and B's
+judged record) by the scratch scripts named under "Paths", or copied from `raglab compare`.
+
+**P holds.** `raglab compare` of A with B: behaviour pass^3 0.519 to 0.667, B minus A +0.148,
+95% interval +0.037 to +0.296. The difference and the interval's lower bound are both above zero.
+
+**The guards, on B:**
+
+- **G1 holds:** of A's 14 cases, B loses none (compare's lost list is empty).
+- **G2 holds:** 18 of 22 retrieval questions pass all three trials under S3's checks (A: 17); R-Q25
+  gained, none lost.
+- **G3 holds:** no `invalid_output` and no `unavailable` trial in B (ok 147).
+- **G4 holds:** no `no_canary` and no `must_not_contain` failure in any trial of the five runs,
+  and publish accepted all five.
+
+**R fails.** The repeats give 15, 18, 17 and 14 of 27; repeat 4's 14 is not above A's 14 (its
+comparison: +0.000, -0.148 to +0.148; it gains P-01 and G-25 and loses G-03 and G-16).
+
+**T1 does not trip.** P counts four gained cases. P-01 and P-02 (abstain): `abstains` passes in
+all three judged trials of each. G-23 (refuse-and-help): `refuses_and_helps` passes in all three.
+G-12 is an `answer` case, so T1 does not apply to it.
+
+**T2 does not trip.** Over the 17 dev `answer` cases (51 judged trials each): `correct` passes 26
+in A and 24 in B (2 fewer, within the three allowed); `grounded` passes 45 in A and 46 in B.
+
+**The label against the verdict**, counted from the records:
+
+| Abstain cases, judged trials | A: `abstains` pass | A: fail | B: `abstains` pass | B: fail |
+|---|---|---|---|---|
+| labelled `abstain` | 1 | 0 | 10 | 0 |
+| labelled `answer` | 5 | 11 | 1 | 7 |
+| withheld (not judged) | 1 | | 0 | |
+
+| Refuse-and-help cases, judged trials | A: `refuses_and_helps` pass | A: fail | B: pass | B: fail |
+|---|---|---|---|---|
+| labelled `refuse-and-help` | 0 | 0 | 6 | 0 |
+| labelled `answer` | 6 | 0 | 0 | 0 |
+
+In B every `abstain` label is an abstention the judge passes, and every `abstains` fail is on a
+trial labelled `answer`: P-03's three and G-28's three, which state a number the oracle also
+fails, and G-25 trial 2, which states no number (the oracle fails it on its label). The one
+label-and-verdict disagreement is G-26 trial 2: labelled `answer`, passed by `abstains` (no value
+stated). All six refuse-and-help trials (G-23's and
+G-34's) are labelled `refuse-and-help` and pass; G-34 still fails `cites_label`, its route sections
+never retrieved.
+
+**How much P rests on each gain** (raglab compare's bootstrap, A's seed, 2000 resamples, applied
+to B with gained cases counted as not gained; not a measurement): with any one of P-01, P-02 or
+G-23 not gained, B is 17 of 27, B minus A +0.111, and the interval's lower bound 0.000, so P would
+not hold; with two not gained, +0.074 (+0.000 to +0.185); with all three, +0.037 (+0.000 to
++0.111). T1 did not trip, so P stands as measured.
+
+**The outcome, read from the bottom up.** "Not adopted" needs P's difference at or below zero or
+a failed guard: P's difference is +0.148 and every guard holds on B. "Your call" holds because R
+fails (T1 and T2 do not trip). **The outcome is Your call**, on the reading that the guards are
+read on B, as G1 and G2 say ("B loses", "counted from B's case lines") and as the stop rule read
+them on one draft's run. **The other reading:** G3 does not name its run, and G4's "publish
+accepts every run" reads all five; read over the five runs, repeat 4's one `invalid_output` (G-16
+trial 1, "the reply is not JSON (Extra data)") fails G3, and the row is Not adopted. Either way
+the decision is the user's, and neither row allows the baseline mark, the THRESHOLDS.md row or the
+gate step; none was made.
+
+**D3's margin, as a fact and not applied:** the repeats' drops below B are 3, 0, 1 and 4 cases, so
+S4's rule would give a margin of 4 cases; with B at 18 of 27, a run at 14 of 27, A's own value,
+would pass the gate.
+
+**On the repeats, for information** (the plan reads them through R only): repeat 1 loses G-03
+(trial 2 blocked by the citations guard: it cited `A-NCSC@1.0/1/1`, an id no passage has; the
+retrieved one is X-NCSC 1); repeat 2 keeps G2 at 16 of 22, one below A's 17 (R-Q21 trial 2
+labelled `abstain`); repeat 4 loses G-03 (trial 2 labelled `flag-conflict` with a conflict field)
+and G-16 (trial 1 `invalid_output`), so on repeat 4 G1 (two lost) and G3 would not hold. G-19, an
+`answer` case, is labelled `refuse-and-help` in 9 trials of the four repeats and none of B's.
+
+## Observations added after the sign-off (reporting only)
+
+The orchestrator asked for these after the sign-off. They are counts for the ledger and the pull
+request, outside P, G, R and T, and no gate reads them. Per run (B, repeats 1 to 4) and in total
+over the five runs' 735 trials:
+
+| Observation | B | r1 | r2 | r3 | r4 | Total |
+|---|---|---|---|---|---|---|
+| (a) expected `answer` (by `behaviour.expected_label`), labelled `refuse-and-help` | 0 | 2 | 1 | 3 | 3 | 9 (all G-19) |
+| (b) a word of rule 9's examples, on the literal list, in the answer or the conflict note | 19 | 19 | 28 | 18 | 19 | 103 |
+| (b′) the same on the developer's narrower list | 0 | 0 | 1 | 1 | 0 | 2 |
+| (c) labelled `abstain` with empty `cited_ids` | 16 of 17 | 15 of 16 | 23 of 25 | 16 of 16 | 16 of 17 | 86 of 91 |
+| (d) `cited_ids` holding only superseded passages | 4 | 3 | 3 | 5 | 6 | 21 |
+
+- **(b), the literal list, as the orchestrator asked:** the words of rule 9's four examples (102)
+  less every word the 18 register documents use: abstain, afternoon, book, canteen, cited,
+  conflict, evening, evt, five, flag, forty, fridays, guests, ids, k, lend, lent, mile, mileage,
+  paid, park, parking, passage, passages, pence, permits, question, reception, reply, shut, six,
+  state, summer, tables, travel, trv, visitor, week. Its 103 hits are mostly noise: rules 1 to 8
+  use several of these words themselves, "state" above all (rule 6's "do not state what was
+  asked", which nearly every abstention repeats), then "passage", "passages", "question" and
+  "conflict". Each hit, with its words, is in the scratch output named under "Paths".
+- **(b′), the developer's refinement, tuned on the three draft runs:** the literal list less every
+  word rules 1 to 8 and the frames also use (28 words: afternoon, book, canteen, evening, evt,
+  five, forty, fridays, guests, k, lend, lent, mile, mileage, paid, park, parking, pence, permits,
+  reception, shut, six, summer, tables, travel, trv, visitor, week). Its two hits are both in a
+  conflict note under `flag-conflict`, both copies of the travel example: repeat 2's R-Q18 trial
+  1, "The superseded version paid sixty pence a mile." (the example's sentence with the real "60
+  days" turned into an invented price: the strongest form of the copying), and repeat 3's R-Q19
+  trial 1, "The superseded version required at least 12 characters a mile." B has none.
+- **(c):** answer-v1's baseline had two `abstain` trials, one citing a passage and one not.
+- **(d):** R-Q04 in seven trials (its labelled section is never retrieved; B's three among them),
+  R-Q33 in four and G-12 in ten. G-12 passed all three trials in B and failed in all four repeats,
+  where it cites only the superseded version's sections in ten of its twelve trials.
+
+## The breaks after the runs
+
+- **AV4, its judged-record form:** docs/CRITERIA.md given one more line, then
+  `publish.judged_problems` on B's judged record: "it is stale: it was made under another version
+  of docs/CRITERIA.md (docs/CRITERIA.md, sha256 8c8f973a3306, now 800eb3fcecb0)"; the one-judge
+  test "2 failed". Restored with `git checkout`: "2 passed", the tree clean, the sha256
+  `8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e` again.
+- **AV6:** a copy of B's judged record, outside the repository, validated as it was; then P-01
+  trial 1's `abstains` verdict flipped from pass to fail and the copy resealed (results, report and
+  file hashes recomputed, `tests/judge_support.reseal`): `record.validate` refuses it, "case P-01
+  trial 1 abstains: its verdict, quote, passage ids or reason are not its reply's". The published
+  record was not touched.
+
+## Mac time
+
+| Work | Sessions | Mac time |
+|---|---|---|
+| Drafts 1 to 3 (2026-10-22) | 3 generator sessions | 12 min 46 s |
+| The five runs (2026-10-23) | 5 generator sessions | 20 min 2 s (4:21, 3:55, 3:50, 3:56, 4:00) |
+| B's judged record | 1 judge session | 54 min 52 s |
+| **In all** | **9 sessions** | **about 1 h 27 min 40 s** |
+
+Every session ran on AC power and its postcheck passed. Nothing else ran on the Mac during them.
+
+## Paths (for the criteria judge, on this Mac)
+
+The records are under `runs/published/` (the five runs and B's judged record) and this worktree's
+`runs/tmp/` (the three iteration runs; `raglab compare`'s outputs under `runs/tmp/compare/`). The
+scratch scripts and their outputs are outside the repository, in the session's scratchpad
+(`/private/tmp/claude-502/-Users-admpro-Documents-other-ai-testing-rag-lab/51baee5c-6b65-42f8-b6a2-36c4d8fec5d3/scratchpad/`):
+`scripts/draft_numbers.py` (a draft's run against A), `scripts/five_runs.py` (the five runs: P,
+the guards, R, the margin's drops, the same seed and the observations (a) to (d)),
+`scripts/judged_numbers.py` (T1, T2 and the label-against-verdict tables), `scripts/p_without.py`
+(P with gained cases not counted) and `scripts/av6_break.py` (AV6's break on a copy); the outputs
+`draft1-numbers.txt` to `draft3-numbers.txt`, `five-runs.txt` and `judged-numbers.txt`; the
+session logs `draft1-session.log` to `draft3-session.log`, `run1-session.log` to
+`run5-session.log` and `judge-session.log`. Every number in this ledger is copied from those
+outputs, the records' reports or `raglab compare`'s.
+
+## make -k check at stop point 2
+
+`/usr/bin/time -p make -k check` on this ledger's tree but this section (after the five runs and
+B's judged record were published and the one-judge test held both records): 213.25 s real
+(196.57 s user). Only `audit` fails: "Found 35 known vulnerabilities, ignored 8 in 2 packages",
+27 in Pillow 12.3.0 and 8 in pypdf 6.19.0 (21 on 2026-10-22: advisories published since). Main's
+pull request #22 (merged at 09:32 on 2026-10-23 as `8e7a4db`, with fastembed 0.9.0 and numpy
+2.5.4) is not merged into this branch: by the orchestrator's rule it waits until B's judged record
+is published and this stop is reported, so that nothing but the prompt differs between A and B.
+Every other target passed: "1351 passed, 2 deselected", privacy "0 hits across 364 files (42
+rules)", "0 architecture violations in src/raglab", the retrieval gate "recall@5 0.682 (n 22)
+passes", "api-smoke: passed".
 
 ## Developer choices (for the review)
 
