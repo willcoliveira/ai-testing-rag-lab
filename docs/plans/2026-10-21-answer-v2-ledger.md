@@ -115,10 +115,10 @@ Each break was made on a committed file with `PYTHONDONTWRITEBYTECODE=1`, run, a
 | AV4 | met, offline and on B's judged record (its judged-record break under "The breaks after the runs") | `git diff origin/main --stat` over the behaviour checks, the oracle, the generation record, the gate's code, `raglab compare`, the record and its schema, the metrics, the judged run and record, `src/raglab/judge/`, `schemas/`, docs/CRITERIA.md, `datasets/`, `config/`, `runs/published/`, answer-v1 and its snapshot: empty. `shasum -a 256`: docs/CRITERIA.md `8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e`, the canary set `4ca54c3ced557118f26306543164dc01c7509d1866e9e77f6cd4f2d3284b328f`, `config/judge-local.toml` `228a720045d8...` (the file sha256 in `5aa0ec5`'s manifest), equal to `5aa0ec5`'s manifest. `tests/judge/test_answer_v2_one_judge.py` (above); the committed-runs test validates every published record | (1) the oracle made to skip a list of section numbers (after a reference word, every number that follows a comma, in `policy_values`): the committed-runs test failed on the S4 baseline: "case G-25 trial 1: checks {... 'no_value': False ...} do not follow from the fields"; restored "1 passed". (2) docs/CRITERIA.md given one more line: the one-judge test failed ("AssertionError: docs/CRITERIA.md"), and `publish.judged_problems` on `5aa0ec5`'s record: "it is stale: it was made under another version of docs/CRITERIA.md (docs/CRITERIA.md, sha256 8c8f973a3306, now 800eb3fcecb0)"; restored "1 passed" |
 | AV5 | met (live, dev only): three drafts, D1's budget, each committed before its one session; the stop rule froze draft 3, the first to meet P and G1 to G4 | The iteration table below, each number copied from its record or from `raglab.evals.compare.compare`; every iteration manifest split dev, gate manual, a clean tree; the three runs in this worktree's `runs/tmp` | none (the criteria judge recomputes each number from the records in `runs/tmp`) |
 | AV6 | met (live, provenance local): the sign-off quoted ("Sign off draft 3 as frozen (Recommended)", the freeze section); five `make eval-local` sessions at F, all published (`c14acb0`), every manifest at F, clean, with the frozen fingerprint; one judge session on B, its canaries all on their side, its record published (`b037b22`); the same seed and the session times reported | "The five runs at F" and "B's judged record" below; `runs/published/` | a copy of B's judged record with one `abstains` verdict flipped and resealed: `record.validate` refuses it ("The breaks after the runs") |
-| AV7 | met: P, G1 to G4, R, T1 and T2 computed by the rule written before the runs, from the records; the outcome is **Your call** with the guards read on B (R fails), or Not adopted with G3 read over the five runs; the user's answer waits | "The decision" below; the label-against-verdict tables for both prompts | none (the criteria judge recomputes every number of the decision from the records) |
-| AV8 | not started: it applies only if the user adopts answer-v2; no baseline mark, THRESHOLDS.md row or gate step was made | | |
-| AV9 | not started: written after the user's decision, as the plan's "How it will run" step 6 orders it (with answer-v2 current and answer-v1's baseline in the index, the currency test is red by construction: that is its break) | | |
-| AV10 | not started: after the user's decision | | |
+| AV7 | met: P, G1 to G4, R, T1 and T2 computed by the rule written before the runs, from the records; G3 read over the five runs fails on repeat 4, and R fails: **Not adopted**, the user's decision quoted verbatim ("Not adopted, runs stay published (Recommended)", 2026-10-23) | "The decision" below; the label-against-verdict tables for both prompts | none (the criteria judge recomputes every number of the decision from the records) |
+| AV8 | not applicable: answer-v2 was not adopted. answer-v1 stays the default prompt and the consistency baseline (the index unchanged), and THRESHOLDS.md and its margin are unchanged; no baseline mark, row or gate step was made | | |
+| AV9 | met locally; needs CI (pr-fast): the committed-runs tests learn the consistency baseline, which is current with answer-v1 current and A in the index | `tests/retrieval/test_publish.py::test_the_committed_consistency_baseline_is_current` ("The not-adopted path" below) | `CURRENT` pointed at answer-v2 with A in the index: the test fails, naming the prompt fingerprint; restored |
+| AV10 | met, for the not-adopted outcome: the plan's status, the CHANGELOG line, the main plan's note, TEST-PLAN section 10's generation line and ONBOARDING; the docs that name answer-v1 as current are unchanged and still true | `tests/unit/test_test_plan.py`, `test_onboarding.py`, `test_readme.py`, `test_diagram.py`: pass; review | |
 | AV11 | met locally but `audit`, which fails on pypdf and Pillow until main's pull request #22 is merged into this branch (after this stop, by the orchestrator's rule) | "make -k check at stop point 2" below | |
 
 ## make -k check after the offline build
@@ -657,15 +657,28 @@ G-23 not gained, B is 17 of 27, B minus A +0.111, and the interval's lower bound
 not hold; with two not gained, +0.074 (+0.000 to +0.185); with all three, +0.037 (+0.000 to
 +0.111). T1 did not trip, so P stands as measured.
 
-**The outcome, read from the bottom up.** "Not adopted" needs P's difference at or below zero or
-a failed guard: P's difference is +0.148 and every guard holds on B. "Your call" holds because R
-fails (T1 and T2 do not trip). **The outcome is Your call**, on the reading that the guards are
-read on B, as G1 and G2 say ("B loses", "counted from B's case lines") and as the stop rule read
-them on one draft's run. **The other reading:** G3 does not name its run, and G4's "publish
-accepts every run" reads all five; read over the five runs, repeat 4's one `invalid_output` (G-16
-trial 1, "the reply is not JSON (Extra data)") fails G3, and the row is Not adopted. Either way
-the decision is the user's, and neither row allows the baseline mark, the THRESHOLDS.md row or the
-gate step; none was made.
+**The outcome, read from the bottom up.** The developer's stop-2 report gave both readings of the
+guards. Read on B, as G1 and G2 name it ("B loses", "counted from B's case lines") and as the stop
+rule read the guards on one draft's run, every guard holds and R fails: "Your call". Read over the
+five runs, G3 fails on repeat 4's one `invalid_output` (G-16 trial 1, "the reply is not JSON
+(Extra data)"): "Not adopted". The developer made no baseline mark, THRESHOLDS.md row or gate
+step under either.
+
+**The reading recorded** (the orchestrator's, with the user's decision below): **G3 is read over
+all five runs.** The guard table gives G3's own answer-v1 baseline as "none in any of the five
+runs", and G4 reads "publish accepts every run"; reading G3 on B alone would be a narrower reading
+chosen after the data, in the direction of adoption. Over the five runs G3 fails on repeat 4, G-16
+trial 1, so by the rule read from the bottom up the outcome is **Not adopted**. R fails too:
+repeat 4 is 14 of 27, not above A's 14. The user was shown both readings and decided.
+
+**The user's decision (AV7), verbatim.** On 2026-10-23 at about 11:29 WEST, through the
+orchestrator's question prompt, the question "How do you decide answer-v2 at stop point 2?". The
+user's answer: "Not adopted, runs stay published (Recommended)". That option read: "answer-v1
+stays the default prompt and the baseline. answer-v2's module, its five runs and its judged record
+stay published as a measured result. No more Mac time. Then the criteria judge, and the PR." The
+other option offered read: "Adopt as measured: answer-v2 becomes the default prompt. The first run
+becomes the baseline with a margin of 4 cases, so the gate would pass a run at answer-v1's own 14
+of 27."
 
 **D3's margin, as a fact and not applied:** the repeats' drops below B are 3, 0, 1 and 4 cases, so
 S4's rule would give a margin of 4 cases; with B at 18 of 27, a run at 14 of 27, A's own value,
@@ -765,6 +778,38 @@ Every other target passed: "1351 passed, 2 deselected", privacy "0 hits across 3
 rules)", "0 architecture violations in src/raglab", the retrieval gate "recall@5 0.682 (n 22)
 passes", "api-smoke: passed".
 
+## The not-adopted path (2026-10-23)
+
+As the plan says for "Not adopted", with no Mac time:
+
+- **answer-v1 is current again** (`bdd8c13`): `CURRENT = answer_v1` in
+  `raglab/generate/prompts/__init__.py`, and the literal `answer-v2` expectations reverted to
+  `answer-v1` in `tests/api/test_api.py`, `scripts/api_smoke.py`, `tests/retrieval/test_publish.py`,
+  `tests/retrieval/test_run_record.py` and `tests/generation/test_position_contexts.py`. The
+  pipeline, the generation and position suites and the API read answer-v1 through `CURRENT`.
+- **answer-v2's module stays**, pinned by its snapshot and its fingerprint `3cbcc9f13c25...`
+  (unchanged; its docstring now says it was measured and not adopted), with the leak test and the
+  one-judge test. **Its five runs and its judged record stay published**, none marked as the
+  baseline: the index's generation baseline is still A, and answer-v1's margin and THRESHOLDS.md
+  are as they were.
+- **AV9:** `tests/retrieval/test_publish.py::test_the_committed_consistency_baseline_is_current`
+  (with `consistency_staleness`) requires the local generation baseline's dataset sha256, config
+  sha256, prompt fingerprint, model digest and trials to equal today's, so pr-fast now sees a stale
+  consistency baseline. It passes with answer-v1 current and A in the index. **Break:** `CURRENT`
+  pointed at `answer_v2` with A still in the index: "AssertionError: the consistency baseline
+  20261019T172035Z-generation-local-ollama-dev-97011a7 is stale: {'prompt.sha256':
+  ('96f42d9bc9c7969fcd30198d951b5bf47e2d07abda4f0885fa39e85c7c01c8ae',
+  '3cbcc9f13c25efc7204aa046332574c22625360e41bca16f3799bbc45203a84e')}", "1 failed"; restored with
+  `git checkout`: "1 passed", the tree clean.
+- **The docs** (`6cf3817`): the plan's status ("measured and not adopted 2026-10-23"); the
+  CHANGELOG line (a measured version, not adopted, with the reasons in one sentence); the main
+  plan's 2026-10-20 note (one sentence with the outcome); TEST-PLAN section 10's generation line
+  (answer-v2 measured and not adopted); ONBOARDING (the Generation row names the current-prompt
+  choice, and one break row for the new pr-fast check). THRESHOLDS.md, LOCAL-MODEL.md, the README
+  and GUARDRAILS name answer-v1 and its baseline, still current, and are unchanged.
+  `tests/unit/test_onboarding.py`, `test_test_plan.py`, `test_readme.py`, `test_diagram.py`,
+  `test_repo_docs.py` and `test_changelog_check.py`: "184 passed".
+
 ## Developer choices (for the review)
 
 1. **`CURRENT` is a module alias** in `raglab/generate/prompts/__init__.py` (`CURRENT =
@@ -783,10 +828,22 @@ passes", "api-smoke: passed".
 5. **The AV4 test pins the judge to A's judged manifest, not source files to hashes:** the checks
    and the oracle are held by the validator through the committed-runs test, as the plan says, and
    the gate's code and `raglab compare` by the diffs above.
+6. **AV9's test reads all five of the gate's stale fields** (`raglab.evals.gate.STALE`: the
+   dataset sha256, the config sha256, the prompt fingerprint, the model digest and the trials),
+   where the plan names three; a test holds the list to the gate's, so a field the gate adds later
+   fails it until the test learns it.
 
 ## Notes
 
+- **The lesson for the next plan: name the runs each guard reads.** This plan named B for G1 and
+  G2, gave no run for G3 and read "every run" in G4, so the row of the outcome table depended on a
+  reading made after the data (the decision section). A future plan says, for each guard, whether
+  it reads the decision run, every run or the repeats.
 - This branch also carries, as its own commit, S5's record of the criteria judge's live AC4 break
   run after S5 merged (`36282f4`, at the orchestrator's request): S5's ledger and a CHANGELOG line.
+- **The battery stop.** After the sign-off (2026-10-22, about 20:00 WEST) the Mac was on battery,
+  14% and discharging at 20:33, so the developer started no session and reported it; the five runs
+  began after the Mac was back on AC power (09:37:44 on 2026-10-23).
 - The command guard refused two compound lines that wrote a file with a heredoc and then ran a
-  command; each was split, and the edits were made with the editor. No guard was routed around.
+  command, and one shell loop over the five run ids for `raglab compare`; each was split into
+  plain commands, and the edits were made with the editor. No guard was routed around.
