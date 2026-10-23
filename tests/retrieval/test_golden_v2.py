@@ -31,6 +31,7 @@ import yaml
 
 from raglab.evals import publish, record
 from tests.conftest import ROOT
+from tests.corpus_text import norm
 from tests.dataset_support import edited_lines, v2_lines
 from tests.golden_support import (
     DATASHEET,
@@ -183,6 +184,19 @@ def test_the_overlap_measure_on_the_planted_cases(planted):
     assert found["another case"] == 5
     assert found["document"] < found["another case"]
     assert found["retrieval question"] < found["another case"]
+
+
+@needs_v2
+def test_the_datasheet_reports_the_new_cases_overlap():
+    """GV1: the datasheet reports S2's measure for v2's new cases, and this test holds the report
+    to the measure computed here from the documents and the committed questions (no bound)."""
+    found = overlap(V2.read_text(encoding="utf-8").splitlines())
+    reported = (
+        f"the longest run a new case shares with a document is {found['document']} words, with a "
+        f"retrieval question {found['retrieval question']} words, and with another case "
+        f"{found['another case']} words"
+    )
+    assert reported in norm(DATASHEET.read_text(encoding="utf-8")), (found, "not reported")
 
 
 # ---------------------------------------------------------------- GV2: coverage
