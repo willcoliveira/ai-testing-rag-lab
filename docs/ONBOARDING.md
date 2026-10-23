@@ -37,13 +37,14 @@ CI.
 | Command | What it shows | What you should see |
 |---|---|---|
 | `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 ... passes`. Since S4 the retrieval baseline is the dense dev run on golden set v1.1 (recall@5 0.682) |
-| `make check-dataset` (or `uv run raglab check-dataset`) | The golden file against its ten rules before any run: labels, features, the answer, abstain, conflict and refusal shapes, planted strings, the mix, the datasheet's sha256 line | One `check-dataset: datasets/golden.v1.jsonl passes (...)` line; a broken case is named with its rule, and every `raglab eval` and `raglab gate` stops on it |
+| `make check-dataset` (or `uv run raglab check-dataset`) | Every golden file against its ten rules before any run, each by the version its datasheet row gives it: labels, features, the answer, abstain, conflict and refusal shapes, planted strings, the version's mix, the datasheet's sha256 line | One `check-dataset: datasets/golden.v1.jsonl passes as v1.1 (...)` line per golden file; a broken case is named with its rule, and every `raglab eval` and `raglab gate` stops on it |
 | `uv run raglab ingest` | The pack parsed and chunked into `runs/tmp/inventory.json` | 228 chunks from 21 documents |
 | `uv run raglab ingest --chunk-size 600 --compare corpus/inventory.snapshot.json` | A chunking change as a reviewable diff | 249 chunks, with the changed ids listed |
 | `uv run python scripts/chunk_experiment.py --chunk-size 600` | Which planted features a smaller chunk breaks | 0 split at 1,200 and 1 split at 600 (F-16) |
 | `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml` | One retrieval run, written as a run record | A folder in `runs/tmp/` with `manifest.json`, `cases.jsonl` and `report.md`; recall@5 0.682 |
 | The same with `config/retrieval-hybrid.toml`, then `uv run raglab compare <dense run> <hybrid run>` | A paired comparison with bootstrap intervals and the questions that flipped | Every interval contains 0; only hybrid finds R-Q10 and R-Q33; only dense finds R-Q02 |
 | `make gate` | The no-regression gate that pr-fast runs | The pass line above |
+| `make eval-retrieval` | S4b: the three retrieval configurations (dense, hybrid, dense-600) on the dev split, one after another, with the embedder only: the runs a dataset change republishes | Three run folders in `runs/tmp/`, each after its config's `check-dataset ... passes` line |
 | `make playground` | The published runs in a browser | http://127.0.0.1:8000/ listing the published runs with per-question hits |
 | `uv run raglab ask --config config/fake.toml --tenant tenant-a "How long must a password be?"` | One answer from the fake model, as JSON | Status `ok`, label `answer`, the retrieved chunks' text, and their ids in `cited_ids` |
 | `uv run raglab ask --config config/fake.toml --tenant shared "x"` | The tenant guard failing closed | Status `refused`, no answer, exit 1 |

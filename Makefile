@@ -50,7 +50,7 @@ AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8
 	GHSA-qfv9-64jg-mh7p \
 	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate eval-retrieval api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -100,9 +100,10 @@ privacy-history:
 architecture:
 	uv run python scripts/check_architecture.py
 
-# S4: the dataset hard stop. The golden file against its ten rules (raglab.evals.dataset_check):
-# the answer key, the register and the inventory snapshot, no model and no embedder. Every
-# `raglab eval` and `raglab gate` runs the same check first; pr-fast runs it as its own step.
+# S4: the dataset hard stop. Every golden file (golden set v1.1, and v2 from S4b) against its ten
+# rules, each by its version (raglab.evals.dataset_check): the answer key, the register and the
+# inventory snapshot, no model and no embedder. Every `raglab eval` and `raglab gate` runs the
+# same check first on its config's file; pr-fast runs it as its own step.
 check-dataset:
 	uv run raglab check-dataset
 
@@ -120,6 +121,15 @@ test:
 # published baseline in runs/published/index.json
 gate:
 	HF_HUB_OFFLINE=1 uv run raglab gate --config config/retrieval-dense.toml
+
+# S4b: the three retrieval configurations on their dev split, one after another, offline with the
+# cached embedder (no model server), each written to runs/tmp under gate manual: dense (the gate's
+# baseline), hybrid and dense-600, the runs a dataset change republishes (S2, S4, S4b GV10), made
+# at the stage's frozen commit on a clean tree. Not part of `make check`.
+eval-retrieval:
+	HF_HUB_OFFLINE=1 uv run raglab eval --suite retrieval --config config/retrieval-dense.toml
+	HF_HUB_OFFLINE=1 uv run raglab eval --suite retrieval --config config/retrieval-hybrid.toml
+	HF_HUB_OFFLINE=1 uv run raglab eval --suite retrieval --config config/retrieval-dense-600.toml
 
 # S3: `raglab serve` with config/fake.toml (the fake model, the cached embedder) on 127.0.0.1, then
 # /healthz, /version, an /ask answer and a no-tenant refusal; offline, the server stopped after
