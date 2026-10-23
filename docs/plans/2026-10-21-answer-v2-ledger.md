@@ -99,7 +99,13 @@ and the run's length only; no test question was printed while building or runnin
 |---|---|---|---|
 | 1 | 579 | 2 words (28 of 74 questions, 16 dev and 12 test) | 4 words, "identity and security policies", A-GLOSS (the opening, answer-v1's) |
 | 2 | 972 | 2 words (43 of 74, 26 dev and 17 test) | 5 words, "at the end of the", A-LIFE (the `answer` example's question) |
-| 3, frozen | 1058 | 2 words (44 of 74, 28 dev and 16 test); none shares three | 5 words, "at the end of the", A-LIFE |
+| 3, frozen | 1060 | 2 words (44 of 74, 28 dev and 16 test); none shares three | 5 words, "at the end of the", A-LIFE |
+
+Draft 3's count was first written 1058 (the criteria judge's AV2-J2, fixed in fix round 1): that
+was counted before the reword made before the run (draft 3's section: "or for a way to take one",
+seven words, became "or asks how such a step could be taken", nine). The frozen text has 1060
+words by the leak test's own count (`words(prose(SYSTEM))`); the fingerprint and the runs on that
+row are the reworded text's.
 
 ## Evidence per criterion (developer, 2026-10-22, macOS arm64)
 
@@ -111,7 +117,7 @@ Each break was made on a committed file with `PYTHONDONTWRITEBYTECODE=1`, run, a
 |---|---|---|---|
 | AV1 | met offline, at the frozen text (draft 3; the breaks were made on draft 1's commit, and the tests are the same) | `tests/generation/test_prompt_snapshot.py`, 16 tests: each version's snapshot and fingerprint (answer-v1 `96f42d9bc9c7...`, unchanged; answer-v2 `f6b4f908c3fc...` at draft 1, `e3475c3b32e0...` at draft 2, `3cbcc9f13c25...` frozen at draft 3); `test_answer_v2_differs_from_answer_v1_in_the_system_text_only` (the frames, schema, parser and helpers are answer-v1's own objects; the same user message for three inputs, the hostile chunk among them; the systems differ; the text names no version); framing, the frame break-out, no developer comments and no-passages for both versions. `git diff origin/main -- src/raglab/generate/prompts/answer_v1.py tests/snapshots/answer-v1.txt`: empty | (1) "Decide what kind of reply to give" to "... of answer to give" in answer-v2: "2 failed, 14 passed" (answer-v2's snapshot: "the prompt changed: review the diff, write a new version and its snapshot"; its fingerprint: "the text of answer-v2 changed without a new VERSION"), restored "16 passed". (2) "3. Choose one label:" to "3. Pick one label:" in answer-v1: "2 failed, 14 passed" (answer-v1's snapshot and "the text of answer-v1 changed without a new VERSION"), restored "16 passed" |
 | AV2 | met offline, at the frozen text (the breaks made on draft 1's commit) | The trace table of the frozen text and the measure table above; `tests/generation/test_answer_v2_words.py`, 7 tests (the four checks on the committed text, the measure, and each check on a planted text) | (1) five words of the dev case G-17's question ("It's my first day") added to rule 5's last line: "2 failed, 5 passed", the run check naming the case: "'G-17 (dev) shares a run of 5 words'"; restored "7 passed". (2) the answer-key value "45 days" (F-27, not a canary) added to rule 6's `answer` line: "1 failed, 6 passed", naming the feature: "F-27: '45 days'"; restored "7 passed" |
-| AV3 | met offline, for the fake runs and the API; the live contract test sends the current prompt in every session. The evidence below is as it stood while answer-v2 was current (from `6bafd25` to the decision); since `bdd8c13` the same tests expect `answer-v1`, read through the same `CURRENT`, which is what AV3 holds: one name, read everywhere | The fake generation run records `{"version": "answer-v2", "sha256": CURRENT.fingerprint()}` (`tests/retrieval/test_run_record.py::test_a_generation_run_writes_a_valid_record`), and so does the fake position run (`tests/generation/test_position_contexts.py::test_a_position_run_writes_a_valid_generation_record`); `/version` and `/ask` report `answer-v2` (`tests/api/test_api.py`); `make api-smoke`: "api-smoke: passed", its `/version` line naming answer-v2; a local run is indexed with prompt `answer-v2` (`tests/retrieval/test_publish.py`); `test_the_current_prompt_is_chosen_once_in_code_and_read_everywhere` (the pipeline, the generation suite and the position suite read `CURRENT`; no config line names a prompt version). `git diff origin/main -- config/`: empty | The position suite left on answer-v1 (`from raglab.generate.prompts import answer_v1 as prompt` in `raglab/evals/position.py`): "2 failed, 34 passed": the position manifest test (`assert {'version': '...e85c7c01c8ae'} == {'version': '...17180c53ed91'}`) and the current-prompt test; restored "36 passed" |
+| AV3 | met offline, for the fake runs and the API; the live contract test sends the current prompt in every session. The evidence below is as it stood while answer-v2 was current (from `6bafd25` to the decision); since `bdd8c13` the same tests expect `answer-v1`, read through the same `CURRENT`, which is what AV3 holds: one name, read everywhere | The fake generation run records `{"version": "answer-v2", "sha256": CURRENT.fingerprint()}` (`tests/retrieval/test_run_record.py::test_a_generation_run_writes_a_valid_record`), and so does the fake position run (`tests/generation/test_position_contexts.py::test_a_position_run_writes_a_valid_generation_record`); `/version` and `/ask` report `answer-v2` (`tests/api/test_api.py`); `make api-smoke`: "api-smoke: passed", its `/version` line naming answer-v2; a local run is indexed with prompt `answer-v2` (`tests/retrieval/test_publish.py`); `test_the_current_prompt_is_chosen_once_in_code_and_read_everywhere` (the pipeline, the generation suite and the position suite read `CURRENT`; no config line names a prompt version). `git diff origin/main -- config/`: empty | The position suite left on answer-v1 (`from raglab.generate.prompts import answer_v1 as prompt` in `raglab/evals/position.py`): "2 failed, 34 passed": the position manifest test (`assert {'version': '...e85c7c01c8ae'} == {'version': '...17180c53ed91'}`) and the current-prompt test; restored "36 passed". **At HEAD, since `bdd8c13`, the identity check alone no longer caught this break**, because answer-v1 is what `CURRENT` names (the criteria judge's AV2-J1: "2 passed"). Since fix round 1 (`1fa4a9e`) the current-prompt test also reads each site's source, which must import `CURRENT as prompt` and no version by name; the same break at HEAD: "1 failed, 35 passed", "AssertionError: raglab.evals.position reads the prompt through ['from raglab.generate.prompts import answer_v1 as prompt'], not `from raglab.generate.prompts import CURRENT as prompt`"; restored "36 passed". The judge's two breaks that discriminated at HEAD before the fix stay red: position.py on `answer_v2 as prompt` (the position manifest test and the current-prompt test fail) and `prompt_version = "answer-v2"` in `config/local-ollama.toml` (the current-prompt test fails) |
 | AV4 | met, offline and on B's judged record (its judged-record break under "The breaks after the runs") | `git diff origin/main --stat` over the behaviour checks, the oracle, the generation record, the gate's code, `raglab compare`, the record and its schema, the metrics, the judged run and record, `src/raglab/judge/`, `schemas/`, docs/CRITERIA.md, `datasets/`, `config/`, `runs/published/`, answer-v1 and its snapshot: empty at the offline build. At stop point 3 (after the merge of main, against `8e7a4db`) the same paths but `runs/published/` are still empty; under `runs/published/` only answer-v2's six records were added and `index.json` rebuilt by publish (`--diff-filter=M` names `index.json` alone, `--diff-filter=D` nothing), so no published record changed. `shasum -a 256`: docs/CRITERIA.md `8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e`, the canary set `4ca54c3ced557118f26306543164dc01c7509d1866e9e77f6cd4f2d3284b328f`, `config/judge-local.toml` `228a720045d8...` (the file sha256 in `5aa0ec5`'s manifest), equal to `5aa0ec5`'s manifest. `tests/judge/test_answer_v2_one_judge.py` (above); the committed-runs test validates every published record | (1) the oracle made to skip a list of section numbers (after a reference word, every number that follows a comma, in `policy_values`): the committed-runs test failed on the S4 baseline: "case G-25 trial 1: checks {... 'no_value': False ...} do not follow from the fields"; restored "1 passed". (2) docs/CRITERIA.md given one more line: the one-judge test failed ("AssertionError: docs/CRITERIA.md"), and `publish.judged_problems` on `5aa0ec5`'s record: "it is stale: it was made under another version of docs/CRITERIA.md (docs/CRITERIA.md, sha256 8c8f973a3306, now 800eb3fcecb0)"; restored "1 passed" |
 | AV5 | met (live, dev only): three drafts, D1's budget, each committed before its one session; the stop rule froze draft 3, the first to meet P and G1 to G4 | The iteration table below, each number copied from its record or from `raglab.evals.compare.compare`; every iteration manifest split dev, gate manual, a clean tree; the three runs in this worktree's `runs/tmp` | none (the criteria judge recomputes each number from the records in `runs/tmp`) |
 | AV6 | met (live, provenance local): the sign-off quoted ("Sign off draft 3 as frozen (Recommended)", the freeze section); five `make eval-local` sessions at F, all published (`c14acb0`), every manifest at F, clean, with the frozen fingerprint; one judge session on B, its canaries all on their side, its record published (`b037b22`); the same seed and the session times reported | "The five runs at F" and "B's judged record" below; `runs/published/` | a copy of B's judged record with one `abstains` verdict flipped and resealed: `record.validate` refuses it ("The breaks after the runs") |
@@ -849,6 +855,35 @@ runs all ran on the same lock and nothing but the prompt differed between A and 
 - `make privacy-history RANGE=origin/main..HEAD`: "0 hits in 22 commits (42 rules)". Nothing
   pushed.
 
+## The criteria judge, round 0, and fix round 1 (2026-10-23)
+
+**The judge** (Fable 5.1, its own worktree and context, on `59fa817`; its report saved by the
+orchestrator in the session's scratchpad, `answer-v2-judge/report.md`): **10 met** (AV1 to AV7,
+AV9 and AV10, AV11; AV9 and AV11 met locally, CI pending), **AV8 not applicable, 0 not met.** It
+recomputed about 560 numbers from the records, with one mismatch (AV2-J2), re-ran the breaks
+(each red on its test and restored, but AV3's, below), and ran the live gate session with S2's
+plant on AC power, 12:06:53 to 12:11:37 WEST (4 min 44 s): "consistency gate (Q-05):
+behaviour_pass^3 0.296 (n 27) fails: the threshold is the baseline 0.519
+(20261019T172035Z-generation-local-ollama-dev-97011a7) minus 1 case(s) (1/27), 0.481", exit 1, the
+postcheck passed, restored.
+
+**Its findings, and fix round 1:**
+
+| Finding | What it found | Fix | Evidence |
+|---|---|---|---|
+| AV2-J1 (low) | AV3's stated break (position.py on `answer_v1 as prompt`) no longer discriminated at HEAD: since `bdd8c13` `CURRENT` is answer-v1, so the identity check (`module.prompt is prompts.CURRENT`) passed it ("2 passed"), and the ledger did not say so | `1fa4a9e`: the current-prompt test also reads each site's source (`inspect.getsource`): `pipeline.py`, `generation.py` and `position.py` must import `from raglab.generate.prompts import CURRENT as prompt` and no version by name. The AV3 row says so, with the judge's two breaks that already discriminated | The plan's break re-run at HEAD: "1 failed, 35 passed", "AssertionError: raglab.evals.position reads the prompt through ['from raglab.generate.prompts import answer_v1 as prompt'], not `from raglab.generate.prompts import CURRENT as prompt`"; restored "36 passed", the tree clean |
+| AV2-J2 (low) | The measure table gave the frozen text 1058 words; the leak test's helpers count 1060 | The table says 1060, with a note: 1058 was counted before the reword made before the run, which added two words; the fingerprint and the runs are the reworded text's | `words(prose(answer_v2.SYSTEM))`: 1060, fingerprint `3cbcc9f13c25` |
+| AV2-J3 (info) | The judged record's check holds a verdict to its reply, not the reply to the judge: a verdict flipped with its reply, resealed, validates | A follow-up in the Notes (S6 or the record's next version); no code, AV4 freezes the record | |
+| AV2-J4 (info) | The G3 reading: both readings, the reasoning, the decision and the lesson are recorded accurately | none needed | |
+| AV2-J5 (info) | The session logs print no clock; the Mac-time tables rest on the developer's readings, which agree with the records and the logs' times | A follow-up in the Notes | |
+
+**`make check` at the end of fix round 1** (this ledger's tree but this section; nothing else was
+running, Ollama down), `/usr/bin/time -p`: exit 0 in 206.53 s real (192.41 s user): "249 files
+already formatted", "All checks passed!", "0 errors, 0 warnings, 0 informations", both audit lines
+"No known vulnerabilities found, 43 ignored", "no leaks found" twice, privacy "0 hits across 364
+files (42 rules)", "0 architecture violations in src/raglab", check-dataset passes, "1353 passed, 2
+deselected, 1 warning", the retrieval gate "recall@5 0.682 (n 22) passes", "api-smoke: passed".
+
 ## Developer choices (for the review)
 
 1. **`CURRENT` is a module alias** in `raglab/generate/prompts/__init__.py` (`CURRENT =
@@ -879,6 +914,16 @@ runs all ran on the same lock and nothing but the prompt differed between A and 
   G2, gave no run for G3 and read "every run" in G4, so the row of the outcome table depended on a
   reading made after the data (the decision section). A future plan says, for each guard, whether
   it reads the decision run, every run or the repeats.
+- **A follow-up for S6 or the judged record's next version (the criteria judge's AV2-J3).** The
+  judged record's check holds a verdict to its reply, not the reply to the judge: a verdict flipped
+  together with its reply's verdict, then resealed, validates (as do a `correct` flip and a trial-1
+  flip, whose repeatability falls, reported and not refused). A published judged record's
+  integrity rests on the reviewed commit that publishes it. AV4 freezes the record's code here, so
+  nothing changes in this pull request.
+- **A follow-up for the session logs (the criteria judge's AV2-J5).** The session logs print no
+  clock, so the Mac-time tables rest on the developer's shell readings, kept in the progress file,
+  which agree with the records' `created_at` and the logs' modification times. A session log that
+  printed the clock at its start and at the postcheck would make the tables reproducible.
 - This branch also carries, as its own commit, S5's record of the criteria judge's live AC4 break
   run after S5 merged (`36282f4`, at the orchestrator's request): S5's ledger and a CHANGELOG line.
 - **The battery stop.** After the sign-off (2026-10-22, about 20:00 WEST) the Mac was on battery,
