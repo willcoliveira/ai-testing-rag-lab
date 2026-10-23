@@ -365,7 +365,7 @@ flowchart TB
     B[Track B Playwright for Python]
   end
   S4 --> S5
-  S8 --> S9
+  S8 --> S3h
   S11 --> S12
   S3 -.-> B
 ```
@@ -450,6 +450,22 @@ answer-v2, the prompt fix S4 left as a follow-up, comes between them as a pull r
 on 2026-10-22 and 2026-10-23 and not adopted, the user's answer verbatim "Not adopted, runs stay
 published (Recommended)": answer-v1 stays the current prompt and the consistency baseline, and
 answer-v2's runs stay published as a measured result (`docs/plans/2026-10-21-answer-v2-ledger.md`).
+
+Decision (2026-10-23): S9 is brought forward from v0.3, built beside P2, and ships in v0.2. Asked
+"S9, observability and performance. Approve with all five recommended answers? D1: merge when
+ready and ship in v0.2, bringing this v0.3 stage forward. D2: the OpenTelemetry collector runs in
+CI only, with no account. D3: k6 runs in its own parallel pr-fast job, with the median gated at 2×
+the slowest of ten runs (you then add `perf` to the required checks). D4: message content in
+traces is opt-in, for local debugging only. D5: approve and start. Your time is about 1.5–2 h,
+with no Ollama sessions.", the user answered, verbatim: "All five as recommended (Recommended)".
+For D1 that is "Merge when ready, ship in v0.2": S9 merges once its criteria are met, beside
+v0.2's stages, and v0.2.0's notes list it as brought forward from v0.3. In the phase map,
+`S8 --> S9` gives way to `S8 --> S3h`, so P3's host spike still waits for S8 and the first stage
+of P3 still to build is S3h. For D2 it is "Collector in CI only, no account": the collector runs
+in pr-fast's perf job and in `make perf-smoke`, writing to a file; the Langfuse pipeline is built
+and validated and stays off, so the open variable "Langfuse cloud as an optional sink" is answered
+for S9 (no account), and S10 chooses the sink with the host. The S9 plan
+(`docs/plans/2026-10-23-s9-observability-perf.md`) quotes the question and all five answers.
 
 **v0.2 (S5, S4b, S6–S8).** Judged, calibrated, attacked, gated.
 
@@ -867,7 +883,7 @@ measured in S3. A 1–2 GB machine price is UNCONFIRMED.
 | Question language: English only, or also Portuguese questions over the English corpus (a cross-lingual test) | S1a |
 | Local models for Ollama that fit 48 GB: one generator plus a judge from another family, and their measured speed | S3 / S5 |
 | About 1–2 hours of blind labelling, and whether a second labeller is available | S6 |
-| Langfuse cloud as an optional sink; Bedrock now or later | S9 / S10 |
+| Langfuse cloud as an optional sink (answered for S9 on 2026-10-23: no account, the collector in CI only; S10 chooses the sink); Bedrock now or later | S9 / S10 |
 | Handbook commit to pin | S12 |
 
 ## Risks

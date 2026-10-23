@@ -4,7 +4,7 @@ name: observability-perf
 nodes: [S9]
 date: 2026-10-23
 branch: feat/s9-observability-perf
-status: draft, awaiting the maintainer's approval
+status: approved
 ---
 
 # S9: Tracing with redaction, a perf mode that prod refuses, and a k6 smoke in CI
@@ -668,6 +668,26 @@ S4b and needs no live sessions, but it brings a v0.3 stage forward, ahead of the
 
 That is the go to plan, not to build. Your answers to D1 to D5 go here, verbatim, with their
 questions.
+
+Your answer (2026-10-23, about 23:30 WEST, through the orchestrator's question prompt), with its
+question, verbatim. The question: "S9, observability and performance. Approve with all five
+recommended answers? D1: merge when ready and ship in v0.2, bringing this v0.3 stage forward. D2:
+the OpenTelemetry collector runs in CI only, with no account. D3: k6 runs in its own parallel
+pr-fast job, with the median gated at 2× the slowest of ten runs (you then add `perf` to the
+required checks). D4: message content in traces is opt-in, for local debugging only. D5: approve
+and start. Your time is about 1.5–2 h, with no Ollama sessions." The answer: "All five as
+recommended (Recommended)".
+
+It selects each decision's recommended option, by its label above:
+
+- **D1:** "Merge when ready, ship in v0.2". The main plan gets its dated note and the phase map's
+  change, in its three copies.
+- **D2:** "Collector in CI only, no account". OB8 is not applicable, by D2.
+- **D3:** "Own parallel job; median gated at 2× the slowest of ten runs". You add `perf` to the
+  required checks once the job has run.
+- **D4:** "Opt-in for local debugging only".
+- **D5:** "Approve and start (Recommended)". The build started on `feat/s9-observability-perf` at
+  `1f8e111`.
 
 ## Sources (read 2026-10-23)
 
