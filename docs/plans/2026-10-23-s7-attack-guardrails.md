@@ -4,7 +4,7 @@ name: attack-guardrails
 nodes: [S7]
 date: 2026-10-23
 branch: feat/s7-attack-guardrails
-status: draft, awaiting the maintainer's approval
+status: approved
 ---
 
 # S7: Attack, guardrails and red team
@@ -842,7 +842,22 @@ S4b's? Each writes its plan only, in its own worktree, and stops for your approv
 asked "can we launch more sub agents in parallel to that one to speed up the development phase for
 upcoming steps into the plan?".
 
-Your answers to D1 to D5: to be quoted here, verbatim, with each question.
+Your answers to D1 to D5 (2026-10-23, about 23:30 WEST, through the orchestrator's question
+prompt), with the question, verbatim. The question: "S7, attack, guardrails and red team. Approve
+with all five recommended answers? D1: split into S7a now (threat model, rule-layer guards, attack
+suite, block and must-not-block suites, 10–20 min of Mac) and S7b after S6 (promptfoo red team,
+Guardrails AI). D2: no corpus change; new attack inputs go in a separate security pack. D3: the
+new guards are on by default, proven to change nothing by replaying S4b's v2 runs. D4: no sign-up,
+so Prompt Guard 2 is not covered. D5: approve and start. Your time is about 3.5–5 h over both
+parts." Your answer: "All five as recommended (Recommended)".
+
+The answer selects each decision's recommended option, by its label above:
+
+- D1: "Split: S7a now, S7b after S6 (Recommended)".
+- D2: "No corpus change; a separate security pack (Recommended)".
+- D3: "On by default, proven inert by replay (Recommended)".
+- D4: "No sign-up; Prompt Guard not covered (Recommended)".
+- D5: "Approve and start (Recommended)". S7a's build starts on `feat/s7-attack-guardrails`.
 
 ## Sources (read 2026-10-23)
 
