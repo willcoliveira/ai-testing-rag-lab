@@ -1,0 +1,64 @@
+# pages: publishes the playground to GitHub Pages (docs/GO-PUBLIC.md step 9), at
+# https://willcoliveira.github.io/ai-testing-rag-lab/. The site is playground/ with runs/published/
+# beside it, laid out by the same code `make playground` serves locally (scripts/serve_playground.py),
+# as plain files. It is static: it reads the published runs and never calls a model, so this
+# workflow needs no key and no secret.
+# Runs on a push to main that changes the site, or by hand; never on a pull request.
+# Hardening as in pr-fast (tests/unit/test_pages.py): no permissions by default; the build job reads
+# the repo only, and only the deploy job may write to Pages and ask for the OIDC token that shows
+# where the deployment comes from; every action is pinned by commit SHA.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "playground/**"
+      - "runs/published/**"
+      - "scripts/serve_playground.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+# one deploy at a time: a newer run waits, and a deploy in progress is never cancelled
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # the runner's python3, standard library only: playground/ and runs/published/ copied into
+      # _site/ exactly as `make playground` links them
+      - name: Lay out the site (as make playground serves it)
+        run: python3 scripts/serve_playground.py --out _site
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    name: deploy
+    needs: build
+    # main only, whatever the trigger: a manual run on another branch builds but never deploys
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write # to deploy the uploaded site to Pages
+      id-token: write # the OIDC token Pages checks to verify where the deployment comes from
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

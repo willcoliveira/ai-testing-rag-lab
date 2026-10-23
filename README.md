@@ -18,7 +18,9 @@ and [how-to 17](https://github.com/willcoliveira/ai-testing-handbook/blob/main/h
 Built in stages, one pull request each. Grey is todo, amber in progress, green done; the full
 diagrams are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the plans in [docs/plans/](docs/plans/).
 New to the repo? [docs/ONBOARDING.md](docs/ONBOARDING.md) lists what you can run, what you can break
-on purpose, and where each concept lives.
+on purpose, and where each concept lives. The published runs are on the
+[playground](https://willcoliveira.github.io/ai-testing-rag-lab/), a static GitHub Pages site that
+reads `runs/published/` and never calls a model (`make playground` serves it locally).
 
 ```mermaid
 flowchart TB
