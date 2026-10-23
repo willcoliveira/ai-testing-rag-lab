@@ -20,6 +20,7 @@ reviewed, because a run record names its version and the consistency gate checks
 fingerprint.
 """
 
+import inspect
 import json
 import re
 from types import ModuleType
@@ -42,6 +43,13 @@ REVIEWED = {
 }
 VERSIONS = (answer_v1, answer_v2)
 QUESTION = "How long must a password be?"
+# the one import a reader of the current prompt has from raglab.generate.prompts (AV3)
+CURRENT_IMPORT = "from raglab.generate.prompts import CURRENT as prompt"
+PROMPTS_IMPORT = re.compile(
+    r"^\s*(?:from raglab\.generate\.prompts(?:\.\w+)? import .*"
+    r"|import raglab\.generate\.prompts.*)$",
+    flags=re.M,
+)
 prompt = prompts.CURRENT
 
 
@@ -73,13 +81,22 @@ def test_the_prompt_cannot_change_without_a_new_version(module):
 def test_the_current_prompt_is_chosen_once_in_code_and_read_everywhere():
     """AV3: one name, raglab.generate.prompts.CURRENT; the pipeline (and through it the API), the
     generation suite and the position suite read it, so a record names the prompt it was made
-    with. No config names a prompt."""
+    with. No config names a prompt.
+
+    Each site is checked twice: its `prompt` is the current module, and its source imports
+    `CURRENT as prompt` and no version by name. The identity alone cannot see a site bound to a
+    version module by name while that version is the current one (the criteria judge's AV2-J1:
+    once answer-v1 was current again, `position.py` importing `answer_v1 as prompt` passed it)."""
     from raglab.evals import generation, position
     from raglab.generate import pipeline
 
     assert prompts.CURRENT.VERSION in REVIEWED
     for module in (pipeline, generation, position):
         assert module.prompt is prompts.CURRENT, module.__name__
+        imports = PROMPTS_IMPORT.findall(inspect.getsource(module))
+        assert [line.strip() for line in imports] == [CURRENT_IMPORT], (
+            f"{module.__name__} reads the prompt through {imports}, not `{CURRENT_IMPORT}`"
+        )
     assert pipeline.PROMPT_VERSION == prompts.CURRENT.VERSION
     for config in sorted((ROOT / "config").glob("*.toml")):
         for line in config.read_text(encoding="utf-8").splitlines():
