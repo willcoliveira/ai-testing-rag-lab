@@ -54,15 +54,24 @@ None yet. S4b makes no test-split run (the plan, "The runs S4b makes").
 
 ## make check at the plan commit
 
-`f6f7d7e`, before any change (`make check`, this Mac): **exit 2, stopped at `audit`**. pip-audit
-found 5 advisories that are not in the Makefile's skip list, all published after the last one was
-added (`8a330b7`, 2026-10-22): two for Pillow 12.3.0 (fixed in 13.0.0) and three for pypdf 6.19.0
-(fixed in 6.21.2), each reported under a CVE id only (the ids are left out here: the privacy
-check reads that shape as a ticket number): "Found 5 known vulnerabilities, ignored 43 in 2
-packages". The skip list holds two decisions of the maintainer
-(the Makefile's comment), so S4b does not extend it; the failure is the same on `main`, whose
-Makefile and lock this commit shares. Every other target of `make check`, run in one `make`
-call: exit 0, "251 files already formatted", "All checks passed!", "0 errors, 0 warnings, 0
+`f6f7d7e`, before any change (`make check`, this Mac): **exit 2, stopped at `audit`**, a failure
+**pre-existing on `main`**, whose Makefile and lock this commit shares. pip-audit found 5
+advisories that are not in the Makefile's skip list, all published after the last one was added
+(`8a330b7`, 2026-10-22). Its failing lines, each advisory's CVE id left out (the privacy check
+reads that shape as a ticket number):
+
+    Found 5 known vulnerabilities, ignored 43 in 2 packages
+    pillow 12.3.0  <a CVE id> 13.0.0     (two such lines)
+    pypdf  6.19.0  <a CVE id> 6.21.2     (three such lines)
+    make: *** [audit] Error 1
+
+The coordinator's message (2026-10-23) names them by their GitHub ids: Pillow GHSA-654x-cwwv-5j9c
+and GHSA-5x8w-8jj5-q52h; pypdf GHSA-6c7f-9265-g8fw, GHSA-jr96-gvgh-j3r4 and GHSA-gmh7-3g9r-mjh5.
+The coordinator fixes them in a `build(deps)` pull request of its own from `main`. S4b does not
+touch the Makefile's skip list or the audit, and `main` is merged into this branch, as a merge
+commit, when the coordinator says. Until then a green `make check` on this branch means `make -k
+check` with only `audit` red (the coordinator's instruction). Every other target of `make check`,
+run in one `make` call: exit 0, "251 files already formatted", "All checks passed!", "0 errors, 0 warnings, 0
 informations", gitleaks "no leaks found" twice, privacy "0 hits across 367 files (42 rules)", "0
 architecture violations in src/raglab", "check-dataset: datasets/golden.v1.jsonl passes (34
 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)", "1369 passed, 2 deselected, 1

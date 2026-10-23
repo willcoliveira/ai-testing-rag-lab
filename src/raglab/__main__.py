@@ -24,7 +24,9 @@ from raglab.judge import canaries
 
 INVENTORY = "runs/tmp/inventory.json"
 RUNS = "runs/tmp"
-DATASET = "datasets/golden.v1.jsonl"
+# check-dataset's default: every golden file (v1.1 in golden.v1.jsonl, v2 in golden.v2.jsonl)
+GOLDEN_DIR = "datasets"
+GOLDEN = "golden.v*.jsonl"
 GATES = ["manual", "pr-fast", "eval-on-change", "nightly", "weekly", "release"]
 EVAL_ERRORS = (
     eval_config.ConfigError,
@@ -88,17 +90,29 @@ def fetch_model(args: argparse.Namespace) -> int:
 
 
 def check_dataset(args: argparse.Namespace) -> int:
-    """`raglab check-dataset`: the golden file against its ten rules (raglab.evals.dataset_check);
-    exit 1 naming each case and rule."""
+    """`raglab check-dataset`: each golden file against its ten rules, each by its version
+    (raglab.evals.dataset_check): the files given with --dataset, or every golden file
+    (datasets/golden.v*.jsonl, golden set v1.1 and v2 since S4b); exit 1 naming each case and
+    rule, when any file fails."""
     root: Path = args.root
-    dataset: Path = args.dataset if args.dataset.is_absolute() else root / args.dataset
-    try:
-        report = dataset_check.check(root, dataset)
-    except dataset_check.CheckError as error:
-        print(f"check-dataset: {error}", file=sys.stderr)
+    given: list[Path] = args.dataset or []
+    datasets = [p if p.is_absolute() else root / p for p in given] or sorted(
+        (root / GOLDEN_DIR).glob(GOLDEN)
+    )
+    if not datasets:
+        print(f"check-dataset: no golden file {GOLDEN_DIR}/{GOLDEN}", file=sys.stderr)
         return 1
-    print("\n".join(report.lines()))
-    return 0 if report.passed else 1
+    code = 0
+    for dataset in datasets:
+        try:
+            report = dataset_check.check(root, dataset)
+        except dataset_check.CheckError as error:
+            print(f"check-dataset: {error}", file=sys.stderr)
+            code = 1
+            continue
+        print("\n".join(report.lines()))
+        code = code if report.passed else 1
+    return code
 
 
 def _check_first(root: Path, dataset: str) -> None:
@@ -542,10 +556,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     checked = commands.add_parser(
         "check-dataset",
-        help="the golden file against its ten rules, before any run (no model, no embedder)",
+        help="each golden file against its ten rules, by its version, before any run (no model, "
+        "no embedder)",
     )
     checked.add_argument(
-        "--dataset", type=Path, default=Path(DATASET), help=f"golden file (default {DATASET})"
+        "--dataset",
+        type=Path,
+        action="append",
+        help=f"a golden file, repeatable (default: every {GOLDEN_DIR}/{GOLDEN})",
     )
     checked.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     for name, text in (
