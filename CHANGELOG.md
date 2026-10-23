@@ -17,6 +17,14 @@ One line per change, newest first, grouped by release. Each pull request adds it
 - S5's AC4 live break (the criteria judge's S5-J5), run on AC power on 2026-10-22 after S5 merged
   and recorded in S5's ledger: with C-05 flipped, the canaries stopped the judge before any judged
   call. S5 ends at 16 criteria met, 6 not applicable by D6, 0 not met.
+- The playground on GitHub Pages (`docs/GO-PUBLIC.md` step 9; decision: "Small PR now, in parallel
+  (Recommended)"): `.github/workflows/pages.yml` publishes `playground/` with `runs/published/`
+  beside it, laid out by `scripts/serve_playground.py --out` as `make playground` serves it, on a
+  push to `main` or by hand, never on a pull request; only the deploy job holds `pages: write` and
+  `id-token: write`, and every action is pinned by SHA (`tests/unit/test_pages.py`). A generation
+  or judged run no longer stops the page on an error; per-question rows stay retrieval-only. Live
+  at https://willcoliveira.github.io/ai-testing-rag-lab/ once Settings → Pages → Source is
+  "GitHub Actions".
 - Dependency updates of 2026-10-21, replacing Dependabot's #19, #20 and #21: fastembed 0.9.0,
   numpy 2.5.4, ruff 0.17.0, `uv_build>=0.13.1` (both projects), actions/setup-node 7.1.0, and the
   DeepEval tool re-locked with them. pypdf stays at 6.19.0 (decision: "Keep 6.19.0, skip its 4

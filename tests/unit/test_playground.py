@@ -125,3 +125,48 @@ def test_the_page_script_renders_runs_metrics_and_questions(tmp_path):
     assert out["second"]["heading"] == ["retrieval-fake"]
     assert out["pressed"] == ["false", "true"]
     assert all(path.startswith("runs/published/") for path in out["fetched"])
+
+
+@pytest.mark.skipif(NODE is None, reason="the page's script runs in node with a stand-in DOM")
+def test_the_page_shows_every_published_run_without_an_error():
+    """GO-PUBLIC step 9: the page Pages serves shows each run of runs/published, clicked in turn,
+    with its provenance, its interval method and its metrics, and never an error in the status
+    line. A retrieval run adds its per-question rows; a generation or judged run, whose cases have
+    other fields, names its cases file instead, and no row is filled in for it."""
+    published = ROOT / "runs" / "published"
+    index = json.loads((published / "index.json").read_text(encoding="utf-8"))
+    done = subprocess.run(
+        [str(NODE), str(ROOT / "tests" / "playground_dom.mjs"), str(published)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = json.loads(done.stdout)
+    assert out["status"] == ""
+    assert [shown["run"] for shown in out["every"]] == [run["run_id"] for run in index["runs"]]
+    for shown, run in zip(out["every"], index["runs"], strict=True):
+        assert shown["status"] == "", run["run_id"]
+        assert shown["heading"] == [run["config"]]
+        meta = dict(zip(shown["meta"][::2], shown["meta"][1::2], strict=True))
+        assert meta["Provenance"] == run["provenance"]
+        manifest = json.loads((published / run["path"] / "manifest.json").read_text())
+        if "bootstrap" in manifest:
+            b = manifest["bootstrap"]
+            interval = f"{b['resamples']} resamples, seed {b['seed']}, {round(b['level'] * 100)}%"
+            assert meta["Bootstrap"] == interval
+        else:
+            i = manifest["intervals"]
+            assert (
+                meta["Intervals"] == f"{i['method']}, {round(i['level'] * 100)}%, per {i['unit']}"
+            )
+        metrics = len(run["metrics"]) + 1  # and the header row
+        if run["suite"] == "retrieval":
+            cases = (published / run["path"] / "cases.jsonl").read_text().splitlines()
+            assert shown["tables"] == [metrics, len(cases) + 1]
+            assert shown["notes"] == []
+        else:
+            assert shown["tables"] == [metrics]
+            assert shown["notes"] == [
+                f"Per-question rows are drawn for retrieval runs only; this {run['suite']} run's "
+                f"cases are in runs/published/{run['path']}cases.jsonl."
+            ]

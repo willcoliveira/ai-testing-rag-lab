@@ -1,4 +1,5 @@
-"""pr-fast.yml and dependabot.yml follow the hardening rules (AC9, AC12)."""
+"""pr-fast.yml, pages.yml and dependabot.yml follow the hardening rules (AC9, AC12; the Pages
+deploy is docs/GO-PUBLIC.md step 9)."""
 
 import re
 from pathlib import Path
@@ -11,6 +12,12 @@ from tests.conftest import ROOT
 pytestmark = pytest.mark.unit
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 PINNED = re.compile(r"^actions/[\w.-]+@[0-9a-f]{40}$")
+# Reviewed exceptions to "no job holds more than contents: read", by workflow file and job, with
+# the exact permissions that job holds. GO-PUBLIC step 9: the Pages deploy writes to Pages and asks
+# for the OIDC token Pages checks, and nothing else. Every other job stays within contents: read.
+REVIEWED_JOB_PERMISSIONS = {("pages.yml", "deploy"): {"pages": "write", "id-token": "write"}}
+# Workflows that deploy: never on a pull request, and a deploy in progress is never cancelled.
+DEPLOYS = {"pages.yml"}
 
 
 def workflow_files(directory: Path) -> list[Path]:
@@ -41,27 +48,40 @@ def narrower_than_contents_read(permissions: object) -> bool:
     )
 
 
-def check_workflow(wf: dict, text: str) -> None:
-    assert wf.get("permissions") == {"contents": "read"}, (
-        "top-level permissions must be contents: read"
-    )
+def check_workflow(wf: dict, text: str, name: str = "pr-fast.yml") -> None:
+    # present (a missing block gives the repo's default token) and never wider than contents: read
+    top = wf.get("permissions")
+    assert isinstance(top, dict), "top-level permissions must be set, as a mapping"
+    assert narrower_than_contents_read(top), "top-level permissions must be contents: read or less"
     assert "pull_request_target" not in wf["on"], "pull_request_target runs fork code with secrets"
-    assert (wf.get("concurrency") or {}).get("cancel-in-progress"), (
-        "superseded PR runs must be cancelled"
-    )
-    for name, job in wf["jobs"].items():
+    concurrency = wf.get("concurrency") or {}
+    if name in DEPLOYS:
+        assert "pull_request" not in wf["on"], "a deploy never runs on a pull request"
+        assert concurrency.get("group"), "a deploy runs in one concurrency group"
+        assert concurrency.get("cancel-in-progress") is False, (
+            "a deploy in progress is never cancelled"
+        )
+    else:
+        assert concurrency.get("cancel-in-progress"), "superseded PR runs must be cancelled"
+    for job_name, job in wf["jobs"].items():
         # a reusable workflow at job level runs someone else's whole workflow; only local ones
         job_uses = job.get("uses")
         assert job_uses is None or job_uses.startswith("./"), (
-            f"job {name}: reusable workflow {job_uses} is not local"
+            f"job {job_name}: reusable workflow {job_uses} is not local"
         )
-        # a job may narrow permissions, never widen them; add a reviewed exception here when a
-        # keyed workflow needs more (e.g. id-token: write for OIDC deploys)
-        assert narrower_than_contents_read(job.get("permissions")), (
-            f"job {name} widens permissions to {job.get('permissions')}"
-        )
+        # a job may narrow permissions, never widen them, unless it is a reviewed exception
+        # (REVIEWED_JOB_PERMISSIONS), which then holds exactly the reviewed permissions
+        reviewed = REVIEWED_JOB_PERMISSIONS.get((name, job_name))
+        if reviewed is not None:
+            assert job.get("permissions") == reviewed, (
+                f"job {job_name} must hold exactly {reviewed}, not {job.get('permissions')}"
+            )
+        else:
+            assert narrower_than_contents_read(job.get("permissions")), (
+                f"job {job_name} widens permissions to {job.get('permissions')}"
+            )
         if job_uses is None:
-            assert "timeout-minutes" in job, f"job {name} has no timeout-minutes"
+            assert "timeout-minutes" in job, f"job {job_name} has no timeout-minutes"
         for step in job.get("steps", []):
             uses = step.get("uses")
             if uses is None:
@@ -76,7 +96,7 @@ def check_workflow(wf: dict, text: str) -> None:
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
 def test_workflow_is_hardened(path):
-    check_workflow(load(path), path.read_text(encoding="utf-8"))
+    check_workflow(load(path), path.read_text(encoding="utf-8"), path.name)
 
 
 # Each variant is checked against the real file's text (its version comments intact), so it fails
@@ -112,6 +132,53 @@ def test_rules_reject_the_judge_bypasses(label, match):
     )
     with pytest.raises(AssertionError, match=match):
         check_workflow(wf, text)
+
+
+@pytest.mark.parametrize(
+    ("label", "match"),
+    [
+        ("pull-request", "never runs on a pull request"),
+        ("cancel", "never cancelled"),
+        ("deploy-wider", "must hold exactly"),
+        ("deploy-narrower", "must hold exactly"),
+        ("build-wider", "widens permissions"),
+        ("top-wider", "top-level permissions"),
+        ("elsewhere", "widens permissions"),
+    ],
+)
+def test_rules_hold_the_pages_deploy_to_its_reviewed_exception(label, match):
+    """GO-PUBLIC step 9: the exception is pages.yml's deploy job holding exactly pages: write and
+    id-token: write. A pull_request trigger, a cancellable deploy, one scope more or less on the
+    deploy job, more than contents: read on the build job or at the top, or the same deploy job in
+    another workflow each fail the rule check."""
+    path = WORKFLOW_DIR / "pages.yml"
+    base, text = load(path), path.read_text(encoding="utf-8")
+    jobs = base["jobs"]
+    deploy, build = jobs["deploy"], jobs["build"]
+    variants = {
+        "pull-request": {"on": {**base["on"], "pull_request": None}},
+        "cancel": {"concurrency": {**base["concurrency"], "cancel-in-progress": True}},
+        "deploy-wider": {
+            "jobs": {
+                **jobs,
+                "deploy": {**deploy, "permissions": {**deploy["permissions"], "contents": "write"}},
+            }
+        },
+        "deploy-narrower": {
+            "jobs": {**jobs, "deploy": {**deploy, "permissions": {"pages": "write"}}}
+        },
+        "build-wider": {
+            "jobs": {
+                **jobs,
+                "build": {**build, "permissions": {**build["permissions"], "pages": "write"}},
+            }
+        },
+        "top-wider": {"permissions": {"contents": "write"}},
+        "elsewhere": {"concurrency": {"group": "x", "cancel-in-progress": True}},
+    }
+    name = "other.yml" if label == "elsewhere" else "pages.yml"
+    with pytest.raises(AssertionError, match=match):
+        check_workflow({**base, **variants[label]}, text, name)
 
 
 def test_yaml_workflows_are_checked_too(tmp_path):

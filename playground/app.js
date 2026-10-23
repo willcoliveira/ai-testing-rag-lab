@@ -38,7 +38,10 @@ async function showRun(run) {
     button.setAttribute("aria-pressed", String(button.dataset.run === run.runId));
   }
   const manifest = JSON.parse(await fetchText(runFile(run.path, "manifest.json")));
-  const cases = parseCases(await fetchText(runFile(run.path, "cases.jsonl")));
+  // per-question rows for retrieval runs only: a generation or judged run's cases have other
+  // fields, so its file is named instead and no row is filled in for it
+  const retrieval = run.suite === "retrieval";
+  const cases = retrieval ? parseCases(await fetchText(runFile(run.path, "cases.jsonl"))) : [];
   const details = $("details");
   details.replaceChildren();
   details.append(el("h2", run.config));
@@ -52,6 +55,13 @@ async function showRun(run) {
   for (const m of run.metrics) metrics.append(row([m.name, m.text]));
   details.append(metrics);
 
+  if (!retrieval) {
+    const where = runFile(run.path, "cases.jsonl");
+    const note = `Per-question rows are drawn for retrieval runs only; this ${run.suite} run's cases are in ${where}.`;
+    details.append(el("p", note, "muted"));
+    status("");
+    return;
+  }
   details.append(el("h3", "Questions"));
   const table = el("table", undefined, "cases");
   table.append(row(["Case", "Question", "Hit", "RR", "Recall", "Labelled sections", "Retrieved"], true));

@@ -1,6 +1,7 @@
 // Runs playground/app.js against a published directory with a minimal stand-in for the DOM and
 // fetch (reading the files from disk), and prints what the page built as JSON: the run list, the
-// first run's details, the details after clicking the second run, and the status line.
+// first run's details, the details after clicking the second run, and the status line; then, as
+// `every`, what each run shows when clicked in turn, and as `fetchedAll`, every path fetched.
 // Usage: node tests/playground_dom.mjs <published dir>
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -81,18 +82,25 @@ const view = () => ({
   heading: ids.details.all("H2").map((h) => h.textContent),
   tables: ids.details.all("TABLE").map((t) => t.all("TR").length),
   relevant: ids.details.all("LI").filter((li) => li.className === "relevant").length,
+  notes: ids.details.all("P").map((p) => p.textContent),
+  meta: ids.details.all("DL").flatMap((dl) => dl.children.map((c) => c.textContent)),
 });
 const buttons = ids.runs.all("BUTTON");
 const first = view();
 if (buttons[1]) await buttons[1].listeners.click();
 await settle();
-console.log(
-  JSON.stringify({
-    runs: buttons.map((b) => b.textContent),
-    pressed: buttons.map((b) => b.attributes["aria-pressed"]),
-    first,
-    second: view(),
-    status: ids.status.textContent,
-    fetched,
-  }),
-);
+const shown = {
+  runs: buttons.map((b) => b.textContent),
+  pressed: buttons.map((b) => b.attributes["aria-pressed"]),
+  first,
+  second: view(),
+  status: ids.status.textContent,
+  fetched: [...fetched],
+};
+// every run in turn, as a visitor clicking down the list (each click's handler is awaited)
+const every = [];
+for (const button of buttons) {
+  await button.listeners.click();
+  every.push({ run: button.dataset.run, ...view(), status: ids.status.textContent });
+}
+console.log(JSON.stringify({ ...shown, every, fetchedAll: fetched }));
