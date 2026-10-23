@@ -446,7 +446,10 @@ S4b (golden set v2, about 120 cases) and then S5.", the user answered, verbatim:
 (Recommended)". S5 judges golden set v1.1, and S4b follows it, writing cases the judge can score;
 answer-v2, the prompt fix S4 left as a follow-up, comes between them as a pull request of its own
 (D2, verbatim: "After S5, own PR (Recommended)"). The S5 plan
-(`docs/plans/2026-10-20-s5-judged-metrics.md`) quotes both questions.
+(`docs/plans/2026-10-20-s5-judged-metrics.md`) quotes both questions. answer-v2 was measured on dev
+on 2026-10-22 and 2026-10-23 and not adopted, the user's answer verbatim "Not adopted, runs stay
+published (Recommended)": answer-v1 stays the current prompt and the consistency baseline, and
+answer-v2's runs stay published as a measured result (`docs/plans/2026-10-21-answer-v2-ledger.md`).
 
 **v0.2 (S5, S4b, S6–S8).** Judged, calibrated, attacked, gated.
 

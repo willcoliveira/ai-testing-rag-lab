@@ -5,6 +5,15 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- answer-v2, the prompt fix for abstention (plan `docs/plans/2026-10-21-answer-v2.md`, ledger
+  beside it), measured on dev and not adopted (the user's decision, verbatim: "Not adopted, runs
+  stay published (Recommended)"): its first run after the sign-off gained four cases on answer-v1's
+  baseline with none lost (+0.148, +0.037 to +0.296), but one of its four repeats fell back to
+  answer-v1's 14 of 27 with a reply off the schema, so robustness and the reply-format guard, read
+  over the five runs, failed. answer-v1 stays the current prompt, now chosen in code
+  (`raglab.generate.prompts.CURRENT`), and the consistency baseline; pr-fast now reports a stale
+  consistency baseline; answer-v2's module, its five runs and its judged record stay published as
+  a measured result.
 - S5's AC4 live break (the criteria judge's S5-J5), run on AC power on 2026-10-22 after S5 merged
   and recorded in S5's ledger: with C-05 flipped, the canaries stopped the judge before any judged
   call. S5 ends at 16 criteria met, 6 not applicable by D6, 0 not met.
