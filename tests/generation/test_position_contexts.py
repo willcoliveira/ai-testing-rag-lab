@@ -14,6 +14,7 @@ from raglab.chunk.sections import ChunkSettings
 from raglab.core.types import ScoredChunk
 from raglab.evals import config as eval_config
 from raglab.evals import golden, position, position_record, record
+from raglab.generate import prompts
 from raglab.generate.assemble import Assembled
 from raglab.generate.pipeline import Pipeline
 from raglab.guard import default_guards
@@ -210,6 +211,8 @@ def test_a_position_run_writes_a_valid_generation_record(tmp_path):
     assert record.validate(run_dir, root) == []
     manifest, cases = read_run(run_dir)
     assert manifest["suite"] == "generation"
+    # answer-v2's AV3: the position suite builds and records the current prompt
+    assert manifest["prompt"] == {"version": "answer-v1", "sha256": prompts.CURRENT.fingerprint()}
     assert manifest["position"]["cases"] == ["B-ANS", "B-TB"]
     assert [(c["case_id"], c["trial"]) for c in cases[:6]] == [
         (f"B-ANS:{w}", t) for w in ("first", "middle", "last") for t in (1, 2)

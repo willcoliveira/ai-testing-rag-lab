@@ -343,7 +343,8 @@ retrieval (every commit, no judge): about 30 labelled questions (datasets/golden
   bootstrap intervals in run record v1; pr-fast gates recall@5 on dev against the published
   baseline (docs/THRESHOLDS.md)
 generation (every commit with the fake model; live on demand, make eval-local): prompt answer-v1
-  (versioned, snapshot-tested), the decision label and a conflict field in a parsed JSON answer,
+  (versioned, snapshot-tested; answer-v2, measured on dev in 2026-10, was not adopted), the
+  decision label and a conflict field in a parsed JSON answer,
   the citation validator, input limits and the tenant guard; run record v1 for generation runs
   (citation integrity, citation hit, abstention probes, pass^3, no judge)
 golden set v1 (S4, datasheet v1.1): 34 retrieval questions and 40 behaviour cases, the 15/8/8/4/5

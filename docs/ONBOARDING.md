@@ -93,6 +93,7 @@ break. Restore each file with `git checkout -- <file>`, and never commit a break
 | Make `check_output` in `src/raglab/guard/citations.py` return `None` | `uv run pytest tests/generation/test_citation_validator.py` | An answer citing a tenant B chunk that was never retrieved gets through, and the test fails |
 | Remove the caller check (`caller_tenants`) in `src/raglab/guard/tenant.py` | `uv run pytest tests/api/test_api.py` | The spoof (a tenant-a-only token asking as tenant B) is answered instead of 403 |
 | Change one word of `SYSTEM` in `src/raglab/generate/prompts/answer_v1.py` | `uv run pytest tests/generation/test_prompt_snapshot.py` | The snapshot and the fingerprint tests fail: the prompt changed without a new VERSION |
+| Point `CURRENT` in `src/raglab/generate/prompts/__init__.py` at `answer_v2` (measured, not adopted) | `uv run pytest tests/retrieval/test_publish.py` | The consistency baseline is reported stale: it names answer-v1's prompt fingerprint, not the current prompt's |
 | Commit with a message like `updated stuff` | `git commit` | The commit-msg hook refuses it: not a Conventional Commit |
 | Change the chunker's default budget | `uv run pytest tests/ingestion/test_inventory_snapshot.py` | The snapshot test fails and prints the chunk diff; `make inventory-snapshot` regenerates it on purpose |
 
@@ -129,7 +130,7 @@ around them.
 | Engineering | Hardened CI: pinned actions; secret, dependency, SAST and workflow scans | `.github/workflows/pr-fast.yml` | `tests/unit/test_workflow_rules.py` |
 | Engineering | The privacy check, Conventional Commits and git hooks | `scripts/check-forbidden.mjs`, `.githooks/` | `tests/unit/test_privacy_check.py`, `tests/unit/test_conventions.py` |
 
-| Generation | A versioned prompt with chunks framed as data, and a strict parser | `src/raglab/generate/prompts/answer_v1.py` | `tests/generation/test_prompt_snapshot.py` |
+| Generation | A versioned prompt with chunks framed as data, and a strict parser; one current prompt, chosen in code (answer-v1; answer-v2 measured and not adopted) | `src/raglab/generate/prompts/answer_v1.py`, `src/raglab/generate/prompts/__init__.py` | `tests/generation/test_prompt_snapshot.py` |
 | Generation | Guard layers: input limits, the tenant guard, the citation validator | `src/raglab/guard/`, `docs/GUARDRAILS.md` | `tests/generation/test_input_guards.py`, `tests/generation/test_citation_validator.py` |
 | Generation | The fallback contract: no reply or a bad reply is never an answer | `src/raglab/generate/pipeline.py`, `src/raglab/adapters/openai_compat.py` | `tests/generation/test_fallback_contract.py`, `tests/contract/test_chat_contract.py` |
 | Generation | Checks without a judge, Wilson intervals and pass^k | `src/raglab/evals/generation_record.py`, `src/raglab/evals/generation.py` | `tests/retrieval/test_run_record.py` |

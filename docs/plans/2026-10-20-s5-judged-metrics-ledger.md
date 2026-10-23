@@ -1195,3 +1195,23 @@ reworded and the run above is the next one. `make deepeval-test`, outside `make 
 - The developer's command guard refused several compound shell lines (a heredoc into a file, an
   inline script that names git, a pipeline with gitleaks); each was split into plain steps or
   written as a file, and no guard was routed around.
+
+## AC4's live break, run after the merge (2026-10-22)
+
+S5 merged (pull request #18, `4806e27`) before the criteria judge could run AC4's live break on AC
+power (S5-J5): its first attempt was refused by the power guard, the Mac being on battery (round 0,
+above). The judge ran it on 2026-10-22, 09:47:11 to 09:49:18 WEST, on AC power, at `b71e2ee`.
+
+- **The break:** a throwaway commit flipping C-05 (`grounded`) from pass to fail, made with the
+  hooks on, then `make judge-canaries`; the commit was reset away afterwards.
+- **What the session showed:**
+  - the power line "power: the Mac draws from 'AC Power'";
+  - the judge's live contract test passing: `json_schema` 4 of 4, `none` 3 of 3 invalid_output;
+  - the canaries stopping the judge before any judged call: "canary C-05 (grounded) must fail, but
+    the judge gave pass (status ok)", with the other 18 on their side;
+  - no judged record written;
+  - "postcheck passed: port closed, no ollama process, no model loaded".
+- **Restored:** the tree back at `b71e2ee`, and the canary set's sha256 `4ca54c3c…` again.
+
+**Verdict:** AC4 met, offline and live, which closes S5-J5. S5's final count: **16 met, 6 not
+applicable by D6 (AC16 to AC21), 0 not met.**

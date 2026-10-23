@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from raglab.api.app import WEB, VersionInfo, create_app
+from raglab.generate.pipeline import PROMPT_VERSION
 from tests.generation_support import TOKENS, small_pipeline
 
 pytestmark = pytest.mark.unit
@@ -94,7 +95,7 @@ def test_the_script_writes_text_never_html():
 
 def test_the_served_page_is_the_file_with_the_csp():
     pipeline, _ = small_pipeline()
-    info = VersionInfo("0", "0", "answer-v1", "fake", "fake-echo", "fake", "fake")
+    info = VersionInfo("0", "0", PROMPT_VERSION, "fake", "fake-echo", "fake", "fake")
     api = TestClient(create_app(pipeline, info, TOKENS))
     response = api.get("/")
     assert response.text == (WEB / "index.html").read_text(encoding="utf-8")

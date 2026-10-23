@@ -29,7 +29,7 @@ from raglab.core.types import (
     ScoredChunk,
     Status,
 )
-from raglab.generate.prompts import answer_v1 as prompt
+from raglab.generate.prompts import CURRENT as prompt
 
 PROMPT_VERSION = prompt.VERSION
 

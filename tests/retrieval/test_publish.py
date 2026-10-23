@@ -179,6 +179,56 @@ def test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline():
     assert used["sha256"] == eval_config.canonical_sha256(dense.resolved())
 
 
+def consistency_staleness(root: Any) -> tuple[str, dict[str, tuple[object, object]]]:
+    """(the local generation baseline's run id, the stale fields): each field the consistency gate
+    reads to call a baseline stale (raglab.evals.gate.STALE), the baseline's value against
+    today's, where they differ."""
+    from raglab.evals import config as eval_config
+    from raglab.generate import prompts
+
+    key = "generation/generation-local-ollama/dev"
+    baseline_dir = publish.baseline_run(root, key)
+    assert baseline_dir is not None, f"no baseline for {key}"
+    baseline, _ = record.read(baseline_dir)
+    local = eval_config.load_generation(root / "config" / "local-ollama.toml", root)
+    today: dict[str, object] = {
+        "dataset.sha256": record.sha256_bytes((root / local.dataset).read_bytes()),
+        "config.sha256": eval_config.canonical_sha256(local.resolved()),
+        "prompt.sha256": prompts.CURRENT.fingerprint(),
+        "generator.digest": local.generator.digest,
+        "trials": local.generation.trials,
+    }
+    recorded: dict[str, object] = {
+        "dataset.sha256": record.as_json(baseline["dataset"])["sha256"],
+        "config.sha256": record.as_json(baseline["config"])["sha256"],
+        "prompt.sha256": record.as_json(baseline["prompt"])["sha256"],
+        "generator.digest": record.as_json(baseline["generator"])["digest"],
+        "trials": baseline["trials"],
+    }
+    stale = {k: (recorded[k], today[k]) for k in today if recorded[k] != today[k]}
+    return baseline_dir.name, stale
+
+
+def test_the_committed_consistency_baseline_is_current():
+    """answer-v2's AV9: the consistency gate's local baseline (index.json's
+    generation/generation-local-ollama/dev) was made with today's dataset, config, current prompt
+    (raglab.generate.prompts.CURRENT), model digest and number of trials, the fields the gate
+    calls stale (raglab.evals.gate.STALE). Before this test only `make gate-local`, run by hand,
+    saw a stale consistency baseline; now pr-fast does. answer-v2 was not adopted (2026-10-23), so
+    the baseline is answer-v1's and the current prompt is answer-v1."""
+    from raglab.evals import gate
+
+    assert {f"{s}.{k}" if s else k for s, k in gate.STALE} == {
+        "dataset.sha256",
+        "config.sha256",
+        "prompt.sha256",
+        "generator.digest",
+        "trials",
+    }
+    run_id, stale = consistency_staleness(ROOT)
+    assert not stale, f"the consistency baseline {run_id} is stale: {stale}"
+
+
 # ---------------------------------------------------------------- S4-J10 (fix round 2)
 
 DATASHEET = ROOT / "datasets" / "DATASHEET.md"

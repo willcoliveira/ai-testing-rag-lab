@@ -21,7 +21,7 @@ from raglab.adapters.openai_compat import ChatConfigError, OpenAICompatChat
 from raglab.core.ports import ChatModel
 from raglab.core.types import ChatMessage, ChatRequest, ScoredChunk
 from raglab.evals import config as eval_config
-from raglab.generate.prompts import answer_v1 as prompt
+from raglab.generate.prompts import CURRENT as prompt
 from tests.conftest import ROOT
 from tests.generation_support import DIGEST, completion, reply, stub_client, stub_ollama
 from tests.retrieval_support import PACK
