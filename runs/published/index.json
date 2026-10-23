@@ -2,6 +2,461 @@
   "schema_version": "published-index.v1",
   "runs": [
     {
+      "run_id": "20261023T085830Z-generation-local-ollama-dev-64bfd78",
+      "path": "20261023T085830Z-generation-local-ollama-dev-64bfd78/",
+      "created_at": "2026-10-23T08:58:30Z",
+      "suite": "generation",
+      "split": "dev",
+      "config": "generation-local-ollama",
+      "provenance": "local",
+      "git_sha": "64bfd785ecdaa1e771d7f21022b733290234c653",
+      "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
+      "retriever": "dense",
+      "k": 5,
+      "chunk_size": 1200,
+      "n": 147,
+      "metrics": {
+        "status_ok": {
+          "value": 0.993197,
+          "ci_low": 0.915192,
+          "ci_high": 0.999494,
+          "n": 49
+        },
+        "model_citations_retrieved": {
+          "value": 1.0,
+          "ci_low": 0.927302,
+          "ci_high": 1.0,
+          "n": 49
+        },
+        "citation_hit": {
+          "value": 0.818182,
+          "ci_low": 0.614834,
+          "ci_high": 0.926931,
+          "n": 22
+        },
+        "pass^3": {
+          "value": 0.653061,
+          "ci_low": 0.513112,
+          "ci_high": 0.770756,
+          "n": 49
+        },
+        "decision_label": {
+          "value": 0.777778,
+          "ci_low": 0.592431,
+          "ci_high": 0.893928,
+          "n": 27
+        },
+        "decision_label[answer]": {
+          "value": 0.888889,
+          "ci_low": 0.672002,
+          "ci_high": 0.96898,
+          "n": 18
+        },
+        "decision_label[abstain]": {
+          "value": 0.555556,
+          "ci_low": 0.222664,
+          "ci_high": 0.845076,
+          "n": 6
+        },
+        "decision_label[flag-conflict]": {
+          "value": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.793451,
+          "n": 1
+        },
+        "decision_label[refuse-and-help]": {
+          "value": 0.833333,
+          "ci_low": 0.24078,
+          "ci_high": 0.987473,
+          "n": 2
+        },
+        "abstention": {
+          "value": 0.555556,
+          "ci_low": 0.222664,
+          "ci_high": 0.845076,
+          "n": 6
+        },
+        "over_abstention": {
+          "value": 0.031746,
+          "ci_low": 0.004173,
+          "ci_high": 0.204139,
+          "n": 21
+        },
+        "behaviour_pass^3": {
+          "value": 0.518519,
+          "ci_low": 0.339856,
+          "ci_high": 0.692568,
+          "n": 27
+        }
+      },
+      "generator": "nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7dabac",
+      "prompt": "answer-v2"
+    },
+    {
+      "run_id": "20261023T085416Z-generation-local-ollama-dev-64bfd78",
+      "path": "20261023T085416Z-generation-local-ollama-dev-64bfd78/",
+      "created_at": "2026-10-23T08:54:16Z",
+      "suite": "generation",
+      "split": "dev",
+      "config": "generation-local-ollama",
+      "provenance": "local",
+      "git_sha": "64bfd785ecdaa1e771d7f21022b733290234c653",
+      "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
+      "retriever": "dense",
+      "k": 5,
+      "chunk_size": 1200,
+      "n": 147,
+      "metrics": {
+        "status_ok": {
+          "value": 1.0,
+          "ci_low": 0.927302,
+          "ci_high": 1.0,
+          "n": 49
+        },
+        "model_citations_retrieved": {
+          "value": 1.0,
+          "ci_low": 0.927302,
+          "ci_high": 1.0,
+          "n": 49
+        },
+        "citation_hit": {
+          "value": 0.818182,
+          "ci_low": 0.614834,
+          "ci_high": 0.926931,
+          "n": 22
+        },
+        "pass^3": {
+          "value": 0.714286,
+          "ci_low": 0.575911,
+          "ci_high": 0.821504,
+          "n": 49
+        },
+        "decision_label": {
+          "value": 0.82716,
+          "ci_low": 0.646884,
+          "ci_high": 0.925938,
+          "n": 27
+        },
+        "decision_label[answer]": {
+          "value": 0.944444,
+          "ci_low": 0.742427,
+          "ci_high": 0.990125,
+          "n": 18
+        },
+        "decision_label[abstain]": {
+          "value": 0.611111,
+          "ci_low": 0.260095,
+          "ci_high": 0.875386,
+          "n": 6
+        },
+        "decision_label[flag-conflict]": {
+          "value": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.793451,
+          "n": 1
+        },
+        "decision_label[refuse-and-help]": {
+          "value": 0.833333,
+          "ci_low": 0.24078,
+          "ci_high": 0.987473,
+          "n": 2
+        },
+        "abstention": {
+          "value": 0.611111,
+          "ci_low": 0.260095,
+          "ci_high": 0.875386,
+          "n": 6
+        },
+        "over_abstention": {
+          "value": 0.015873,
+          "ci_low": 0.001181,
+          "ci_high": 0.180295,
+          "n": 21
+        },
+        "behaviour_pass^3": {
+          "value": 0.62963,
+          "ci_low": 0.442292,
+          "ci_high": 0.784675,
+          "n": 27
+        }
+      },
+      "generator": "nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7dabac",
+      "prompt": "answer-v2"
+    },
+    {
+      "run_id": "20261023T085014Z-generation-local-ollama-dev-64bfd78",
+      "path": "20261023T085014Z-generation-local-ollama-dev-64bfd78/",
+      "created_at": "2026-10-23T08:50:14Z",
+      "suite": "generation",
+      "split": "dev",
+      "config": "generation-local-ollama",
+      "provenance": "local",
+      "git_sha": "64bfd785ecdaa1e771d7f21022b733290234c653",
+      "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
+      "retriever": "dense",
+      "k": 5,
+      "chunk_size": 1200,
+      "n": 147,
+      "metrics": {
+        "status_ok": {
+          "value": 1.0,
+          "ci_low": 0.927302,
+          "ci_high": 1.0,
+          "n": 49
+        },
+        "model_citations_retrieved": {
+          "value": 1.0,
+          "ci_low": 0.927302,
+          "ci_high": 1.0,
+          "n": 49
+        },
+        "citation_hit": {
+          "value": 0.787879,
+          "ci_low": 0.581758,
+          "ci_high": 0.90841,
+          "n": 22
+        },
+        "pass^3": {
+          "value": 0.693878,
+          "ci_low": 0.554721,
+          "ci_high": 0.804845,
+          "n": 49
+        },
+        "decision_label": {
+          "value": 0.876543,
+          "ci_low": 0.704429,
+          "ci_high": 0.954856,
+          "n": 27
+        },
+        "decision_label[answer]": {
+          "value": 0.962963,
+          "ci_low": 0.767946,
+          "ci_high": 0.995128,
+          "n": 18
+        },
+        "decision_label[abstain]": {
+          "value": 0.722222,
+          "ci_low": 0.342511,
+          "ci_high": 0.928452,
+          "n": 6
+        },
+        "decision_label[flag-conflict]": {
+          "value": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.793451,
+          "n": 1
+        },
+        "decision_label[refuse-and-help]": {
+          "value": 1.0,
+          "ci_low": 0.34238,
+          "ci_high": 1.0,
+          "n": 2
+        },
+        "abstention": {
+          "value": 0.722222,
+          "ci_low": 0.342511,
+          "ci_high": 0.928452,
+          "n": 6
+        },
+        "over_abstention": {
+          "value": 0.063492,
+          "ci_low": 0.013727,
+          "ci_high": 0.248259,
+          "n": 21
+        },
+        "behaviour_pass^3": {
+          "value": 0.666667,
+          "ci_low": 0.478248,
+          "ci_high": 0.813567,
+          "n": 27
+        }
+      },
+      "generator": "nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7dabac",
+      "prompt": "answer-v2"
+    },
+    {
+      "run_id": "20261023T084606Z-generation-local-ollama-dev-64bfd78",
+      "path": "20261023T084606Z-generation-local-ollama-dev-64bfd78/",
+      "created_at": "2026-10-23T08:46:06Z",
+      "suite": "generation",
+      "split": "dev",
+      "config": "generation-local-ollama",
+      "provenance": "local",
+      "git_sha": "64bfd785ecdaa1e771d7f21022b733290234c653",
+      "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
+      "retriever": "dense",
+      "k": 5,
+      "chunk_size": 1200,
+      "n": 147,
+      "metrics": {
+        "status_ok": {
+          "value": 0.993197,
+          "ci_low": 0.915192,
+          "ci_high": 0.999494,
+          "n": 49
+        },
+        "model_citations_retrieved": {
+          "value": 0.993197,
+          "ci_low": 0.915192,
+          "ci_high": 0.999494,
+          "n": 49
+        },
+        "citation_hit": {
+          "value": 0.818182,
+          "ci_low": 0.614834,
+          "ci_high": 0.926931,
+          "n": 22
+        },
+        "pass^3": {
+          "value": 0.673469,
+          "ci_low": 0.533792,
+          "ci_high": 0.787925,
+          "n": 49
+        },
+        "decision_label": {
+          "value": 0.814815,
+          "ci_low": 0.633013,
+          "ci_high": 0.918193,
+          "n": 27
+        },
+        "decision_label[answer]": {
+          "value": 0.944444,
+          "ci_low": 0.742427,
+          "ci_high": 0.990125,
+          "n": 18
+        },
+        "decision_label[abstain]": {
+          "value": 0.555556,
+          "ci_low": 0.222664,
+          "ci_high": 0.845076,
+          "n": 6
+        },
+        "decision_label[flag-conflict]": {
+          "value": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.793451,
+          "n": 1
+        },
+        "decision_label[refuse-and-help]": {
+          "value": 0.833333,
+          "ci_low": 0.24078,
+          "ci_high": 0.987473,
+          "n": 2
+        },
+        "abstention": {
+          "value": 0.555556,
+          "ci_low": 0.222664,
+          "ci_high": 0.845076,
+          "n": 6
+        },
+        "over_abstention": {
+          "value": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.154639,
+          "n": 21
+        },
+        "behaviour_pass^3": {
+          "value": 0.555556,
+          "ci_low": 0.37313,
+          "ci_high": 0.724141,
+          "n": 27
+        }
+      },
+      "generator": "nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7dabac",
+      "prompt": "answer-v2"
+    },
+    {
+      "run_id": "20261023T084147Z-generation-local-ollama-dev-64bfd78",
+      "path": "20261023T084147Z-generation-local-ollama-dev-64bfd78/",
+      "created_at": "2026-10-23T08:41:47Z",
+      "suite": "generation",
+      "split": "dev",
+      "config": "generation-local-ollama",
+      "provenance": "local",
+      "git_sha": "64bfd785ecdaa1e771d7f21022b733290234c653",
+      "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
+      "retriever": "dense",
+      "k": 5,
+      "chunk_size": 1200,
+      "n": 147,
+      "metrics": {
+        "status_ok": {
+          "value": 1.0,
+          "ci_low": 0.927302,
+          "ci_high": 1.0,
+          "n": 49
+        },
+        "model_citations_retrieved": {
+          "value": 1.0,
+          "ci_low": 0.927302,
+          "ci_high": 1.0,
+          "n": 49
+        },
+        "citation_hit": {
+          "value": 0.818182,
+          "ci_low": 0.614834,
+          "ci_high": 0.926931,
+          "n": 22
+        },
+        "pass^3": {
+          "value": 0.734694,
+          "ci_low": 0.597377,
+          "ci_high": 0.837887,
+          "n": 49
+        },
+        "decision_label": {
+          "value": 0.839506,
+          "ci_low": 0.660946,
+          "ci_high": 0.933491,
+          "n": 27
+        },
+        "decision_label[answer]": {
+          "value": 0.962963,
+          "ci_low": 0.767946,
+          "ci_high": 0.995128,
+          "n": 18
+        },
+        "decision_label[abstain]": {
+          "value": 0.555556,
+          "ci_low": 0.222664,
+          "ci_high": 0.845076,
+          "n": 6
+        },
+        "decision_label[flag-conflict]": {
+          "value": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.793451,
+          "n": 1
+        },
+        "decision_label[refuse-and-help]": {
+          "value": 1.0,
+          "ci_low": 0.34238,
+          "ci_high": 1.0,
+          "n": 2
+        },
+        "abstention": {
+          "value": 0.555556,
+          "ci_low": 0.222664,
+          "ci_high": 0.845076,
+          "n": 6
+        },
+        "over_abstention": {
+          "value": 0.063492,
+          "ci_low": 0.013727,
+          "ci_high": 0.248259,
+          "n": 21
+        },
+        "behaviour_pass^3": {
+          "value": 0.666667,
+          "ci_low": 0.478248,
+          "ci_high": 0.813567,
+          "n": 27
+        }
+      },
+      "generator": "nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7dabac",
+      "prompt": "answer-v2"
+    },
+    {
       "run_id": "20261021T092819Z-judge-local-dev-9fa9004",
       "path": "20261021T092819Z-judge-local-dev-9fa9004/",
       "created_at": "2026-10-21T09:28:19Z",
