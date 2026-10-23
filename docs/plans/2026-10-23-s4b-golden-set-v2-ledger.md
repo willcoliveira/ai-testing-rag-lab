@@ -193,3 +193,169 @@ The 3 skipped tests are the checks of the committed `golden.v2.jsonl`, which doe
   the rule, not a run), and GV2 then fails; a kind of two new cases has both in test about one
   time in nine. The script implements the plan's rule as written, with no repair. A repair, if
   the maintainer wants one, would be decided before the cases are split, so it stays blind.
+
+## The integration of the cases (2026-10-23 and 2026-10-24)
+
+The coordinator's message, after the question author handed back: the author's branch is
+`feat/s4b-cases`, head `5d468fc`, three commits; the integration is done now, instead of
+stopping at STOP 0. The integration stopped at the GV2 result below, as the coordinator's message
+says to: no case moved by hand, the seed and the rule unchanged; it is the maintainer's call.
+
+### The author's commits, cherry-picked
+
+| The author's commit | Here | Files | What it adds |
+|---|---|---|---|
+| `98c2423` | `3e50427` | `corpus/answer-key.yaml`, `corpus/SPEC.md` | new features F-88 to F-98, F-40's new silence phrases, their SPEC section 8 rows |
+| `253d18a` | `f3e69c9` | `datasets/golden.v2.jsonl` (new) | v1.1's 74 lines, then G-38 to G-117 with no split; sha256 before the split `154536a96941123b3f709fd021598e40536e342527ee144c4bffdb0db4e6a502` |
+| `5d468fc` | `fb4bea8` | `datasets/DATASHEET.md` | datasheet v2: the Maintenance table with its File column |
+
+Each touches only the four files the author owns, and none of the four was edited here before
+them. No conflict.
+
+**What the author was given and read.** The author's files-read disclosure, verbatim (from the
+coordinator's message): "the plan, `CLAUDE.md`, `CONTRIBUTING.md`, `answer-key.yaml`, SPEC 6–9
+(my read window also showed 10–11), TEST-PLAN 2, 3 and 7 (plus both heading lists),
+`golden.v1.jsonl`, `DATASHEET.md`, `probes.s3.jsonl`, `golden.py`, `dataset_check.py`, the three
+tests, `register.yaml`, the 18 register documents and the kiosk `.gt.txt`. Also seen in passing:
+inventory section ids (via a script); the Makefile hooks lines and the `.githooks` listing; git log
+subjects; one test failure message that showed TEST-PLAN's R-03 feature cell; attack files: phrase
+search only. Nothing under `runs/`, no ledger, no model output."
+
+The author's own counts (the coordinator's message): new cases 30/16/16/8/10, so v2 is
+45/24/24/12/15; 64 answer (11 must-not-block), 27 abstain (4 with `may_quote`), 13
+flag-conflict, 16 refuse-and-help; 33 tenant B; its self-check 34 of 34; v1.1's 74 lines byte for
+byte; S2's overlap at most 4 words on each measure. The counts below are recomputed here.
+
+### TEST-PLAN's traceability rows for F-88 to F-98
+
+The author's patch (`scratchpad/s4b-author/patch/test-plan-traceability.patch`, written by a
+script that did not read section 8) adds the new features to the Planted features cells of R-03,
+R-04, R-06, R-12, R-13, R-14, R-16, R-18 and R-19. Each row was checked against the requirements
+the answer key gives F-88 to F-98 (F-88: R-04, R-12; F-89: R-13, R-16; F-90: R-13, R-14, R-16,
+R-19; F-91: R-13, R-14, R-16; F-92 to F-95 and F-98: R-14; F-96: R-03, R-06, R-18; F-97: R-03,
+R-18): every addition matches, and none is missing. Without the patch
+`tests/unit/test_answer_key.py::test_traceability_rows_agree_with_the_key` fails ("1 failed, 33
+passed"); with it, "34 passed". Committed as `c2af8d1`.
+
+### The split
+
+`scripts/split_golden.py`, unchanged since `a525c90` (`git diff a525c90 HEAD --
+scripts/split_golden.py` empty), run once; its output, ids only:
+
+    multi-chunk / answer / tenant-a: 11 case(s); test: G-77, G-78, G-76, G-70
+    paraphrased or misspelled / flag-conflict / tenant-a: 3 case(s); test: G-117
+    single-chunk / answer / tenant-a: 13 case(s); test: G-40, G-39, G-49, G-44
+    single-chunk / answer / tenant-b: 9 case(s); test: G-59, G-57, G-60
+    single-chunk / refuse-and-help / tenant-a: 5 case(s); test: G-45, G-46
+    single-chunk / refuse-and-help / tenant-b: 3 case(s); test: G-66
+    unanswerable / abstain / tenant-a: 7 case(s); test: G-96, G-93
+    unanswerable / abstain / tenant-b: 9 case(s); test: G-91, G-87, G-85
+    version-conflict / answer / tenant-a: 3 case(s); test: G-107
+    version-conflict / flag-conflict / tenant-a: 5 case(s); test: G-102, G-104
+    pool of abstain: 2 case(s); test: G-116
+    pool of answer: 3 case(s); test: G-112
+    pool of flag-conflict: 2 case(s); test: G-69
+    pool of refuse-and-help: 5 case(s); test: G-111, G-115
+    split_golden: 80 new cases, 52 dev and 28 test (seed 20261023)
+
+Only the 80 new lines changed, each gaining `split` after its question; v1.1's 74 lines are byte
+for byte. The file's sha256 is now `481063f4375036e4676f170482a4270bd0d0dae0d76d225ea6257192cef0781b`
+(`e91275c`), and the datasheet's v2 row carries it (`3b2b7ff`). `raglab check-dataset`: exit 0,
+"check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour
+cases, sha256 5f8cdaf18783)" and "check-dataset: datasets/golden.v2.jsonl passes as v2 (34
+retrieval questions, 120 behaviour cases, sha256 481063f43750)": every rule of both versions,
+v2's floors and its tenant B test case under each of tenant B's labels included.
+
+**The counts** (recomputed from the committed file; dev / test):
+
+| | Value | All 120 | The 80 new |
+|---|---|---|---|
+| Mix slot | single-chunk | 45 (30 / 15) | 30 (20 / 10) |
+| | multi-chunk | 24 (17 / 7) | 16 (11 / 5) |
+| | unanswerable | 24 (17 / 7) | 16 (11 / 5) |
+| | version-conflict | 12 (7 / 5) | 8 (5 / 3) |
+| | paraphrased or misspelled | 15 (8 / 7) | 10 (5 / 5) |
+| Label | answer | 64 (43 / 21) | 39 (26 / 13) |
+| | abstain | 27 (18 / 9) | 18 (12 / 6) |
+| | flag-conflict | 13 (8 / 5) | 10 (6 / 4) |
+| | refuse-and-help | 16 (10 / 6) | 13 (8 / 5) |
+| Tenant | tenant A | 87 (56 / 31) | 55 (35 / 20) |
+| | tenant B | 33 (23 / 10) | 25 (17 / 8) |
+| Split | dev / test | 79 / 41 | 52 / 28 |
+
+Tenant B's test cases by label: abstain 5, answer 4, refuse-and-help 1. Must-not-block cases (a
+feature of kind `must-not-block`): 11. Abstain cases with `may_quote`: 4. With the 22 dev
+retrieval questions, the generation suite's dev slice is 101 lines (303 case-trials at 3 trials).
+
+### GV2 after the seeded split: not met
+
+`tests/retrieval/test_golden_v2.py::test_v2_covers_every_requirement_and_every_question_type`
+fails on the committed file, on one rule only, "a kind with two or more cases has a dev case":
+
+| First-feature kind | Its cases, all in test |
+|---|---|
+| background | G-40, G-49, G-77 |
+| exception-overrides-rule | G-18 (v1.1), G-78 |
+| procedure (R-23) | G-20 (v1.1), G-76, G-112 |
+
+The rest of GV2 holds on the committed file: every requirement with a planted feature has a case;
+R-02, R-20, R-21 and R-22 are gaps no feature names; every feature kind but secret-in-doc,
+pii-in-doc and near-duplicate starts a case; every other kind of two or more cases has a dev
+case; the floors (64, 27, 13 and 16 by label; 11 must-not-block; 33 tenant B). As the
+coordinator's message says, no case was moved by hand, and neither the seed nor the rule was
+changed: the maintainer decides. The author had warned of the same kinds (exception-overrides-
+rule with G-78 its only candidate, procedure with G-76 and G-112, and external-attribution,
+cross-reference, glossary-dependent and background); external-attribution (G-71), cross-reference
+(G-72, G-73) and glossary-dependent (G-38, G-75) drew a dev case.
+
+### The answer key: additions only (GV5)
+
+The answer key at `origin/main` against the integrated one, by feature id and field name: 11 new
+features, F-88 to F-98; F-40's `must_not_appear` keeps its phrases and gains 25 (an addition);
+no feature removed; no existing feature's value, label, reference answer, location or side
+changed; the canaries, the gaps, the notes and every `answer_must_not_contain` list unchanged
+(the script's verdict: "changes that are not additions: 0"). The committed-runs test passes: all
+24 published records validate against the integrated key.
+
+### A value OCR does not reproduce (for the author)
+
+F-92's location A-DEVICE-B 1, the scanned page, cites "Do not change kiosk settings to keep a
+session open". The page's ground truth has it, but this Mac's OCR (Tesseract) reads "Do ‘not
+change kiosk settings to keep a session open.", so two ingestion tests fail on the integrated key:
+`tests/ingestion/test_ingest_formats.py::test_every_cited_value_is_in_the_extracted_text_at_its_place[A-DEVICE-B]`
+("'Do not change kiosk settings to keep a session open' missing") and
+`tests/ingestion/test_chunk_boundaries.py::test_every_feature_keeps_its_cited_values_in_one_chunk_at_default_settings`.
+The value is the author's; it was not changed here. A value the OCR keeps (part of the sentence,
+or no value at that location) is the author's or the maintainer's call; CI's Tesseract 5.3.4 may
+read the page otherwise.
+
+### R-22's metadata, the multi-topic features and the notes for the labels judge
+
+- **R-22's `tested_in: S4b (candidate)`** in the answer key's gaps is left as it is. Under D3 it
+  is stale, and so is TEST-PLAN's gaps row ("Candidate for S4b: ..."); the plan keeps that table
+  unchanged (GV9), and changing the key's field alone would make the two disagree, so both are
+  left for the maintainer at the sign-off, where the answer key's diff is reviewed. No test reads
+  `tested_in`.
+- **Multi-topic features.** F-89, F-91, F-92 and F-97 each hold several topics, because feature
+  ids are `F-\d{2}` and F-99 is the check-dataset tests' missing id. The datasheet's known limits
+  already say so ("Several topics per feature"), so it needed no edit. The id format is not
+  widened in S4b unless the labels judge finds a traceability problem.
+- **Notes for the labels judge** (from the coordinator's message): G-57 (F-35): an answer that
+  paraphrases the expiry rule could hold an attack phrase, and publish would refuse the run (the
+  datasheet's known limits say so too). The author's own doubtful calls: G-67 (password reuse
+  labelled refuse-and-help), G-87 (abstain), G-78 (answer), and G-52's weak route.
+
+### The design count of judge calls for v2's dev slice (GV12)
+
+On the split as committed (`e91275c`): 22 retrieval questions and 79 behaviour cases (43 answer,
+18 abstain, 8 flag-conflict, 10 refuse-and-help) give 1,033 verdicts (3 x 324 per trial + 61
+`context_sufficient`), 381 checks (repeatability 280, order 101) and 19 canaries: **1,433 judge
+calls**, a count from the cases and the frozen criteria, not a measurement. It is computed again if
+the split changes.
+
+### What waits for the maintainer's call
+
+The TEST-PLAN Golden case cells derived from v2 (GV9; `test_the_golden_case_column_names_the_cases_that_cover_each_requirement`
+fails until they are written), the removal of the S4 table reading (no File column) and of the
+skips of the v2 file's tests, ONBOARDING's line naming both files, and the README's and
+section 10's v2 lines.
