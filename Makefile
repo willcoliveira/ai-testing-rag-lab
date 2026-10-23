@@ -11,20 +11,44 @@ RANGE ?= --all
 # Advisories `make audit` skips (decision of 2026-10-21, verbatim: "Dependency PR, Pillow exception
 # (Recommended)"). Review by 2026-11-21: tests/unit/test_audit_exceptions.py fails after that date,
 # so the exception is looked at again, not kept by default.
-# Pillow 12.3.0 has nine advisories fixed only in Pillow 13, and fastembed 0.9.0, the newest,
+# Pillow 12.3.0 has thirty-six advisories fixed only in Pillow 13, and fastembed 0.9.0, the newest,
 # still requires pillow<13; the corpus build also pins pillow==12.3.0, since the scanned page is
 # drawn with the font Pillow bundles and tests/unit/test_corpus_build.py checks that a rebuild
-# gives the same pixels. Each advisory needs a file an attacker made: a PDF appended to, a GIF, a
-# JPEG, a PPM or PGM, a TIFF, an EPS. raglab decodes no image it did not make: OCR hands the
+# gives the same pixels. Each advisory needs a file an attacker made (a PDF appended to, a GIF,
+# APNG, PNG, BMP, MSP, XBM or SPIDER image, a JPEG or JPEG 2000, a PPM or PGM, a TIFF, an EPS or its
+# file name, an IPTC or MIC image, a tar file, a broken font), an image saved as TIFF, JPEG or PDF,
+# or a failed allocation; one affects Windows builds only. raglab decodes no image it did not make
+# and saves only PNG: OCR hands the
 # committed PNG's path to Tesseract (pytesseract opens no image for a path), the corpus build
 # re-reads only the PNG it rendered, fastembed loads a text model, and the API takes no files.
 # The advisories are named by their GitHub ids, which pip-audit matches as aliases. pip-audit
 # reported eight on 2026-10-21; GitHub's database has a ninth (GHSA-8g5g-8vmr-9782, JPEG), skipped
-# ahead of pip-audit's database. The DeepEval tool's audit line skips the same: its own lock
+# ahead of pip-audit's database; seven more were published the same evening, and twenty on
+# 2026-10-22, of the same kinds. The DeepEval tool's audit line skips the same: its own lock
 # resolves the same pillow 12.3.0 through raglab.
+# pypdf 6.19.0 (decision of 2026-10-21, verbatim: "Keep 6.19.0, skip its 4 advisories
+# (Recommended)"): advisories fixed in 6.20.0, 6.20.1, 6.21.0 and 6.21.1, each an infinite loop, a
+# memory or runtime blow-up or image parsers reached from a PDF an attacker made; a fifth was
+# published after the decision and three more on 2026-10-22, of the same kinds. pypdf 6.21.2
+# (2026-10-21) is not yet tried: it is inside Dependabot's 7-day cooldown. raglab parses one PDF,
+# the corpus PDF its own build renders and
+# commits. pypdf 6.20.0 to 6.21.1 also change plain text extraction: a table cell's wrapped "the
+# account" comes out as "theaccount", which fails the corpus build's checks that planted values
+# survive rendering (tests/unit/test_answer_key.py). Same review date; .github/dependabot.yml
+# ignores those versions until then.
 AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8g5g-8vmr-9782 \
 	GHSA-c6hw-5grf-ff96 GHSA-p4wg-p73j-c528 GHSA-pchr-8j38-3x4p GHSA-q45j-58j2-45rg \
-	GHSA-vx6w-vv9f-6gvg
+	GHSA-vx6w-vv9f-6gvg \
+	GHSA-22hg-r758-rrw9 GHSA-27h8-gf7j-v5hc GHSA-7mwm-ghpf-9vrm GHSA-cp9v-662q-vvx9 \
+	GHSA-fc9g-5qg7-mf45 GHSA-j4m9-6w36-pw47 GHSA-w889-685w-c8fh \
+	GHSA-24rc-8hj2-v98c GHSA-254f-3936-288h GHSA-332p-7hrc-92wf GHSA-3j72-p6qg-6xp7 \
+	GHSA-4rm8-3hmm-39fg GHSA-4rr5-89j8-mwwm GHSA-5xm2-6676-qcp9 GHSA-74r2-7ff9-mjj2 \
+	GHSA-78g4-xqwv-q3g8 GHSA-9v9v-9qvf-h2hj GHSA-f2g6-542v-9j58 GHSA-g4qv-2jxx-769h \
+	GHSA-g7cr-3p24-7wf7 GHSA-g842-9rc4-69pw GHSA-gg2r-wvfm-q9rx GHSA-jg86-v3jv-hrpm \
+	GHSA-mrfp-p49p-3hf2 GHSA-p8hx-v2p6-rp84 GHSA-v9pv-5gc8-w2m6 GHSA-xgh8-jp6q-p5x8 \
+	GHSA-39mj-jf6j-2qj3 GHSA-5hx5-vpf9-5wcv GHSA-7mh2-4gg2-979f GHSA-9mx8-4j7g-633p \
+	GHSA-qfv9-64jg-mh7p \
+	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57
 
 .PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
