@@ -76,7 +76,7 @@ def check(base: str) -> list[str]:
     expect(
         "/version names the prompt and the fake model",
         code == 200
-        and body.get("prompt_version") == "answer-v2"
+        and body.get("prompt_version") == "answer-v1"
         and body.get("model") == "fake-echo"
         and body.get("provenance") == "fake",
         (code, body),

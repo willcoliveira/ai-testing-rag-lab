@@ -31,7 +31,7 @@ def test_healthz_and_version():
     assert api.get("/version").json() == {
         "raglab": "0.0.1",
         "git_sha": "0" * 40,
-        "prompt_version": "answer-v2",
+        "prompt_version": "answer-v1",
         "provider": "fake",
         "model": "fake-echo",
         "digest": "fake",
@@ -44,7 +44,7 @@ def test_an_answer_with_its_citations():
     response = api.post("/ask", json={"tenant": "tenant-a", "question": QUESTION}, headers=DEMO)
     assert response.status_code == 200
     body = response.json()
-    assert (body["status"], body["label"], body["prompt_version"]) == ("ok", "answer", "answer-v2")
+    assert (body["status"], body["label"], body["prompt_version"]) == ("ok", "answer", "answer-v1")
     assert body["answer"]
     assert body["citations"]
     assert {"chunk_id", "document", "version", "section", "page"} == set(body["citations"][0])

@@ -19,6 +19,12 @@ honoured `json_schema` would need the schema reordered, so a new version.
 
 answer-v1 stays as it was, the prompt of its published records. The text of the prompt carries no
 developer comments; the reasons live here, in the code.
+
+**Measured, not adopted** (2026-10-23; the decision and its reasons are in the plan's ledger,
+docs/plans/2026-10-21-answer-v2-ledger.md). The text is the frozen draft 3, signed off before its
+five runs; answer-v1 stays the current prompt (`raglab.generate.prompts.CURRENT`) and the
+consistency baseline. This module stays, pinned by its snapshot and fingerprint, for its five
+published runs and its judged record.
 """
 
 import hashlib

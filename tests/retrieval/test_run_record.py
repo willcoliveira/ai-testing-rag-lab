@@ -582,7 +582,7 @@ def test_a_generation_run_writes_a_valid_record(tmp_path):
         "fake",
         2,
     )
-    assert manifest["prompt"] == {"version": "answer-v2", "sha256": prompts.CURRENT.fingerprint()}
+    assert manifest["prompt"] == {"version": "answer-v1", "sha256": prompts.CURRENT.fingerprint()}
     assert manifest["guards"] == ["tenant", "input-limits", "citations"]
     assert manifest["generator"]["model"] == "fake-echo"
     assert manifest["intervals"] == {"method": "wilson", "level": 0.95, "unit": "case"}

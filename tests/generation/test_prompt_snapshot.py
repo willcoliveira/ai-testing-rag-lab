@@ -5,15 +5,19 @@ and a prompt cannot change without a new VERSION: each VERSION's fingerprint (th
 texts, frames and schema) is recorded here when it is reviewed, so an edit that keeps the VERSION
 fails.
 
-answer-v1 is the prompt of S3's to S5's published records and stays as it was reviewed. answer-v2
-(docs/plans/2026-10-21-answer-v2.md) imports answer-v1's frames, schema and parser, so the two
-differ in the system text only. One name chooses the current prompt, `CURRENT` in
-raglab.generate.prompts, and the pipeline, the generation suite and the position suite read it.
+answer-v1 is the prompt of S3's to S5's published records, stays as it was reviewed, and is the
+current prompt. answer-v2 (docs/plans/2026-10-21-answer-v2.md) imports answer-v1's frames, schema
+and parser, so the two differ in the system text only; it was measured on dev and not adopted
+(2026-10-23), and stays pinned here for its published records. One name chooses the current
+prompt, `CURRENT` in raglab.generate.prompts, and the pipeline, the generation suite and the
+position suite read it.
 
 To change the prompt: write a new version (answer_v3, as answer_v2 was written), add its
-fingerprint below and its snapshot under tests/snapshots/, and review both diffs in the pull
-request. Every version stays as it was reviewed, because a run record names its version and the
-consistency gate checks the baseline's fingerprint.
+fingerprint below and its snapshot under tests/snapshots/, review both diffs in the pull request,
+and point `CURRENT` at it only when it is adopted (a new consistency baseline then follows, or
+tests/retrieval/test_publish.py reports the baseline stale). Every version stays as it was
+reviewed, because a run record names its version and the consistency gate checks the baseline's
+fingerprint.
 """
 
 import json
