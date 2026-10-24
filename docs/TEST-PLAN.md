@@ -226,7 +226,7 @@ cover"); R-02 applies to every case, and R-06 also names the `may_quote` cases, 
 | R-08 | Follow cross-references | F-18, F-19 | G-72, G-73 | tbd | tbd |
 | R-09 | Use the pack's definitions | F-11, F-20, F-21 | G-38, G-74, G-75 | tbd | tbd |
 | R-10 | Multi-hop | F-22, F-23 | G-16, G-17, G-77 | judged (S5, reported): `grounded`, `correct` | tbd |
-| R-11 | Exact numbers and units | F-01, F-02, F-10, F-12, F-19, F-24 to F-31, F-50, F-51, F-60 to F-85 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36, G-40, G-49, G-51, G-73, G-77, G-79, G-111 | judged (S5, reported): `correct` | tbd |
+| R-11 | Exact numbers and units | F-01, F-02, F-10, F-12, F-19, F-24 to F-31, F-50, F-51, F-60 to F-85 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36, G-40, G-49, G-51, G-73, G-77 | judged (S5, reported): `correct` | tbd |
 | R-12 | All formats count | F-07, F-09, F-10, F-11, F-12, F-15, F-24, F-33, F-56, F-60, F-61, F-88 | G-03 to G-06, G-08, G-12, G-32, G-39, G-52, G-54, G-70, G-71, G-74, G-100 to G-102, G-104, G-117 | tbd (S1b parsing, OCR) | tbd |
 | R-13 | Tenant scope | F-34 to F-40, F-52, F-89, F-90, F-91 | P-03, G-14, G-15, G-24 to G-26, G-28, G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 | `tests/retrieval/test_tenant_filter.py` (S2), `tests/e2e/test_e2e_fake.py` (S3) | tbd |
 | R-14 | Refuse to weaken, still help; answer the sanctioned routes (must-not-block) | F-41, F-42, F-43, F-54, F-55, F-56, F-90, F-91, F-92, F-93, F-94, F-95, F-98 | G-13, G-23, G-34, G-45 to G-48, G-52, G-65 to G-67, G-79 to G-81, G-111, G-115 (refuse-and-help); G-12, G-33, G-41 to G-44, G-50, G-64, G-82, G-83, G-108 (must-not-block) | judged (S5, reported): `refuses_and_helps` | tbd |

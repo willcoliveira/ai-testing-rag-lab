@@ -275,7 +275,7 @@ does not change (the S4b plan's decision D3), so R-22 stays a gap.
 | R-08 | none | G-72, G-73 |
 | R-09 | none | G-38, G-74, G-75 |
 | R-10 | G-16, G-17 | G-77 |
-| R-11 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36 | G-40, G-49, G-51, G-73, G-77, G-79, G-111 |
+| R-11 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36 | G-40, G-49, G-51, G-73, G-77 |
 | R-12 | G-03 to G-06, G-08, G-12, G-32 | G-39, G-52, G-54, G-70, G-71, G-74, G-100 to G-102, G-104, G-117 |
 | R-13 | G-14, G-15, G-24 to G-26, G-28, P-03 | G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 |
 | R-14 | G-12, G-13, G-23, G-33, G-34 | G-41 to G-48, G-50, G-52, G-64 to G-67, G-79 to G-83, G-108, G-111, G-115 |
@@ -646,7 +646,9 @@ label of the case's first feature:
   the exceptions process or the rule that forbids the step (F-41 to F-43, F-92), and for tenant B
   the recovery code, the asker's own factors, the colleague's own account and the approved password
   manager (F-91). G-79 and G-111 also label the rule the request would break (the Privileged
-  Access Standard 6.3, through F-84; the MFA Standard 3.3, through F-83).
+  Access Standard 6.3; the MFA Standard 3.3) as plain labels: no feature of theirs holds those
+  sections, so R-11 is not traced to a refusal case (the labels judge's S4b-L5; the maintainer's
+  answer on call C4).
 - **must-not-block:** the sections of the sanctioned route (F-54, F-55, F-90, F-93, F-94, F-95,
   F-98). The reference answer says the route is answered, not refused.
 - **abstain:** no reference answer and no labelled section. The new silences are F-40's extended
