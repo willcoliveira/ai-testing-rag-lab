@@ -11,28 +11,29 @@ RANGE ?= --all
 # Advisories `make audit` skips (decision of 2026-10-21, verbatim: "Dependency PR, Pillow exception
 # (Recommended)"). Review by 2026-11-21: tests/unit/test_audit_exceptions.py fails after that date,
 # so the exception is looked at again, not kept by default.
-# Pillow 12.3.0 has thirty-six advisories fixed only in Pillow 13, and fastembed 0.9.0, the newest,
-# still requires pillow<13; the corpus build also pins pillow==12.3.0, since the scanned page is
-# drawn with the font Pillow bundles and tests/unit/test_corpus_build.py checks that a rebuild
-# gives the same pixels. Each advisory needs a file an attacker made (a PDF appended to, a GIF,
-# APNG, PNG, BMP, MSP, XBM or SPIDER image, a JPEG or JPEG 2000, a PPM or PGM, a TIFF, an EPS or its
-# file name, an IPTC or MIC image, a tar file, a broken font), an image saved as TIFF, JPEG or PDF,
-# or a failed allocation; one affects Windows builds only. raglab decodes no image it did not make
-# and saves only PNG: OCR hands the
+# Pillow 12.3.0 has thirty-eight advisories fixed only in Pillow 13, and fastembed 0.9.0, the
+# newest, still requires pillow<13; the corpus build also pins pillow==12.3.0, since the scanned
+# page is drawn with the font Pillow bundles and tests/unit/test_corpus_build.py checks that a
+# rebuild gives the same pixels. Each advisory needs a file an attacker made (a PDF appended to, a
+# GIF, APNG, PNG, BMP, MSP, XBM, SPIDER or FlashPix image, a JPEG or JPEG 2000, a PPM or PGM, a
+# TIFF, an EPS or its file name, an IPTC or MIC image, a tar file, a broken font), an image saved
+# as TIFF, JPEG or PDF, an image exported to Arrow with PILLOW_ALIGNMENT above 1, or a failed
+# allocation; one affects Windows builds only. raglab decodes no image it did not make, saves only
+# PNG and exports none to Arrow: OCR hands the
 # committed PNG's path to Tesseract (pytesseract opens no image for a path), the corpus build
 # re-reads only the PNG it rendered, fastembed loads a text model, and the API takes no files.
 # The advisories are named by their GitHub ids, which pip-audit matches as aliases. pip-audit
 # reported eight on 2026-10-21; GitHub's database has a ninth (GHSA-8g5g-8vmr-9782, JPEG), skipped
-# ahead of pip-audit's database; seven more were published the same evening, and twenty on
-# 2026-10-22, of the same kinds. The DeepEval tool's audit line skips the same: its own lock
-# resolves the same pillow 12.3.0 through raglab.
+# ahead of pip-audit's database; seven more were published the same evening, twenty on 2026-10-22
+# and two on 2026-10-23, of the same kinds. The DeepEval tool's audit line skips the same: its own
+# lock resolves the same pillow 12.3.0 through raglab.
 # pypdf 6.19.0 (decision of 2026-10-21, verbatim: "Keep 6.19.0, skip its 4 advisories
-# (Recommended)"): advisories fixed in 6.20.0, 6.20.1, 6.21.0 and 6.21.1, each an infinite loop, a
-# memory or runtime blow-up or image parsers reached from a PDF an attacker made; a fifth was
-# published after the decision and three more on 2026-10-22, of the same kinds. pypdf 6.21.2
-# (2026-10-21) is not yet tried: it is inside Dependabot's 7-day cooldown. raglab parses one PDF,
-# the corpus PDF its own build renders and
-# commits. pypdf 6.20.0 to 6.21.1 also change plain text extraction: a table cell's wrapped "the
+# (Recommended)"): advisories fixed in 6.20.0, 6.20.1, 6.21.0, 6.21.1 and 6.21.2, each an infinite
+# loop, a memory or runtime blow-up or image parsers reached from a PDF an attacker made; a fifth
+# was published after the decision, three more on 2026-10-22 and three on 2026-10-23 (fixed only in
+# 6.21.2), of the same kinds. pypdf 6.21.2 (2026-10-21) is not yet tried: it is inside
+# Dependabot's 7-day cooldown until 2026-10-28. raglab parses one PDF, the corpus PDF its own build
+# renders and commits. pypdf 6.20.0 to 6.21.1 also change plain text extraction: a table cell's wrapped "the
 # account" comes out as "theaccount", which fails the corpus build's checks that planted values
 # survive rendering (tests/unit/test_answer_key.py). Same review date; .github/dependabot.yml
 # ignores those versions until then.
@@ -46,9 +47,11 @@ AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8
 	GHSA-78g4-xqwv-q3g8 GHSA-9v9v-9qvf-h2hj GHSA-f2g6-542v-9j58 GHSA-g4qv-2jxx-769h \
 	GHSA-g7cr-3p24-7wf7 GHSA-g842-9rc4-69pw GHSA-gg2r-wvfm-q9rx GHSA-jg86-v3jv-hrpm \
 	GHSA-mrfp-p49p-3hf2 GHSA-p8hx-v2p6-rp84 GHSA-v9pv-5gc8-w2m6 GHSA-xgh8-jp6q-p5x8 \
+	GHSA-5x8w-8jj5-q52h GHSA-654x-cwwv-5j9c \
 	GHSA-39mj-jf6j-2qj3 GHSA-5hx5-vpf9-5wcv GHSA-7mh2-4gg2-979f GHSA-9mx8-4j7g-633p \
 	GHSA-qfv9-64jg-mh7p \
-	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57
+	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57 \
+	GHSA-6c7f-9265-g8fw GHSA-gmh7-3g9r-mjh5 GHSA-jr96-gvgh-j3r4
 
 .PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate eval-retrieval api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
