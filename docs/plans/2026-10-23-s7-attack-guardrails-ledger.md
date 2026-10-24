@@ -185,8 +185,10 @@ the ones the page showed (`git diff 98061e3 -- datasets/security` was empty befo
 The pack's schema check now takes `maintainer, <date>`, and
 `tests/security/test_security_pack.py::test_every_committed_case_is_ratified_by_role_and_date`
 holds the committed pack to it: no case pending. The link-guard decision: kept as built (above).
-The security tests were not re-run with this edit: S4b's live sessions had the Mac; they run when
-it is free.
+The security tests were not run with this edit while S4b's live sessions had the Mac. Run once
+when it was free (2026-10-24, 13:17 WEST, on `a54dd58`, `/usr/bin/time -p`):
+`pytest -m "not live and not judged and not guardrails and not perf" tests/security`, 276 passed
+in 43.61 s (`real 43.91`), the new ratification test among them; exit 0, the tree clean after.
 
 ### Runs S7a made
 
