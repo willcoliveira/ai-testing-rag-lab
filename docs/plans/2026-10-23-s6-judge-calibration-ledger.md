@@ -522,3 +522,144 @@ on `main`); gate "recall@5 0.682 (n 22) passes: the threshold is the baseline 0.
 "api-smoke: passed".
 
 The stop before the live session holds: the judge session waits for the maintainer's go.
+
+## JC3: the judge session on golden set v2 (2026-10-24, 22:01, to 2026-10-25, 00:22 WEST)
+
+**The go.** The maintainer chose the time; the question, verbatim: "S6's judge session takes about
+2 h 15 min. The judge model (~8.5 GiB) stays loaded and the GPU stays busy. The Mac must stay
+plugged in with the lid open, and nothing else heavy can run alongside it. When should it run?";
+the answer, verbatim: "Tonight, after checks (Recommended)". The orchestrator's checks at 22:00: AC
+power, Ollama down (no process, nothing on 11434), no make or pytest running, about 27 GiB free,
+the tree clean at `c8da78b`. The developer's, at 22:01:39: the tree clean at `c8da78b`; `pmset -g
+batt` "Now drawing from 'AC Power'"; no ollama, pytest or make process; `make ollama-status`: no
+pid, port closed, no process, nothing loaded, 26.9 GiB available, "power": "AC Power".
+
+**The command, verbatim, with the wrapper:** `caffeinate -i make judge-local
+RUN=20261024T090351Z-generation-local-ollama-dev-ade9397`, run in the background from the clean
+tree at `c8da78b`, its output to `runs/tmp/s6-evidence/judge-session.log` (gitignored) with the
+shell's clock before and after. `caffeinate -i` kept the Mac from idle sleep while the command ran
+(this Mac's system sleep is set to 1 minute, and `make judge-local` holds no wake assertion of its
+own) and changed no setting. Nothing else ran beside it: the developer read only the log's key
+lines, three times, and counted the server's requests once.
+
+| | |
+|---|---|
+| Launch | 2026-10-24T22:01:56 WEST (the shell's `date`) |
+| Preflight | "model: ministral-3:14b-instruct-2512-q4_K_M at the pinned digest 4760c35aeb9d"; "memory: 27.0 GiB available; the model needs 8.5 GiB plus a margin of 4 GiB"; "power: the Mac draws from 'AC Power'"; "ollama 0.40.6 up on http://127.0.0.1:11434 (pid 1086, ...)" |
+| The judge's live contract test | "1 passed, 4 deselected in 32.99s" |
+| The canaries | "canaries: judging 19 items first", then "canaries: all 19 on their side" |
+| The judged run | "judged 303 case-trials", then the checks on the judge; "run record: .../runs/tmp/20261024T210231Z-judge-local-dev-c8da78b" |
+| The stop | "unloaded ministral-3:14b-instruct-2512-q4_K_M"; "stopped the server (pid 1086)"; **"postcheck passed: port closed, no ollama process, no model loaded"**; exit 0 |
+| End | 2026-10-25T00:22:49 WEST: **2 h 20 min 53 s** (8,453 s) from launch to the postcheck |
+| After | `make ollama-status`: no pid, port closed, no process, nothing loaded, 27.1 GiB available, AC Power |
+
+**The record, `20261024T210231Z-judge-local-dev-c8da78b`** (created 2026-10-24T21:02:31Z,
+provenance local, not partial, git `c8da78b` clean). Its manifest names: config `judge-local`, file
+sha256 `4d7b79f03a1f…` and canonical sha256 `6d0e2f3c4a84…` (today's, the cap of 12,600 s); the
+judge `ministral-3:14b-instruct-2512-q4_K_M` at digest `4760c35aeb9d…`, server 0.40.6; judge-v2
+`e90d9d8d8bcb…`; docs/CRITERIA.md `8c8f973a3306…`; the canary set `4ca54c3ced55…`; the source,
+S4b's run 1, manifest sha256 `d7dd1ea383a4…`. `record.validate`: no problem. Its manifest's sha256:
+`417f2d5ca0ba571c1c603a222bc02dcad29dcca650ebf2e0c1b57ac5225eddbd` (pinned by the sample, below).
+
+**Calls and time** (from the manifest): 1,400 judge calls, the dry run's count: 1,015 verdicts
+(the role `judge`), 366 checks on the judge (`judge_checks`: 268 repeats and 98 reversals) and 19
+canaries; the generator's 303 from the source. Tokens as the server reported them: judge 756,289
+prompt and 125,146 completion; checks 303,782 and 48,028; canaries 14,224 and 1,688; unreported 0
+in every role. The run itself took **8,417.243 s: 6.012 s a call** (its duration over its 1,400
+calls); a judge call's p50 5,755.260 ms and p95 10,721.633 ms (n 1,400). Against the estimate
+(about 2 h 6 min to 2 h 15 min, from the measured means 5.384 and 5.710 s): the session took 2 h
+20 min 53 s, the run's mean per call 5.3% above the slower measured mean; inside the plan's own
+range (2 h 13 min to 2 h 21 min at its design count). The run used 67% of its cap (8,417 of
+12,600 s).
+
+**Aggregate results only** (the blindness rule: no case, trial or item until the labels are
+sealed). Per criterion, from the manifest's results: rate over judged verdicts with its 95% Wilson
+interval at n = cases, pass^3, and the counts; `invalid_output` and `unavailable` were 0 for every
+criterion.
+
+| Criterion | Judged | pass | fail | unable_to_verify | Rate [95%] (n cases) | pass^3 | Quote missing |
+|---|---|---|---|---|---|---|---|
+| `grounded` | 298 | 252 | 46 | 0 | 0.846 [0.763, 0.903] (101) | 70 of 101 | 6 |
+| `cites_support` | 149 | 128 | 21 | 0 | 0.859 [0.738, 0.929] (51) | 35 of 51 | 10 |
+| `correct` | 179 | 80 | 99 | 0 | 0.447 [0.329, 0.571] (61) | 16 of 61 | 14 |
+| `relevant` | 244 | 212 | 32 | 0 | 0.869 [0.780, 0.925] (83) | 58 of 83 | 7 |
+| `abstains` | 54 | 31 | 23 | 0 | 0.574 [0.353, 0.769] (18) | 6 of 18 | 0 |
+| `refuses_and_helps` | 30 | 29 | 1 | 0 | 0.967 [0.677, 0.998] (10) | 9 of 10 | 3 |
+| `context_sufficient` | 61 | 34 | 26 | 1 | 0.557 [0.433, 0.675] (61) | - | - |
+
+Passages named but not shown: 2 `grounded` verdicts and 1 `relevant`. **The checks on the judge:**
+repeatability 268 of 268 pairs agree (`grounded` 76, `cites_support` 48, `correct` 58, `relevant`
+58, `abstains` 18, `refuses_and_helps` 10); order (`grounded` with the passages reversed) 89 of 98
+agree. All reported, nothing gated: the calibration's verdicts decide what may gate.
+
+**Published:** `uv run raglab publish 20261024T210231Z-judge-local-dev-c8da78b` ("published: ...")
+from the clean tree: validation, the stale check (CRITERIA.md and the canary set current), the
+planted strings and the privacy check passed; committed in `e1426f3` (the record and
+`runs/published/index.json`). **The one-judge test** holds it with today's cap, its file sha256
+included (`0d7d9f8`): "4 passed"; JC2's temperature break (`temperature = 0.1`) now fails all
+three records ("3 failed, 1 passed"), restored. THRESHOLDS.md's judged section names it as the
+judged baseline, with `5aa0ec5`, `c14acb0` and `25ccc0d` as v1.1 history, and docs/LOCAL-MODEL.md
+the session's time (`c4e7558`).
+
+## JC4: the sample (2026-10-25, 00:24 WEST, `44b4adc`)
+
+`uv run raglab calibrate sample --judged 20261024T210231Z-judge-local-dev-c8da78b --folder
+datasets/calibration/judge-v2-c1`, verbatim: "grounded: 15 items, 7 of the frame's 252 judge passes
+and 8 of its 46 judge fails"; "abstains: 15 items, 7 of the frame's 31 judge passes and 8 of its
+23 judge fails"; "sample: 30 items written to .../sample.jsonl". No shortfall. Its pins: rule
+`s6-1`, seed 20261023, the bar's sha256 `8b7faa3ec1fc…` (bar.toml, last changed in `d7c9b76`), the
+judged record and its manifest sha256 `417f2d5ca0ba…`, the source run, judge-v2, the judge's seed
+20261020, `excludes` [] and `shortfall` [], drawn at 2026-10-24T23:24:21Z. The file: 31 lines (the
+pins and 30 items), sha256 `c562d13ad2e55e0a9b9d820e28ff2a1c00b7e61166f55582f9fcd71222c91a07`.
+`raglab calibrate check`: "judge-v2-c1 draws and regenerates as committed". The repository's tests
+over the committed sample (the re-draw, the order, the exclusion): "47 passed, 2 skipped" (no
+record, no labels yet).
+
+**The chain so far, by `git log` (committer times):** the bar `d7c9b76` (2026-10-23T23:52:27+01:00)
+→ the judged record published `e1426f3` (2026-10-25T00:23:37+01:00) → the sample `44b4adc`
+(2026-10-25T00:24:35+01:00); the labels follow.
+
+**What `make label` shows** (a smoke check, 00:25, with `q` at once; read through a filter of its
+headers only): "===== Item 1 of 30: grounded =====", the criterion's rules ("Criterion: grounded",
+"Pass when ...", "Fail when ..."), the question, passages and answer frames, "Passages shown, by
+number:", then the verdict prompt. `q` stopped it, and no labels file was written.
+
+## The labelling, handed to the maintainer
+
+From here the stage waits for the maintainer's labels (the plan's step 6). The steps, as the guide
+gives them (`datasets/calibration/README.md`):
+
+1. In a terminal, in this worktree:
+   `cd /Users/admpro/Documents/other/ai-testing-rag-lab/.claude/worktrees/agent-ab79f506441b53cf5`
+   (branch `feat/s6-judge-calibration`). No model, no Ollama and no network are needed.
+2. `make label`. Each of the 30 items shows the criterion's rules (15 `grounded`, then 15
+   `abstains`), then the question, the passages and the answer exactly as the judge saw them.
+   Answer: `p` or `f`; the quote, words of the answer copied exactly; the passages your verdict
+   rests on (their numbers, or empty for none); one sentence of reason; `y` or `n` for ambiguous (y
+   when the frozen rule reads two ways, with both readings in the reason). `q` stops; `make label`
+   resumes at the first unlabelled item; `make label REDO=<n>` labels item n again, before the seal.
+3. Before the seal, do not open the judged record's `cases.jsonl` or `report.md`
+   (`runs/published/20261024T210231Z-judge-local-dev-c8da78b/`), its playground page, or this
+   folder's record files.
+4. When all 30 are labelled: `make label SEAL=1` ("sealed labels.jsonl: 30 labels, sha256 ...").
+   Nothing changes after it.
+5. Then a statement, in your own words, that you did not open those files before the seal; the
+   developer quotes it verbatim here and commits `labels.jsonl` and `labels.seal.json` as written,
+   in one commit.
+6. The re-label: `make relabel`, no earlier than 24 hours after the seal's time (it refuses before,
+   naming when it opens), 12 items, then `make relabel SEAL=1`.
+
+Time (the plan's estimates): the 30 labels about 1 h 15 min to 2 h 15 min, in one or two sittings;
+the re-label about 30 to 55 minutes; the disagreements, after the seal, about 15 to 30 minutes.
+
+## make -k check at the labelling stop (2026-10-25, 00:27 to 00:32 WEST, at `c4e7558`): green
+
+`/usr/bin/time -p make -k check API_SMOKE_PORT=8767`: real 303.53 s, **exit 0**. format "278 files
+already formatted"; lint "All checks passed!"; types "0 errors, 0 warnings, 0 informations"; deps
+"Success! No dependency issues found."; audit, both lines "No known vulnerabilities found, 48
+ignored"; sast silent; workflows "No findings to report. Good job!"; secrets "no leaks found" twice
+(415 commits); privacy "0 hits across 415 files (42 rules)"; architecture "0 architecture
+violations in src/raglab"; check-dataset v1.1 and v2 both pass; model in the cache; test **"1490
+passed, 2 skipped, 2 deselected, 1 warning in 251.90s (0:04:11)"** (the 2 skips: no record and no
+labels yet; the committed sample's re-draw now runs and passes); gate "recall@5 0.682 (n 22)
+passes"; api-smoke "api-smoke: passed".
