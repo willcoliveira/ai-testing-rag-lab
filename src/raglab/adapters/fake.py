@@ -80,8 +80,11 @@ def echo(request: ChatRequest) -> str:
 
 
 class FakeChat:
-    def __init__(self, script: Script | None = None, name: str = "fake-echo") -> None:
+    def __init__(
+        self, script: Script | None = None, name: str = "fake-echo", provider: str = "fake"
+    ) -> None:
         self._name = name
+        self._provider = provider  # S9: "perf-stub" for the perf stub, the echo under that name
         self._function = script if callable(script) else None
         self._replies = None if script is None or callable(script) else list(script)
         self.requests: list[ChatRequest] = []
@@ -91,7 +94,7 @@ class FakeChat:
         return self._name
 
     def describe(self) -> dict[str, object]:
-        return {"provider": "fake", "model": self._name, "digest": "fake"}
+        return {"provider": self._provider, "model": self._name, "digest": "fake"}
 
     def complete(self, request: ChatRequest) -> ChatReply:
         self.requests.append(request)
