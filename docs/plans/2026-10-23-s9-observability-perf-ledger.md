@@ -603,3 +603,77 @@ tests 169.31 s:
     api-smoke: passed
 
 The fix's proof on Linux is the pull request's next pr-fast run (OB12's [CI] half).
+
+**On Linux** (the orchestrator's report): pr-fast run 40129906753 on `bdbc0d1` is green. `check`
+took 10 min 5 s, "1538 passed, 2 deselected", both audits "48 ignored", the gate and the API smoke
+passed; `perf` passed with "✓ 'med<40' med=13.99ms", p90 16.02 ms, p95 16.18 ms; `conventions`
+passed. The six subprocess cases pass there: the filter holds on GitHub's runner. That is OB12's
+[CI] half, at `bdbc0d1`.
+
+## The merge of main with S4b (2026-10-24)
+
+S4b merged (pull request #30, merge commit `b7eb791`). The orchestrator's go, at about 21:35 WEST:
+merge `main` again. The first attempt met conflicts beyond CHANGELOG.md, so it stopped there and
+was aborted (`git merge --abort`, the branch clean at `bdbc0d1`) and handed back; the orchestrator
+approved the resolutions proposed, verbatim "Go: resolve all five conflicts exactly as you
+proposed". The redo: `git fetch origin`, `git merge --no-ff origin/main` at `bdbc0d1`, merge commit
+**`892b416`** (parents `bdbc0d1` and `b7eb791`), git's default message, which the hooks passed.
+
+**The six conflicts, each one hunk, resolved by keeping both sides:**
+
+| File | S9's side | S4b's side (main) | Resolved |
+|---|---|---|---|
+| `Makefile`, the `.PHONY` line | `perf-smoke` after `api-smoke` | `eval-retrieval` after `gate` | one line with both: `... test gate eval-retrieval api-smoke perf-smoke hooks ...` |
+| `README.md`, the status diagram's class lines | `class S0,S1a,S1b,S2,S3,S4,S5,S9 done`; `class S3h,S4b,S6,S7,S8,S10,S11,S12,B todo` | `class S0,S1a,S1b,S2,S3,S4,S5,S4b done`; `class S3h,S6,S7,S8,S9,S10,S11,S12,B todo` | `class S0,S1a,S1b,S2,S3,S4,S5,S4b,S9 done`; `class S3h,S6,S7,S8,S10,S11,S12,B todo` (main has no wip line) |
+| `docs/ARCHITECTURE.md`, the same lines | as README | as README | as README, identical in both files |
+| `docs/ONBOARDING.md`, the opening paragraph | the S5-era paragraph with S9's sentence added | rewritten "current as of S4b (2026-10-24) ..." | S4b's paragraph, with S9's sentence after "(the S5 ledger).": "S9, brought forward, adds tracing with redaction, the perf mode and the k6 smoke (docs/OBSERVABILITY.md)." |
+| The main plan, before the v0.3 heading | the heading "**v0.3 (S3h, S10, S11).**" (fix round 1) | its dated note "Decision (2026-10-23): S4b's judged baseline on golden set v2 moves to S6 ..." above the old heading | S4b's note, a blank line, then S9's heading |
+| `CHANGELOG.md`, the top of Unreleased | S9's line | S4b's line ("S4b, golden set v2 ...") | S9's line, then S4b's, then the rest as on main |
+
+Against `main`, each resolved file now differs only by S9's own changes (the diagrams: the S9 node
+in P2, `S8 --> S3h`, S9 `done`; ONBOARDING: S9's sentence and rows; the Makefile: `perf-smoke`;
+CHANGELOG: S9's line).
+
+**The auto-merged TEST-PLAN.md and THRESHOLDS.md, read once:** both stages' rows are intact.
+Against `main`, the two files differ only by S9's changes (TEST-PLAN: Q-01's pointer to the k6 row
+and section 10's observability and perf lines; THRESHOLDS: the Performance (S9) section with the
+ten runs and T); against `bdbc0d1`, only by S4b's (TEST-PLAN: the traceability table derived from
+golden set v2, the "golden set v2 (S4b ...)" line of section 10, R-22's gap for S8; THRESHOLDS:
+the consistency row on v2, the note on the judged baseline staying on v1.1, Q-01's wording "on S4's
+consistency baseline, on golden set v1.1").
+
+`uv lock --check` "Resolved 86 packages"; `uv lock --project tools/deepeval-check --check`
+"Resolved 100 packages"; S4b changed neither lock.
+
+**`make -k check API_SMOKE_PORT=8766`** on `892b416` (the S6 developer's check used port 8767 at
+the same time; no live session, `make ollama-status` clean): **exit 2**, 245.27 s real (233.74 s
+user). **One target failed, `test`**: "1 failed, 1587 passed, 2 deselected" (201.30 s). The
+failure, left unfixed as the orchestrator asked:
+
+- `tests/unit/test_eval_config.py::test_the_configs_name_one_golden_file_and_the_position_test_keeps_v1_1`
+  (S4b's, line 63): "assert with_dataset == {*MOVING, "position-local"}" with "Extra items in the
+  left set: 'perf'". The test holds the set of committed configs that name a dataset to S4b's
+  seven moving configs plus `position-local`; S9's `config/perf.toml` names one too
+  (`datasets/golden.v1.jsonl`, copied from the local config before S4b moved the others to
+  `datasets/golden.v2.jsonl`). A generation config must have its `[dataset]` table
+  (`raglab.evals.config`), though `raglab serve` never reads the golden set. The files involved:
+  S9's `config/perf.toml` and S4b's `tests/unit/test_eval_config.py` (`MOVING`).
+
+Every other target passed:
+
+    282 files already formatted                                   format
+    All checks passed!                                            lint
+    0 errors, 0 warnings, 0 informations                          types
+    Success! No dependency issues found.                          deps (deptry; vulture silent)
+    No known vulnerabilities found, 48 ignored                    audit, the main environment
+    No known vulnerabilities found, 48 ignored                    audit, the DeepEval tool's lock
+    (bandit and semgrep silent)                                   sast
+    No findings to report. Good job!                              workflows
+    no leaks found, no leaks found                                secrets
+    0 hits across 420 files (42 rules)                            privacy
+    0 architecture violations in src/raglab                       architecture
+    check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 3d924ad0bd1d)
+    ===== 1 failed, 1587 passed, 2 deselected, 1 warning in 201.30s (0:03:21) ======
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636
+    api-smoke: passed                                             (on http://127.0.0.1:8766/)
