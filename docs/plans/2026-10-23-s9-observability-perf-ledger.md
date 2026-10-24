@@ -235,6 +235,54 @@ bytes); every later run checked both sums from the cache.
 - The command guard refused several compound shell lines (a heredoc that also ran a script, a
   binary named through a shell variable, `git -C`); each was split into plain steps or written as a
   file. None was routed around.
-- `make perf-smoke`'s breaks of OB6 ran `raglab serve` subprocesses that, with the check removed,
+- During OB6's breaks the subprocess tests ran `raglab serve` with the check removed, so it
   assembled the real corpus with the cached embedder (`HF_HUB_OFFLINE=1`), and one reached for
   Ollama's port on loopback, which refused: Ollama was down throughout (`make ollama-status`).
+
+## make -k check at stop 1
+
+On `2225bdf` (this ledger but this section), `/usr/bin/time -p make -k check`: 210.68 s real
+(198.79 s user), the tests 170.63 s, against "about 3.5 to 4 minutes" before S9. Every target
+passed but `audit`, which failed on the pre-existing lines only (above; none names a package S9
+added):
+
+    267 files already formatted                                   format
+    All checks passed!                                            lint
+    0 errors, 0 warnings, 0 informations                          types
+    Success! No dependency issues found.                          deps (deptry; vulture silent)
+    Found 8 known vulnerabilities, ignored 43 in 3 packages       audit: filelock 4.0.12 (3),
+                                                                  pillow 12.3.0 (2), pypdf 6.19.0 (3)
+    (bandit and semgrep silent)                                   sast
+    No findings to report. Good job!                              workflows
+    no leaks found, no leaks found                                secrets
+    0 hits across 388 files (42 rules)                            privacy
+    0 architecture violations in src/raglab                       architecture
+    check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    ========== 1531 passed, 2 deselected, 1 warning in 170.63s (0:02:50) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+`make audit` stops at its first line's failure, so the tool's audit line ran separately with
+`make -i audit` (above: the five pillow and pypdf lines). `make perf-smoke` is not in `make check`;
+its last local run passed (above).
+
+## What the draft pull request's first run must show
+
+- **`check`**: every step green but `make audit` (the pre-existing lines, until the orchestrator's
+  audit pull request merges), the tests and the API smoke passing; its time against the 607 to
+  697 s of 2026-10-23.
+- **`perf`**, its first run on linux amd64: the two fetches printing `ok   k6 2.3.0:
+  k6-v2.3.0-linux-amd64.tar.gz, sha256 39c3117b... (the pin)` and `ok   otelcol 0.162.0:
+  otelcol_0.162.0_linux_amd64.tar.gz, sha256 f99929987a91... (the pin)` (the linux pins and member
+  names were checked by download on the Mac, never yet run by the script), `validate` on the three
+  configurations, the steps 1 to 6 `ok`, the line `perf-smoke: /ask median ... ms, p90 ..., p95
+  ... ms, ...; the median's threshold T: not set`, the step summary's table, and `perf-smoke:
+  passed`; its time against the plan's estimate of 3 to 6 minutes.
+- **`conventions`**: the title, the branch and this CHANGELOG line.
+
+Then OB10, by the rule: ten report-only runs of the perf job at one commit, all kept; each run's
+median and p95 copied from its `perf-smoke: /ask median ...` line with its run id; T = 2 × the
+largest median, rounded up to the next 10 ms, written in `perf/smoke.js` (`MEDIAN_THRESHOLD_MS`)
+and THRESHOLDS.md's cell (`median < T ms`, with the ten run ids, medians and p95s), which the test
+holds equal; then S9 `done` in the phase map, ONBOARDING's last row moved, and the median break
+(a delay of 2 × T in the `/ask` route) run locally.
