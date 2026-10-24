@@ -262,3 +262,194 @@ the tests that read them:
 
 The guide (`datasets/calibration/README.md`) is read by no test. The full `make -k check` waits for
 the next stop, after the merge of `main`.
+
+## The merge of `main` (2026-10-24, 21:39 WEST)
+
+S4b merged as pull request #30 (`b7eb791` on `origin/main`). The orchestrator's go for the steps
+after it, verbatim in its first lines: "S4b is merged: #30, merge commit b7eb791 on origin/main.
+This is your go for S6's post-S4b steps, up to the stop before the live session." Its step 1 said
+to stop, unresolved, if any file but CHANGELOG.md conflicted. The first `git merge --no-ff
+origin/main` conflicted in CHANGELOG.md, the Makefile (`.PHONY`), README.md and
+docs/ARCHITECTURE.md (the status lines), so the developer ran `git merge --abort` and handed back
+with a proposed resolution. The orchestrator's answer, verbatim: "Go: redo the merge of origin/main
+(b7eb791) and resolve it as you proposed. 1. **CHANGELOG.md:** S6's line first, then S4b's, then
+the audit fix's, every line kept. 2. **Makefile `.PHONY`:** main's line, with `label relabel
+calibrate` added at the end. 3. **README.md and docs/ARCHITECTURE.md:** identical in both: - `class
+S0,S1a,S1b,S2,S3,S4,S5,S4b done` - `class S6 wip` - `class S3h,S7,S8,S9,S10,S11,S12,B todo`".
+
+`git fetch origin`, then `git merge --no-ff --no-edit origin/main`: the same four files conflicted,
+and nothing else (docs/ONBOARDING.md, docs/TEST-PLAN.md, docs/THRESHOLDS.md,
+`src/raglab/__main__.py` and `tests/unit/test_test_plan.py` merged without a conflict). Each was
+resolved as the go says, by a scratch script that refused any file with other than one conflict
+block, and the merge was committed with git's default message: `26b5a5a` ("Merge remote-tracking
+branch 'origin/main' into feat/s6-judge-calibration"), parents `8ff9ff8` (S6) and `b7eb791`
+(main); 64 files changed against S6's parent, 24 against main's. The resolved hunks, `git show --cc
+26b5a5a -- CHANGELOG.md Makefile README.md docs/ARCHITECTURE.md` (the CHANGELOG's two main lines in
+full; the `.PHONY` lines are one line each in the file):
+
+```
+diff --cc CHANGELOG.md
+@@@ -5,15 -5,26 +5,35 @@@ One line per change, newest first, grou
+  ## Unreleased
+
+ +- S6, judge calibration (plan `docs/plans/2026-10-23-s6-judge-calibration.md`, ledger beside it):
+ +  [S6's line, nine lines in all, as before]
++ - S4b, golden set v2 (plan `docs/plans/2026-10-23-s4b-golden-set-v2.md`, ledger beside it):
++   [S4b's line, thirteen lines in all, as on main]
++ - The advisories published on 2026-10-23, so the audit passes on `main` again: filelock 4.0.12 →
++   [the audit fix's line, seven lines in all, as on main]
+  - answer-v2, the prompt fix for abstention (plan `docs/plans/2026-10-21-answer-v2.md`, ledger
+diff --cc Makefile
+- .PHONY: check ... test gate api-smoke hooks ... container container-run zap label relabel calibrate
+ -.PHONY: check ... test gate eval-retrieval api-smoke hooks ... container container-run zap
+++.PHONY: check ... test gate eval-retrieval api-smoke hooks ... container container-run zap label relabel calibrate
+diff --cc README.md
+-   class S0,S1a,S1b,S2,S3,S4,S5 done
++   class S0,S1a,S1b,S2,S3,S4,S5,S4b done
+ -  class S3h,S6,S7,S8,S9,S10,S11,S12,B todo
+ +  class S6 wip
+-   class S3h,S4b,S7,S8,S9,S10,S11,S12,B todo
+++  class S3h,S7,S8,S9,S10,S11,S12,B todo
+diff --cc docs/ARCHITECTURE.md
+-   class S0,S1a,S1b,S2,S3,S4,S5 done
++   class S0,S1a,S1b,S2,S3,S4,S5,S4b done
+ -  class S3h,S6,S7,S8,S9,S10,S11,S12,B todo
+ +  class S6 wip
+-   class S3h,S4b,S7,S8,S9,S10,S11,S12,B todo
+++  class S3h,S7,S8,S9,S10,S11,S12,B todo
+```
+
+The elided parts are unchanged lines of either parent (the `.PHONY` lines' middles are the same
+targets on both sides; the CHANGELOG lines are each side's own text, kept whole). The Makefile hunk
+also carries main's five new `AUDIT_SKIP` ids, taken from main as they are. The two tests the go
+names, before the commit: `test_readme_status_matches_architecture` and
+`test_each_node_has_exactly_one_known_status`: "2 passed".
+
+## The dry run on S4b's run 1 (2026-10-24, 21:41 WEST, at `26b5a5a`)
+
+`judged.run` with `config/judge-local.toml` on `20261024T090351Z-generation-local-ollama-dev-ade9397`
+(S4b's run 1, the consistency baseline on golden set v2's dev slice, answer-v1, ×3), with a scripted
+fake judge (FakeChat: no model, no Ollama, no network) that answers each canary on its side and
+passes every other call, written to the scratchpad, never into the repository. A scratch script, as
+S5's dry run. The record validated (`record.validate`: no problem; provenance fake, so it can never
+be published); `judged.run` took 0.653 s and the script 0.665 s in all, ingest included. The counts,
+as the record holds them (aggregate only; the fake's verdicts are not the judge's, and no judged
+record on v2 exists yet):
+
+| Kind | Calls |
+|---|---|
+| canaries | 19 |
+| verdicts | 1,015: `grounded` 298, `cites_support` 149, `correct` 179, `relevant` 244, `abstains` 54, `refuses_and_helps` 30, `context_sufficient` 61 |
+| repeatability (trial 1 of every behaviour case judged again) | 268: `grounded` 76, `cites_support` 48, `correct` 58, `relevant` 58, `abstains` 18, `refuses_and_helps` 10 |
+| order (`grounded` with the passages reversed) | 98 |
+| **in all** | **1,400** |
+
+The source: 303 case-trials of 101 cases (79 behaviour cases, 43 `answer`, 18 `abstain`, 8
+`flag-conflict`, 10 `refuse-and-help`; 22 retrieval questions); statuses ok 298 and blocked 5 (a
+withheld trial's answer is judged on no criterion; `context_sufficient` reads its retrieval). The plan's design count was about 1,469 and S4b's developer's
+about 1,433 on the earlier split (relayed by the orchestrator, to be taken from the merged data):
+the merged data gives 1,400. `abstains`' frame will hold at most 54 verdicts, as the plan
+projected.
+
+## The cap (2026-10-24, `ec9870c`)
+
+The plan's rule: the count × 5.710 s (the slower measured mean) × 1.5, up to the next half hour.
+The two means, from the records: 3,380.41 s / 592 = 5.7102 s (S5's judged baseline, `5aa0ec5`) and
+3,257.091 s / 605 = 5.3836 s (answer-v2's judged record, `c14acb0`). 1,400 × 5.710 × 1.5 = 11,991
+s, so **`run_timeout_s = 12600`** (3 h 30 min), 1.58 times 1,400 calls at the slower mean.
+Committed before the session, with the count, the two means and the rule in the comment (the
+config's other lines unchanged):
+
+- `git diff origin/main -- config/judge-local.toml`: the `[judging]` cap's comment block and its
+  value, 7200 to 12600, and nothing else. `git diff --stat origin/main -- src/raglab/judge
+  docs/CRITERIA.md datasets/canaries.judge.jsonl pyproject.toml uv.lock`: empty.
+- `shasum -a 256`: `config/judge-local.toml` now
+  `dac42367c992897e3e0f7a840618fe50377c4d5eb9238ef20d287f7eeeca26ff` (the file sha256 the v2 record
+  will carry); its canonical sha256 `6d0e2f3c4a84029d82674e230f76acf2efcf89a353ca2002d42fb815e6d305ec`;
+  docs/CRITERIA.md `8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e` and the canary
+  set `4ca54c3ced557118f26306543164dc01c7509d1866e9e77f6cd4f2d3284b328f`, unchanged.
+- With it: `tests/judge/test_judged_cap.py` (2 tests: the calls counted again from the source record
+  with the judged record's own rules, 19, 1,015, 268 and 98, which needs no OCR text and runs in CI;
+  the rule on that count and the two means read from the records, equal to the config's cap, whose
+  comment states the count, the means, the factor and the result); the cap literal of
+  `tests/unit/test_eval_config.py`'s refusal test; the example in `src/raglab/evals/config.py`; the
+  judge session's row of docs/LOCAL-MODEL.md. `tests/judge/test_answer_v2_one_judge.py` needed no
+  change: it holds `5aa0ec5` and `c14acb0` at 7200.0.
+- JC2's breaks at `ec9870c`, each restored from git: `temperature = 0.1`: "2 failed, 1 passed"
+  (both records); `seed = 20261021`: "2 failed, 1 passed"; the cap alone, `14400`: the one-judge
+  test "3 passed" (expected pass), and `test_judged_cap.py` "1 failed, 1 passed" (the rule's own
+  check). After the restores: "5 passed".
+
+## The session's estimate
+
+Judging 1,400 calls, at S5's per-call medians (the judged records' `latency_ms.p50`): 5.523 s
+(`5aa0ec5`) gives 7,731.9 s, 2 h 8 min 52 s; 5.866 s (`25ccc0d`, judge-v1) gives 8,212.3 s, 2 h 16
+min 52 s. At the measured means (each run's duration over its calls, the plan's basis): 5.384 s
+gives 7,537.1 s, 2 h 5 min 37 s; 5.710 s gives 7,994.2 s, 2 h 13 min 14 s. Per-call times skew
+right (p95 9.5 to 13.0 s in those records), so a median understates the sum, and the means are the
+better estimate. With the judge's live contract test (33.11 s, answer-v2 ledger) and the server's
+start and stop: **about 2 h 6 min to 2 h 15 min**, under the cap's 3 h 30 min. An estimate, not a
+measurement: the session measures its own.
+
+## The stop before the live session (JC3)
+
+What the session needs, for the maintainer's go:
+
+- **The command:** `make judge-local RUN=20261024T090351Z-generation-local-ollama-dev-ade9397`, in
+  this worktree, at the head of this stop, with a clean tree (a run made from a dirty tree is never
+  published). The target runs the judge's live contract test, then `raglab judge`: the canaries
+  first (one off its side stops the session before any judged call, and no record is written),
+  every answer on its criteria, then the checks on the judge, under the cap of 12,600 s.
+- **The judge:** `ministral-3:14b-instruct-2512-q4_K_M` at digest
+  `4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7` (the preflight reads it from the
+  local manifest before the server starts and refuses another), judge-v2 `e90d9d8d8bcb…`,
+  docs/CRITERIA.md `8c8f973a3306…`, the canary set `4ca54c3ced55…`, temperature 0, seed 20261020.
+- **Power:** AC only. The preflight refuses on battery; the watcher stops a session that loses
+  power, and nothing is published.
+- **Memory:** the model's 8.5 GiB plus the 4 GiB margin, about 12.5 GiB available before the server
+  starts (in the S5 ledger, the judge sessions' preflights read 26.3 and 23.1 GiB available).
+- **Nothing beside it:** one model; no `make check`, no other stage's session or test run, no
+  other Ollama use, for its whole length (about 2 h 6 min to 2 h 15 min, above). A sleep pauses the
+  run (the cap counts awake time only).
+- **After it:** the record validated and published from a clean tree (`raglab publish`), then the
+  sample drawn (`raglab calibrate sample --judged <the record> --folder
+  datasets/calibration/judge-v2-c1`) and committed, then the labels. From the record's existence,
+  this ledger and every message give its aggregate numbers only, until the labels are sealed.
+
+## make -k check at stop 2 (2026-10-24, 21:46 to 21:51 WEST, at `ec9870c`): one test fails
+
+`/usr/bin/time -p make -k check API_SMOKE_PORT=8767` (the S9 developer's check used port 8766 at
+the same time): real 298.87 s (user 288.31 s, sys 17.50 s), **exit 2, from `test` alone**:
+
+| Target | Result |
+|---|---|
+| format | "277 files already formatted" |
+| lint | "All checks passed!" |
+| types | "0 errors, 0 warnings, 0 informations" |
+| deps | "Success! No dependency issues found."; vulture silent |
+| audit | green since the merge of `main`: both lines "No known vulnerabilities found, 48 ignored" |
+| sast | bandit and semgrep silent (pass) |
+| workflows | "No findings to report. Good job!" |
+| secrets | "no leaks found", twice (405 commits) |
+| privacy | "0 hits across 411 files (42 rules)" |
+| architecture | "0 architecture violations in src/raglab" |
+| check-dataset | "datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)" and "datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 3d924ad0bd1d)" |
+| model | already in the cache |
+| test | **"1 failed, 1487 passed, 3 skipped, 2 deselected, 1 warning in 253.26s (0:04:13)"** |
+| gate | "recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636" |
+| api-smoke | "api-smoke: passed" |
+
+**The failure:** `tests/judge/test_calibration_leak.py::test_nothing_under_the_judge_package_names_the_calibration`
+(JC9's path test): `assert not names.search(config)` found "calibration" in `config/judge-local.toml`.
+The cap's new comment (`ec9870c`) names S6's plan file, `docs/plans/2026-10-23-s6-judge-calibration.md`,
+and the path test's pattern (`calibration|labels?\.jsonl|relabels|raglab\.evals\.label`) reads any
+"calibration" in the judge's config as naming the calibration. My own change, not a conflict: the
+config names no calibration folder or label file. The 3 skips are the repository-level tests over
+committed calibration files, none of which exist yet; the warning is starlette's, as on `main`.
+
+By the orchestrator's go ("If anything beyond these files conflicts, or the check fails, stop and
+hand back"), the developer stopped here, unfixed, and handed back two ways to fix it: reword the
+comment so it does not name the plan's file (`config/judge-local.toml` only; the path test stays
+as strict), or narrow the pattern to the calibration folder and the label files
+(`datasets/calibration`, `labels.jsonl`, `relabels`, `raglab.evals.label` and
+`raglab.evals.calibration`). Either is followed by the full `make -k check` again.
