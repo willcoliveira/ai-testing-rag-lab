@@ -243,6 +243,11 @@ make target's recipe.
 tests and `attack.run` in a fixture; `make -n attack-local` prints the recipe. The live session
 will run the same commands through `make attack-local`.
 
+**`make -k check` at `a20e7fb`** (`/usr/bin/time -p`): every target passes but `audit`, the same
+pre-existing advisories as at STOP 1 (filelock 4.0.12, three; pillow 12.3.0, two; pypdf 6.19.0,
+three); test 1644 passed, 2 deselected in 207.77 s; gate recall@5 0.682 passes; api-smoke passed;
+`real 249.75`, 34.5 s more than at STOP 1, about the attack-run tests' 35 s.
+
 ## Part S7b
 
 (After S6 and S7a merge.)
