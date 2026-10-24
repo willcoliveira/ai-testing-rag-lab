@@ -223,8 +223,8 @@ test and no `make check` ran for this; the commit hooks did):
   status but no reason, so `render_record` now writes one sentence per criterion whose kappa
   cannot be computed ("...: neither trusted nor stopped, and S8 does not gate on <criterion>"),
   with a new test, `test_the_record_says_why_a_kappa_cannot_be_computed`: written, ruff-clean and
-  byte-compiled, **not run yet**; it runs at the next check, before any record exists. The guide
-  and THRESHOLDS.md quote the answer.
+  byte-compiled, and run once the Mac was free (below). The guide and THRESHOLDS.md quote the
+  answer.
 - **One word of the question differs from the code, for the review:** its example, "the judge gave
   the same verdict on every sampled item", leaves kappa computable when the labels differ among
   themselves: Cohen's formula then gives exactly 0 (the judge agrees no better than chance), which
@@ -238,3 +238,27 @@ test and no `make check` ran for this; the commit hooks did):
   (`test_the_draw_on_a_v11_record_is_stratified_seeded_and_one_answer_once` and the field test, run
   at stop 1); the guide now says the pins hold any shortfall, in counts only, never which items,
   and quotes the answer.
+
+**The maintainer on the kappa 0 note:** the orchestrator relayed it to the maintainer, who made no
+change (relayed 2026-10-24, 13:10 WEST), so the build stands: a kappa that cannot be computed reads
+reported only, and a kappa of 0 is read by the bar's line (not trusted).
+
+**Run once the Mac was free** (the orchestrator, 13:10 WEST: "S4b's live sessions are over and
+Ollama is down"), at `b315aeb`, 2026-10-24, 13:17 to 13:19 WEST, the files `b315aeb` touched and
+the tests that read them:
+
+- `uv run pyright src/raglab/evals/calibration.py tests/judge/test_calibration_agreement.py`: "0
+  errors, 0 warnings, 0 informations".
+- `tests/judge/test_calibration_agreement.py`: "27 passed, 1 skipped in 25.65s" (the skip: no
+  committed record yet), the new test among the 27.
+- `tests/judge/test_calibration_bar.py`, `test_calibration_thresholds.py` (THRESHOLDS.md),
+  `test_calibration_sample.py`, `test_label_cli.py`, `test_calibration_leak.py` (calibration.py's
+  other readers), `tests/generation/test_consistency_gate.py` and `tests/unit/test_test_plan.py`
+  (THRESHOLDS.md's other readers): "67 passed, 2 skipped in 25.72s" (the skips: no committed
+  sample or labels yet).
+- The new test's break: the sentence's condition made never true (`... is None and False` in
+  `render_record`): "1 failed" (`test_the_record_says_why_a_kappa_cannot_be_computed`), restored
+  from git: "1 passed".
+
+The guide (`datasets/calibration/README.md`) is read by no test. The full `make -k check` waits for
+the next stop, after the merge of `main`.
