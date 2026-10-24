@@ -154,7 +154,7 @@ metrics get no target in advance"); the gates then fail on regression.
 
 | Id | Attribute | Measure | Where it is set |
 |---|---|---|---|
-| Q-01 | Latency | p50 and p95 end-to-end answer time, per provider | S5 baseline, reported: docs/THRESHOLDS.md, Latency |
+| Q-01 | Latency | p50 and p95 end-to-end answer time, per provider | S5 baseline, reported: docs/THRESHOLDS.md, Latency. S9's k6 smoke times the API's HTTP path on the perf stub in CI (its median gated, p95 reported: docs/THRESHOLDS.md, Performance); that is a regression smoke, not Q-01's number |
 | Q-02 | Cost | estimated cost per answer, with the price table date | S5, reported: `raglab cost` over a judged record and `config/prices.toml`; docs/THRESHOLDS.md, Cost |
 | Q-03 | Availability and honest failure | the demo is up within its budget; a provider failure returns `unavailable` and an exhausted budget returns `budget exhausted`, never a guessed answer | S3 (contract), S10 (demo) |
 | Q-04 | Accessibility | the web UI meets WCAG 2.2 AA on the checks the lab runs (keyboard, contrast, labels) | S3 UI, audit before v0.3 |
@@ -365,6 +365,13 @@ abstention (no judge, S4): the structured label on every abstain case, scored by
   four-way table of label and stated value; the metric canary (S5): P-01's invented five
   attempts, which grounded and abstains must fail (datasets/canaries.judge.jsonl, C-01 and
   C-02) before the judge grades anything
+observability (S9, raglab serve only): one trace per /ask (FastAPI's request span, the
+  pipeline, retrieval, embeddings, chat; the GenAI conventions at 9ffc7e0) through an allowlist
+  of keys; content off by default (the opt-in only where RAGLAB_ENV is ci or local); nothing a
+  guard removed is kept; tests/obs (docs/OBSERVABILITY.md)
+perf (S9, pr-fast's perf job): the k6 smoke on the perf stub, one user, 10 warm-up and 100 gated
+  /ask requests; every check and no failure gated, the median at T once ten runs set it, p95
+  reported (docs/THRESHOLDS.md); PERF_TEST_MODE refused outside ci and local
 security: <from S7: planted instruction, two tenants, poisoned duplicate; the attack files are
   ready and loaded only by raglab.ingest.attacks>
 report: <from S8: per case cause (ingestion/retrieval/generation/abstention), intervals, paired diff>

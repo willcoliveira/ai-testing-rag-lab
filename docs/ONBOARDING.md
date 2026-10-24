@@ -5,7 +5,8 @@ guards, and where each concept already lives. It is current as of S5 (2026-10-21
 criteria and canaries (signed off), the judged record, the position test, the cost formula and the
 fenced DeepEval tool are built; the judged baseline and the position test are published; ADR-002
 records the user's choice, local only for now; and a session runs on AC power only (the S5
-ledger). Every stage that adds a
+ledger). S9, brought forward, adds tracing with redaction, the perf mode and the k6 smoke
+(docs/OBSERVABILITY.md). Every stage that adds a
 command or a concept updates it, and
 `tests/unit/test_onboarding.py` checks that every path, `make` target and `raglab` command named
 here exists, and that the stage this line names is not still in progress once the phase map marks
@@ -49,6 +50,8 @@ CI.
 | `uv run raglab ask --config config/fake.toml --tenant shared "x"` | The tenant guard failing closed | Status `refused`, no answer, exit 1 |
 | `uv run raglab serve --config config/fake.toml` | The API and the page | http://127.0.0.1:8000/ asks as tenant A or B with the demo token |
 | `make api-smoke` | The API smoke test that pr-fast runs | Five `ok` lines (the last: the server stopped gracefully on SIGTERM, exit -15), then `api-smoke: passed` |
+| `make perf-smoke` | S9: the k6 smoke that pr-fast's perf job runs: the collector and `raglab serve --config config/perf.toml` (the perf stub) on loopback, k6 2.3.0 and the collector fetched once with their sha256 checked, the trace files checked, then the postcheck (docs/OBSERVABILITY.md) | `ok` lines for each step, `/ask`'s median and p95, then `perf-smoke: passed` |
+| `PERF_TEST_MODE=1 RAGLAB_ENV=prod uv run raglab serve --config config/perf.toml` | S9: the perf mode refused in prod | One line, `serve failed: PERF_TEST_MODE=1 is honoured only where RAGLAB_ENV is ci or local, not 'prod': the server does not start`, exit 1, before the port binds |
 | `uv run raglab eval --suite generation --config config/fake.toml` | A generation run record with the fake model: every dev retrieval question and behaviour case, 3 trials each | The checks, and for the behaviour cases the decision-label rate, the confusion and abstention tables and behaviour pass^3; with the echo model these measure the plumbing (it answers whenever a chunk is retrieved), never Q-05 |
 | `uv run raglab compare <run A> <run B>` on two generation runs | The paired difference of behaviour pass^3 and of the decision-label rate, by case id, and the flipped cases | Refused unless the dataset, split and trials match |
 | `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml --split test` | The test split held out | Refused: test and all run only with `--gate nightly` or `--gate release` |
@@ -96,6 +99,8 @@ break. Restore each file with `git checkout -- <file>`, and never commit a break
 | Point `CURRENT` in `src/raglab/generate/prompts/__init__.py` at `answer_v2` (measured, not adopted) | `uv run pytest tests/retrieval/test_publish.py` | The consistency baseline is reported stale: it names answer-v1's prompt fingerprint, not the current prompt's |
 | Commit with a message like `updated stuff` | `git commit` | The commit-msg hook refuses it: not a Conventional Commit |
 | Change the chunker's default budget | `uv run pytest tests/ingestion/test_inventory_snapshot.py` | The snapshot test fails and prints the chunk diff; `make inventory-snapshot` regenerates it on purpose |
+| Record the guard event's own text as `raglab.guard.reason` in `src/raglab/generate/pipeline.py` | `uv run pytest tests/obs/test_guard_traces.py` | 6 failures: the refused question's marker and the event's text are in the trace |
+| Drop `raglab.content.answer` from the delete list in `deploy/otel/langfuse.yaml` | `make perf-smoke` | `the Langfuse pipeline let content keys through: ['raglab.content.answer']`, and `perf-smoke: failed` |
 
 ## Concepts already built
 
@@ -143,6 +148,8 @@ around them.
 | Evaluation | The position test: the answering chunk first, in the middle and last of a long context | `src/raglab/evals/position.py`, `config/position-local.toml` | `tests/generation/test_position_contexts.py` |
 | Evaluation | Every call's tokens by role, and a cost formula over a dated price table | `src/raglab/evals/cost.py`, `config/prices.toml` | `tests/unit/test_cost.py` |
 | Engineering | A heavy evaluation library fenced in a project and a lock of its own | `tools/deepeval-check/`, `scripts/check_architecture.py` | `tests/unit/test_architecture.py`, `make deepeval-test` |
+| Engineering | Traces with gen_ai spans behind a port, leaving through an allowlist: content off by default, nothing a guard removed kept | `src/raglab/obs/`, `src/raglab/core/ports.py`, `docs/OBSERVABILITY.md` | `tests/obs/test_spans.py`, `tests/obs/test_redaction.py`, `tests/obs/test_guard_traces.py` |
+| Engineering | A perf mode that prod refuses, and a k6 smoke whose threshold is set from measured runs | `src/raglab/api/environment.py`, `perf/smoke.js`, `scripts/perf_smoke.py`, `deploy/otel/` | `tests/api/test_perf_mode.py`, `tests/unit/test_perf_smoke.py`, `tests/unit/test_collector_config.py` |
 
 Also worth a look: the progress diagram is itself tested (`tests/unit/test_diagram.py`), and the
 playground reads only published runs (`tests/unit/test_playground.py`).
@@ -159,6 +166,6 @@ Judged quality started in S5: the local judge has judged the dev slice under the
 | A judge calibrated against human labels (kappa) | S6 |
 | Prompt injection, poisoned documents, red team, Guardrails AI (the attack documents are in the corpus but kept out of the default ingest) | S7 |
 | Every failure tagged with its cause, a suite audit and GATES.md | S8 |
-| Tracing with redaction and a perf gate | S9 |
+| The k6 smoke's median gated at T, set from ten report-only runs on GitHub's runner | S9, after those runs |
 | Browser and accessibility tests of the UI and the playground | Track B |
 | The teaching playground on Pages | S11, at go-public |
