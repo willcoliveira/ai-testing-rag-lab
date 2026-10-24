@@ -5,11 +5,13 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
-- Five advisories published on 2026-10-23 join `make audit`'s skips, under the same decisions and
-  review date, so the audit passes on `main` again: two for Pillow 12.3.0 (a crafted FlashPix
-  file, and an image exported to Arrow with `PILLOW_ALIGNMENT` above 1, which raglab never does)
-  and three for pypdf 6.19.0 (crafted PDFs with long runtimes, fixed only in 6.21.2, which stays
-  untried until its 7-day cooldown ends on 2026-10-28).
+- The advisories published on 2026-10-23, so the audit passes on `main` again: filelock 4.0.12 →
+  4.2.1 (three advisories, fixed in 4.2.1, taken once its 7-day cooldown had passed; replaces
+  Dependabot's #28); and five more join `make audit`'s skips, under the same decisions and review
+  date: two for Pillow 12.3.0 (a crafted FlashPix file, and an image exported to Arrow with
+  `PILLOW_ALIGNMENT` above 1, which raglab never does) and three for pypdf 6.19.0 (crafted PDFs with
+  long runtimes, fixed only in 6.21.2, which stays untried until its 7-day cooldown ends on
+  2026-10-28).
 - answer-v2, the prompt fix for abstention (plan `docs/plans/2026-10-21-answer-v2.md`, ledger
   beside it), measured on dev and not adopted (the user's decision, verbatim: "Not adopted, runs
   stay published (Recommended)"): its first run after the sign-off gained four cases on answer-v1's
