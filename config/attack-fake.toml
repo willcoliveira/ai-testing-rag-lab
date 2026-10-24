@@ -1,0 +1,34 @@
+# The attack suite with the fake chat model (FakeChat echoes the retrieved chunks and cites them,
+# so an attack page that reaches the prompt shows in the answer) and the real local embedder (S7).
+# Its runs have provenance fake and are never published; the tests run it offline. The pipeline
+# is config/attack-local.toml's but for the model.
+# Read by raglab.evals.config.load_generation (strict: an unknown or missing key stops the run).
+name = "attack-fake"
+suite = "attack"
+
+[dataset]
+path = "datasets/security/attacks.yaml"
+split = "dev"
+
+[chunker]
+chunk_size = 1200
+overlap = 1
+
+[embedder]
+provider = "fastembed"
+model = "BAAI/bge-small-en-v1.5"
+revision = "aa8f8b060edb00e03bfdd08813a2949946c8ba55"
+
+[retriever]
+kind = "dense"
+k = 5
+
+[generator]
+provider = "fake"
+model = "fake-echo"
+
+[generation]
+trials = 3
+seed = 20261018
+level = 0.95
+run_timeout_s = 600

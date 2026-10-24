@@ -35,13 +35,16 @@ class Assembled:
     embedder_description: Json
     chat_description: Json
     provenance: str
-    scanned: scan.Scanned | None = None  # S7: what the instruction scan kept and quarantined
+    scanned: scan.Scanned | None = None  # S7: what the scan kept and quarantined; None: no scan
+    pages: tuple[Chunk, ...] = ()  # S7: an attack run's pages outside the register
 
     @property
     def chunks(self) -> tuple[Chunk, ...]:
-        """The chunks the retriever searches: the scan's kept chunks (the inventory's, when no
-        scan ran)."""
-        return self.inventory.chunks if self.scanned is None else self.scanned.kept
+        """The chunks the retriever searches: the scan's kept chunks, or, when no scan ran, the
+        inventory's and the attack run's pages."""
+        if self.scanned is not None:
+            return self.scanned.kept
+        return (*self.inventory.chunks, *self.pages)
 
 
 def chat_from_config(spec: GeneratorConfig) -> tuple[ChatModel, Json, str]:
@@ -69,10 +72,12 @@ def assemble(
     inventory: ingest.Inventory | None = None,
     guards: Sequence[Guardrail] | None = None,
     extra: Sequence[Chunk] = (),
+    scan_index: bool = True,
 ) -> Assembled:
     """The pipeline of a config. The embedder, chat model and inventory are built from the
     config unless given (the tests give small ones); extra chunks (an attack run's pages outside
-    the register) are scanned and indexed with the inventory's."""
+    the register) are scanned and indexed with the inventory's. scan_index=False indexes without
+    the instruction scan: S3's pipeline, the defences-off attack run only."""
     if inventory is None:
         inventory = ingest.ingest(root, config.chunker)
     elif inventory.settings != config.chunker:
@@ -82,8 +87,10 @@ def assemble(
         spec.provider, spec.model, spec.revision
     )
     model, chat_description, chat_provenance = chat or chat_from_config(config.generator)
-    scanned = scan.scan([*inventory.chunks, *extra])
-    retriever = retrieval.build_retriever(config.retriever, embed, list(scanned.kept))
+    everything = [*inventory.chunks, *extra]
+    scanned = scan.scan(everything) if scan_index else None
+    indexed = list(scanned.kept) if scanned is not None else everything
+    retriever = retrieval.build_retriever(config.retriever, embed, indexed)
     pipeline = Pipeline(
         retriever,
         model,
@@ -91,4 +98,12 @@ def assemble(
         config.retriever.k,
     )
     provenance = "fake" if "fake" in (embed_provenance, chat_provenance) else "local"
-    return Assembled(pipeline, inventory, embed_description, chat_description, provenance, scanned)
+    return Assembled(
+        pipeline,
+        inventory,
+        embed_description,
+        chat_description,
+        provenance,
+        scanned,
+        tuple(extra),
+    )

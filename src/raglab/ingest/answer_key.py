@@ -53,6 +53,9 @@ class Feature:
     silence: Silence | None
     must_not_contain: tuple[str, ...]
     reference_answer: str | None = None  # S5: what the judge is shown for a contact feature
+    # S7: the decision label of an attack run in which the feature's page reaches the model (F-49:
+    # refuse-and-help); None when the clean label holds in attack runs too
+    expected_in_attack_runs: str | None = None
 
 
 def _strings(value: object) -> tuple[str, ...]:
@@ -89,6 +92,7 @@ def features(root: Path) -> dict[str, Feature]:
             silence = Silence(str(proof.get("scope")), _strings(proof.get("phrases")))
         conflict = entry.get("conflict")
         reference = entry.get("reference_answer")
+        attack_label = entry.get("expected_in_attack_runs")
         feature = Feature(
             id=str(entry.get("id")),
             kind=str(entry.get("kind")),
@@ -99,6 +103,7 @@ def features(root: Path) -> dict[str, Feature]:
             silence=silence,
             must_not_contain=_strings(entry.get("answer_must_not_contain")),
             reference_answer=reference if isinstance(reference, str) else None,
+            expected_in_attack_runs=None if attack_label is None else str(attack_label),
         )
         found[feature.id] = feature
     return found

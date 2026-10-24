@@ -14,9 +14,8 @@ from raglab import __version__
 from raglab.adapters import factory, fastembed_embed
 from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSettings
 from raglab.core.types import TenantError
-from raglab.evals import compare as compare_runs
-from raglab.evals import config as eval_config
 from raglab.evals import (
+    attack,
     dataset_check,
     generation,
     golden,
@@ -27,18 +26,22 @@ from raglab.evals import (
     replay,
     retrieval,
 )
+from raglab.evals import compare as compare_runs
+from raglab.evals import config as eval_config
 from raglab.evals import gate as retrieval_gate
 from raglab.generate import assemble
 from raglab.generate.prompts import CURRENT as current_prompt
 from raglab.guard import default_guards
 from raglab.ingest import attacks, inventory, pipeline
 from raglab.judge import canaries
+from raglab.runtime.egress import EgressGuard
 
 INVENTORY = "runs/tmp/inventory.json"
 RUNS = "runs/tmp"
 DATASET = "datasets/golden.v1.jsonl"
 GATES = ["manual", "pr-fast", "eval-on-change", "nightly", "weekly", "release"]
 EVAL_ERRORS = (
+    attack.AttackError,
     eval_config.ConfigError,
     dataset_check.CheckError,
     factory.AdapterError,
@@ -135,6 +138,18 @@ def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]
     suite: str = getattr(args, "suite", "retrieval")
     if eval_config.suite_of(args.config) != suite:
         raise eval_config.ConfigError(f"{args.config} is not a {suite} config")
+    defences: str | None = getattr(args, "defences", None)
+    if (suite == "attack") != (defences is not None):
+        raise eval_config.ConfigError("--defences on|off is for the attack suite, and it needs it")
+    if suite == "attack":  # S7: the attack suite, inside the loopback-only egress guard
+        attack_config = eval_config.load_generation(args.config, root)
+        if getattr(args, "split", None) is not None:
+            raise eval_config.ConfigError("an attack run uses its config's split")
+        _held_out(attack_config.split, args.gate)
+        configuration = f"defences-{defences}"
+        with EgressGuard() as egress:
+            built = attack.assemble_for(attack_config, root, configuration)
+            return attack.run(attack_config, root, built, configuration, egress, gate=args.gate)
     if suite == "generation":
         gen = eval_config.load_generation(args.config, root)
         split_: str | None = getattr(args, "split", None)
@@ -172,6 +187,9 @@ def evaluate(args: argparse.Namespace) -> int:
     print(f"run record: {run_dir}")
     if manifest["git_dirty"]:
         print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
+    if manifest["suite"] == "attack" and (reasons := attack.unsafe(manifest)):
+        print("attack run fails its gate: " + "; ".join(reasons), file=sys.stderr)
+        return 1
     return 0
 
 
@@ -258,6 +276,13 @@ def gate(args: argparse.Namespace) -> int:
         print(f"gate failed: {error}", file=sys.stderr)
         return 1
     args.suite = suite
+    if suite not in ("retrieval", "generation"):
+        print(
+            f"gate: {args.config} is a {suite} config; the gates read retrieval and generation "
+            "configs",
+            file=sys.stderr,
+        )
+        return 2
     if args.gate is None:  # pr-fast runs the retrieval gate; the consistency gate runs by hand
         args.gate = "manual" if suite == "generation" else "pr-fast"
     if suite == "generation":
@@ -424,6 +449,7 @@ def cost_estimate(args: argparse.Namespace) -> int:
 
 
 GUARD_ERRORS = (
+    attack.AttackError,
     replay.ReplayError,
     guard_suites.SuiteError,
     eval_config.ConfigError,
@@ -655,7 +681,14 @@ def main(argv: list[str] | None = None) -> int:
     ):
         sub = commands.add_parser(name, help=text)
         if name == "eval":
-            sub.add_argument("--suite", choices=["retrieval", "generation"], required=True)
+            sub.add_argument(
+                "--suite", choices=["retrieval", "generation", "attack"], required=True
+            )
+            sub.add_argument(
+                "--defences",
+                choices=["on", "off"],
+                help="attack suite only: S7a's guards and the scan, or S3's guards (S7)",
+            )
             sub.add_argument(
                 "--split",
                 choices=eval_config.SPLITS,

@@ -243,7 +243,7 @@ position-local:
 # the consistency baseline's recorded answers), no model; per layer the miss and false-block rates
 # with their Wilson intervals and the added latency, written to runs/guard-suites/. make test
 # already decides every case binary per build (tests/security/); this is the measured record.
-.PHONY: guard-suites replay
+.PHONY: guard-suites replay attack-local
 guard-suites:
 	HF_HUB_OFFLINE=1 uv run raglab guard-suites
 
@@ -252,6 +252,22 @@ guard-suites:
 # baseline current for the new guard set; any event is printed and nothing is written.
 replay:
 	HF_HUB_OFFLINE=1 uv run raglab replay
+
+# S7 (AG9): the live attack runs, one generator session (docs/LOCAL-MODEL.md), by hand and only
+# with the maintainer's go: the live contract test, then the attack suite on
+# config/attack-local.toml (the security pack's attack cases, three trials, the consistency gate's
+# pipeline and seed) in two
+# configurations, each inside the loopback-only egress guard: defences off (S3's guard set, no
+# instruction scan; a measured result, kept in runs/tmp, reported by counts, never published) and
+# defences on (S7a's guard set and the scan; the command exits 1 if any safety check of any case
+# and trial fails, or anything left loopback). The session stops the server and runs the
+# postcheck, as eval-local does.
+ATTACK_CONFIG := config/attack-local.toml
+attack-local:
+	PYTHONUNBUFFERED=1 uv run raglab ollama session --config $(ATTACK_CONFIG) \
+		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
+		--run "uv run raglab eval --suite attack --config $(ATTACK_CONFIG) --defences off" \
+		--run "uv run raglab eval --suite attack --config $(ATTACK_CONFIG) --defences on"
 
 # S3 AC10, AC11: the container with the fake model and the baked-in embedder (deploy/Dockerfile),
 # run on 127.0.0.1 only, and the ZAP baseline scan against it (deploy/zap/)

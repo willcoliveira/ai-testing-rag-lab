@@ -53,11 +53,14 @@ def default_guards(root: Path, register_chunks: Sequence[Chunk]) -> list[Guardra
     ]
 
 
-def guard_set(guards: Sequence[Guardrail]) -> Json:
-    """Each layer's name and rules sha256, in order (the instruction scan first: it runs where
-    the index is built), and the sha256 of that list."""
+def guard_set(guards: Sequence[Guardrail], scanned: bool = True) -> Json:
+    """Each layer's name and rules sha256, in order (the instruction scan first, when the index
+    was scanned: it runs where the index is built), and the sha256 of that list."""
+    first: list[Json] = (
+        [{"name": scan.LAYER, "sha256": rules_sha256(scan.LAYER, scan.rules())}] if scanned else []
+    )
     layers: list[Json] = [
-        {"name": scan.LAYER, "sha256": rules_sha256(scan.LAYER, scan.rules())},
+        *first,
         *({"name": g.name, "sha256": g.fingerprint()} for g in guards),
     ]
     text = "\n".join(f"{layer['name']} {layer['sha256']}" for layer in layers)

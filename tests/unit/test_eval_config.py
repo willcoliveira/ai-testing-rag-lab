@@ -56,8 +56,8 @@ def test_the_three_committed_configs():
         (lambda t: t.replace('kind = "dense"', 'kind = "hybrid"'), "needs candidates and rrf_k"),
         (lambda t: t.replace("chunk_size = 1200", "chunk_size = 0"), "chunk size"),
         (lambda t: t.replace('name = "x"', 'name = "X Y"'), "lower case"),
-        # S5 made "judged" a suite; "attack" is S7's, not one yet
-        (lambda t: t.replace('suite = "retrieval"', 'suite = "attack"'), "only retrieval"),
+        # S5 made "judged" a suite and S7 "attack"; any other name is refused
+        (lambda t: t.replace('suite = "retrieval"', 'suite = "red-team"'), "only retrieval"),
         (lambda t: t + "\n[extra]\na = 1\n", "unknown tables or keys"),
         (lambda t: t.replace("level = 0.9", "level = 1.5"), "bootstrap level"),
         (lambda t: "not = [toml", "not TOML"),
