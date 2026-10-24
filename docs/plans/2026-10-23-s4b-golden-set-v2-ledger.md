@@ -829,3 +829,33 @@ check`, check-dataset's two lines, gate-local's v2 threshold and the break's lin
 section 10's golden-set line, LOCAL-MODEL (the six sessions) and the CHANGELOG line take their
 numbers from these runs. THRESHOLDS.md's consistency row (`a928e88`) and its judged section (D2,
 `999695c`); the Q-01 latency line now says its baseline is S4's, on v1.1.
+
+## make -k check at STOP 3 (`5f7eaa0`)
+
+Run once on `5f7eaa0`, a clean tree, this Mac (`make -k check`, 2026-10-24, 13:11:44 to
+13:15:47 WEST), with no session running (`make ollama-status` just before: no pid, port closed,
+nothing loaded). **Exit 2, and `audit` is the only red target**, pre-existing on `main` ("Found 8
+known vulnerabilities, ignored 43 in 3 packages": filelock 4.0.12 three times, fixed in 4.2.1;
+Pillow 12.3.0 twice; pypdf 6.19.0 three times). Every other target passes; the retrieval gate
+passes against the new baseline and the committed-runs tests against both new baselines:
+
+    264 files already formatted
+    All checks passed!
+    0 errors, 0 warnings, 0 informations
+    Success! No dependency issues found.
+    Found 8 known vulnerabilities, ignored 43 in 3 packages
+    make: *** [audit] Error 1
+    no leaks found
+    no leaks found
+    0 hits across 397 files (42 rules)
+    0 architecture violations in src/raglab
+    check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 3d924ad0bd1d)
+    ========== 1419 passed, 2 deselected, 1 warning in 195.48s (0:03:15) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636
+    api-smoke: passed
+
+STOP 3: ready for the criteria judge. Not done in S4b, for the record: the removal of the S4
+datasheet reading (a Maintenance table with no File column) with its test, and of the skips on
+the v2 file's tests, which are inert now that the datasheet has its File column and the file
+exists.
