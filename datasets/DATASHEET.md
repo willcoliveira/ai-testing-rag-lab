@@ -777,8 +777,10 @@ additions (S4b ledger). Their findings go into the ledgers, not this file.
   R-Q04, R-Q05 and R-Q22 for G-04 and G-32; A-PWD-V2 4.4 by G-22, G-29, R-Q08, R-Q18 and R-Q21 for
   G-30; A-EXC 5.1 by G-19, R-Q24 and R-Q25 for G-18). G-04 is also a close paraphrase of R-Q04 in
   other words; it stays (the labels judge's S4-L9; the user's answer on D-f). **In v2**, 22 of the
-  28 new test cases share a feature with a dev line, and 18 a labelled section (a dev line's label
-  or group member):
+  28 new test cases share a feature with a dev line, and 18 a labelled section (a label or group
+  member of the case and of a dev line; `may_quote` sections are not counted). Counting `may_quote`
+  sections too, 20 share one: G-85's quote, NIST SP 800-63B-4 section 3.1.1.2, and G-93's,
+  section 3.2.2, are also dev lines' labels or quotes (the criteria judge's S4b-J6):
 
   | New test case | Its features in dev lines | Its labelled sections in dev lines |
   |---|---|---|
