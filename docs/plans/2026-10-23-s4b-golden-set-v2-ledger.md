@@ -561,3 +561,76 @@ pass the answer key's kinds. **One run before the commit:** the GV6 re-split tes
 committed file with the pass in place and nothing changed after, failed on 6 lines (the first,
 "G-38: split dev, the seeded rule gives test"): the pass's first run, in memory, before the code
 was committed; the code was not edited after it.
+
+**The run** (`8c72231`). The pass was committed as `9b1eb19`; then the 80 new lines' splits were
+taken out (which gave back the question author's bytes exactly, sha256 `154536a96941...`) and
+the script was run once:
+
+    (the main draw: the same 14 units and test draws as the first draw above)
+    repair, background: G-40 to dev; G-38 to test (single-chunk / answer / tenant-a)
+    repair, exception-overrides-rule: G-78 to dev; G-72 to test (multi-chunk / answer / tenant-a)
+    repair, procedure: G-76 to dev; G-83 to test (multi-chunk / answer / tenant-a)
+    split_golden: 80 new cases, 52 dev and 28 test (seed 20261023)
+
+The six moved ids are those the labels judge's simulation expected: G-40, G-78 and G-76 to dev,
+G-38, G-72 and G-83 to test. Every stratum kept its count of test cases, so the counts by mix
+slot, label, tenant and split above are unchanged, and so is the design count of judge calls
+(1,433; computed again). GV2's coverage test passes; the GV6 re-split test reproduces the file.
+
+### C2 to C5, applied (2026-10-24)
+
+| Call | What was done | Commit |
+|---|---|---|
+| C2 | F-92's value at A-DEVICE-B 1 is "not change kiosk settings to keep a session open", and SPEC section 8's F-92 row says the same; the second value at that location stays. The two ingestion tests pass again | `65ebbe9` |
+| C3 | **A metadata-only edit:** the answer key's R-22 gap says `tested_in` S8, the suite audit, quoting D3; TEST-PLAN's gaps row and R-22's Golden case cell say the same, quoting D3; the traceability test's expected R-22 cell follows. No value, label, reference answer, side, canary or `answer_must_not_contain` list changed; no test reads `tested_in`. The answer-key comparison with `main` now reports the gaps as changed (this edit) and every feature change as an addition | `e4f5b52` |
+| C4 | F-84 dropped from G-79 and F-83 from G-111, their labelled sections kept; the datasheet's R-11 row and its sentence on those labels, and TEST-PLAN's R-11 cell, derived from the data, no longer name the two refusal cases | `770a893` |
+| C5 | The datasheet's known limit on G-57, and this ledger's note that repeated it (above), say what the code does; G-51's reference answer states its arithmetic step without the pass's end time | `5df18c6` |
+
+The golden-file edits (C4, C5) were written as the split script writes its lines, so the re-split
+test still reproduces the file.
+
+### The datasheet completed (`1596e45`)
+
+The S4b part of "Second labeller and agreement" (the seal, what the judge had, the numbers); the
+Splits section for v2 (the rule, the second pass and when it was written, the 14 units with their
+test cases, the dev and test counts by mix slot, label and tenant, and each new test case's
+features and labelled sections shared with dev lines: 22 of the 28 share a feature, 18 a section);
+G-107, the version-history kind's only case, in test (S4b-L9); R-06's coverage row naming the four
+may_quote cases by design, as TEST-PLAN does; and the v2 Maintenance row with the final sha256,
+`3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e`, naming the edits made after
+the review and before the sign-off (so still v2). `raglab check-dataset`: "check-dataset:
+datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256
+5f8cdaf18783)" and "check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions,
+120 behaviour cases, sha256 3d924ad0bd1d)".
+
+Left for later, not asked at this stop: the removal of the S4 table reading (no File column) with
+its test, and of the skips of the v2 file's tests (both inert now that the datasheet has its File
+column and the file exists); ONBOARDING's line naming both files; the README's and TEST-PLAN
+section 10's v2 lines (GV13, with the runs).
+
+## make -k check at STOP 2 (`1596e45`)
+
+Run once on `1596e45`, a clean tree, this Mac (`make -k check`, 2026-10-24 at about 08:40 WEST):
+**exit 2, and `audit` is the only red target**, pre-existing on `main` ("Found 8 known
+vulnerabilities, ignored 43 in 3 packages": filelock 4.0.12 three times, fixed in 4.2.1; Pillow
+12.3.0 twice; pypdf 6.19.0 three times). Every other target passes; the four tests that failed at
+STOP 1 pass, and no test is skipped:
+
+    256 files already formatted
+    All checks passed!
+    0 errors, 0 warnings, 0 informations
+    Success! No dependency issues found.
+    Found 8 known vulnerabilities, ignored 43 in 3 packages
+    make: *** [audit] Error 1
+    no leaks found
+    no leaks found
+    0 hits across 373 files (42 rules)
+    0 architecture violations in src/raglab
+    check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 3d924ad0bd1d)
+    ========== 1417 passed, 2 deselected, 1 warning in 204.18s (0:03:24) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+STOP 2: golden set v2 is ready for the review page and the maintainer's sign-off. Nothing has run
+live, and the configs are still on v1.1 (they move at the freeze F).
