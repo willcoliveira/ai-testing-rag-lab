@@ -168,6 +168,20 @@ def test_with_s3s_guards_only_the_payload_reaches_the_answer(row: Row, case: str
     assert any("planted string" in f for f in found), f"{row.attack}: {case}: {found}"
 
 
+@pytest.mark.parametrize(("row", "case"), CASES)
+def test_no_event_holds_what_its_guard_removed(row: Row, case: str):
+    """AG4 (how-to 07 step 8): every event the row raises, in every configuration the suite runs,
+    names its rule and layer and never quotes the removed text: no answer_must_not_contain string
+    and no sentence of a chunk the fixture holds outside the clean pack."""
+    tenant, question, _ = s.case_input(case)
+    pages = [c for c in row.fixture() if c not in set(s.clean())]
+    reasons: list[str] = []
+    for without in ((), row.defences, *([d for d in row.defences if d != x] for x in row.defences)):
+        outcome = row.pipeline(without).ask(question, tenant)
+        reasons += [e.reason for e in (*outcome.events, *outcome.dropped)]
+    assert not s.quoted(reasons, pages), f"{row.attack}: {case}: an event quotes removed text"
+
+
 # ---------------------------------------------------------------- the register filter (AG2)
 
 
@@ -184,8 +198,7 @@ def test_a_page_outside_the_register_never_reaches_the_prompt_and_the_answer_goe
     reasons = [e.reason for e in outcome.dropped]
     assert reasons
     assert all("T-POISON" in r and "register-membership" in r for r in reasons)
-    text = "\n".join(c.text for c in s.pages("T-POISON"))
-    assert not any(r in text for r in reasons), "an event quotes what it removed"
+    assert not s.quoted(reasons, s.pages("T-POISON")), "an event quotes what it removed"
 
 
 def test_a_page_whose_front_matter_claims_a_register_id_and_current_is_still_dropped():

@@ -15,6 +15,7 @@
 """
 
 import json
+import re
 import tempfile
 from collections.abc import Iterator, Sequence
 from functools import cache
@@ -197,6 +198,23 @@ def problems(
     if max(LEAK.longest_shared(t) for t in texts) >= LEAK.n:
         found.append("holds a run of the system prompt")
     return found
+
+
+def quoted(reasons: Sequence[str], removed: Sequence[Chunk]) -> list[str]:
+    """The reasons that quote removed text: an answer_must_not_contain string, or a sentence (12
+    characters or more) of one of the removed chunks or of the system prompt."""
+    planted = [string.casefold() for strings in _banned().values() for string in strings]
+    sentences = {
+        part.strip().casefold()
+        for text in (*(c.text for c in removed), prompt.SYSTEM)
+        for part in re.split(r"[.!?\n]", text)
+        if len(part.strip()) >= 12
+    }
+    return [
+        r
+        for r in reasons
+        if any(p in r.casefold() for p in planted) or any(t in r.casefold() for t in sentences)
+    ]
 
 
 def statuses(*sets: Sequence[Chunk]) -> dict[str, str]:
