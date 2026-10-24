@@ -876,4 +876,78 @@ passes against the new baseline and the committed-runs tests against both new ba
 STOP 3: ready for the criteria judge. Not done in S4b, for the record: the removal of the S4
 datasheet reading (a Maintenance table with no File column) with its test, and of the skips on
 the v2 file's tests, which are inert now that the datasheet has its File column and the file
-exists.
+exists. (Both done in fix round 1, below.)
+
+## Fix round 1 (2026-10-24)
+
+**The criteria judge's verdict on `e90059e` (round 0).** A different model (Fable 5.1), its own
+worktree detached at `e90059e`, a separate context, offline from 13:18 to 13:57 WEST, then the live
+break; its report stays outside the repository (`scratchpad/s4b-judge/report.md`, saved by the
+orchestrator), and the numbers below are copied from it. **14 of 14 criteria met**, GV4, GV10 and
+GV14 with CI clauses (pr-fast's dataset step, the pull request's gate line, pr-fast green). It
+recomputed about 476 numbers in 12 categories (the Golden case cells, the agreement, the design
+count, the runs' provenance, the retrieval metrics and comparisons, the generation runs, the
+margin, the same-seed and shared-case readings, the live break, the Mac times, the split, the
+judge hashes, the `make -k check` tail): **0 mismatches**. Every planned break went red and both
+expected passes passed; its stronger breaks went red too (a mix changed in a v1.1 line inside v2,
+a field changed inside v1.1, a hit flipped in run 1's record, a same-stratum dev and test swap,
+THRESHOLDS' first run id altered, the index baseline pointed at run 2, `config/judge-local.toml`
+edited, a label changed in a copy of the seal). The design count's method reproduces `c14acb0`'s
+605 calls and gives v2's dev slice 1,433 (about 7,715 s at answer-v2's 5.38 s a call). Findings:
+S4b-J1 (low), S4b-J2 (low, reduced to info after the orchestrator's correction), S4b-J3 (info),
+S4b-J4 (low), S4b-J5 (info), S4b-J6 (info), S4b-J7 (info: `make audit` red, pre-existing on
+`main`).
+
+**The criteria judge's live break (GV11)**, on the orchestrator's go of 13:58 WEST, in its own
+worktree at `e90059e`: `make ollama-status` clean before (13:58:45: no process, port closed,
+nothing loaded, 27.9 GiB, AC Power); S2's plant in `src/raglab/retrieve/dense.py` (ranks 2 to 6);
+one `make gate-local`, 13:59:05 to 14:08:42 (about 9 min 37 s): the pinned model and digest, AC
+power, the live contract test "1 passed, 13 deselected in 40.43s", the run
+`20261024T130001Z-generation-local-ollama-dev-e90059e` (in its worktree; `git_dirty` true, not
+partial, ok 291, blocked 12, 519.459 s). The gate's line, exit 1:
+
+    consistency gate (Q-05): behaviour_pass^3 0.266 (n 79) fails: the threshold is the baseline 0.418 (20261024T090351Z-generation-local-ollama-dev-ade9397) minus 1 case(s) (1/79), 0.405
+
+"postcheck passed: port closed, no ollama process, no model loaded"; restored, clean at
+`e90059e`; `make ollama-status` after (14:09:17) clean, 35.0 GiB. It matches the developer's live
+break (0.266, 21 of 79).
+
+**This round.** The coordinator's message set the round (fix round 1 of at most two): record
+round 0 and its live break; fix S4b-J1, S4b-J2, S4b-J3, S4b-J5 and S4b-J6; record S4b-J4 as a
+follow-up for S8; and remove the S4 datasheet reading and the inert skips, keeping the plan's GV4
+and GV8 breaks red. No maintainer decision was asked in this round; no golden file, answer key or
+datasheet v2 row changed.
+
+| Finding | What was done | Commit | Evidence |
+|---|---|---|---|
+| S4b-J1 (low) | The ledger's reading of the unchanged questions names the other manifest differences: the embedder block (fastembed 0.8.1 to 0.9.0 and its fingerprint) and the tools (numpy 2.5.3 to 2.5.4, raglab 0.0.1 to 0.1.0), with the results still identical per question | `0fd1509` | Read from the three pairs of manifests: each differs in config (`file_sha256`, `sha256`), dataset (`path`, `sha256`), embedder (`fastembed`, `sha256`), tools (`numpy`, `raglab`), and its run's own id, time, commit, duration and file hashes |
+| S4b-J2 (info) | Disclosed under the labels judge's seal: the orchestrator cut the blind inputs at 23:51 with `make_blind.py` and left a copy of the labelled file in the labels judge's folder; `make_labels.py` reads only the two blind inputs (checked by the orchestrator and the criteria judge); the blindness rests on the labels judge's instructions and statement; next time such inputs are cut outside the judge's folder | `0fd1509` | none to run |
+| S4b-J3 (info) | The in-memory run note says what git shows (the script unchanged since `9b1eb19`, before `8c72231`, and its re-run reproducing the file and the six moves) and marks the rest as the developer's statement | `0fd1509` | none to run |
+| S4b-J4 (low) | Recorded under "Not in this PR" (below), for S8; no code change | this commit | none to run |
+| S4b-J5 (info) | The traceability test names the cases a cell lacks, and the cases it names that do not cover the requirement, as set differences | `be9ddf7` | Red before: the judge's break b printed both lists. After, on TEST-PLAN with G-73 dropped from R-08's cell: "R-08: the cell lacks ['G-73']"; restored, `test_test_plan.py` "14 passed" |
+| S4b-J6 (info) | The datasheet says its "18 a labelled section" leaves out `may_quote` sections, and that 20 share one with them (G-85's and G-93's quotes) | `1fe17f1` | Recomputed from the committed files: 18 of 28 by labels and group members, 20 of 28 with `may_quote` on both sides; check-dataset passes both files (prose only) |
+| S4b-J7 (info) | Nothing in this PR: `make audit` is red on `main`, fixed by the coordinator's `build(deps)` pull request, merged into this branch after | none | the audit lines under each `make -k check` |
+| The cleanup | `raglab check-dataset` no longer reads a Maintenance table without a File column as the checked file's (such a table now versions no file, and rule 10 says so); the test-side reader requires the File column; the skips on the committed v2 file's tests are gone | `c9e67e9` | Every check-dataset and v2 test: "105 passed"; check-dataset passes both files; the breaks below |
+
+**The plan's GV4 and GV8 breaks, again after the cleanup**, each on a committed file and restored
+with `git checkout` (the tree clean after each, check-dataset passing both files again):
+
+- GV4, in v2 one single-chunk case made multi-chunk (G-41): `make check-dataset` exit 2, "golden.v2.jsonl: rule 9 (mix): 44 single-chunk case(s), the mix asks for 45", "golden.v2.jsonl: rule 9 (mix): 25 multi-chunk case(s), the mix asks for 24" and rule 10 for the changed bytes; golden.v1.jsonl still "passes as v1.1" (expected pass).
+- GV4, every tenant B test case of one label moved to dev (G-66, tenant B's only refuse-and-help test case): "golden.v2.jsonl: rule 9 (mix): no tenant-b refuse-and-help case is in the test split" and rule 10; v1.1 passes (expected pass).
+- GV8, the v2 row removed: `test_every_published_run_names_a_dataset_version_the_datasheet_lists` fails, "Left contains 8 more items, first extra item: \"20261024T090200Z-retrieval-dense-dev-ade9397: dataset.sha256 3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e is no version the datasheet's Maintenance table lists\"" (every v2 run named), and check-dataset: "golden.v2.jsonl: rule 10 (version): no version line of DATASHEET.md's Maintenance table names golden.v2.jsonl, so the file has no version and rule 9 no contract". With v2's own sha256 then written in prose: the same failures, so a hash in prose is still no version.
+- GV8, a sha256 written in prose outside the table (expected pass): the version tests "5 passed", and check-dataset passes both files.
+
+## Not in this PR
+
+- **S4b-J4 (low), for S8:** `raglab gate` reads the first consistency row of THRESHOLDS.md and
+  does not refuse a second one; only the test added in S4b,
+  `test_the_one_consistency_row_names_the_published_baseline`, does. The gate itself should
+  refuse a THRESHOLDS.md with two consistency rows; S8 (gates) takes it. No code change in S4b.
+- **S4b-J7:** `make audit`, red on `main`, is the coordinator's `build(deps)` pull request; this
+  branch merges `main` after it.
+
+## Verification (the criteria judge: the verdict and its re-checks)
+
+| Round | Head | Result |
+|---|---|---|
+| 0, the verdict | `e90059e` | 14 of 14 met (GV4, GV10 and GV14 with CI clauses); about 476 numbers recomputed, 0 mismatches; every break red and both expected passes passing; the live break 0.266 fails (13:59:05 to 14:08:42, postcheck passed). Findings S4b-J1 to S4b-J7 (two low, five info after S4b-J2's reduction): fix round 1 |
