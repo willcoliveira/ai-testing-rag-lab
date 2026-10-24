@@ -2,6 +2,218 @@
   "schema_version": "published-index.v1",
   "runs": [
     {
+      "run_id": "20261024T210231Z-judge-local-dev-c8da78b",
+      "path": "20261024T210231Z-judge-local-dev-c8da78b/",
+      "created_at": "2026-10-24T21:02:31Z",
+      "suite": "judged",
+      "split": "dev",
+      "config": "judge-local",
+      "provenance": "local",
+      "git_sha": "c8da78bb0733a7d0a758cbd090164106e08e2e3e",
+      "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
+      "retriever": "dense",
+      "k": 5,
+      "chunk_size": 1200,
+      "n": 303,
+      "metrics": {
+        "grounded": {
+          "value": 0.845638,
+          "ci_low": 0.762665,
+          "ci_high": 0.903282,
+          "n": 101
+        },
+        "grounded[answer]": {
+          "value": 0.84252,
+          "ci_low": 0.706401,
+          "ci_high": 0.922458,
+          "n": 43
+        },
+        "grounded[flag-conflict]": {
+          "value": 0.681818,
+          "ci_low": 0.351069,
+          "ci_high": 0.894601,
+          "n": 8
+        },
+        "grounded[refuse-and-help]": {
+          "value": 0.966667,
+          "ci_low": 0.676786,
+          "ci_high": 0.997516,
+          "n": 10
+        },
+        "grounded[abstain]": {
+          "value": 0.759259,
+          "ci_low": 0.528655,
+          "ci_high": 0.898667,
+          "n": 18
+        },
+        "grounded[retrieval]": {
+          "value": 0.923077,
+          "ci_low": 0.739724,
+          "ci_high": 0.980645,
+          "n": 22
+        },
+        "grounded_pass^3": {
+          "value": 0.693069,
+          "ci_low": 0.597427,
+          "ci_high": 0.774564,
+          "n": 101
+        },
+        "cites_support": {
+          "value": 0.85906,
+          "ci_low": 0.738445,
+          "ci_high": 0.929374,
+          "n": 51
+        },
+        "cites_support[answer]": {
+          "value": 0.874016,
+          "ci_low": 0.743487,
+          "ci_high": 0.943198,
+          "n": 43
+        },
+        "cites_support[flag-conflict]": {
+          "value": 0.772727,
+          "ci_low": 0.429694,
+          "ci_high": 0.938811,
+          "n": 8
+        },
+        "cites_support_pass^3": {
+          "value": 0.686275,
+          "ci_low": 0.54973,
+          "ci_high": 0.796723,
+          "n": 51
+        },
+        "correct": {
+          "value": 0.446927,
+          "ci_low": 0.329018,
+          "ci_high": 0.571125,
+          "n": 61
+        },
+        "correct[answer]": {
+          "value": 0.425197,
+          "ci_low": 0.289623,
+          "ci_high": 0.57304,
+          "n": 43
+        },
+        "correct[flag-conflict]": {
+          "value": 0.5,
+          "ci_low": 0.215216,
+          "ci_high": 0.784784,
+          "n": 8
+        },
+        "correct[refuse-and-help]": {
+          "value": 0.5,
+          "ci_low": 0.236593,
+          "ci_high": 0.763407,
+          "n": 10
+        },
+        "correct_pass^3": {
+          "value": 0.262295,
+          "ci_low": 0.168388,
+          "ci_high": 0.384367,
+          "n": 61
+        },
+        "relevant": {
+          "value": 0.868852,
+          "ci_low": 0.779689,
+          "ci_high": 0.925384,
+          "n": 83
+        },
+        "relevant[answer]": {
+          "value": 0.866142,
+          "ci_low": 0.734086,
+          "ci_high": 0.938143,
+          "n": 43
+        },
+        "relevant[flag-conflict]": {
+          "value": 0.954545,
+          "ci_low": 0.617827,
+          "ci_high": 0.996348,
+          "n": 8
+        },
+        "relevant[refuse-and-help]": {
+          "value": 0.933333,
+          "ci_low": 0.634934,
+          "ci_high": 0.991204,
+          "n": 10
+        },
+        "relevant[retrieval]": {
+          "value": 0.815385,
+          "ci_low": 0.611736,
+          "ci_high": 0.925267,
+          "n": 22
+        },
+        "relevant_pass^3": {
+          "value": 0.698795,
+          "ci_low": 0.59311,
+          "ci_high": 0.786893,
+          "n": 83
+        },
+        "abstains": {
+          "value": 0.574074,
+          "ci_low": 0.353261,
+          "ci_high": 0.768831,
+          "n": 18
+        },
+        "abstains[abstain]": {
+          "value": 0.574074,
+          "ci_low": 0.353261,
+          "ci_high": 0.768831,
+          "n": 18
+        },
+        "abstains_pass^3": {
+          "value": 0.333333,
+          "ci_low": 0.162788,
+          "ci_high": 0.562505,
+          "n": 18
+        },
+        "refuses_and_helps": {
+          "value": 0.966667,
+          "ci_low": 0.676786,
+          "ci_high": 0.997516,
+          "n": 10
+        },
+        "refuses_and_helps[refuse-and-help]": {
+          "value": 0.966667,
+          "ci_low": 0.676786,
+          "ci_high": 0.997516,
+          "n": 10
+        },
+        "refuses_and_helps_pass^3": {
+          "value": 0.9,
+          "ci_low": 0.59585,
+          "ci_high": 0.982124,
+          "n": 10
+        },
+        "context_sufficient": {
+          "value": 0.557377,
+          "ci_low": 0.433034,
+          "ci_high": 0.674922,
+          "n": 61
+        },
+        "context_sufficient[answer]": {
+          "value": 0.627907,
+          "ci_low": 0.478598,
+          "ci_high": 0.756237,
+          "n": 43
+        },
+        "context_sufficient[flag-conflict]": {
+          "value": 0.125,
+          "ci_low": 0.022417,
+          "ci_high": 0.470888,
+          "n": 8
+        },
+        "context_sufficient[refuse-and-help]": {
+          "value": 0.6,
+          "ci_low": 0.312674,
+          "ci_high": 0.83182,
+          "n": 10
+        }
+      },
+      "judge": "ministral-3:14b-instruct-2512-q4_K_M@4760c35aeb9d",
+      "prompt": "judge-v2",
+      "source": "20261024T090351Z-generation-local-ollama-dev-ade9397"
+    },
+    {
       "run_id": "20261024T114208Z-generation-local-ollama-dev-ade9397",
       "path": "20261024T114208Z-generation-local-ollama-dev-ade9397/",
       "created_at": "2026-10-24T11:42:08Z",

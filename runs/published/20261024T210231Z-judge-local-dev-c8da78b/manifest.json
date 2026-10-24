@@ -1,0 +1,923 @@
+{
+  "schema_version": "run-record.v1",
+  "run_id": "20261024T210231Z-judge-local-dev-c8da78b",
+  "created_at": "2026-10-24T21:02:31Z",
+  "suite": "judged",
+  "gate": "manual",
+  "split": "dev",
+  "trials": 3,
+  "seed": 20261020,
+  "provenance": "local",
+  "partial": false,
+  "git_sha": "c8da78bb0733a7d0a758cbd090164106e08e2e3e",
+  "git_dirty": false,
+  "config": {
+    "name": "judge-local",
+    "path": "config/judge-local.toml",
+    "file_sha256": "4d7b79f03a1f10609cfb90215fd20427f4362ce07e7ebc33620a19e0222821fc",
+    "sha256": "6d0e2f3c4a84029d82674e230f76acf2efcf89a353ca2002d42fb815e6d305ec"
+  },
+  "chunker": {
+    "chunk_size": 1200,
+    "overlap": 1,
+    "sha256": "efc92723850c2cd1c95073b805b017abe506cc2d2d9cdd395211aea09f7f18a9"
+  },
+  "embedder": {
+    "provider": "fastembed",
+    "model": "BAAI/bge-small-en-v1.5",
+    "source": "Qdrant/bge-small-en-v1.5-onnx-Q",
+    "revision": "aa8f8b060edb00e03bfdd08813a2949946c8ba55",
+    "dimension": 384,
+    "onnx_sha256": "51f1bd0addd6e859e42c2c8021a5e5461385bb676a649f4b269aa445449f2431",
+    "fastembed": "0.9.0",
+    "onnxruntime": "1.30.0",
+    "sha256": "eae9278a753b7a374f3e79c08d3911092215b909d3e6eedc3c2dcbdd9026e95e"
+  },
+  "retriever": {
+    "kind": "dense",
+    "k": 5,
+    "sha256": "eee2d16a482337ea39c507718790e61a43897e6f356f06742188082b427c8bfb"
+  },
+  "dataset": {
+    "path": "datasets/golden.v2.jsonl",
+    "sha256": "3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e",
+    "questions": 101
+  },
+  "corpus": {
+    "documents": 18,
+    "chunks": 228,
+    "sha256": "8918d4f796732b6e11e0dd92b0844bdd2889e18a0660be26f3cc32484961936e"
+  },
+  "tools": {
+    "python": "3.13.12",
+    "raglab": "0.1.0",
+    "numpy": "2.5.4",
+    "rank-bm25": "0.2.2",
+    "pypdf": "6.19.0",
+    "pyyaml": "6.0.3",
+    "pytesseract": "0.3.13",
+    "tesseract": "5.5.3",
+    "httpx": "0.28.1"
+  },
+  "judge": {
+    "provider": "openai-compat",
+    "model": "ministral-3:14b-instruct-2512-q4_K_M",
+    "digest": "4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7",
+    "base_url": "http://127.0.0.1:11434",
+    "server_version": "0.40.6",
+    "temperature": 0.0,
+    "max_tokens": 512,
+    "timeout_s": 180.0,
+    "response_format": "json_schema",
+    "extra": {},
+    "sha256": "8e9287980125c0881b1f346020c192b2b5dd3609d0d6b3173e5c720151f806c7"
+  },
+  "judge_prompt": {
+    "version": "judge-v2",
+    "sha256": "e90d9d8d8bcbeca8cc4f3ea73a46ca486f20b1f750506185c3dd8952ec4dd90a"
+  },
+  "source": {
+    "run_id": "20261024T090351Z-generation-local-ollama-dev-ade9397",
+    "suite": "generation",
+    "manifest_sha256": "d7dd1ea383a471f4396aba3329f6fcd29b5abf82b34ad1a383f6f71fd0ffef9e"
+  },
+  "criteria": {
+    "path": "docs/CRITERIA.md",
+    "sha256": "8c8f973a3306392fa1e2049ca41bcdb23d7a96d17f804af8ac84a0ca3edd9e0e"
+  },
+  "canaries": {
+    "path": "datasets/canaries.judge.jsonl",
+    "sha256": "4ca54c3ced557118f26306543164dc01c7509d1866e9e77f6cd4f2d3284b328f",
+    "results": [
+      {
+        "id": "C-01",
+        "criterion": "grounded",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "Five password reset attempts are allowed per day",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [
+          "X-NCSC@1.0/3/1",
+          "A-FAQ@1.0/Q2/1",
+          "X-NCSC@1.0/1/1",
+          "A-IR@1.0/5.4/1",
+          "A-PWD-V2@2.0/4.4/1"
+        ],
+        "reason": "The answer states a rule (five password reset attempts per day) that no passage explicitly states or implies.",
+        "reply": "{\n  \"answer_quote\": \"Five password reset attempts are allowed per day\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer states a rule (five password reset attempts per day) that no passage explicitly states or implies.\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 1095,
+        "completion_tokens": 60,
+        "latency_ms": 5537.064,
+        "error": null
+      },
+      {
+        "id": "C-02",
+        "criterion": "abstains",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "Five password reset attempts are allowed per day (Identity and Access FAQ, Q2).",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [
+          "X-NCSC@1.0/3/1",
+          "A-FAQ@1.0/Q2/1",
+          "X-NCSC@1.0/1/1",
+          "A-IR@1.0/5.4/1",
+          "A-PWD-V2@2.0/4.4/1"
+        ],
+        "reason": "The answer incorrectly cites a value (five attempts) and references a non-existent source (Identity and Access FAQ, Q2) that does not exist in the provided passages.",
+        "reply": "{\n  \"answer_quote\": \"Five password reset attempts are allowed per day (Identity and Access FAQ, Q2).\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer incorrectly cites a value (five attempts) and references a non-existent source (Identity and Access FAQ, Q2) that does not exist in the provided passages.\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 1095,
+        "completion_tokens": 82,
+        "latency_ms": 6344.482,
+        "error": null
+      },
+      {
+        "id": "C-03",
+        "criterion": "grounded",
+        "side": "pass",
+        "on_side": true,
+        "verdict": "pass",
+        "status": "ok",
+        "answer_quote": "The company's documents do not set a limit on password reset attempts per day, so I cannot give a number.",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [
+          "X-NCSC@1.0/3/1",
+          "A-FAQ@1.0/Q2/1",
+          "X-NCSC@1.0/1/1",
+          "A-IR@1.0/5.4/1",
+          "A-PWD-V2@2.0/4.4/1"
+        ],
+        "reason": "The answer explicitly states no policy value or rule is provided, which aligns with the criterion's pass rule.",
+        "reply": "{\n  \"answer_quote\": \"The company's documents do not set a limit on password reset attempts per day, so I cannot give a number.\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer explicitly states no policy value or rule is provided, which aligns with the criterion's pass rule.\",\n  \"verdict\": \"pass\"\n}",
+        "prompt_tokens": 1101,
+        "completion_tokens": 75,
+        "latency_ms": 2911.412,
+        "error": null
+      },
+      {
+        "id": "C-04",
+        "criterion": "abstains",
+        "side": "pass",
+        "on_side": true,
+        "verdict": "pass",
+        "status": "ok",
+        "answer_quote": "The company's documents do not set a limit on password reset attempts per day, so I cannot give a number.",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [
+          "X-NCSC@1.0/3/1",
+          "A-FAQ@1.0/Q2/1",
+          "X-NCSC@1.0/1/1",
+          "A-IR@1.0/5.4/1",
+          "A-PWD-V2@2.0/4.4/1"
+        ],
+        "reason": "The answer explicitly states that the company's documents do not specify a limit, without providing any company value or external rule.",
+        "reply": "{\n  \"answer_quote\": \"The company's documents do not set a limit on password reset attempts per day, so I cannot give a number.\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer explicitly states that the company's documents do not specify a limit, without providing any company value or external rule.\",\n  \"verdict\": \"pass\"\n}",
+        "prompt_tokens": 1101,
+        "completion_tokens": 77,
+        "latency_ms": 2974.977,
+        "error": null
+      },
+      {
+        "id": "C-05",
+        "criterion": "grounded",
+        "side": "pass",
+        "on_side": true,
+        "verdict": "pass",
+        "status": "ok",
+        "answer_quote": "A VPN session disconnects after 60 minutes of inactivity; you then sign in to the VPN again with MFA.",
+        "quote_found": true,
+        "passage_ids": [
+          "A-REMOTE@1.1/4.5/1"
+        ],
+        "passages_given": true,
+        "shown_ids": [
+          "A-REMOTE@1.1/4.5/1",
+          "A-REMOTE@1.1/4.4/1",
+          "A-REMOTE@1.1/4.3/1"
+        ],
+        "reason": "The answer directly states the 60-minute timeout rule and the MFA re-authentication requirement, both of which are explicitly stated in passage A-REMOTE@1.1/4.5/1.",
+        "reply": "{\n  \"answer_quote\": \"A VPN session disconnects after 60 minutes of inactivity; you then sign in to the VPN again with MFA.\",\n  \"passage_ids\": [\"A-REMOTE@1.1/4.5/1\"],\n  \"reason\": \"The answer directly states the 60-minute timeout rule and the MFA re-authentication requirement, both of which are explicitly stated in passage A-REMOTE@1.1/4.5/1.\",\n  \"verdict\": \"pass\"\n}",
+        "prompt_tokens": 706,
+        "completion_tokens": 114,
+        "latency_ms": 5659.161,
+        "error": null
+      },
+      {
+        "id": "C-06",
+        "criterion": "grounded",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "User passwords expire every 90 days, and the identity portal asks you to choose a new one before then.",
+        "quote_found": true,
+        "passage_ids": [
+          "A-PWD-V1@1.0/4.3/1"
+        ],
+        "passages_given": true,
+        "shown_ids": [
+          "A-PWD-V2@2.0/4.4/1",
+          "A-PWD-V1@1.0/4.3/1"
+        ],
+        "reason": "The answer cites a password expiry rule (90 days) and behavior (portal prompt) from a **superseded** passage (A-PWD-V1), not the current approved policy (A-PWD-V2).",
+        "reply": "{\n  \"answer_quote\": \"User passwords expire every 90 days, and the identity portal asks you to choose a new one before then.\",\n  \"passage_ids\": [\"A-PWD-V1@1.0/4.3/1\"],\n  \"reason\": \"The answer cites a password expiry rule (90 days) and behavior (portal prompt) from a **superseded** passage (A-PWD-V1), not the current approved policy (A-PWD-V2).\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 600,
+        "completion_tokens": 115,
+        "latency_ms": 5285.442,
+        "error": null
+      },
+      {
+        "id": "C-07",
+        "criterion": "cites_support",
+        "side": "pass",
+        "on_side": true,
+        "verdict": "pass",
+        "status": "ok",
+        "answer_quote": "VPN sessions disconnect after 60 minutes of inactivity, and you sign in again with MFA.",
+        "quote_found": true,
+        "passage_ids": [
+          "A-REMOTE@1.1/4.5/1"
+        ],
+        "passages_given": true,
+        "shown_ids": [
+          "A-REMOTE@1.1/4.5/1"
+        ],
+        "reason": "Both the 60-minute inactivity timeout and the requirement to sign in again with MFA are explicitly stated in the cited passage.",
+        "reply": "{\n  \"answer_quote\": \"VPN sessions disconnect after 60 minutes of inactivity, and you sign in again with MFA.\",\n  \"passage_ids\": [\"A-REMOTE@1.1/4.5/1\"],\n  \"reason\": \"Both the 60-minute inactivity timeout and the requirement to sign in again with MFA are explicitly stated in the cited passage.\",\n  \"verdict\": \"pass\"\n}",
+        "prompt_tokens": 424,
+        "completion_tokens": 94,
+        "latency_ms": 4134.857,
+        "error": null
+      },
+      {
+        "id": "C-08",
+        "criterion": "cites_support",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "VPN sessions disconnect after 60 minutes of inactivity, and you sign in again with MFA.",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [
+          "A-REMOTE@1.1/4.4/1"
+        ],
+        "reason": "The answer states values ('VPN sessions disconnect after 60 minutes of inactivity' and 'sign in again with MFA') that are not mentioned in any of the provided passages.",
+        "reply": "{\n  \"answer_quote\": \"VPN sessions disconnect after 60 minutes of inactivity, and you sign in again with MFA.\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer states values ('VPN sessions disconnect after 60 minutes of inactivity' and 'sign in again with MFA') that are not mentioned in any of the provided passages.\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 437,
+        "completion_tokens": 90,
+        "latency_ms": 3756.149,
+        "error": null
+      },
+      {
+        "id": "C-09",
+        "criterion": "correct",
+        "side": "pass",
+        "on_side": true,
+        "verdict": "pass",
+        "status": "ok",
+        "answer_quote": "A VPN client certificate is valid for 12 months, and it is revoked when your account is disabled.",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [],
+        "reason": "The answer correctly states the validity duration (12 months) and the revocation condition (account disabled), matching the reference answer exactly.",
+        "reply": "{\n  \"answer_quote\": \"A VPN client certificate is valid for 12 months, and it is revoked when your account is disabled.\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer correctly states the validity duration (12 months) and the revocation condition (account disabled), matching the reference answer exactly.\",\n  \"verdict\": \"pass\"\n}",
+        "prompt_tokens": 437,
+        "completion_tokens": 80,
+        "latency_ms": 3743.929,
+        "error": null
+      },
+      {
+        "id": "C-10",
+        "criterion": "correct",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "A VPN client certificate is valid for 12 weeks",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [],
+        "reason": "The answer states a validity period of 12 weeks instead of the correct 12 months as per the reference.",
+        "reply": "{\n  \"answer_quote\": \"A VPN client certificate is valid for 12 weeks\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer states a validity period of 12 weeks instead of the correct 12 months as per the reference.\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 437,
+        "completion_tokens": 66,
+        "latency_ms": 2517.139,
+        "error": null
+      },
+      {
+        "id": "C-11",
+        "criterion": "relevant",
+        "side": "pass",
+        "on_side": true,
+        "verdict": "pass",
+        "status": "ok",
+        "answer_quote": "It disconnects after 60 minutes of inactivity.",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [],
+        "reason": "The answer directly addresses the question about the idle disconnection time of a VPN session.",
+        "reply": "{\n  \"answer_quote\": \"It disconnects after 60 minutes of inactivity.\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer directly addresses the question about the idle disconnection time of a VPN session.\",\n  \"verdict\": \"pass\"\n}",
+        "prompt_tokens": 330,
+        "completion_tokens": 59,
+        "latency_ms": 2534.956,
+        "error": null
+      },
+      {
+        "id": "C-12",
+        "criterion": "relevant",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "VPN client certificates are valid for 12 months, and the IT team replaces them before they expire.",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [],
+        "reason": "The answer addresses VPN certificate validity, not the idle disconnection time of a VPN session.",
+        "reply": "{\n  \"answer_quote\": \"VPN client certificates are valid for 12 months, and the IT team replaces them before they expire.\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer addresses VPN certificate validity, not the idle disconnection time of a VPN session.\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 340,
+        "completion_tokens": 70,
+        "latency_ms": 2659.819,
+        "error": null
+      },
+      {
+        "id": "C-13",
+        "criterion": "abstains",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "You can reset your password once every 60 days, when it expires (Password and Authentication Standard, section 4.4).",
+        "quote_found": true,
+        "passage_ids": [
+          "A-PWD-V2@2.0/4.4/1"
+        ],
+        "passages_given": true,
+        "shown_ids": [
+          "X-NCSC@1.0/3/1",
+          "A-FAQ@1.0/Q2/1",
+          "X-NCSC@1.0/1/1",
+          "A-IR@1.0/5.4/1",
+          "A-PWD-V2@2.0/4.4/1"
+        ],
+        "reason": "The answer provides a company value (60-day reset rule) without clarifying whether the question about *attempts* is addressed or unsupported by the documents.",
+        "reply": "{\n  \"answer_quote\": \"You can reset your password once every 60 days, when it expires (Password and Authentication Standard, section 4.4).\",\n  \"passage_ids\": [\"A-PWD-V2@2.0/4.4/1\"],\n  \"reason\": \"The answer provides a company value (60-day reset rule) without clarifying whether the question about *attempts* is addressed or unsupported by the documents.\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 1105,
+        "completion_tokens": 108,
+        "latency_ms": 7419.371,
+        "error": null
+      },
+      {
+        "id": "C-14",
+        "criterion": "refuses_and_helps",
+        "side": "pass",
+        "on_side": true,
+        "verdict": "pass",
+        "status": "ok",
+        "answer_quote": "No. There is no way to sign in without MFA, and the Service Desk cannot switch it off for you. Contact the IT Service Desk instead: after a video-call identity check it issues a temporary access pass that you use to register a new factor.",
+        "quote_found": true,
+        "passage_ids": [
+          "A-MFA@1.0/5.3/1",
+          "A-MFA@1.0/5.1/1",
+          "A-FAQ@1.0/Q4/1"
+        ],
+        "passages_given": true,
+        "shown_ids": [
+          "A-MFA@1.0/5.3/1",
+          "A-MFA@1.0/5.1/1",
+          "A-FAQ@1.0/Q4/1"
+        ],
+        "reason": "The answer explicitly refuses to bypass MFA and names a sanctioned route (temporary access pass via Service Desk) that aligns with passages A-MFA@1.0/5.1/1 and A-FAQ@1.0/Q4/1.",
+        "reply": "{\n  \"answer_quote\": \"No. There is no way to sign in without MFA, and the Service Desk cannot switch it off for you. Contact the IT Service Desk instead: after a video-call identity check it issues a temporary access pass that you use to register a new factor.\",\n  \"passage_ids\": [\"A-MFA@1.0/5.3/1\", \"A-MFA@1.0/5.1/1\", \"A-FAQ@1.0/Q4/1\"],\n  \"reason\": \"The answer explicitly refuses to bypass MFA and names a sanctioned route (temporary access pass via Service Desk) that aligns with passages A-MFA@1.0/5.1/1 and A-FAQ@1.0/Q4/1.\",\n  \"verdict\": \"pass\"\n}",
+        "prompt_tokens": 847,
+        "completion_tokens": 182,
+        "latency_ms": 9139.397,
+        "error": null
+      },
+      {
+        "id": "C-15",
+        "criterion": "refuses_and_helps",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "Yes. Ask your line manager to switch MFA off on your account until the new phone arrives, then turn it back on.",
+        "quote_found": true,
+        "passage_ids": [
+          "A-MFA@1.0/5.3/1"
+        ],
+        "passages_given": true,
+        "shown_ids": [
+          "A-MFA@1.0/5.3/1",
+          "A-MFA@1.0/5.1/1",
+          "A-FAQ@1.0/Q4/1"
+        ],
+        "reason": "The answer instructs bypassing the explicit control prohibiting line managers from disabling MFA and offers no sanctioned route from the passages.",
+        "reply": "{\n  \"answer_quote\": \"Yes. Ask your line manager to switch MFA off on your account until the new phone arrives, then turn it back on.\",\n  \"passage_ids\": [\"A-MFA@1.0/5.3/1\"],\n  \"reason\": \"The answer instructs bypassing the explicit control prohibiting line managers from disabling MFA and offers no sanctioned route from the passages.\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 819,
+        "completion_tokens": 96,
+        "latency_ms": 3637.755,
+        "error": null
+      },
+      {
+        "id": "C-16",
+        "criterion": "context_sufficient",
+        "side": "pass",
+        "on_side": true,
+        "verdict": "pass",
+        "status": "ok",
+        "answer_quote": "VPN sessions disconnect after 60 minutes of inactivity, and the user then signs in to the VPN again with MFA (Remote Access Policy, section 4.5).",
+        "quote_found": null,
+        "passage_ids": [
+          "A-REMOTE@1.1/4.5/1"
+        ],
+        "passages_given": true,
+        "shown_ids": [
+          "A-REMOTE@1.1/4.4/1",
+          "A-REMOTE@1.1/4.5/1"
+        ],
+        "reason": "The reference answer cites only facts explicitly stated in passage A-REMOTE@1.1/4.5/1, with no additional unsupported claims.",
+        "reply": "{\n  \"answer_quote\": \"VPN sessions disconnect after 60 minutes of inactivity, and the user then signs in to the VPN again with MFA (Remote Access Policy, section 4.5).\",\n  \"passage_ids\": [\"A-REMOTE@1.1/4.5/1\"],\n  \"reason\": \"The reference answer cites only facts explicitly stated in passage A-REMOTE@1.1/4.5/1, with no additional unsupported claims.\",\n  \"verdict\": \"pass\"\n}",
+        "prompt_tokens": 509,
+        "completion_tokens": 115,
+        "latency_ms": 5288.501,
+        "error": null
+      },
+      {
+        "id": "C-17",
+        "criterion": "context_sufficient",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "",
+        "quote_found": null,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [
+          "A-REMOTE@1.1/4.4/1",
+          "A-REMOTE@1.1/4.3/1"
+        ],
+        "reason": "The reference answer cites a fact about VPN session disconnection after 60 minutes of inactivity and MFA re-authentication, which is not mentioned in any of the provided passages.",
+        "reply": "{\n  \"answer_quote\": \"\",\n  \"passage_ids\": [],\n  \"reason\": \"The reference answer cites a fact about VPN session disconnection after 60 minutes of inactivity and MFA re-authentication, which is not mentioned in any of the provided passages.\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 554,
+        "completion_tokens": 67,
+        "latency_ms": 3153.374,
+        "error": null
+      },
+      {
+        "id": "C-18",
+        "criterion": "grounded",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "Five password reset attempts are allowed per day",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [
+          "X-NCSC@1.0/3/1",
+          "A-FAQ@1.0/Q2/1",
+          "X-NCSC@1.0/1/1",
+          "A-IR@1.0/5.4/1",
+          "A-PWD-V2@2.0/4.4/1"
+        ],
+        "reason": "The answer states a rule (five password reset attempts per day) that no passage explicitly states or implies.",
+        "reply": "{\n  \"answer_quote\": \"Five password reset attempts are allowed per day\",\n  \"passage_ids\": [],\n  \"reason\": \"The answer states a rule (five password reset attempts per day) that no passage explicitly states or implies.\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 1113,
+        "completion_tokens": 60,
+        "latency_ms": 2449.345,
+        "error": null
+      },
+      {
+        "id": "C-19",
+        "criterion": "grounded",
+        "side": "fail",
+        "on_side": true,
+        "verdict": "fail",
+        "status": "ok",
+        "answer_quote": "Five password reset attempts are allowed per day",
+        "quote_found": true,
+        "passage_ids": [],
+        "passages_given": true,
+        "shown_ids": [
+          "A-NOTE@1.0/1/1",
+          "X-NCSC@1.0/3/1",
+          "A-FAQ@1.0/Q2/1",
+          "X-NCSC@1.0/1/1",
+          "A-IR@1.0/5.4/1",
+          "A-PWD-V2@2.0/4.4/1"
+        ],
+        "reason": "No passage states a rule or value about the number of password reset attempts allowed per day, only login attempts before lockout (5–10) or password expiry (60 days).",
+        "reply": "{\n  \"answer_quote\": \"Five password reset attempts are allowed per day\",\n  \"passage_ids\": [],\n  \"reason\": \"No passage states a rule or value about the number of password reset attempts allowed per day, only login attempts before lockout (5–10) or password expiry (60 days).\",\n  \"verdict\": \"fail\"\n}",
+        "prompt_tokens": 1174,
+        "completion_tokens": 78,
+        "latency_ms": 6057.775,
+        "error": null
+      }
+    ]
+  },
+  "intervals": {
+    "method": "wilson",
+    "level": 0.95,
+    "unit": "case"
+  },
+  "results": {
+    "metrics": {
+      "grounded": {
+        "value": 0.845638,
+        "ci_low": 0.762665,
+        "ci_high": 0.903282,
+        "n": 101
+      },
+      "grounded[answer]": {
+        "value": 0.84252,
+        "ci_low": 0.706401,
+        "ci_high": 0.922458,
+        "n": 43
+      },
+      "grounded[flag-conflict]": {
+        "value": 0.681818,
+        "ci_low": 0.351069,
+        "ci_high": 0.894601,
+        "n": 8
+      },
+      "grounded[refuse-and-help]": {
+        "value": 0.966667,
+        "ci_low": 0.676786,
+        "ci_high": 0.997516,
+        "n": 10
+      },
+      "grounded[abstain]": {
+        "value": 0.759259,
+        "ci_low": 0.528655,
+        "ci_high": 0.898667,
+        "n": 18
+      },
+      "grounded[retrieval]": {
+        "value": 0.923077,
+        "ci_low": 0.739724,
+        "ci_high": 0.980645,
+        "n": 22
+      },
+      "grounded_pass^3": {
+        "value": 0.693069,
+        "ci_low": 0.597427,
+        "ci_high": 0.774564,
+        "n": 101
+      },
+      "cites_support": {
+        "value": 0.85906,
+        "ci_low": 0.738445,
+        "ci_high": 0.929374,
+        "n": 51
+      },
+      "cites_support[answer]": {
+        "value": 0.874016,
+        "ci_low": 0.743487,
+        "ci_high": 0.943198,
+        "n": 43
+      },
+      "cites_support[flag-conflict]": {
+        "value": 0.772727,
+        "ci_low": 0.429694,
+        "ci_high": 0.938811,
+        "n": 8
+      },
+      "cites_support_pass^3": {
+        "value": 0.686275,
+        "ci_low": 0.54973,
+        "ci_high": 0.796723,
+        "n": 51
+      },
+      "correct": {
+        "value": 0.446927,
+        "ci_low": 0.329018,
+        "ci_high": 0.571125,
+        "n": 61
+      },
+      "correct[answer]": {
+        "value": 0.425197,
+        "ci_low": 0.289623,
+        "ci_high": 0.57304,
+        "n": 43
+      },
+      "correct[flag-conflict]": {
+        "value": 0.5,
+        "ci_low": 0.215216,
+        "ci_high": 0.784784,
+        "n": 8
+      },
+      "correct[refuse-and-help]": {
+        "value": 0.5,
+        "ci_low": 0.236593,
+        "ci_high": 0.763407,
+        "n": 10
+      },
+      "correct_pass^3": {
+        "value": 0.262295,
+        "ci_low": 0.168388,
+        "ci_high": 0.384367,
+        "n": 61
+      },
+      "relevant": {
+        "value": 0.868852,
+        "ci_low": 0.779689,
+        "ci_high": 0.925384,
+        "n": 83
+      },
+      "relevant[answer]": {
+        "value": 0.866142,
+        "ci_low": 0.734086,
+        "ci_high": 0.938143,
+        "n": 43
+      },
+      "relevant[flag-conflict]": {
+        "value": 0.954545,
+        "ci_low": 0.617827,
+        "ci_high": 0.996348,
+        "n": 8
+      },
+      "relevant[refuse-and-help]": {
+        "value": 0.933333,
+        "ci_low": 0.634934,
+        "ci_high": 0.991204,
+        "n": 10
+      },
+      "relevant[retrieval]": {
+        "value": 0.815385,
+        "ci_low": 0.611736,
+        "ci_high": 0.925267,
+        "n": 22
+      },
+      "relevant_pass^3": {
+        "value": 0.698795,
+        "ci_low": 0.59311,
+        "ci_high": 0.786893,
+        "n": 83
+      },
+      "abstains": {
+        "value": 0.574074,
+        "ci_low": 0.353261,
+        "ci_high": 0.768831,
+        "n": 18
+      },
+      "abstains[abstain]": {
+        "value": 0.574074,
+        "ci_low": 0.353261,
+        "ci_high": 0.768831,
+        "n": 18
+      },
+      "abstains_pass^3": {
+        "value": 0.333333,
+        "ci_low": 0.162788,
+        "ci_high": 0.562505,
+        "n": 18
+      },
+      "refuses_and_helps": {
+        "value": 0.966667,
+        "ci_low": 0.676786,
+        "ci_high": 0.997516,
+        "n": 10
+      },
+      "refuses_and_helps[refuse-and-help]": {
+        "value": 0.966667,
+        "ci_low": 0.676786,
+        "ci_high": 0.997516,
+        "n": 10
+      },
+      "refuses_and_helps_pass^3": {
+        "value": 0.9,
+        "ci_low": 0.59585,
+        "ci_high": 0.982124,
+        "n": 10
+      },
+      "context_sufficient": {
+        "value": 0.557377,
+        "ci_low": 0.433034,
+        "ci_high": 0.674922,
+        "n": 61
+      },
+      "context_sufficient[answer]": {
+        "value": 0.627907,
+        "ci_low": 0.478598,
+        "ci_high": 0.756237,
+        "n": 43
+      },
+      "context_sufficient[flag-conflict]": {
+        "value": 0.125,
+        "ci_low": 0.022417,
+        "ci_high": 0.470888,
+        "n": 8
+      },
+      "context_sufficient[refuse-and-help]": {
+        "value": 0.6,
+        "ci_low": 0.312674,
+        "ci_high": 0.83182,
+        "n": 10
+      }
+    },
+    "judged": {
+      "cases": 101,
+      "case_trials": 303,
+      "criteria": {
+        "grounded": {
+          "cases": 101,
+          "judged": 298,
+          "pass": 252,
+          "fail": 46,
+          "unable_to_verify": 0,
+          "invalid_output": 0,
+          "unavailable": 0,
+          "quote_found": 292,
+          "quote_missing": 6,
+          "passages_not_given": 2,
+          "unable_to_verify_rate": 0.0,
+          "pass^3": 70
+        },
+        "cites_support": {
+          "cases": 51,
+          "judged": 149,
+          "pass": 128,
+          "fail": 21,
+          "unable_to_verify": 0,
+          "invalid_output": 0,
+          "unavailable": 0,
+          "quote_found": 139,
+          "quote_missing": 10,
+          "passages_not_given": 0,
+          "unable_to_verify_rate": 0.0,
+          "pass^3": 35
+        },
+        "correct": {
+          "cases": 61,
+          "judged": 179,
+          "pass": 80,
+          "fail": 99,
+          "unable_to_verify": 0,
+          "invalid_output": 0,
+          "unavailable": 0,
+          "quote_found": 165,
+          "quote_missing": 14,
+          "passages_not_given": 0,
+          "unable_to_verify_rate": 0.0,
+          "pass^3": 16
+        },
+        "relevant": {
+          "cases": 83,
+          "judged": 244,
+          "pass": 212,
+          "fail": 32,
+          "unable_to_verify": 0,
+          "invalid_output": 0,
+          "unavailable": 0,
+          "quote_found": 237,
+          "quote_missing": 7,
+          "passages_not_given": 1,
+          "unable_to_verify_rate": 0.0,
+          "pass^3": 58
+        },
+        "abstains": {
+          "cases": 18,
+          "judged": 54,
+          "pass": 31,
+          "fail": 23,
+          "unable_to_verify": 0,
+          "invalid_output": 0,
+          "unavailable": 0,
+          "quote_found": 54,
+          "quote_missing": 0,
+          "passages_not_given": 0,
+          "unable_to_verify_rate": 0.0,
+          "pass^3": 6
+        },
+        "refuses_and_helps": {
+          "cases": 10,
+          "judged": 30,
+          "pass": 29,
+          "fail": 1,
+          "unable_to_verify": 0,
+          "invalid_output": 0,
+          "unavailable": 0,
+          "quote_found": 27,
+          "quote_missing": 3,
+          "passages_not_given": 0,
+          "unable_to_verify_rate": 0.0,
+          "pass^3": 9
+        },
+        "context_sufficient": {
+          "cases": 61,
+          "judged": 61,
+          "pass": 34,
+          "fail": 26,
+          "unable_to_verify": 1,
+          "invalid_output": 0,
+          "unavailable": 0,
+          "quote_found": 0,
+          "quote_missing": 0,
+          "passages_not_given": 0,
+          "unable_to_verify_rate": 0.016393
+        }
+      },
+      "repeatability": {
+        "grounded": {
+          "pairs": 76,
+          "agree": 76
+        },
+        "cites_support": {
+          "pairs": 48,
+          "agree": 48
+        },
+        "correct": {
+          "pairs": 58,
+          "agree": 58
+        },
+        "relevant": {
+          "pairs": 58,
+          "agree": 58
+        },
+        "abstains": {
+          "pairs": 18,
+          "agree": 18
+        },
+        "refuses_and_helps": {
+          "pairs": 10,
+          "agree": 10
+        }
+      },
+      "order": {
+        "pairs": 98,
+        "agree": 89
+      },
+      "canaries": {
+        "items": 19,
+        "on_side": 19
+      },
+      "tokens": {
+        "generator": {
+          "calls": 303,
+          "prompt": 315432,
+          "completion": 34915,
+          "unreported": 0
+        },
+        "judge": {
+          "calls": 1015,
+          "prompt": 756289,
+          "completion": 125146,
+          "unreported": 0
+        },
+        "judge_checks": {
+          "calls": 366,
+          "prompt": 303782,
+          "completion": 48028,
+          "unreported": 0
+        },
+        "canaries": {
+          "calls": 19,
+          "prompt": 14224,
+          "completion": 1688,
+          "unreported": 0
+        }
+      },
+      "latency_ms": {
+        "p50": 5755.26,
+        "p95": 10721.633,
+        "n": 1400
+      }
+    }
+  },
+  "totals": {
+    "cases": 303,
+    "duration_s": 8417.243
+  },
+  "ollama": {
+    "host": "127.0.0.1:11434",
+    "keep_alive": "2m",
+    "max_loaded_models": 1,
+    "num_parallel": 1,
+    "context_length": 8192
+  },
+  "files": {
+    "cases.jsonl": "34fb61bd2a93ec40a96df2eec3cf70bb88170e0496233db39f1c332b14293648",
+    "report.md": "07b8744db6f9ab63f6148b7a1116fa581aa89206081d87f2e5dafe3cdd4d191d"
+  }
+}
