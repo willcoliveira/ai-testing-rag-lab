@@ -176,8 +176,7 @@ team contact).
 ### Golden set v2: behaviour cases by mix, tenant and label
 
 v2 holds v1.1's 40 cases and 80 new ones. A mix kind and a label mean what they mean in v1.1
-(above). The dev and test columns of v2 come from the seeded split and are added once it has run
-([Splits](#splits)).
+(above). v2's dev and test counts, from the seeded split, are in [Splits](#splits).
 
 | mix slot | v1.1 | new: tenant A | new: tenant B | new | v2 |
 |---|---|---|---|---|---|
@@ -270,7 +269,7 @@ does not change (the S4b plan's decision D3), so R-22 stays a gap.
 | R-03 | G-24 to G-28, G-37, P-01 to P-03 | G-84 to G-99, G-114, G-116 |
 | R-04 | G-29 to G-32 | G-100 to G-107, G-109, G-117 |
 | R-05 | G-11, G-18, G-19 | G-78 |
-| R-06 | G-22 (and G-26 by design) | G-68 to G-71, G-93, G-110 |
+| R-06 | G-22 (and G-26 by design) | G-68 to G-71, G-110; by design, G-84, G-85 and G-93 (the attributed quotes, D-03; G-93's F-96 names R-06 as well) |
 | R-07 | G-05 | G-39 |
 | R-08 | none | G-72, G-73 |
 | R-09 | none | G-38, G-74, G-75 |
@@ -693,12 +692,23 @@ step 3); the repository has no threshold, so S4 reports the agreement and sets n
 | Cohen's kappa | 1.0000 |
 | Disagreements and how each was settled | none: no label and no first feature differs |
 
-**S4b, the 80 new cases of v2.** The S4b labels judge (a different model, in a context of its own)
-labels the decision of each new case blind, from its id, tenant and question and the answer key,
-and seals its labels (sha256 and time) before it opens the golden file or this datasheet (S4b
-plan, "The labels judge"). Its seal, what it had, the matches of 80, the observed and chance
-agreement, Cohen's kappa, and each disagreement with how it was settled are recorded here from its
-sealed labels once it has run. Until then this part holds no number.
+**S4b, the 80 new cases of v2.** The S4b labels judge, a different model (Fable 5.1) in a context
+of its own, labelled the decision of each new case blind and sealed its labels before it opened
+either golden file or this datasheet: its `blind-labels.jsonl` has sha256
+`31d989d24a32d6f0057732a0a00b56d15d6e0558f1f11cbc6b34ef746721e4c3`, sealed on 2026-10-24 at
+00:01 WEST. **What the second labeller had:** each new case's id, tenant and question; the answer
+key with F-88 to F-98; the 21 corpus documents and the register; `corpus/SPEC.md` sections 6 to 9;
+TEST-PLAN section 3; and `CLAUDE.md`. As in S4, the answer key carries each feature's expected
+label, so the agreement shows that the 80 questions fit the key's labels, weaker evidence than a
+second person labelling from the documents alone; no threshold is set.
+
+| Measure | Value |
+|---|---|
+| Labels that match (of 80) | 80 |
+| Observed agreement | 1.0000 |
+| Chance agreement (from the marginals 39 / 18 / 10 / 13 on both sides) | 0.3303 |
+| Cohen's kappa | 1.0000 |
+| Disagreements and how each was settled | none: no label differs, and the file's first feature is among the judge's feature ids for all 80 |
 
 ### Review
 
@@ -716,15 +726,44 @@ additions (S4b ledger). Their findings go into the ledgers, not this file.
   every mix kind and every label has at least one test case, and the three S3 probes are in dev.
   The test split holds one refuse-and-help case (G-13) and one flag-conflict case (G-30). v2 keeps
   these 40 cases' splits.
-- **The 80 new behaviour cases of v2** are split by a committed script with seed 20261023, a rule
-  written in the S4b plan before any case existed; their author wrote them without a split. Within
-  each stratum (mix slot, expected label, tenant), the cases are sorted by id and shuffled with the
-  seed, and one third, rounded, goes to test. A stratum of one or two cases is pooled with its
-  label's other strata, so that every mix slot, every label and each tenant has test cases. The
-  developer runs the script once, before the labels judge and before any run, and a test runs it
-  again and compares. About two thirds of the new cases go to dev. Its result (the counts by mix
-  slot, label and tenant, the test case ids, and the features and sections the test cases share
-  with dev lines) is recorded here once it has run.
+- **The 80 new behaviour cases of v2** are split by `scripts/split_golden.py` with seed 20261023, a
+  rule written in the S4b plan before any case existed; their author wrote them without a split.
+  Within each stratum (mix slot, expected label, tenant), the cases are sorted by id and shuffled
+  with the seed, and one third, rounded, goes to test; a stratum of one or two cases is pooled with
+  its label's other strata of one or two. That first draw, made before the labels judge, left every
+  case of three first-feature kinds in test: background, exception-overrides-rule and procedure
+  (R-23). By the maintainer's answer to the labels judge's call C1, "Repair in the committed script
+  (Recommended)", the script gained a second pass **written after that draw was seen**: for each
+  first-feature kind of two or more cases with none in dev, its lowest-numbered new test case moves
+  to dev, and one new dev case of the same stratum whose kind keeps a dev case, drawn with a fresh
+  generator of the same seed, moves to test. It moved G-40, G-78 and G-76 to dev and G-38, G-72
+  and G-83 to test; every stratum kept its count of test cases. A test runs the script again on
+  the committed file and compares. The units and their test cases (S4b ledger: both draws):
+
+  | Unit (a stratum, or a label's pool) | Cases | Test |
+  |---|---|---|
+  | multi-chunk / answer / tenant A | 11 | G-70, G-72, G-77, G-83 |
+  | paraphrased or misspelled / flag-conflict / tenant A | 3 | G-117 |
+  | single-chunk / answer / tenant A | 13 | G-38, G-39, G-44, G-49 |
+  | single-chunk / answer / tenant B | 9 | G-57, G-59, G-60 |
+  | single-chunk / refuse-and-help / tenant A | 5 | G-45, G-46 |
+  | single-chunk / refuse-and-help / tenant B | 3 | G-66 |
+  | unanswerable / abstain / tenant A | 7 | G-93, G-96 |
+  | unanswerable / abstain / tenant B | 9 | G-85, G-87, G-91 |
+  | version-conflict / answer / tenant A | 3 | G-107 |
+  | version-conflict / flag-conflict / tenant A | 5 | G-102, G-104 |
+  | the pool of abstain | 2 | G-116 |
+  | the pool of answer | 3 | G-112 |
+  | the pool of flag-conflict | 2 | G-69 |
+  | the pool of refuse-and-help | 5 | G-111, G-115 |
+
+  The new cases are 52 dev and 28 test. **v2's 120 behaviour cases, dev / test:** 79 / 41; by
+  mix slot, single-chunk 30 / 15, multi-chunk 17 / 7, unanswerable 17 / 7, version-conflict 7 / 5,
+  paraphrased or misspelled 8 / 7; by label, answer 43 / 21, abstain 18 / 9, flag-conflict 8 / 5,
+  refuse-and-help 10 / 6; by tenant, A 56 / 31 and B 23 / 10, tenant B's test cases being 4
+  answer, 5 abstain and 1 refuse-and-help. Every first-feature kind of two or more cases has a dev
+  case. The version-history kind's only case, G-107, is in test, so F-58 is never measured in a
+  dev run (the labels judge's S4b-L9).
 - **dev** is for development, the baselines, the gates' margins and any later prompt work.
 - **test** runs only in nightly, release and the capstone. It is never used to choose a
   configuration, a threshold or a prompt. If a test case or question is ever used for tuning, it
@@ -737,7 +776,40 @@ additions (S4b ledger). Their findings go into the ledgers, not this file.
   be labelled by dev lines (A-PWD-V2 4.3 by R-Q33 for G-02; Table 1 of A-PWD-V2 by G-03, G-12,
   R-Q04, R-Q05 and R-Q22 for G-04 and G-32; A-PWD-V2 4.4 by G-22, G-29, R-Q08, R-Q18 and R-Q21 for
   G-30; A-EXC 5.1 by G-19, R-Q24 and R-Q25 for G-18). G-04 is also a close paraphrase of R-Q04 in
-  other words; it stays (the labels judge's S4-L9; the user's answer on D-f).
+  other words; it stays (the labels judge's S4-L9; the user's answer on D-f). **In v2**, 22 of the
+  28 new test cases share a feature with a dev line, and 18 a labelled section (a dev line's label
+  or group member):
+
+  | New test case | Its features in dev lines | Its labelled sections in dev lines |
+  |---|---|---|
+  | G-38 | F-20 | A-GLOSS 10 |
+  | G-39 | F-15 | A-MFA 4.1 |
+  | G-44 | F-93 | A-EXC 3.2, A-FAQ Q11 |
+  | G-45 | F-53 | A-PWD-V2 4.6, A-FAQ Q10 |
+  | G-46 | F-43, F-53 | A-EXC 3.1, A-FAQ Q11 |
+  | G-49 | none | none |
+  | G-57 | none | none |
+  | G-59 | none | none |
+  | G-60 | F-39 | B-MFA 7.1 |
+  | G-66 | F-91 | B-MFA 3.1 |
+  | G-69 | F-08, F-53 | A-PWD-V2 4.4, A-FAQ Q2, X-NCSC 3 |
+  | G-70 | F-13, F-09 | A-PWD-V2 5, X-NIST 3.2.2 |
+  | G-72 | F-18 | A-PRIV 8.1, A-REV 3.2 |
+  | G-77 | F-22 | A-MFA 6.1 |
+  | G-83 | none | A-IR 5.3 |
+  | G-85 | F-40 | none |
+  | G-87 | F-40 | none |
+  | G-91 | F-40 | none |
+  | G-93 | none | none |
+  | G-96 | F-97 | none |
+  | G-102 | F-88 | A-PWD-V2 5 |
+  | G-104 | F-88 | A-PWD-V2 5 |
+  | G-107 | none | none |
+  | G-111 | F-41, F-53 | A-MFA 5.1, A-FAQ Q4 |
+  | G-112 | F-57 | A-IR 5, A-IR 5.1 to 5.6 |
+  | G-115 | F-43, F-53 | A-EXC 3.1, A-FAQ Q11 |
+  | G-116 | F-40 | none |
+  | G-117 | F-88, F-53 | A-PWD-V2 4.1, A-FAQ Q1, A-PWD-V1 4.1 |
 
 ## Licensing
 
@@ -758,7 +830,7 @@ v3.0), as listed in `corpus/SOURCES.md`.
 |---|---|---|---|---|---|
 | v1 | 2026-10-06 | S2 | `golden.v1.jsonl` | 34 retrieval questions | `ffb8c5a54b2277bd90efd9bdebda4b91494eb472c3c604b6f057146b19436104` |
 | v1.1 | 2026-10-19 | S4 | `golden.v1.jsonl` | 40 behaviour cases; label groups on seven retrieval questions, whose feature ids gain F-53; after the labels judge's review, G-33's reference answer trimmed to the route (made before the sign-off, so still v1.1) | `5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a` |
-| v2 | 2026-10-23 | S4b | `golden.v2.jsonl` | v1.1's 74 lines unchanged, then 80 new behaviour cases (G-38 to G-117): 120 behaviour cases in the mix 45/24/24/12/15, 33 of them asked as tenant B; answer-key additions F-88 to F-98 and F-40's new silence phrases; the new cases' splits from the seeded script (seed 20261023) | `481063f4375036e4676f170482a4270bd0d0dae0d76d225ea6257192cef0781b` |
+| v2 | 2026-10-23 | S4b | `golden.v2.jsonl` | v1.1's 74 lines unchanged, then 80 new behaviour cases (G-38 to G-117): 120 behaviour cases in the mix 45/24/24/12/15, 33 of them asked as tenant B; answer-key additions F-88 to F-98 and F-40's new silence phrases; the new cases' splits from the seeded script (seed 20261023); after the labels judge's review, the script's second pass (G-40, G-78 and G-76 to dev; G-38, G-72 and G-83 to test), F-84 and F-83 dropped from G-79 and G-111, and G-51's reference stating its step (made before the sign-off, so still v2) | `3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e` |
 
 - A dataset version is a build input like the model and the prompt: every run manifest records
   the file's sha256, so a run names its version. The latest row for each file carries the sha256
