@@ -203,8 +203,25 @@ def test_serve_refuses_with_one_line_before_the_port_binds(config, environ, word
             check=False,
         )
     assert done.returncode == 1, done
-    lines = done.stderr.strip().splitlines()
+    lines = raglab_lines(done.stderr)
     assert len(lines) == 1, lines
     assert lines[0].startswith("serve failed: "), lines
     assert words in lines[0], lines
     assert done.stdout == ""  # "raglab serve: http://..." is printed only once it may serve
+
+
+# onnxruntime's own native log line (fix round 2: on GitHub's Linux runner, importing onnxruntime
+# prints a device-discovery warning to stderr; macOS prints none): after its ANSI colour codes are
+# stripped, a timestamp, then `[<severity letter>:onnxruntime:`. Matched by that format only, so a
+# line of raglab's own is counted even when it names onnxruntime.
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+ONNXRUNTIME_LOG = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+ \[[A-Z]:onnxruntime:")
+
+
+def raglab_lines(stderr: str) -> list[str]:
+    """stderr's lines, but onnxruntime's native log lines."""
+    return [
+        line
+        for line in stderr.strip().splitlines()
+        if not ONNXRUNTIME_LOG.match(ANSI.sub("", line))
+    ]
