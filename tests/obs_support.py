@@ -98,10 +98,15 @@ def traced_app(
 
 
 def every_value(span: ReadableSpan) -> list[tuple[str, str]]:
-    """Everything the span would export, as (where, text): its name, each attribute, the status
+    """Everything the span would export, as (where, text): its name, its own and its parent's
+    trace state (S9-J2: free text from whoever started the trace), each attribute, the status
     description, each event and its attributes, each link's attributes, the resource and the
-    scope."""
+    scope. The ids are hex and are checked apart (tests/obs/test_trace_context.py), so a digit
+    marker never matches one by chance."""
     out = [("name", span.name), ("status", str(span.status.description or ""))]
+    for where, context in (("context", span.context), ("parent", span.parent)):
+        if context is not None:
+            out.append((f"{where} trace_state", context.trace_state.to_header()))
     out += [(f"attribute {k}", f"{k}={v}") for k, v in (span.attributes or {}).items()]
     for event in span.events:
         out.append((f"event {event.name}", event.name))
