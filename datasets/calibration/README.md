@@ -17,18 +17,24 @@ verdicts in a labelling tool with access control.
 1. **The bar, before anything else.** `bar.toml` says what the bar reads (Cohen's kappa of the
    judge against the sealed labels, per criterion, the point estimate) and its lines (kappa 0.80
    or more: trusted, S8 may gate on it; 0.60 to under 0.80: reported only; under 0.60: not
-   trusted). docs/THRESHOLDS.md states the same bar, held equal by a test. It is committed before
-   the sample is drawn; the sample pins its sha256, and `raglab calibrate` refuses a bar that
-   changed since.
+   trusted). A kappa that cannot be computed (the labels and the judge's verdicts all in one and
+   the same class) reads reported only: neither trusted nor stopped, S8 cannot gate on it, and the
+   record says why (the maintainer's answer of 2026-10-24, "Reported only (Recommended)").
+   docs/THRESHOLDS.md states the same bar, held equal by a test. It is committed before the sample
+   is drawn; the sample pins its sha256, and `raglab calibrate` refuses a bar that changed since.
 2. **The judged record.** The judge's verdicts on a published generation run: for `judge-v2-c1`,
    the judged baseline on golden set v2 (S6's first live step).
 3. **The sample** (`raglab calibrate sample`), drawn by rule s6-1 with the bar's seed: the judged
    record's first-pass verdicts of status ok, pass or fail, on the bar's criteria, stratified by
    criterion and by the judge's verdict (7 judge passes and 8 judge fails per criterion). The file
    holds the pins (the judged record's id and manifest sha256, the source run's id, the bar's
-   sha256, the seed, the rule) and, per item, its order, case, trial and criterion: never a
-   verdict and never a stratum. The items are grouped by criterion, one rule in mind at a time,
-   and shuffled within each.
+   sha256, the seed, the rule, and any shortfall) and, per item, its order, case, trial and
+   criterion: never a verdict and never a stratum. A shortfall is a stratum too small for its
+   allocation, whose rest the criterion's other stratum gives; the pins say so in counts only
+   (for example 5 judge passes and 10 judge fails instead of 7 and 8), never which items, fixed
+   before any label (the maintainer's answer of 2026-10-24, "Keep it in the sample
+   (Recommended)"). The items are grouped by criterion, one rule in mind at a time, and shuffled
+   within each.
 4. **The labels** (`make label`), blind, sealed (`make label SEAL=1`).
 5. **The agreement** (`make calibrate`), after the seal: per criterion and pooled, the confusion
    table, raw agreement, Cohen's kappa, and TPR and TNR weighted by stratum, with 95% intervals

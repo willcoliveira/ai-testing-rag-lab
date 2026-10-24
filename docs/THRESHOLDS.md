@@ -75,7 +75,8 @@ disagreement, and two keep a criterion reported only. Not trusted means its pass
 as evidence anywhere until a fix is calibrated (D4: "Record it; fix in a follow-up
 (Recommended)"). A kappa is undefined only when the labels and the verdicts all fall in one and the
 same class: agreement beyond chance cannot be measured, so the criterion is never trusted, and it
-stays reported. 30 labels are a precursor, not the calibration study: the intervals are wide, so
+stays reported, with the reason in the record (the maintainer's answer of 2026-10-24, verbatim:
+"Reported only (Recommended)"). 30 labels are a precursor, not the calibration study: the intervals are wide, so
 the bar reads the point estimate. The other five criteria (`cites_support`, `correct`, `relevant`,
 `refuses_and_helps`, `context_sufficient`) are not calibrated by these labels: they stay reported
 and are never gated until labels of their own calibrate them.

@@ -1526,6 +1526,15 @@ def render_record(rec: Json) -> str:
             f"{k['undefined_resamples']}, {tw['undefined_resamples']}, "
             f"{fw['undefined_resamples']} | {status.get(scope, 'not read by the bar')} |"
         )
+    for name in names:  # the maintainer's answer of 2026-10-24: the record says why
+        if _obj(_obj(scopes[name])["kappa"])["value"] is None:
+            out += [
+                "",
+                f"{name}: kappa cannot be computed: the labels and the judge's verdicts all fall "
+                "in one and the same class, so agreement beyond chance cannot be measured. The "
+                f"bar reads that as {bar['undefined']}: neither trusted nor stopped, and S8 does "
+                f"not gate on {name}.",
+            ]
     out += [
         "",
         "## Confusion tables and strata",

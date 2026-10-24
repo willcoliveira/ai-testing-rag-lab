@@ -115,11 +115,13 @@ tests named below.
    agreement beyond chance cannot be measured; never trusted, never gated. The plan's bar did not
    say; it is my choice, a question for the maintainer, and it can change only before the sample is
    drawn (the sample pins bar.toml's sha256; after it, a change is a new calibration folder).
+   Answered on 2026-10-24: "Reported only (Recommended)" (below, "The maintainer's answers").
 1a. **A shortfall is said in the sample's pins** (the plan: "any shortfall said"), so for a short
    criterion the labeller can read its strata's counts before labelling (for example "judge pass, 5
    of 7, 2 more from the other stratum"): aggregate counts, never which items. The v1.1 records'
    draws above were short on `abstains` both times, so the v2 draw may be too; this is the plan's
-   design, said here so that it is not read later as a blindness slip.
+   design, said here so that it is not read later as a blindness slip. Answered on 2026-10-24:
+   "Keep it in the sample (Recommended)" (below).
 1b. **`src/raglab/evals/judged.py` changed** (choice 9 below), outside `src/raglab/judge/`: the
    criteria judge sees it in `git diff origin/main`; the judged run's tests were green after it.
 1c. **Test time:** `tests/judge` took about 14 s before S6 and about 60 s with its tests;
@@ -194,3 +196,45 @@ alone. Each target, from its output:
 
 After the run: `f71f12c` changes one docstring of `calibration.py` (each agreement scope's bootstrap
 stream, said precisely; `ruff format --check` and `ruff check` clean), and this ledger.
+
+## The maintainer's answers to the two questions (2026-10-24, about 12:50 WEST)
+
+Relayed by the orchestrator, each question and answer verbatim:
+
+1. **The undefined kappa.** Question: "S6: when a criterion's kappa can't be computed (for
+   example, the judge gave the same verdict on every sampled item), how should the calibration
+   record read it?" Answer: "Reported only (Recommended)". The option's description: "Neither
+   trusted nor stopped. S8 can't gate on that criterion, and the record says why. This is the
+   developer's choice."
+2. **The shortfall in the sample.** Question: "S6: if a criterion has too few judge fails to fill
+   its sample, the sample records the shortfall, so you'd see that criterion's pass and fail counts
+   before labelling. You'd never see which items. Normally you already know the design split, 7
+   passes and 8 fails. Keep it that way?" Answer: "Keep it in the sample (Recommended)". The
+   option's description: "As the plan says: counts only, fixed before you label. It tells you no
+   more than the 7/8 split you already know."
+
+**What says so, checked against each answer** (edits only: S4b's live sessions hold the Mac, so no
+test and no `make check` ran for this; the commit hooks did):
+
+- **Answer 1.** `bar.toml` already reads `undefined = "reported only"`, its comment "never trusted,
+  never gated" (unchanged, so the bar's commit stays `d7c9b76`); `Bar.status` returns it for an
+  undefined kappa (`test_kappa_is_undefined_when_both_raters_use_one_class_and_the_bar_says_so`,
+  run at stop 1). "The record says why" was not yet true: record.md showed "undefined" and the
+  status but no reason, so `render_record` now writes one sentence per criterion whose kappa
+  cannot be computed ("...: neither trusted nor stopped, and S8 does not gate on <criterion>"),
+  with a new test, `test_the_record_says_why_a_kappa_cannot_be_computed`: written, ruff-clean and
+  byte-compiled, **not run yet**; it runs at the next check, before any record exists. The guide
+  and THRESHOLDS.md quote the answer.
+- **One word of the question differs from the code, for the review:** its example, "the judge gave
+  the same verdict on every sampled item", leaves kappa computable when the labels differ among
+  themselves: Cohen's formula then gives exactly 0 (the judge agrees no better than chance), which
+  the bar reads as not trusted, not reported only. Kappa cannot be computed only when the labels
+  are all of that one class too. With the sample stratified by the judge's verdict, the judge is
+  constant on a criterion only when its stratum of one side gives no item (the judged record has
+  no such verdict, or each one's answer is already in the sample or excluded). The code
+  follows the answer as asked (a kappa that cannot be computed) and leaves kappa 0 to the bar's
+  line; changing that would be a new decision.
+- **Answer 2.** `draw_sample` writes the shortfall into the pins, counts only, before any label
+  (`test_the_draw_on_a_v11_record_is_stratified_seeded_and_one_answer_once` and the field test, run
+  at stop 1); the guide now says the pins hold any shortfall, in counts only, never which items,
+  and quotes the answer.

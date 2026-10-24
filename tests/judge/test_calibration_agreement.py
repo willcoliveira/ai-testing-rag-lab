@@ -332,6 +332,25 @@ def test_the_record_follows_how_to_05s_template_with_the_caveat(tmp_path):
     assert "verdict: trusted for grounded, abstains; reported only for none" in text
 
 
+def test_the_record_says_why_a_kappa_cannot_be_computed(tmp_path):
+    """The maintainer's answer of 2026-10-24 ("Reported only (Recommended)": "Neither trusted nor
+    stopped. S8 can't gate on that criterion, and the record says why."): a criterion whose kappa
+    is undefined gets a sentence that says why, and the others none."""
+    root, folder, _, _, _ = labelled(tmp_path)
+    rec: Any = calibration.build_record(root, folder, COMMITS)
+    assert "cannot be computed" not in calibration.render_record(rec)
+    rec["agreement"]["grounded"]["kappa"]["value"] = None
+    rec["status"]["grounded"] = BAR.status("grounded", None)
+    text = calibration.render_record(rec)
+    assert (
+        "grounded: kappa cannot be computed: the labels and the judge's verdicts all fall in one "
+        "and the same class, so agreement beyond chance cannot be measured. The bar reads that as "
+        "reported only: neither trusted nor stopped, and S8 does not gate on grounded."
+    ) in text
+    assert "abstains: kappa cannot be computed" not in text
+    assert "reported only for grounded" in text
+
+
 def test_the_record_is_generated_never_edited_by_hand(tmp_path):
     """The regenerate test: record.md edited by hand, or a number of record.json, is found."""
     root, folder, _, _, _ = labelled(tmp_path)
