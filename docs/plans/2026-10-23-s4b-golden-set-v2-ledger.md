@@ -634,3 +634,24 @@ STOP 1 pass, and no test is skipped:
 
 STOP 2: golden set v2 is ready for the review page and the maintainer's sign-off. Nothing has run
 live, and the configs are still on v1.1 (they move at the freeze F).
+
+## The sign-off on golden set v2 (2026-10-24)
+
+On 2026-10-24 the maintainer's message was "ok". The coordinator asked, through the question
+prompt, verbatim: "Is your "ok" the sign-off on golden set v2? Its review page has no ticks or
+flags yet." The maintainer picked, verbatim, "Signed off as is", at about 09:55 WEST. The option's
+description said that they would sign off `datasets/golden.v2.jsonl`, sha256 `3d924ad0…`, without
+reviewing the cases; that the labels judge had agreed with all 80 labels; and that S4b's runs
+would then start.
+
+The file it names: `datasets/golden.v2.jsonl`, sha256
+`3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e`, checked with `shasum -a 256`
+before F (the same).
+
+**Said plainly: the maintainer signed off without ticking or flagging any case** on the private
+review page (https://claude.ai/artifact/JFffRWigLDQGPjTPL7rhkx, built from `6da5a3e`; it holds
+test-case text and stays private and uncommitted). The evidence behind the
+sign-off is the labels judge's blind agreement (80 of 80, kappa 1.0000, chance agreement 0.3303)
+and its review, with the maintainer's answers on its five calls applied (above). From here
+`golden.v2.jsonl`, the answer key and the datasheet's v2 row do not change; a fix that edits them
+goes back to the maintainer and runs every baseline S4b made again (the plan).
