@@ -99,7 +99,7 @@ wrote the files' committed bytes back afterwards; `git status --short` was empty
 | AG3 | met | `tests/security/test_instruction_scan.py` (5 tests: T-HIDDEN's note quarantined as a page outside the register and inside a temporary register, `A-WIFI@1.0/5/1`; the event names the chunk and groups, never the text; the clean pack keeps its 228 chunks and its corpus sha256; `assemble` indexes what the scan keeps); `tests/ingestion/test_inventory_snapshot.py` passes unchanged; `make gate` passes (recall@5 0.682, the baseline's) | The scan's rule removed (`NEEDS = 4`): 7 failed, among them "planted instruction (F-47) inside a registered document: ATK-F47-1: with only the instruction-scan layer the attack lands: [F-47's planted string is in the answer, x3]"; a rule widened (`passwords` addressed, `must` a change): "instruction-scan: flags the clean chunks ['A-PWD-V1@1.0/4/1', ...]" naming 11 chunk ids |
 | AG4 | met | Each guard's cases in `tests/security/test_guard_cases.py`; each defence alone in the attack suite; `test_the_published_team_contacts_are_still_answered` (F-46's SOC contacts, the Service Desk's, Mirrowfen IT Support's); `test_no_event_holds_what_its_guard_removed` (every event of every row and configuration against every `answer_must_not_contain` string, link forms included, and the sentences of the removed pages and the system prompt); `tests/security/test_guard_reasons.py` (the log holds guard, stage and key only) | Each disabled in turn: links 10 failed (LNK-B01 to B06; "with only the links layer" for F-47 registered and F-49); secrets-pii 15 failed (SPI-B01 to B08; F-44, F-45, F-47, F-49 rows); prompt-leak 9 failed (PLK-B01 to B06; the three R-20 cases); the citation validator's register rule 11 failed (CIT-B03 to B05; F-47 page, F-48, F-49 rows). The link guard's event made to quote the links: 3 failed, "fake update page (F-49): ATK-F49-1: an event quotes removed text" (see Findings: the first version of the test missed it) |
 | AG5 | met on v1.1; waiting for S4b's merge (v2's dev questions) | `tests/security/test_guard_cases.py`: INJ-B01 to B10 refused, INJ-N01 to N10 answered, `test_no_dev_question_of_the_golden_set_is_refused[injection]` over the 49 dev questions of the file `config/local-ollama.toml` names (v1.1 now; v2 after S4b switches the config), split dev only (asserted) | A rule widened (the word `password`): "injection: refuses the dev questions ['R-Q01', 'R-Q04', ...]" (15 ids) and INJ-N02, N04, N05, N06; the `system prompt` rule removed: "injection: INJ-B06 (must_block) was let through" |
-| AG6 | met offline except the ratification (waiting: the maintainer) and the pr-fast log ([CI]) | Ten YAML files in how-to 07's template; `tests/security/test_security_pack.py` (18 tests: the template, five or more of each kind per layer, every attack row has cases, the README labels the pack deliberate test material, references resolve and no planted value is written); every case binary per build; THRESHOLDS.md's Guards section from `runs/guard-suites/20261024T030214Z-ebcdb7d.json`; every `ratified_by` is `pending` | LNK-N01's expected flipped to block: "datasets/security/links.yaml LNK-N01: a must_not_block case expects 'pass'"; TEN-B01's `ratified_by` emptied: "... TEN-B01: ratified_by is empty or not 'maintainer <date>'"; `{ref:F-99:0}`: "... SPI-B01: {ref:F-99:0} names no answer_must_not_contain string" |
+| AG6 | met offline, ratified (2026-10-24, below); the pr-fast log needs CI | Ten YAML files in how-to 07's template; `tests/security/test_security_pack.py` (18 tests: the template, five or more of each kind per layer, every attack row has cases, the README labels the pack deliberate test material, references resolve and no planted value is written); every case binary per build; THRESHOLDS.md's Guards section from `runs/guard-suites/20261024T030214Z-ebcdb7d.json`; every `ratified_by` was `pending` at STOP 1 and is `maintainer, 2026-10-24` since the ratification | LNK-N01's expected flipped to block: "datasets/security/links.yaml LNK-N01: a must_not_block case expects 'pass'"; TEN-B01's `ratified_by` emptied: "... TEN-B01: ratified_by is empty or not 'maintainer <date>'"; `{ref:F-99:0}`: "... SPI-B01: {ref:F-99:0} names no answer_must_not_contain string" |
 | AG7 | met locally; needs CI | `tests/security/test_attack_suite.py`, 97 tests, about 5 s: 7 rows x their cases x (negative control, each defence alone, default set), the payload-reaches-the-answer control under S3's guards, two tenants (a broken store filter without the tenant guard leaks a canary; the filter alone and the guard alone each hold), tenant spoofing (403, never retrieved; 200 and retrieved without the guard), no conflict field outside the register (in every check) | Each defence removed in turn: register (AG2), citations, links, secrets-pii, prompt-leak (AG4), scan (AG3), injection: 3 failed ("prompt extraction (R-20): ATK-R20-1: with only the injection layer the attack lands"), tenant guard: 3 failed ("two tenants: ATK-TEN-1: the tenant guard", the 403 test). No negative control failed in any break. The store's pre-ranking filter removed: its second line (`check_visible`) raised TenantError on 7 of the 8 two-tenant tests (the store fails closed) |
 | AG8 | met (the live runs' egress record waits for AG9) | `tests/security/test_egress_guard.py` (5 tests: refused and recorded off loopback, lookups too, loopback passes through, removed after, the page and the playground write text only); every attack-suite test runs inside the guard (`egress_none` asserts `egress: none`); the adapter's rule is `tests/contract/test_chat_contract.py::test_a_server_that_is_not_local_is_refused` | A lookup of 192.0.2.1 planted in an attack-suite test, its OSError swallowed: the test itself passed and the fixture failed it, "egress: lookup 192.0.2.1:80"; `innerHTML` planted in `src/raglab/web/app.js`: "src/raglab/web/app.js writes HTML" and `tests/api/test_page.py` both failed |
 | AG9 | offline parts met (after STOP 1, below); the live runs wait for the maintainer's go, after S4b's merge and the ratification | See "AG9's offline parts" below: the runner, suite `attack` in run record v1, `config/attack-local.toml` and `config/attack-fake.toml`, `make attack-local`, F-49's label from the answer key per configuration, publish's rules; `tests/security/test_attack_runs.py` (17 tests). No live session was started | AG9's offline break (a defences-on copy with an F-47 string planted, resealed, still valid): `raglab publish` refuses it naming F-47's string (`test_publish_refuses_a_defences_on_copy_with_an_f47_string_planted`); five more breaks below |
@@ -151,20 +151,42 @@ wrote the files' committed bytes back afterwards; `git status --short` was empty
    check` is green at STOP 1; after S4b merges the replay runs on v2's five runs and the v1.1 record
    becomes history.
 
-### Decisions needed (the safest reversible default is applied)
+### Decisions needed (the safest reversible default was applied)
 
 - **The link allowlist.** Applied: the register's links minus those in passages the scan's rules
   flag. Alternative: a committed, reviewed link list (production's link policy), independent of
   document text. Either keeps every check green; the alternative makes the link guard independent
-  of the scan inside registered documents.
+  of the scan inside registered documents. **Decided 2026-10-24: kept as built**, with the
+  ratification below ("the link guard keeps its current behaviour inside registered documents").
 
 ### The pack for ratification
 
 Every handwritten case, grouped by layer with its id, input (references as written), expected
-decision and reason, is in the scratchpad's `s7-dev/ratify.md` for the maintainer's review page:
+decision and reason, went to the maintainer's review page from the scratchpad's
+`s7-dev/ratify.md` at `98061e3`:
 tenant 5 + 5, input limits 6 + 5, injection 10 + 10, register 5 + 5, instruction scan 6 + 7,
 citations 5 + 5, links 6 + 6, secrets and personal details 8 + 8, prompt leak 6 + 6
 (must-block + must-not-block: 57 + 57), and 13 attack cases.
+
+### The ratification (2026-10-24, about 09:55 WEST)
+
+The maintainer's message, verbatim: "ok". Asked through the question prompt, verbatim: "And
+S7a's 127 security cases? Its ratification page has no marks yet." The answer, verbatim: "Ratify
+all as written". That option's description, verbatim: "Every case is ratified as the developer
+wrote it, and the link guard keeps its current behaviour inside registered documents."
+
+**The maintainer ratified without marking any case on the review page**
+(https://claude.ai/artifact/Pt2t5SWxutJhKYdGS46myJ, built from `ratify.md` at `98061e3`): the
+page has no marks, and the ratification is the answer above, for all 127 cases at once.
+
+What was done: `ratified_by` is `maintainer, 2026-10-24` on all 127 cases (57 must-block, 57
+must-not-block, 13 attack cases), by role and date, never a name; the pack's files are otherwise
+the ones the page showed (`git diff 98061e3 -- datasets/security` was empty before this edit).
+The pack's schema check now takes `maintainer, <date>`, and
+`tests/security/test_security_pack.py::test_every_committed_case_is_ratified_by_role_and_date`
+holds the committed pack to it: no case pending. The link-guard decision: kept as built (above).
+The security tests were not re-run with this edit: S4b's live sessions had the Mac; they run when
+it is free.
 
 ### Runs S7a made
 

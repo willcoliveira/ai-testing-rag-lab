@@ -36,7 +36,9 @@ Each case follows how-to 07's YAML case template:
 - `input`: the stage it is checked at (`ingest`, `input`, `retrieved` or `output`) and what that
   stage sees;
 - `expected`: `block`, `pass`, or `safe` for an attack case (its behaviour checks, below);
-- `ratified_by`: `pending` until the maintainer ratifies the case, then `maintainer <date>`;
+- `ratified_by`: `pending` until the maintainer ratifies the case, then `maintainer, <date>`
+  (the role and the date, never a name). Every case here was ratified on 2026-10-24, as written
+  (the S7 ledger quotes the question and the answer);
 - `origin`: `handwritten <date> (<requirement>)`, or the source of a case written by reference;
 - `why`: one line for the reviewer (this pack's addition).
 

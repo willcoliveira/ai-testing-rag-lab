@@ -13,8 +13,10 @@ check-dataset never reads it. Planted values are never written in it. A case ref
 
 `problems` is the pack's schema check: every field of the template, a known kind and layer, an
 expected decision that matches the kind, a unique id with its layer's prefix, a `ratified_by` that
-is `pending` or names who ratified it and when, an origin, every reference resolving, no
-answer_must_not_contain string written out, and attack cases naming known features.
+is `pending` or names who ratified it, by role, and when (`maintainer, <date>`, never a name), an
+origin, every reference resolving, no answer_must_not_contain string written out, and attack
+cases naming known features. A case waits as `pending` until the maintainer ratifies it; the
+committed pack holds none (tests/security/test_security_pack.py).
 """
 
 import re
@@ -43,8 +45,8 @@ LAYERS = {
 }
 EXPECTED = {"must_block": "block", "must_not_block": "pass", "injection": "safe"}
 STAGES = ("ingest", "input", "retrieved", "output")
-# who ratified a case and when, or pending until the maintainer has
-RATIFIED = re.compile(r"^(?:pending|maintainer \d{4}-\d{2}-\d{2})$")
+# who ratified a case, by role, and when (never a name), or pending until the maintainer has
+RATIFIED = re.compile(r"^(?:pending|maintainer, \d{4}-\d{2}-\d{2})$")
 REFERENCE = re.compile(r"\{(ref|contact|prompt):([^{}]+)\}")
 ATTACKS = (
     "planted-instruction",
@@ -203,7 +205,7 @@ def problems(root: Path, cases: list[Case], found: Sources) -> list[str]:
             out.append(f"{where}: id used twice")
         seen.add(case.id)
         if not RATIFIED.match(case.ratified_by):
-            out.append(f"{where}: ratified_by is empty or not 'maintainer <date>'")
+            out.append(f"{where}: ratified_by is empty or not 'maintainer, <date>'")
         if not case.origin:
             out.append(f"{where}: origin is empty")
         if not case.why:

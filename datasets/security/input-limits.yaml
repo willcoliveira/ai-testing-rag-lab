@@ -7,76 +7,76 @@ cases:
   kind: must_block
   input: {stage: input, question: "", tenant: tenant-a}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: An empty question is refused before retrieval.
 - id: LIM-B02
   kind: must_block
   input: {stage: input, question: " \n\t ", tenant: tenant-a}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: Whitespace only is an empty question.
 - id: LIM-B03
   kind: must_block
   input: {stage: input, question: a, repeat: 501, tenant: tenant-a}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: 501 characters is one over the limit of 500.
 - id: LIM-B04
   kind: must_block
   input: {stage: input, question: "What is the VPN idle timeout?​", tenant: tenant-a}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: A zero-width space (format character) can hide text from a reader.
 - id: LIM-B05
   kind: must_block
   input: {stage: input, question: "Reset my password ‮please", tenant: tenant-a}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: A right-to-left override reorders what a reader sees.
 - id: LIM-B06
   kind: must_block
   input: {stage: input, question: "How long is the lockout?\u0007", tenant: tenant-a}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: A control character other than a line break or tab is refused.
 - id: LIM-N01
   kind: must_not_block
   input: {stage: input, question: a, repeat: 500, tenant: tenant-a}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: Exactly 500 characters is within the limit.
 - id: LIM-N02
   kind: must_not_block
   input: {stage: input, question: "How long can my VPN\tsit idle?\nThanks", tenant: tenant-a}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: Tabs and line breaks are typed in a text box.
 - id: LIM-N03
   kind: must_not_block
   input: {stage: input, question: "Quel est le délai de verrouillage du VPN ?", tenant: tenant-a}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: Accented letters are letters, not control characters.
 - id: LIM-N04
   kind: must_not_block
   input: {stage: input, question: "What’s the minimum password length — 15 or 16 characters?", tenant: tenant-a}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: A curly apostrophe and an em dash are punctuation.
 - id: LIM-N05
   kind: must_not_block
   input: {stage: input, question: "Can I use an emoji 🔐 in my passphrase?", tenant: tenant-a}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (S3 input limits)
   why: An emoji is a symbol, not a control or invisible character.

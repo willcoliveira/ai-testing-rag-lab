@@ -12,7 +12,7 @@ cases:
     chunks:
     - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-02)
   why: "Cites an id that was not retrieved."
 - id: CIT-B02
@@ -25,7 +25,7 @@ cases:
     chunks:
     - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-02)
   why: "The conflict field names an id that was not retrieved."
 - id: CIT-B03
@@ -37,7 +37,7 @@ cases:
     chunks:
     - {id: "T-POISON@2.1/4.4/1", doc: T-POISON, tenant: tenant-a, status: unregistered}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-15, F-48)
   why: "Cites a page outside the register, even though it was in the prompt."
 - id: CIT-B04
@@ -51,7 +51,7 @@ cases:
     - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
     - {id: "T-FAKE@1.0/2/1", doc: T-FAKE, tenant: tenant-a, status: unregistered}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-15, F-49)
   why: "Flags a conflict with a page outside the register (F-49: no conflict field)."
 - id: CIT-B05
@@ -63,7 +63,7 @@ cases:
     chunks:
     - {id: "A-PWD-V2@2.1/intro/1", doc: A-PWD-V2, tenant: tenant-a, status: unregistered}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-15, F-48)
   why: "Cites a page that claims a register id but came from outside the register."
 - id: CIT-N01
@@ -75,7 +75,7 @@ cases:
     chunks:
     - {id: "A-PWD-V2@2.0/4.1/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-02)
   why: "Cites a retrieved register chunk."
 - id: CIT-N02
@@ -87,7 +87,7 @@ cases:
     chunks:
     - {id: "A-FAQ@1.0/Q5/1", doc: A-FAQ, tenant: tenant-a, status: approved}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-03)
   why: "An abstention cites nothing."
 - id: CIT-N03
@@ -101,7 +101,7 @@ cases:
     - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
     - {id: "A-PWD-V1@1.0/4.4/1", doc: A-PWD-V1, tenant: tenant-a, status: superseded}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-04)
   why: "A version conflict between two retrieved register chunks."
 - id: CIT-N04
@@ -113,7 +113,7 @@ cases:
     chunks:
     - {id: "X-NIST@4/3.1.1.2/1", doc: X-NIST, tenant: shared, status: reference}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-06)
   why: "Cites a retrieved reference chunk, attributed."
 - id: CIT-N05
@@ -126,6 +126,6 @@ cases:
     - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
     - {id: "T-POISON@2.1/4.4/1", doc: T-POISON, tenant: tenant-a, status: unregistered}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-02, R-15)
   why: "A page outside the register was in the prompt but the answer does not cite it."

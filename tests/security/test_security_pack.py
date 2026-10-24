@@ -1,7 +1,8 @@
 """The security pack's schema test (S7, AG6): datasets/security/ keeps how-to 07's template, every
-layer has at least five handwritten must-block and five must-not-block cases, `ratified_by` is
-pending or names the ratification, planted values are referenced and never written, and the
-README labels the pack test material. Each break is made on a copy of the pack."""
+layer has at least five handwritten must-block and five must-not-block cases, every case is
+ratified (`maintainer, <date>`: the maintainer ratified all 127 as written on 2026-10-24),
+planted values are referenced and never written, and the README labels the pack test material.
+Each break is made on a copy of the pack."""
 
 import shutil
 from pathlib import Path
@@ -14,6 +15,7 @@ from tests.conftest import ROOT
 
 pytestmark = pytest.mark.security
 GUARD_LAYERS = [layer for layer in pack.LAYERS if layer != "attack"]
+RATIFIED = "maintainer, 2026-10-24"
 
 
 def found_problems(root: Path) -> list[str]:
@@ -22,6 +24,14 @@ def found_problems(root: Path) -> list[str]:
 
 def test_the_committed_pack_keeps_its_template():
     assert found_problems(ROOT) == []
+
+
+def test_every_committed_case_is_ratified_by_role_and_date():
+    cases = pack.load(ROOT)
+    assert len(cases) == 127
+    pending = [c.id for c in cases if c.ratified_by == "pending"]
+    assert pending == [], f"cases waiting for the maintainer's ratification: {pending}"
+    assert {c.ratified_by for c in cases} == {"maintainer, 2026-10-24"}
 
 
 @pytest.mark.parametrize("layer", GUARD_LAYERS)
@@ -82,8 +92,8 @@ def test_a_must_not_block_case_that_expects_block_is_refused_naming_it(copy: Pat
     edit(
         copy,
         "links.yaml",
-        f"  expected: pass\n  ratified_by: pending\n{origin}{why}",
-        f"  expected: block\n  ratified_by: pending\n{origin}{why}",
+        f'  expected: pass\n  ratified_by: "{RATIFIED}"\n{origin}{why}',
+        f'  expected: block\n  ratified_by: "{RATIFIED}"\n{origin}{why}',
     )
     assert found_problems(copy) == [
         "datasets/security/links.yaml LNK-N01: a must_not_block case expects 'pass'"
@@ -94,13 +104,13 @@ def test_an_empty_ratified_by_is_refused_naming_the_case(copy: Path):
     edit(
         copy,
         "tenant.yaml",
-        "  ratified_by: pending\n  origin: handwritten 2026-10-24 (R-21)\n"
+        f'  ratified_by: "{RATIFIED}"\n  origin: handwritten 2026-10-24 (R-21)\n'
         '  why: "A request that names no tenant',
         "  ratified_by:\n  origin: handwritten "
         '2026-10-24 (R-21)\n  why: "A request that names no tenant',
     )
     assert found_problems(copy) == [
-        "datasets/security/tenant.yaml TEN-B01: ratified_by is empty or not 'maintainer <date>'"
+        "datasets/security/tenant.yaml TEN-B01: ratified_by is empty or not 'maintainer, <date>'"
     ]
 
 

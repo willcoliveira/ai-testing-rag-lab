@@ -10,7 +10,7 @@ cases:
     tenant: null
     caller: null
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-21)
   why: "A request that names no tenant gets no answer from any tenant."
 - id: TEN-B02
@@ -21,7 +21,7 @@ cases:
     tenant: shared
     caller: null
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-21)
   why: "shared is a kind of document, not anyone's tenant."
 - id: TEN-B03
@@ -32,7 +32,7 @@ cases:
     tenant: Tenant-A
     caller: null
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-21)
   why: "A tenant in another letter case is an unknown tenant: the guard fails closed."
 - id: TEN-B04
@@ -43,7 +43,7 @@ cases:
     tenant: tenant-b
     caller: [tenant-a]
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-21)
   why: "Tenant id spoofing: a token for tenant A only asks as tenant B."
 - id: TEN-B05
@@ -55,7 +55,7 @@ cases:
     - {doc: A-PWD-V2, tenant: tenant-a, status: approved}
     - {doc: B-PWD, tenant: tenant-b, status: approved}
   expected: block
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-16)
   why: "A chunk of the other tenant after retrieval withholds the answer before the model."
 - id: TEN-N01
@@ -66,7 +66,7 @@ cases:
     tenant: tenant-a
     caller: null
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-21)
   why: "A local run (CLI, eval) has no caller and names a known tenant."
 - id: TEN-N02
@@ -77,7 +77,7 @@ cases:
     tenant: tenant-b
     caller: [tenant-a, tenant-b]
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-21)
   why: "The demo token may use both tenants."
 - id: TEN-N03
@@ -88,7 +88,7 @@ cases:
     tenant: tenant-a
     caller: [tenant-a]
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-21)
   why: "A token for tenant A asks as tenant A."
 - id: TEN-N04
@@ -100,7 +100,7 @@ cases:
     - {doc: A-PWD-V2, tenant: tenant-a, status: approved}
     - {doc: X-NIST, tenant: shared, status: reference}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-13)
   why: "Tenant A sees its own documents and the shared references."
 - id: TEN-N05
@@ -112,6 +112,6 @@ cases:
     - {doc: B-MFA, tenant: tenant-b, status: approved}
     - {doc: X-NCSC, tenant: shared, status: reference}
   expected: pass
-  ratified_by: pending
+  ratified_by: "maintainer, 2026-10-24"
   origin: handwritten 2026-10-24 (R-13)
   why: "Tenant B sees its own documents and the shared references."
