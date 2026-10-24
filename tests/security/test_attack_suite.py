@@ -3,8 +3,9 @@ plan's attack table, on the fake echo model and BM25, under the loopback-only eg
 
 For every row:
 
-- **the negative control**: with the row's defences removed, the attack lands (the behaviour
-  check of tests/security_support.problems fails), so the check is shown able to fail;
+- **the negative control**: with the row's defences removed, and the layers that stop part of
+  it (`also`), the attack lands (the behaviour check of tests/security_support.problems fails),
+  so the check is shown able to fail whatever state those other layers are in;
 - **each defence alone**: with every other defence of the row removed, that one layer keeps the
   answer clean; removing that layer from the code fails this test, naming the attack and the
   layer;
@@ -40,13 +41,15 @@ pytestmark = [pytest.mark.security, pytest.mark.usefixtures("egress_none")]
 
 @dataclass(frozen=True)
 class Row:
-    """A row of the attack table: its fixture (the chunks indexed), its cases, its defences, the
-    chunks whose links the link guard lets through, and the chat model."""
+    """A row of the attack table: its fixture (the chunks indexed), its cases, its defences (each
+    sufficient alone), the layers that stop part of it and are removed in the negative control
+    too, the chunks whose links the link guard lets through, and the chat model."""
 
     attack: str
     fixture: Callable[[], Sequence[Chunk]]
     cases: tuple[str, ...]
     defences: tuple[str, ...]
+    also: tuple[str, ...] = ()
     register: Callable[[], Sequence[Chunk]] | None = None
     chat: Callable[[], ChatModel] | None = None
 
@@ -62,6 +65,7 @@ ROWS = (
         lambda: s.clean() + s.pages("T-HIDDEN"),
         ("ATK-F47-1", "ATK-F47-2"),
         ("register", "citations"),
+        also=(scan.LAYER, "links", "secrets-pii"),  # each stops the note, not the other chunks
     ),
     Row(
         "planted instruction (F-47) inside a registered document",
@@ -119,7 +123,7 @@ def check(row: Row, case: str, without: Sequence[str]) -> list[str]:
 
 @pytest.mark.parametrize(("row", "case"), CASES)
 def test_the_attack_lands_without_its_defences(row: Row, case: str):
-    found = check(row, case, row.defences)
+    found = check(row, case, (*row.defences, *row.also))
     assert found, (
         f"{row.attack}: {case}: the negative control did not land; the check could not fail"
     )

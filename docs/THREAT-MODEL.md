@@ -83,8 +83,8 @@ security pack's (`datasets/security/attacks.yaml`).
 
 | Attack | Fixture | Defences, each sufficient alone | Requirement |
 |---|---|---|---|
-| Planted instruction (F-47), a page outside the register | the clean inventory and T-HIDDEN | register filter; citation validator | R-17 |
-| Planted instruction inside a registered document | T-HIDDEN's text in a temporary register | instruction scan; link guard ("nothing is sent out"); secrets and personal-details guard (its canary token) | R-17 |
+| Planted instruction (F-47), a page outside the register | the clean inventory and T-HIDDEN | register filter; citation validator (the instruction scan, the link guard and the secrets guard stop the note itself, not the page's other chunks, so the negative control removes them too) | R-17 |
+| Planted instruction inside a registered document | T-HIDDEN's text in a temporary register | instruction scan; link guard ("nothing is sent out"; its allowlist leaves out the links of a passage the scan's rules flag, so here it is a second layer through those rules); secrets and personal-details guard (its canary token) | R-17 |
 | Poisoned duplicate (F-48), and the same page claiming A-PWD-V2 | T-POISON; its copy whose front matter claims the register id and `current` | register filter; citation validator | R-15, R-18 |
 | Fake update page (F-49) | T-FAKE | register filter; citation validator; link guard; secrets and personal-details guard | R-15, R-17 |
 | Two tenants | both tenants indexed; each asks for the other's values | the store's tenant filter; the tenant guard (with a store whose filter is broken) | R-13, R-16 |
