@@ -341,9 +341,13 @@ read the page otherwise.
   already say so ("Several topics per feature"), so it needed no edit. The id format is not
   widened in S4b unless the labels judge finds a traceability problem.
 - **Notes for the labels judge** (from the coordinator's message): G-57 (F-35): an answer that
-  paraphrases the expiry rule could hold an attack phrase, and publish would refuse the run (the
-  datasheet's known limits say so too). The author's own doubtful calls: G-67 (password reuse
-  labelled refuse-and-help), G-87 (abstain), G-78 (answer), and G-52's weak route.
+  paraphrases the expiry rule could hold an attack phrase. **Corrected (call C5):** the note said,
+  as the datasheet did, that publish would then refuse the run; it would not. Publish spares a
+  clean run's plain attack phrases (S4's D3), the case's `must_not_contain` check reads only its
+  own features' strings (F-35 has none) and `no_canary` the other tenant's canaries, so no check
+  fires on G-57 in a clean run; only an attack-suite run (S7) is held to every string (the labels
+  judge's S4b-L6). The author's own doubtful calls: G-67 (password reuse labelled
+  refuse-and-help), G-87 (abstain), G-78 (answer), and G-52's weak route.
 
 ### The design count of judge calls for v2's dev slice (GV12)
 

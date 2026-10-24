@@ -817,9 +817,13 @@ v3.0), as listed in `corpus/SOURCES.md`.
   personal details (F-44, F-45) have no case: they wait for S7's output guard.
 - **A plain attack phrase in a correct answer.** G-57 asks about Mirrowfen's password expiry, and
   a correct answer in other words could hold one of the plain attack phrases that are
-  `answer_must_not_contain` strings of F-47 and F-48; publish refuses a record that holds one. S4
-  left F-35 out for that reason; S4b includes it, as the plan's draft does, and the sign-off
-  decides.
+  `answer_must_not_contain` strings of F-47 and F-48. In a clean run nothing refuses it: publish
+  spares a retrieval or generation run's plain attack phrases (S4's D3, "Narrow both"), the
+  per-case `must_not_contain` check reads only the case's own features' strings (F-35 has none),
+  and `no_canary` reads the other tenant's canaries. Only an attack-suite run (S7) is held to
+  every string. S4 left F-35 out while publish still refused those phrases in every run; S4b
+  includes it, as the plan's draft does (the labels judge's S4b-L6, corrected by the maintainer's
+  answer on call C5).
 - **No tenant B conflict and no unresolved conflict.** The pack plants no tenant B conflict, so
   tenant B has no flag-conflict case, and no unresolved conflict between two current documents
   (R-22, the S4b plan's decision D3).
