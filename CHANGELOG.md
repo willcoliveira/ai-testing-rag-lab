@@ -14,7 +14,9 @@ One line per change, newest first, grouped by release. Each pull request adds it
   `datasets/security/` (deliberate test material, planted values by reference); the deterministic
   attack suite in pr-fast, each attack landing without its defences and stopped by each alone; the
   guard set in the staleness rule, kept current by a zero-event replay (`make replay`); per-layer
-  error rates and latency (`make guard-suites`, docs/THRESHOLDS.md).
+  error rates and latency (`make guard-suites`, docs/THRESHOLDS.md); the attack suite's live runs,
+  `make attack-local` (suite `attack` in run record v1, defences off and on; publish refuses a
+  defences-off run), built and tested on the fake model, not yet run on the local model.
 - answer-v2, the prompt fix for abstention (plan `docs/plans/2026-10-21-answer-v2.md`, ledger
   beside it), measured on dev and not adopted (the user's decision, verbatim: "Not adopted, runs
   stay published (Recommended)"): its first run after the sign-off gained four cases on answer-v1's

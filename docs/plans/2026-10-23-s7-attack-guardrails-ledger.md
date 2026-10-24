@@ -102,7 +102,7 @@ wrote the files' committed bytes back afterwards; `git status --short` was empty
 | AG6 | met offline except the ratification (waiting: the maintainer) and the pr-fast log ([CI]) | Ten YAML files in how-to 07's template; `tests/security/test_security_pack.py` (18 tests: the template, five or more of each kind per layer, every attack row has cases, the README labels the pack deliberate test material, references resolve and no planted value is written); every case binary per build; THRESHOLDS.md's Guards section from `runs/guard-suites/20261024T030214Z-ebcdb7d.json`; every `ratified_by` is `pending` | LNK-N01's expected flipped to block: "datasets/security/links.yaml LNK-N01: a must_not_block case expects 'pass'"; TEN-B01's `ratified_by` emptied: "... TEN-B01: ratified_by is empty or not 'maintainer <date>'"; `{ref:F-99:0}`: "... SPI-B01: {ref:F-99:0} names no answer_must_not_contain string" |
 | AG7 | met locally; needs CI | `tests/security/test_attack_suite.py`, 97 tests, about 5 s: 7 rows x their cases x (negative control, each defence alone, default set), the payload-reaches-the-answer control under S3's guards, two tenants (a broken store filter without the tenant guard leaks a canary; the filter alone and the guard alone each hold), tenant spoofing (403, never retrieved; 200 and retrieved without the guard), no conflict field outside the register (in every check) | Each defence removed in turn: register (AG2), citations, links, secrets-pii, prompt-leak (AG4), scan (AG3), injection: 3 failed ("prompt extraction (R-20): ATK-R20-1: with only the injection layer the attack lands"), tenant guard: 3 failed ("two tenants: ATK-TEN-1: the tenant guard", the 403 test). No negative control failed in any break. The store's pre-ranking filter removed: its second line (`check_visible`) raised TenantError on 7 of the 8 two-tenant tests (the store fails closed) |
 | AG8 | met (the live runs' egress record waits for AG9) | `tests/security/test_egress_guard.py` (5 tests: refused and recorded off loopback, lookups too, loopback passes through, removed after, the page and the playground write text only); every attack-suite test runs inside the guard (`egress_none` asserts `egress: none`); the adapter's rule is `tests/contract/test_chat_contract.py::test_a_server_that_is_not_local_is_refused` | A lookup of 192.0.2.1 planted in an attack-suite test, its OSError swallowed: the test itself passed and the fixture failed it, "egress: lookup 192.0.2.1:80"; `innerHTML` planted in `src/raglab/web/app.js`: "src/raglab/web/app.js writes HTML" and `tests/api/test_page.py` both failed |
-| AG9 | waiting: the maintainer's go; the attack runner is not built yet | No live session was started. Not built: suite `attack` (its config, `config/attack-local.toml` and a fake one, its record and report), `make attack-local`, the defences-on and defences-off runs, F-49's label per configuration from the key. Publish already holds any suite other than retrieval and generation to every `answer_must_not_contain` string (`publish.CLEAN_SUITES`) | — |
+| AG9 | offline parts met (after STOP 1, below); the live runs wait for the maintainer's go, after S4b's merge and the ratification | See "AG9's offline parts" below: the runner, suite `attack` in run record v1, `config/attack-local.toml` and `config/attack-fake.toml`, `make attack-local`, F-49's label from the answer key per configuration, publish's rules; `tests/security/test_attack_runs.py` (17 tests). No live session was started | AG9's offline break (a defences-on copy with an F-47 string planted, resealed, still valid): `raglab publish` refuses it naming F-47's string (`test_publish_refuses_a_defences_on_copy_with_an_f47_string_planted`); five more breaks below |
 | AG10 | mechanism met on the v1.1 baseline; waiting for S4b's merge (the replay of v2's five runs) | `raglab replay` over the current baseline and its four repeats: 735 case lines, 730 answers, 3,675 retrieved chunks, zero events, record `runs/replays/...--d81cec18f099.json` (made from a clean tree at `39884e4`). `tests/security/test_guard_staleness.py` (5 tests): the baseline is current for today's guard set only through that record; a new set without a record is stale naming it; an edited manifest is refused; a recorded answer given a foreign link is an event and no record is written. The guard-set rule lives in its own file, not in `tests/retrieval/test_publish.py`, which the plan's merge order keeps until S4b merges. `git diff 2b9ba60 -- config src/raglab/generate/prompts corpus` is empty | Tested in the suite on copies (a new set without a record: stale, naming the set; one answer given a foreign link: "links at output", no record). The plan's break on the committed `default_guards()` runs at the v2 replay |
 | AG11 | GUARDRAILS.md met; TEST-PLAN partly: arrows L9 and R8 met; the R-15 to R-21 cells, section 10 and the test_test_plan extension wait for S4b's merge (the same rows) | GUARDRAILS.md: each S7a layer with its stage, owner, action, code and tests; TEST-PLAN L9 and R8 name their tests and pr-fast (`tests/unit/test_test_plan.py`'s arrows test checks each exists) | L9's test renamed: "L9: tests/security/test_instruction_scan.py::test_the_planted_instruction_is_flagged does not exist" |
 | AG12 | partly: THREAT-MODEL, GUARDRAILS, THRESHOLDS, README, the main plan's note, the pack's README and the CHANGELOG are done; LOCAL-MODEL's attack-local row waits for AG9; ARCHITECTURE and README `wip` wait for S4b's and S6's status lines (the plan's merge order) | `test_diagram.py`, `test_readme.py`, `test_repo_docs.py`, `test_changelog_check.py`, `test_test_plan.py` pass | ARCHITECTURE's S7 class made `wip` without the README's: `test_readme_status_matches_architecture` failed |
@@ -175,10 +175,6 @@ citations 5 + 5, links 6 + 6, secrets and personal details 8 + 8, prompt leak 6 
 
 No generation, retrieval or judged run was made, and no live session was started.
 
-## Part S7b
-
-(After S6 and S7a merge.)
-
 ### `make -k check` at STOP 1 (`a5d6e18`, macOS arm64, `/usr/bin/time -p`)
 
 Every target passes but `audit`, whose failure is pre-existing on `main` (advisories published on
@@ -199,3 +195,54 @@ Every target passes but `audit`, whose failure is pre-existing on `main` (adviso
 `real 215.27`, `user 199.55`, `sys 14.98`. The first run at STOP 1 (`0d9fbc0`) had `deps` red too
 (vulture: the egress guard's unused `__exit__` arguments), fixed in `b2c60b1`; it took 210.41 s with
 1613 tests. pr-fast's check-job time before and after this pull request is [CI].
+
+### AG9's offline parts (after STOP 1, 2026-10-24)
+
+The coordinator's message after STOP 1, verbatim: "Next, build AG9's offline parts now: the
+runner, the suite's `attack` record, `config/attack-local.toml`, `make attack-local`, and the
+`Feature` field for F-49's attack-run label. Test them on the fake model, with the plan's breaks."
+No live session was started: `make attack-local` waits for the maintainer's go, after S4b's merge
+and the ratification.
+
+| Part | Where |
+|---|---|
+| The runner | `src/raglab/evals/attack.py`: `raglab eval --suite attack --config <c> --defences on\|off` asks the pack's 13 attack cases N times with the corpus's three attack pages (24 chunks) indexed in tenant A as pages outside the register; defences off is S3's guard set (the citation validator without S7's register rule) and no instruction scan (`assemble(..., scan_index=False)`), defences on S7a's guard set and the scan. The pack's schema check stops the run first. The assembly and the run sit inside the loopback-only egress guard, whose summary the record keeps; the command exits 1 when a defences-on trial fails a safety check or anything left loopback (`attack.unsafe`) |
+| The record | Suite `attack` in run record v1 (`schemas/run-record.v1.json`, additive; `src/raglab/evals/attack_record.py`): the manifest's `attack` block (configuration, pages, quarantined chunks, egress) and `results.attack`; each line's kind `attack`, its attack row, `expected_label`, each retrieved chunk's status and four safety checks (no planted string of any feature, citations and conflict ids inside the register only, no canary of the other tenant, no run of the system prompt), recomputed by `record.validate`, which also checks each chunk's status against the register, the expected label against the answer key, and each case against the pack's current bytes. The report shows ids, labels, statuses and checks, never answer text |
+| F-49's label | `answer_key.Feature.expected_in_attack_runs` (F-49: `refuse-and-help`); `attack_record.expected_label`: that label with defences off (the page reaches the model), the clean `answer` with defences on; none for a case without features |
+| Configs | `config/attack-local.toml` (the consistency gate's chunker, embedder, retriever, model tag and digest, sampling and seed; 3 trials); `config/attack-fake.toml` (the fake echo model); no existing config changed |
+| make | `make attack-local`: one generator session, the live contract test, then `--defences off`, then `--defences on` |
+| Publish | refuses an attack run made with the defences off and one whose egress guard saw an attempt; every attack run is held to every planted string (`CLEAN_SUITES`, unchanged) |
+| Gates | `raglab gate` refuses an attack config (exit 2) |
+
+Commits: `cb32bde` (the runner, the record, configs, make target, the Feature field, publish),
+`1aa2ce1` (the egress test).
+
+**Tests** (`tests/security/test_attack_runs.py`, 17 tests, 35 s): defences on through the CLI on
+the fake model (exit 0, the record valid, every case safe, `T-HIDDEN@1.0/5/1` quarantined, egress
+none, F-49 expected `answer`); defences off with the stub server that echoes (the record valid,
+F-49 expected `refuse-and-help`, unregistered chunks retrieved, cases failed: the attack lands, and
+the command's gate does not fail on it); a local-provenance defences-on record publishes into a
+copy of the tree; publish refuses the planted copy (AG9's break), a defences-off run and an egress
+attempt; six forged records are refused (an expected label, a check, a chunk's status, an
+unretrieved citation, a question, the configuration); an attempt off loopback during a run is
+recorded and fails its gate; F-49's label per configuration; the configs; the gate's refusal; the
+make target's recipe.
+
+**Breaks** (each restored, `git diff --quiet HEAD` true after):
+
+| Break | Result |
+|---|---|
+| AG9's own: publish no longer holds an attack run to the planted strings | 1 failed: the planted copy, "DID NOT RAISE PublishError" |
+| Publish's refusal of a defences-off run removed | 1 failed: publish still refused the run, on its planted strings, not on the configuration |
+| F-49's attack-run label ignored | 2 failed: the defences-off record and the label test |
+| The configurations swapped (defences on built with S3's guards) | 7 failed, among them the defences-on run and the publish tests |
+| validate no longer checks an attack record's own rules | 6 failed: the six forged records |
+
+**Note for the coordinator:** the command guard refuses any shell command holding the word `eval`
+(`raglab eval ...`), so these runs were made in process, through `raglab.__main__.main` in the
+tests and `attack.run` in a fixture; `make -n attack-local` prints the recipe. The live session
+will run the same commands through `make attack-local`.
+
+## Part S7b
+
+(After S6 and S7a merge.)

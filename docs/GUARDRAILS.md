@@ -54,7 +54,9 @@ Every layer has must-block and must-not-block cases in the security pack (`datas
 decided binary per build (`tests/security/test_guard_cases.py`), and its miss rate, false-block
 rate and added latency are measured by `make guard-suites` (docs/THRESHOLDS.md, Guards). The
 deterministic attack suite (`tests/security/test_attack_suite.py`) shows each attack of
-docs/THREAT-MODEL.md landing without its defences and stopped by each defence alone. The guard set
+docs/THREAT-MODEL.md landing without its defences and stopped by each defence alone; `make
+attack-local` asks the same attack cases of the local model, with the defences off and on (S7,
+`src/raglab/evals/attack.py`, a session only with the maintainer's go). The guard set
 (each layer's name and rules sha256) is part of what makes a consistency baseline current: a new
 set needs a zero-event replay over the baseline's records (`make replay`, `runs/replays/`).
 

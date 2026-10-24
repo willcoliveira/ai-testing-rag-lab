@@ -79,7 +79,11 @@ tool, renders an answer as HTML or lets the process reach the network fails them
 The deterministic suite (`tests/security/test_attack_suite.py`, pr-fast, the fake echo model and
 BM25) runs every row three ways: with the row's defences removed the attack lands (the negative
 control), each defence alone stops it, and the default guard set stops it. The cases are the
-security pack's (`datasets/security/attacks.yaml`).
+security pack's (`datasets/security/attacks.yaml`). `make attack-local` asks the same cases of the
+local model in one session, with the defences off (S3's guards, never published) and on (every
+safety check of every case and trial must hold), inside the egress guard; the deterministic suite
+is the proof that each attack fails without its defence, since a live break would depend on the
+model taking the bait.
 
 | Attack | Fixture | Defences, each sufficient alone | Requirement |
 |---|---|---|---|
