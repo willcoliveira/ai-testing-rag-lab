@@ -170,8 +170,12 @@ def golden_case_problems(cells: dict[str, str], version: str, path: Path) -> lis
     if cells["R-02"] != "every case (`model_citations_retrieved`)":
         problems.append("R-02: every case")
     behaviour, covering, quoted = covering_cases(path)
-    if quoted & covering.get("R-06", set()):
-        problems.append(f"R-06: {sorted(quoted)} are not by design")
+    # R-06's by-design part names exactly the may_quote cases; one may also cover R-06 by its
+    # own feature (v2's G-93, through F-96), which v1.1's lone G-26 did not
+    if case_ids(cells["R-06"].partition("by design")[2]) != quoted:
+        problems.append(
+            f"R-06: by design, the cell does not name the may_quote cases {sorted(quoted)}"
+        )
     filled = [rid for rid in S4_CELLS if rid != "R-02"]
     if version == "v1.1":
         problems += [f"{rid} is S4b's" for rid in S4B_CELLS if cells[rid] != "tbd (S4b)"]
@@ -219,7 +223,7 @@ def test_on_a_planted_v2_s4bs_cells_name_their_cases_and_each_break_is_named(tmp
     _, covering, quoted = covering_cases(path)
     cells = {rid: cell_of(covering.get(rid, set()), S4B_NOTES.get(rid)) for rid in covering}
     cells.update({"R-02": "every case (`model_citations_retrieved`)", "R-22": R22_CELL})
-    cells["R-06"] = cell_of(covering["R-06"] | quoted)
+    cells["R-06"] = f"{cell_of(covering['R-06'])}; by design, {cell_of(quoted)}"
     assert golden_case_problems(cells, "v2", path) == []
     assert golden_case_problems(cells, "v1.1", path) == [f"{rid} is S4b's" for rid in S4B_CELLS]
     back = {**cells, "R-08": "tbd (S4b)"}

@@ -208,35 +208,37 @@ metrics get no target in advance"); the gates then fail on regression.
 
 Planted features are defined in `corpus/SPEC.md` section 8 (the register). Golden case, test and
 gate columns are filled in by later stages (S4 and S4b for cases, S1b to S7 for tests, the gate
-map for gates). S4 filled the Golden case cells it covers with the behaviour cases of
-`datasets/golden.v1.jsonl`: a case covers the requirements its features name in the answer key
-(`datasets/DATASHEET.md`, "Requirements the behaviour cases cover"); R-02 applies to every case.
+map for gates). S4 filled the Golden case cells it covered with the behaviour cases of golden set
+v1.1 (`datasets/golden.v1.jsonl`); S4b derives them again from golden set v2
+(`datasets/golden.v2.jsonl`, which holds v1.1's cases unchanged): a case covers the requirements
+its features name in the answer key (`datasets/DATASHEET.md`, "Requirements the behaviour cases
+cover"); R-02 applies to every case, and R-06 also names the `may_quote` cases, by design.
 
 | R-id | Requirement (short) | Planted features | Golden case | Test | Gate |
 |---|---|---|---|---|---|
-| R-01 | Answer with citations | F-01, F-02, F-03, F-29, F-46, F-53, F-86 | G-01, G-02, G-07, G-09, G-13, G-17, G-19, G-21 to G-23, G-29 to G-31, G-34, G-35 | judged (S5, reported): `cites_support`, `correct` | tbd |
+| R-01 | Answer with citations | F-01, F-02, F-03, F-29, F-46, F-53, F-86 | G-01, G-02, G-07, G-09, G-13, G-17, G-19, G-21 to G-23, G-29 to G-31, G-34, G-35, G-41, G-45, G-46, G-48, G-53, G-68, G-69, G-79, G-80, G-100, G-101, G-103, G-105, G-106, G-109 to G-111, G-115, G-117 | judged (S5, reported): `cites_support`, `correct` | tbd |
 | R-02 | Citation integrity | gap (see below) | every case (`model_citations_retrieved`) | `tests/generation/test_citation_validator.py` (S3) | tbd |
-| R-03 | Abstain when silent | F-32, F-40, F-87, F-96, F-97 | P-01 to P-03, G-24 to G-28, G-37 | judged (S5, reported): `abstains` | tbd |
-| R-04 | Newer version over older | F-04, F-05, F-06, F-07, F-58, F-88 | G-29 to G-32 | judged (S5, reported): `grounded`, `correct` | tbd |
-| R-05 | Approved exception over rule | F-16, F-17, F-51 | G-11, G-18, G-19 | judged (S5, reported): `correct` | tbd |
-| R-06 | Company over external, flag the difference | F-08, F-13, F-14, F-96 | G-22; by design, G-26 (the attributed external quote, D-03) | judged (S5, reported): `grounded` | tbd |
-| R-07 | Rule plus its exception | F-15 | G-05 | tbd (S1b boundary test); judged (S5, reported): `correct` | tbd |
-| R-08 | Follow cross-references | F-18, F-19 | tbd (S4b) | tbd | tbd |
-| R-09 | Use the pack's definitions | F-11, F-20, F-21 | tbd (S4b) | tbd | tbd |
-| R-10 | Multi-hop | F-22, F-23 | G-16, G-17 | judged (S5, reported): `grounded`, `correct` | tbd |
-| R-11 | Exact numbers and units | F-01, F-02, F-10, F-12, F-19, F-24 to F-31, F-50, F-51, F-60 to F-85 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36 | judged (S5, reported): `correct` | tbd |
-| R-12 | All formats count | F-07, F-09, F-10, F-11, F-12, F-15, F-24, F-33, F-56, F-60, F-61, F-88 | G-03 to G-06, G-08, G-12, G-32 | tbd (S1b parsing, OCR) | tbd |
-| R-13 | Tenant scope | F-34 to F-40, F-52, F-89, F-90, F-91 | tbd (S4b) | `tests/retrieval/test_tenant_filter.py` (S2), `tests/e2e/test_e2e_fake.py` (S3) | tbd |
-| R-14 | Refuse to weaken, still help; answer the sanctioned routes (must-not-block) | F-41, F-42, F-43, F-54, F-55, F-56, F-90, F-91, F-92, F-93, F-94, F-95, F-98 | G-13, G-23, G-34 (refuse-and-help); G-12, G-33 (must-not-block) | judged (S5, reported): `refuses_and_helps` | tbd |
-| R-15 | Only the register is authoritative | F-48, F-49 | tbd (S4b) | tbd (S7) | tbd |
-| R-16 | Never another tenant's content | F-34 to F-40, F-52, F-89, F-90, F-91 | tbd (S4b) | `tests/e2e/test_e2e_fake.py` (S3); tbd (S7) | tbd |
-| R-17 | Never follow document instructions | F-47, F-49 | tbd (S4b) | tbd (S7) | tbd |
-| R-18 | Never invent a value | F-13, F-22, F-32, F-48, F-87, F-96, F-97 | G-16 (a derivation); P-01, P-02, G-27, G-37 (no number) | judged (S5, reported): `grounded`, `abstains` | tbd |
-| R-19 | Never echo secrets or PII | F-44, F-45, F-46, F-90 | tbd (S4b) | tbd (S7) | tbd |
+| R-03 | Abstain when silent | F-32, F-40, F-87, F-96, F-97 | P-01 to P-03, G-24 to G-28, G-37, G-84 to G-99, G-114, G-116 | judged (S5, reported): `abstains` | tbd |
+| R-04 | Newer version over older | F-04, F-05, F-06, F-07, F-58, F-88 | G-29 to G-32, G-100 to G-107, G-109, G-117 | judged (S5, reported): `grounded`, `correct` | tbd |
+| R-05 | Approved exception over rule | F-16, F-17, F-51 | G-11, G-18, G-19, G-78 | judged (S5, reported): `correct` | tbd |
+| R-06 | Company over external, flag the difference | F-08, F-13, F-14, F-96 | G-22, G-68 to G-71, G-110; by design, G-26, G-84, G-85, G-93 (the attributed external quotes, D-03; G-93's F-96 names R-06 as well) | judged (S5, reported): `grounded` | tbd |
+| R-07 | Rule plus its exception | F-15 | G-05, G-39 | tbd (S1b boundary test); judged (S5, reported): `correct` | tbd |
+| R-08 | Follow cross-references | F-18, F-19 | G-72, G-73 | tbd | tbd |
+| R-09 | Use the pack's definitions | F-11, F-20, F-21 | G-38, G-74, G-75 | tbd | tbd |
+| R-10 | Multi-hop | F-22, F-23 | G-16, G-17, G-77 | judged (S5, reported): `grounded`, `correct` | tbd |
+| R-11 | Exact numbers and units | F-01, F-02, F-10, F-12, F-19, F-24 to F-31, F-50, F-51, F-60 to F-85 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36, G-40, G-49, G-51, G-73, G-77, G-79, G-111 | judged (S5, reported): `correct` | tbd |
+| R-12 | All formats count | F-07, F-09, F-10, F-11, F-12, F-15, F-24, F-33, F-56, F-60, F-61, F-88 | G-03 to G-06, G-08, G-12, G-32, G-39, G-52, G-54, G-70, G-71, G-74, G-100 to G-102, G-104, G-117 | tbd (S1b parsing, OCR) | tbd |
+| R-13 | Tenant scope | F-34 to F-40, F-52, F-89, F-90, F-91 | P-03, G-14, G-15, G-24 to G-26, G-28, G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 | `tests/retrieval/test_tenant_filter.py` (S2), `tests/e2e/test_e2e_fake.py` (S3) | tbd |
+| R-14 | Refuse to weaken, still help; answer the sanctioned routes (must-not-block) | F-41, F-42, F-43, F-54, F-55, F-56, F-90, F-91, F-92, F-93, F-94, F-95, F-98 | G-13, G-23, G-34, G-45 to G-48, G-52, G-65 to G-67, G-79 to G-81, G-111, G-115 (refuse-and-help); G-12, G-33, G-41 to G-44, G-50, G-64, G-82, G-83, G-108 (must-not-block) | judged (S5, reported): `refuses_and_helps` | tbd |
+| R-15 | Only the register is authoritative | F-48, F-49 | G-54, G-55 (clean runs; the attack runs are S7's) | tbd (S7) | tbd |
+| R-16 | Never another tenant's content | F-34 to F-40, F-52, F-89, F-90, F-91 | P-03, G-14, G-15, G-24 to G-26, G-28, G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 | `tests/e2e/test_e2e_fake.py` (S3); tbd (S7) | tbd |
+| R-17 | Never follow document instructions | F-47, F-49 | G-53, G-55 (clean runs; the attack runs are S7's) | tbd (S7) | tbd |
+| R-18 | Never invent a value | F-13, F-22, F-32, F-48, F-87, F-96, F-97 | G-16, G-54, G-70, G-77 (G-16 and G-77 a derivation); P-01, P-02, G-27, G-37, G-93 to G-99, G-114 (no number) | judged (S5, reported): `grounded`, `abstains` | tbd |
+| R-19 | Never echo secrets or PII | F-44, F-45, F-46, F-90 | G-09, G-64, G-108 (the allow list; the deny list is S7's) | tbd (S7) | tbd |
 | R-20 | Never reveal the system prompt | gap (see below) | — | tbd (S7) | tbd |
 | R-21 | Fail closed on tenant | gap (see below) | — | `tests/api/test_api.py`, `tests/generation/test_input_guards.py` (S3) | tbd |
 | R-22 | Flag unresolved conflicts | gap (see below) | tbd (S4b) | tbd | tbd |
-| R-23 | Procedures whole and in order | F-57 | G-20 | tbd | tbd |
+| R-23 | Procedures whole and in order | F-57 | G-20, G-76, G-112 | tbd | tbd |
 
 Quality attributes Q-01 to Q-06 are traced to gates and run records, not to planted features
 (section 5).
