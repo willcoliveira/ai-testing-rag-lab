@@ -984,8 +984,8 @@ coordinator set fix round 2 to them, docs only, with no full `make check` for le
 
 | Finding | What was done | Commit | Evidence |
 |---|---|---|---|
-| S4b-J8 (info): the cleanup's "105 passed" could not be reproduced from its description | Fix round 1's table names the six files that gave it: `tests/unit/test_check_dataset.py`, `tests/unit/test_split_golden.py`, `tests/retrieval/test_golden_v2.py`, `tests/retrieval/test_publish.py`, `tests/unit/test_test_plan.py` and `tests/retrieval/test_golden_behaviour.py` | this commit | Re-run at `7c09282`, the six files in one call: "105 passed"; `test_golden_behaviour.py` alone "8 passed", and `test_check_dataset.py` with `test_golden_v2.py` "44 passed", as the judge counts (its 97 for the first five files, plus these 8) |
-| S4b-J9 (info): round 0's first recount category was named "the Golden case cells" | The phrase now says the golden set's own counts (98 numbers, by mix, label, tenant, split, floors, probes and overlap), not TEST-PLAN's column | this commit | the judge's report, "Recount" |
+| S4b-J8 (info): the cleanup's "105 passed" could not be reproduced from its description | Fix round 1's table names the six files that gave it: `tests/unit/test_check_dataset.py`, `tests/unit/test_split_golden.py`, `tests/retrieval/test_golden_v2.py`, `tests/retrieval/test_publish.py`, `tests/unit/test_test_plan.py` and `tests/retrieval/test_golden_behaviour.py` | `60e34b7` | Re-run at `7c09282`, the six files in one call: "105 passed"; `test_golden_behaviour.py` alone "8 passed", and `test_check_dataset.py` with `test_golden_v2.py` "44 passed", as the judge counts (its 97 for the first five files, plus these 8) |
+| S4b-J9 (info): round 0's first recount category was named "the Golden case cells" | The phrase now says the golden set's own counts (98 numbers, by mix, label, tenant, split, floors, probes and overlap), not TEST-PLAN's column | `60e34b7` | the judge's report, "Recount" |
 
 After the edit, `tests/unit/test_repo_docs.py` and `tests/unit/test_diagram.py` (which reads the
 plans' front matter): "13 passed"; `make privacy`: "0 hits across 397 files (42 rules)". Ledger
@@ -998,7 +998,46 @@ text only: no full `make check` was run in this round.
   `test_the_one_consistency_row_names_the_published_baseline`, does. The gate itself should
   refuse a THRESHOLDS.md with two consistency rows; S8 (gates) takes it. No code change in S4b.
 - **S4b-J7:** `make audit`, red on `main`, is the coordinator's `build(deps)` pull request; this
-  branch merges `main` after it.
+  branch merges `main` after it. **Closed by that merge** (below): the audit passes.
+
+## The merge of main (2026-10-24)
+
+The coordinator's go, after the audit fix merged on `main` (pull request #29, merge commit
+`dc3fd5b`: `uv.lock` takes filelock 4.0.12 to 4.2.1, the Makefile skips five more advisories with
+their comments, and CHANGELOG.md gains one line). `git fetch origin`, then `git merge --no-ff
+origin/main`, the default message: the merge commit is
+**`0508166d1dddfa3992e32ba2dc8cd8c2ab66a140`**, parents `60e34b7` (this branch) and `dc3fd5b`
+(`main`); its hooks passed (privacy "0 hits", gitleaks "no leaks found", formatting).
+
+**The conflict:** CHANGELOG.md only (the Makefile and the lock merged by themselves; S4b's Makefile
+lines, the `eval-retrieval` target and the check-dataset comment, sit beside `main`'s new skips).
+Resolved by keeping every line: under Unreleased, S4b's line first, then `main`'s ("The
+advisories published on 2026-10-23, …"), then the rest as on `main`. Against `origin/main` the
+merged CHANGELOG differs only by S4b's line. `uv sync --locked` then put filelock 4.2.1 in the
+environment.
+
+**make -k check after the merge** (`0508166`, a clean tree, 21:03:40 to 21:07:48 WEST, `/usr/bin/time
+-p`; no live session, Ollama down; the default API smoke port 8765): **exit 0, every target
+green**, real 248.72 s (user 233.78 s, sys 14.93 s):
+
+    264 files already formatted
+    All checks passed!
+    0 errors, 0 warnings, 0 informations
+    Success! No dependency issues found.
+    No known vulnerabilities found, 48 ignored
+    No known vulnerabilities found, 48 ignored
+    no leaks found
+    no leaks found
+    0 hits across 397 files (42 rules)
+    0 architecture violations in src/raglab
+    check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 3d924ad0bd1d)
+    ========== 1419 passed, 2 deselected, 1 warning in 201.43s (0:03:21) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636
+    api-smoke: passed
+
+Both audit lines pass, the main environment's and the DeepEval tool's. Nothing pushed: the
+coordinator pushes and opens the pull request.
 
 ## Verification (the criteria judge: the verdict and its re-checks)
 
