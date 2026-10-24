@@ -911,7 +911,14 @@ def agreement(
 
 # ---------------------------------------------------------------- leaks (labels never examples)
 
-_WORD = re.compile(r"[a-z0-9]+")
+# a word: letters and digits, an apostrophe inside it kept ("company's" is one word, and so it is
+# with a typographic apostrophe, U+2019)
+_WORD = re.compile("[a-z0-9]+(?:['\\u2019][a-z0-9]+)*")
+# A label leaks into the judge when a judge prompt version holds this many consecutive words of a
+# labelled item's answer, quote or reason. Eight, because the rules' own phrases (that the
+# documents do not state it) recur in honest answers: measured on 2026-10-24, no published answer
+# shares more than six consecutive words with judge-v1 or judge-v2 (the S6 ledger).
+LEAK_RUN = 8
 
 
 def words(text: str) -> list[str]:
@@ -932,6 +939,46 @@ def longest_shared_run(text: str, other: str) -> int:
                 best = max(best, current[j])
         previous = current
     return best
+
+
+def labelled_texts(root: Path, folder: Path) -> list[tuple[str, str]]:
+    """Each labelled item's answer, quote and reason (labels and re-labels), named: the texts that
+    must never become judge examples."""
+    sample = read_sample(folder)
+    source = root / PUBLISHED / str(sample.pins["source_run"])
+    _, _, lines = judged_record.read_source(source)
+    answers = {(str(c["case_id"]), cast(int, c["trial"])): str(c["answer"]) for c in lines}
+    texts: list[tuple[str, str]] = []
+    for name in (LABELS, RELABELS):
+        if not (folder / name).exists():
+            continue
+        for row in read_jsonl(folder / name):
+            where = (
+                f"{folder.name} {name} item {row['order']} ({row['case_id']} trial {row['trial']})"
+            )
+            answer = answers.get((str(row["case_id"]), cast(int, row["trial"])), "")
+            texts += [
+                (f"{where} answer", answer),
+                (f"{where} quote", str(row["answer_quote"])),
+                (f"{where} reason", str(row["reason"])),
+            ]
+    return texts
+
+
+def leak_problems(
+    texts: Sequence[tuple[str, str]], prompts: Mapping[str, str], limit: int = LEAK_RUN
+) -> tuple[list[str], int]:
+    """Each labelled text that shares `limit` or more consecutive words with a judge prompt
+    version's text, naming both; and the longest run shared."""
+    problems: list[str] = []
+    longest = 0
+    for where, text in texts:
+        for version, prompt in prompts.items():
+            run = longest_shared_run(text, prompt)
+            longest = max(longest, run)
+            if run >= limit:
+                problems.append(f"{where}: {run} consecutive words are in {version}'s prompt")
+    return problems, longest
 
 
 def prompt_text(version: str) -> str:
