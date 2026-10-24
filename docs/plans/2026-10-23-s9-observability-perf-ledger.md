@@ -535,3 +535,71 @@ and `dc3fd5b`), git's default message, which the hooks passed.
 
 So OB12's local half is now met with `audit` green; its [CI] half is the pull request's next
 pr-fast run, where the `check` job's steps 17 to 25 run for the first time.
+
+## Fix round 2 (2026-10-24): a failure on Linux only
+
+The orchestrator's go, about 21:15 WEST: "Fix round 2 for S9, the last one. pr-fast found a failure
+that only shows on Linux."
+
+**The CI run.** pr-fast run 40128551450 (event `pull_request`, head `753c73e`), the first with
+`check` past the audit: `conventions` success; `perf` success; `check` failure at its step 23,
+"Tests (offline)", "6 failed, 1532 passed": the six subprocess cases of
+`tests/api/test_perf_mode.py::test_serve_refuses_with_one_line_before_the_port_binds` (prod,
+unset, no-mode, real-model, content-in-prod, remote-collector), each at line 207, `assert
+len(lines) == 1`: stderr held two lines.
+
+**The cause.** The first line is onnxruntime's own native log line on GitHub's Linux runner,
+printed when the `raglab serve` subprocess imports it (`src/raglab/__main__.py` imports
+`raglab.adapters.fastembed_embed` at module level, and that imports fastembed): copied from the
+run's log (`gh run view 40128551450 --log-failed`), as pytest's repr shows it, it begins
+`'\x1b[0;93m2026-10-24 20:11:13.984747058 [W:onnxruntime:Default, device_discovery.cc:146
+GetPciBusId] Skipping pci_bu` and ends `[0-9a-f]+\x1b[m'`; the middle (a PCI path) is cut by
+pytest's repr and is not in the log. The second line is raglab's refusal, correct in all six (for
+example "serve failed: PERF_TEST_MODE=1 is honoured only where RAGLAB_ENV is ci or local, not
+'prod': the server does not start"). macOS prints no such warning, so the test passed on the Mac.
+
+**The fix: the test only** (`6f6fbeb`). Before counting, the test drops onnxruntime's native log
+lines, matched narrowly by their format: after the ANSI colour codes are stripped
+(`\x1b\[[0-9;]*m`), a timestamp, then `[<severity letter>:onnxruntime:`, as
+`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+ \[[A-Z]:onnxruntime:`. A line is never dropped because it
+merely names onnxruntime. The test's claim is unchanged: raglab's own refusal is exactly one line,
+the exit is 1, nothing reaches stdout, and the port (held by the test) is never bound. Serve's
+behaviour and the import structure are unchanged; no other test changed. I chose the filter over
+silencing onnxruntime: I know of no documented setting that turns off its import-time device
+discovery or its default logger before the import in that subprocess only, and setting its log
+severity from Python would need code in serve, which this round leaves alone.
+
+**Evidence, locally (macOS; the Mac was free, no live session):**
+
+- The recorded CI stderr through the test's own filter (`raglab_lines`, imported from the test
+  module by a scratch script): the warning (its recorded beginning joined to its recorded end) is
+  dropped and the refusal kept ("ok   the CI stderr (warning, refusal): kept ["serve failed:
+  PERF_TEST_MODE=1 ... the server does not start"]"); the warning alone leaves nothing; a line of
+  raglab's own naming onnxruntime is kept ("raglab: onnxruntime is loaded"); the format without a
+  timestamp is kept; a timestamp with another library's tag is kept. Exit 0, five of five.
+- The break: a second line of raglab's own, `print("raglab serve: onnxruntime was loaded before
+  the check", file=sys.stderr)` before the refusal in `src/raglab/__main__.py`'s `serve`: "6
+  failed", each "AssertionError: ['raglab serve: onnxruntime was loaded before the check', 'serve
+  failed: ...']" (`assert 2 == 1`); restored with `git checkout`.
+- The six cases: "6 passed"; the file: "59 passed".
+
+**`make -k check`** on `6f6fbeb` (the default port): **exit 0**, 210.96 s real (198.48 s user), the
+tests 169.31 s:
+
+    268 files already formatted                                   format
+    All checks passed!                                            lint
+    0 errors, 0 warnings, 0 informations                          types
+    Success! No dependency issues found.                          deps (deptry; vulture silent)
+    No known vulnerabilities found, 48 ignored                    audit, the main environment
+    No known vulnerabilities found, 48 ignored                    audit, the DeepEval tool's lock
+    (bandit and semgrep silent)                                   sast
+    No findings to report. Good job!                              workflows
+    no leaks found, no leaks found                                secrets
+    0 hits across 389 files (42 rules)                            privacy
+    0 architecture violations in src/raglab                       architecture
+    check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    ========== 1538 passed, 2 deselected, 1 warning in 169.31s (0:02:49) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+The fix's proof on Linux is the pull request's next pr-fast run (OB12's [CI] half).
