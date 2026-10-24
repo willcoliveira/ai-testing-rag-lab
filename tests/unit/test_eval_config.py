@@ -25,6 +25,9 @@ MOVING = (
     "local-ollama-nightly",
     "local-ollama-release",
 )
+# configs added after F name golden set v2 (S9's config/perf.toml; the maintainer's go, verbatim:
+# "Point it at v2 (Recommended)")
+AFTER_F = ("perf",)
 
 
 def dataset_of(name: str) -> str:
@@ -53,14 +56,17 @@ def test_make_eval_retrieval_runs_the_three_committed_configs_on_their_dev_split
 
 def test_the_configs_name_one_golden_file_and_the_position_test_keeps_v1_1():
     """S4b: the seven configs that run golden set v2 from the freeze F name one golden file at
-    any time (golden.v1.jsonl until F, golden.v2.jsonl from it, all in the one commit); the
-    position test's names golden.v1.jsonl; and no other config names a dataset."""
+    any time (golden.v1.jsonl until F, golden.v2.jsonl from it, all in the one commit); a config
+    added after F names golden.v2.jsonl (S9's perf config); the position test's names
+    golden.v1.jsonl; and no other config names a dataset."""
     with_dataset = {
         p.stem
         for p in (ROOT / "config").glob("*.toml")
         if "dataset" in tomllib.loads(p.read_text(encoding="utf-8"))
     }
-    assert with_dataset == {*MOVING, "position-local"}
+    assert with_dataset == {*MOVING, *AFTER_F, "position-local"}
+    for name in AFTER_F:
+        assert dataset_of(name) == "datasets/golden.v2.jsonl", name
     [path] = {dataset_of(name) for name in MOVING}
     assert re.fullmatch(r"datasets/golden\.v(1|2)\.jsonl", path), path
     assert (ROOT / path).is_file()
