@@ -45,8 +45,8 @@ flowchart TB
   classDef todo fill:#f3f4f6,stroke:#6b7280
   classDef wip fill:#fef3c7,stroke:#92400e
   classDef done fill:#dcfce7,stroke:#166534
-  class S0,S1a,S1b,S2,S3,S4,S5,S9 done
-  class S3h,S4b,S6,S7,S8,S10,S11,S12,B todo
+  class S0,S1a,S1b,S2,S3,S4,S5,S4b,S9 done
+  class S3h,S6,S7,S8,S10,S11,S12,B todo
 ```
 
 ## Quickstart
@@ -77,12 +77,14 @@ make gate                                  # recall@5 on dev against the publish
 make playground                            # the published runs at http://127.0.0.1:8000/
 ```
 
-The questions are `datasets/golden.v1.jsonl` (34 retrieval questions, 22 dev and 12 test; see
-[datasets/DATASHEET.md](datasets/DATASHEET.md)). The baseline is the dense configuration's dev run
-in `runs/published/`, republished on golden set v1.1 in S4: recall@5 0.682, hit@5 0.818, MRR@5
-0.625 (n 22, local provenance; intervals and the comparison with hybrid and chunk size 600 in the
-[S4 ledger](docs/plans/2026-10-19-s4-golden-set-ledger.md)). The rise from S2's 0.644 comes from
-the dataset, whose label groups count a restated rule once, not from retrieval
+The questions are the 34 retrieval questions of the golden set (22 dev and 12 test; see
+[datasets/DATASHEET.md](datasets/DATASHEET.md)), the same lines in `datasets/golden.v1.jsonl`
+(v1.1, frozen) and `datasets/golden.v2.jsonl` (v2). The baseline is the dense configuration's dev
+run in `runs/published/`, republished on golden set v2 in S4b: recall@5 0.682, hit@5 0.818, MRR@5
+0.625 (n 22, local provenance), the same top 5 for every question as on v1.1 in S4 (intervals and
+the comparison with hybrid and chunk size 600 in the
+[S4b ledger](docs/plans/2026-10-23-s4b-golden-set-v2-ledger.md)). The rise from S2's 0.644 came in
+S4 from the dataset, whose label groups count a restated rule once, not from retrieval
 ([S2 ledger](docs/plans/2026-10-06-s2-retrieval-ledger.md) for golden set v1).
 
 Generation (S3) turns the retrieved chunks into a structured answer (text, cited
@@ -99,17 +101,21 @@ make eval-local    # the live run on Ollama: starts the server, runs, stops it (
 make container && make zap   # the fake-model container and its ZAP baseline scan (Docker)
 ```
 
-The golden set and the consistency gate (S4): `make check-dataset` holds the golden
-file to ten rules before any run (every `raglab eval` and `raglab gate` runs it first, and so does
-pr-fast); the generation suite reads the decision label of each behaviour case from the structured
-field and scores abstention as its own check, without a judge; `make gate-local` gates behaviour
-pass^3 on dev against a local baseline (docs/THRESHOLDS.md), and `make nightly-local` runs every
-split under the nightly gate. Golden set v1.1 adds 40 behaviour cases (27 dev, 13 test) to the 34
-retrieval questions; asked for the sign-off in the question prompt on 2026-10-19, the user answered
-"Signed off as is" (the S4 ledger quotes the question). The local generation baseline holds
-behaviour pass^3 0.519 (14 of the 27 dev cases) on nemotron-3.5-lightning; its four repeats held
-the same 14 cases, so the gate's margin is one case ([docs/THRESHOLDS.md](docs/THRESHOLDS.md), the
-[S4 ledger](docs/plans/2026-10-19-s4-golden-set-ledger.md)).
+The golden set and the consistency gate (S4, S4b): `make check-dataset` holds each golden file
+to ten rules, by its version, before any run (every `raglab eval` and `raglab gate` runs it first,
+and so does pr-fast); the generation suite reads the decision label of each behaviour case from the
+structured field and scores abstention as its own check, without a judge; `make gate-local` gates
+behaviour pass^3 on dev against a local baseline (docs/THRESHOLDS.md), and `make nightly-local`
+runs every split under the nightly gate. Golden set v2 (S4b) holds 120 behaviour cases, v1.1's 40
+and 80 new ones, in the mix 45/24/24/12/15 over both tenants (33 asked as tenant B), 79 dev and 41
+test, with the 34 retrieval questions; a labels judge agreed with all 80 new labels, and on
+2026-10-24 the maintainer answered "Signed off as is" (the S4b ledger quotes the question). The
+local generation baseline on v2 holds behaviour pass^3 0.418 (33 of the 79 dev cases) on
+nemotron-3.5-lightning; its four repeats held 34, 33, 33 and 33, so the gate's margin is one case
+([docs/THRESHOLDS.md](docs/THRESHOLDS.md), the
+[S4b ledger](docs/plans/2026-10-23-s4b-golden-set-v2-ledger.md)). Golden set v1.1 (S4, 0.519 on
+its 27 dev cases) stays frozen in `datasets/golden.v1.jsonl`, with its runs published as history;
+the two sets' numbers do not compare.
 
 A run is published only from a clean, committed tree, with its provenance (`local` for the ONNX
 embedder) in the manifest. Run record v1 is `schemas/run-record.v1.json`; thresholds and their

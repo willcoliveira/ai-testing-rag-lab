@@ -1,0 +1,259 @@
+{
+  "schema_version": "run-record.v1",
+  "run_id": "20261024T093208Z-generation-local-ollama-dev-ade9397",
+  "created_at": "2026-10-24T09:32:08Z",
+  "suite": "generation",
+  "gate": "manual",
+  "split": "dev",
+  "trials": 3,
+  "seed": 20261018,
+  "provenance": "local",
+  "partial": false,
+  "git_sha": "ade9397e8828bf875fe4925817041b0da16ff7e2",
+  "git_dirty": false,
+  "config": {
+    "name": "generation-local-ollama",
+    "path": "config/local-ollama.toml",
+    "file_sha256": "7aaf11a377a2a6cc9c70ce466f9b6b22587b5a25df9c9021c4f055a0ba84eac6",
+    "sha256": "92f7fe0dbd3eb408323281ba9a89db0fbde364ad8675e8d823e16a8a61274da1"
+  },
+  "chunker": {
+    "chunk_size": 1200,
+    "overlap": 1,
+    "sha256": "efc92723850c2cd1c95073b805b017abe506cc2d2d9cdd395211aea09f7f18a9"
+  },
+  "embedder": {
+    "provider": "fastembed",
+    "model": "BAAI/bge-small-en-v1.5",
+    "source": "Qdrant/bge-small-en-v1.5-onnx-Q",
+    "revision": "aa8f8b060edb00e03bfdd08813a2949946c8ba55",
+    "dimension": 384,
+    "onnx_sha256": "51f1bd0addd6e859e42c2c8021a5e5461385bb676a649f4b269aa445449f2431",
+    "fastembed": "0.9.0",
+    "onnxruntime": "1.30.0",
+    "sha256": "eae9278a753b7a374f3e79c08d3911092215b909d3e6eedc3c2dcbdd9026e95e"
+  },
+  "retriever": {
+    "kind": "dense",
+    "k": 5,
+    "sha256": "eee2d16a482337ea39c507718790e61a43897e6f356f06742188082b427c8bfb"
+  },
+  "generator": {
+    "provider": "openai-compat",
+    "model": "nemotron-3.5-lightning:30b-a3b-mlx",
+    "digest": "d1e17d7dabacb401dec6440b4ec987ea053b9568b01f89fb3d54f8b2e71397be",
+    "base_url": "http://127.0.0.1:11434",
+    "server_version": "0.40.6",
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "max_tokens": 1024,
+    "timeout_s": 120.0,
+    "response_format": "none",
+    "extra": {
+      "reasoning_effort": "none"
+    },
+    "sha256": "61294f6b58da11f342ffeef77426a00e4c86b6ea5cb4a51cb14505fb5eb10bbb"
+  },
+  "prompt": {
+    "version": "answer-v1",
+    "sha256": "96f42d9bc9c7969fcd30198d951b5bf47e2d07abda4f0885fa39e85c7c01c8ae"
+  },
+  "guards": [
+    "tenant",
+    "input-limits",
+    "citations"
+  ],
+  "intervals": {
+    "method": "wilson",
+    "level": 0.95,
+    "unit": "case"
+  },
+  "dataset": {
+    "path": "datasets/golden.v2.jsonl",
+    "sha256": "3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e",
+    "questions": 101
+  },
+  "corpus": {
+    "documents": 18,
+    "chunks": 228,
+    "sha256": "8918d4f796732b6e11e0dd92b0844bdd2889e18a0660be26f3cc32484961936e"
+  },
+  "tools": {
+    "python": "3.13.12",
+    "raglab": "0.1.0",
+    "numpy": "2.5.4",
+    "rank-bm25": "0.2.2",
+    "pypdf": "6.19.0",
+    "pyyaml": "6.0.3",
+    "pytesseract": "0.3.13",
+    "tesseract": "5.5.3",
+    "httpx": "0.28.1"
+  },
+  "results": {
+    "metrics": {
+      "status_ok": {
+        "value": 0.983498,
+        "ci_low": 0.935641,
+        "ci_high": 0.995924,
+        "n": 101
+      },
+      "model_citations_retrieved": {
+        "value": 0.983498,
+        "ci_low": 0.935641,
+        "ci_high": 0.995924,
+        "n": 101
+      },
+      "citation_hit": {
+        "value": 0.787879,
+        "ci_low": 0.581758,
+        "ci_high": 0.90841,
+        "n": 22
+      },
+      "pass^3": {
+        "value": 0.49505,
+        "ci_low": 0.399527,
+        "ci_high": 0.590935,
+        "n": 101
+      },
+      "decision_label": {
+        "value": 0.590717,
+        "ci_low": 0.480544,
+        "ci_high": 0.692477,
+        "n": 79
+      },
+      "decision_label[answer]": {
+        "value": 0.978261,
+        "ci_low": 0.886647,
+        "ci_high": 0.996152,
+        "n": 46
+      },
+      "decision_label[abstain]": {
+        "value": 0.092593,
+        "ci_low": 0.023139,
+        "ci_high": 0.305356,
+        "n": 18
+      },
+      "decision_label[flag-conflict]": {
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.434482,
+        "n": 5
+      },
+      "decision_label[refuse-and-help]": {
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.277533,
+        "n": 10
+      },
+      "abstention": {
+        "value": 0.092593,
+        "ci_low": 0.023139,
+        "ci_high": 0.305356,
+        "n": 18
+      },
+      "over_abstention": {
+        "value": 0.021858,
+        "ci_low": 0.004698,
+        "ci_high": 0.095672,
+        "n": 61
+      },
+      "behaviour_pass^3": {
+        "value": 0.417722,
+        "ci_low": 0.315266,
+        "ci_high": 0.527807,
+        "n": 79
+      }
+    },
+    "generation": {
+      "trials": 3,
+      "cases": 101,
+      "case_trials": 303,
+      "status_counts": {
+        "ok": 298,
+        "refused": 0,
+        "blocked": 5,
+        "unavailable": 0,
+        "invalid_output": 0
+      },
+      "label_agreement": {
+        "cases": 101,
+        "unanimous": 91
+      },
+      "probes": [],
+      "latency_ms": {
+        "p50": 1602.26,
+        "p95": 2952.701,
+        "n": 303
+      },
+      "tokens": {
+        "reported": 303,
+        "prompt": 315432,
+        "completion": 35031
+      },
+      "behaviour": {
+        "cases": 79,
+        "confusion": {
+          "answer": {
+            "answer": 136,
+            "abstain": 1,
+            "flag-conflict": 0,
+            "refuse-and-help": 0,
+            "withheld": 1
+          },
+          "abstain": {
+            "answer": 47,
+            "abstain": 5,
+            "flag-conflict": 0,
+            "refuse-and-help": 0,
+            "withheld": 2
+          },
+          "flag-conflict": {
+            "answer": 14,
+            "abstain": 1,
+            "flag-conflict": 0,
+            "refuse-and-help": 0,
+            "withheld": 0
+          },
+          "refuse-and-help": {
+            "answer": 28,
+            "abstain": 2,
+            "flag-conflict": 0,
+            "refuse-and-help": 0,
+            "withheld": 0
+          }
+        },
+        "abstention": {
+          "abstain_no_value": 5,
+          "abstain_value": 0,
+          "not_abstain_no_value": 24,
+          "not_abstain_value": 25
+        },
+        "label_agreement": {
+          "cases": 79,
+          "unanimous": 71
+        },
+        "label_failures": {
+          "labels_retrieved": 27,
+          "labels_missed": 21,
+          "no_labels": 49
+        },
+        "conflict_side_missed": 9
+      }
+    }
+  },
+  "totals": {
+    "cases": 303,
+    "duration_s": 501.241
+  },
+  "ollama": {
+    "host": "127.0.0.1:11434",
+    "keep_alive": "2m",
+    "max_loaded_models": 1,
+    "num_parallel": 1,
+    "context_length": 8192
+  },
+  "files": {
+    "cases.jsonl": "024f073d4e3c9b43a38e11a20487b3f353cc0595178070103a913d53831a88ed",
+    "report.md": "9444643552639ec98d8cd1a238ac70923245b124ffb205aad5fa02c5f9e3ac97"
+  }
+}
