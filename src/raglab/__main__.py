@@ -411,6 +411,67 @@ def cost_estimate(args: argparse.Namespace) -> int:
     return 0
 
 
+CALIBRATION_ERRORS = (judged.JudgedError, pipeline.IngestError, OSError, ValueError)
+
+
+def label_items(args: argparse.Namespace) -> int:
+    """`raglab label --folder <calibration>` (S6): the sample's items shown as the judge saw them,
+    labelled blind in the judge's schema (raglab.evals.label); --redo, --seal, --relabel."""
+    from raglab.evals import label
+
+    try:
+        return label.run(args.root, args.root / args.folder, args.relabel, args.redo, args.seal)
+    except CALIBRATION_ERRORS as error:  # CalibrationError is a ValueError
+        print(f"label refused: {error}", file=sys.stderr)
+        return 1
+
+
+def calibrate(args: argparse.Namespace) -> int:
+    """`raglab calibrate <action> --folder <calibration>` (S6): sample (draw it once from a
+    published judged record), disagreements (after the seal), record (record.json and record.md),
+    check (the sample drawn again and the record regenerated)."""
+    from raglab.evals import calibration
+
+    root: Path = args.root
+    folder: Path = root / args.folder
+    try:
+        if args.action == "sample":
+            if args.judged is None:
+                raise calibration.CalibrationError("give the judged record: --judged <run id>")
+            sample, drawn = calibration.draw_sample(root, folder, args.judged)
+            for c in calibration.load_bar(folder).criteria:
+                got = {s: drawn.drawn[(c.name, s)] for s in calibration.SIDES}
+                size = {s: drawn.frame[(c.name, s)] for s in calibration.SIDES}
+                print(
+                    f"{c.name}: {got['pass'] + got['fail']} items, {got['pass']} of the frame's "
+                    f"{size['pass']} judge passes and {got['fail']} of its {size['fail']} judge "
+                    "fails"
+                )
+            for short in drawn.shortfall:
+                print(f"shortfall: {json.dumps(short)}")
+            print(f"sample: {len(sample.items)} items written to {folder / calibration.SAMPLE}")
+        elif args.action == "disagreements":
+            for row in calibration.disagreement_details(root, folder):
+                print(json.dumps(row, indent=2, ensure_ascii=False))
+        elif args.action == "record":
+            rec = calibration.write_record(root, folder, calibration.git_commits(root, folder))
+            print((folder / calibration.RECORD_MD).read_text(encoding="utf-8"))
+            print(f"record: {folder / calibration.RECORD_JSON} ({rec['status']})")
+        else:
+            problems = calibration.redraw_problems(root, folder)
+            if (folder / calibration.RECORD_JSON).exists():
+                problems += calibration.record_problems(root, folder)
+            for problem in problems:
+                print(f"calibrate check: {problem}", file=sys.stderr)
+            if problems:
+                return 1
+            print(f"calibrate check: {folder.name} draws and regenerates as committed")
+    except CALIBRATION_ERRORS as error:
+        print(f"calibrate refused: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def ask(args: argparse.Namespace) -> int:
     """One question through the pipeline; the outcome as JSON. Exit 0 when the status is ok."""
     root: Path = args.root
@@ -609,6 +670,25 @@ def main(argv: list[str] | None = None) -> int:
     canary = commands.add_parser("canaries", help="the judge's canary set, a hard stop (S5)")
     canary.add_argument("--config", type=Path, required=True, help="a judge config/*.toml")
     canary.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    labelling = commands.add_parser(
+        "label", help="label a calibration's sample blind, as the judge saw each item (S6)"
+    )
+    labelling.add_argument("--folder", type=Path, required=True, help="a calibration folder")
+    labelling.add_argument("--relabel", action="store_true", help="D3's re-label of 12")
+    labelling.add_argument("--redo", type=int, help="label item n again (before the seal)")
+    labelling.add_argument("--seal", action="store_true", help="seal the labels: no change after")
+    labelling.add_argument(
+        "--root", type=Path, default=Path.cwd(), help="repo root (default: here)"
+    )
+    calibrating = commands.add_parser(
+        "calibrate", help="the judge's calibration: sample, disagreements, record, check (S6)"
+    )
+    calibrating.add_argument("action", choices=["sample", "disagreements", "record", "check"])
+    calibrating.add_argument("--folder", type=Path, required=True, help="a calibration folder")
+    calibrating.add_argument("--judged", help="sample: the published judged record's run id")
+    calibrating.add_argument(
+        "--root", type=Path, default=Path.cwd(), help="repo root (default: here)"
+    )
     pub = commands.add_parser("publish", help="validate a run, check privacy, add it to the index")
     pub.add_argument("run", type=Path, help="a run directory or run id")
     pub.add_argument(
@@ -643,6 +723,8 @@ def main(argv: list[str] | None = None) -> int:
         "canaries": canary_check,
         "position": position_run,
         "cost": cost_estimate,
+        "label": label_items,
+        "calibrate": calibrate,
         "publish": publish_run,
         "gate": gate,
         "ask": ask,

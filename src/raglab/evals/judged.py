@@ -20,7 +20,7 @@ hit; a judge call with no reply also marks it partial. A partial run is never pu
 import hashlib
 import time
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
@@ -106,25 +106,24 @@ def source_record(source_dir: Path, root: Path) -> tuple[bytes, Json, list[Json]
     return raw, manifest, cases
 
 
-def run(
-    config: JudgeConfig,
-    root: Path,
-    source_dir: Path,
-    judge: Judge,
-    judge_description: Json,
-    judge_provenance: str,
-    gate: str = "manual",
-    git: retrieval.GitState | None = None,
-    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
-    monotonic: Callable[[], float] = time.monotonic,
-    inventory: pipeline.Inventory | None = None,
-    say: Callable[[str], None] = lambda text: None,
-) -> tuple[Json, list[Json]]:
-    """(manifest without its files block, lines) of one judged run. CanaryStop when a canary is
-    off its side: then no judged call was made."""
-    started = monotonic()
-    created = clock().replace(microsecond=0)
-    git = git or retrieval.git_state(root)
+@dataclass(frozen=True)
+class Inputs:
+    """What every judge call on a source run is built from: the source record, read and checked,
+    and its passages and reference answers rebuilt (S6: the blind label CLI rebuilds an item from
+    the same, so a labeller is shown exactly what the judge was)."""
+
+    raw: bytes  # the source manifest's bytes, whose sha256 a judged record names
+    manifest: Json
+    sources: list[Json]
+    inventory: pipeline.Inventory
+    passages: dict[str, Passage]
+    refs: dict[str, str]
+
+
+def inputs(source_dir: Path, root: Path, inventory: pipeline.Inventory | None = None) -> Inputs:
+    """The source run and the inputs its answers are judged on: its passages rebuilt from the
+    corpus at its chunk settings, after the corpus and dataset sha256 are checked against it, and
+    the reference answers from the golden file. JudgedError when either has changed."""
     raw, source_manifest, sources = source_record(source_dir, root)
     chunker = cast(dict[str, int], source_manifest["chunker"])
     settings = ChunkSettings(chunker["chunk_size"], chunker["overlap"])
@@ -144,6 +143,32 @@ def run(
         raise JudgedError(f"{dataset['path']} has changed since {source_dir.name} ran")
     passages: dict[str, Passage] = {str(c.chunk_id): Passage.of(c) for c in chunks}
     refs = judged_record.references(root, dataset_path)
+    return Inputs(raw, source_manifest, sources, inventory, passages, refs)
+
+
+def run(
+    config: JudgeConfig,
+    root: Path,
+    source_dir: Path,
+    judge: Judge,
+    judge_description: Json,
+    judge_provenance: str,
+    gate: str = "manual",
+    git: retrieval.GitState | None = None,
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    monotonic: Callable[[], float] = time.monotonic,
+    inventory: pipeline.Inventory | None = None,
+    say: Callable[[str], None] = lambda text: None,
+) -> tuple[Json, list[Json]]:
+    """(manifest without its files block, lines) of one judged run. CanaryStop when a canary is
+    off its side: then no judged call was made."""
+    started = monotonic()
+    created = clock().replace(microsecond=0)
+    git = git or retrieval.git_state(root)
+    built = inputs(source_dir, root, inventory)
+    raw, source_manifest, sources = built.raw, built.manifest, built.sources
+    inventory, passages, refs = built.inventory, built.passages, built.refs
+    settings = inventory.settings
     seed = config.judging.seed
 
     # the canaries first: a hard stop on the judge, before any judged call

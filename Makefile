@@ -50,7 +50,7 @@ AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8
 	GHSA-qfv9-64jg-mh7p \
 	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap label relabel calibrate
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -228,6 +228,22 @@ deepeval-check:
 cost:
 	@test -n "$(JUDGED)" || (echo "give a judged run: make cost JUDGED=<run id>" >&2; exit 2)
 	uv run raglab cost --judged $(JUDGED)
+
+# S6: the judge's calibration (datasets/calibration/README.md); no model, no Ollama, no network.
+# label shows each item of the sample exactly as the judge saw it and records the label in the
+# judge's schema (REDO=<n> labels item n again; SEAL=1 seals the file, and nothing changes after);
+# relabel is D3's blind re-label of 12, at least a day after the seal; calibrate writes record.json
+# and record.md from the sealed labels and the published judged record they pin.
+CALIBRATION := datasets/calibration/judge-v2-c1
+label:
+	uv run raglab label --folder $(CALIBRATION) $(if $(REDO),--redo $(REDO)) $(if $(SEAL),--seal)
+
+relabel:
+	uv run raglab label --relabel --folder $(CALIBRATION) $(if $(REDO),--redo $(REDO)) \
+		$(if $(SEAL),--seal)
+
+calibrate:
+	uv run raglab calibrate record --folder $(CALIBRATION)
 
 # S5 AC9: the position test, one generator session: the generator's live contract test, then each
 # position case with its answering chunk first, in the middle and last of a long context, written
