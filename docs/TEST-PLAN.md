@@ -349,12 +349,15 @@ generation (every commit with the fake model; live on demand, make eval-local): 
   decision label and a conflict field in a parsed JSON answer,
   the citation validator, input limits and the tenant guard; run record v1 for generation runs
   (citation integrity, citation hit, abstention probes, pass^3, no judge)
-golden set v1 (S4, datasheet v1.1): 34 retrieval questions and 40 behaviour cases, the 15/8/8/4/5
-  mix of the main plan (single-chunk, multi-chunk, unanswerable, version-conflict, paraphrased or
-  misspelled), each with its expected decision label (25 answer, 9 abstain, 3 flag-conflict,
-  3 refuse-and-help); 27 dev and 13 test cases, the test split run only nightly or at a release;
-  S3's probes P-01 to P-03 among them; label groups for restated rules; make check-dataset stops a
-  malformed file before any run (datasets/DATASHEET.md)
+golden set v2 (S4b, datasheet v2; datasets/golden.v2.jsonl): 34 retrieval questions and 120
+  behaviour cases, golden set v1.1's 40 (S4, frozen in datasets/golden.v1.jsonl) and 80 new ones,
+  in the main plan's mix tripled, 45/24/24/12/15 (single-chunk, multi-chunk, unanswerable,
+  version-conflict, paraphrased or misspelled), each with its expected decision label (64 answer,
+  27 abstain, 13 flag-conflict, 16 refuse-and-help); 87 asked as tenant A and 33 as tenant B;
+  79 dev and 41 test cases, the new ones split by a seeded script, the test split run only nightly
+  or at a release; S3's probes P-01 to P-03 among them; every requirement with a planted feature
+  traced to a case (section 8); label groups for restated rules; make check-dataset holds each file
+  to its version's rules before any run (datasets/DATASHEET.md)
 judges (S5, reported until S6): judge-v2 on the local Ministral 3 14B
   (ministral-3:14b-instruct-2512-q4_K_M, tag and digest pinned, another family than the
   generator), one binary verdict per criterion of docs/CRITERIA.md (grounded, cites_support,
