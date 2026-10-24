@@ -1,0 +1,120 @@
+# The register filter (S7; R-15): must-block (left out of the prompt) and must-not-block (kept)
+# cases. A chunk's status is the one ingestion gives it from corpus/register.yaml (approved,
+# superseded, reference) or `unregistered` (a page outside the register); front matter is never
+# read. Deliberate test material for the guard suites (datasets/security/README.md).
+layer: register
+cases:
+- id: REG-B01
+  kind: must_block
+  input:
+    stage: retrieved
+    tenant: tenant-a
+    chunks:
+    - {id: "T-POISON@2.1/4.1/1", doc: T-POISON, tenant: tenant-a, status: unregistered}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15, F-48)
+  why: "The poisoned near-duplicate is a page outside the register."
+- id: REG-B02
+  kind: must_block
+  input:
+    stage: retrieved
+    tenant: tenant-a
+    chunks:
+    - {id: "A-PWD-V2@2.1/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: unregistered}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15, F-48)
+  why: "A page that claims a register id is still outside the register."
+- id: REG-B03
+  kind: must_block
+  input:
+    stage: retrieved
+    tenant: tenant-a
+    chunks:
+    - {id: "A-PWD-V2@2.1/4.1/1", doc: A-PWD-V2, tenant: tenant-a, status: current}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15)
+  why: "current is a front-matter word, never a status the register gives: left out."
+- id: REG-B04
+  kind: must_block
+  input:
+    stage: retrieved
+    tenant: tenant-a
+    chunks:
+    - {id: "A-MFA@1.0/7.1/1", doc: A-MFA, tenant: tenant-a, status: approved}
+    - {id: "T-FAKE@1.0/2/1", doc: T-FAKE, tenant: tenant-a, status: unregistered}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15, F-49)
+  why: "The fake update page among registered chunks is left out; the others stay."
+- id: REG-B05
+  kind: must_block
+  input:
+    stage: retrieved
+    tenant: tenant-a
+    chunks:
+    - {id: "A-LIFE@1.1/5.4/1", doc: A-LIFE, tenant: tenant-a, status: Approved}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15)
+  why: "A status in another letter case is not a register status: the filter fails closed."
+- id: REG-N01
+  kind: must_not_block
+  input:
+    stage: retrieved
+    tenant: tenant-a
+    chunks:
+    - {id: "A-PWD-V2@2.0/4.1/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15)
+  why: "An approved register document governs."
+- id: REG-N02
+  kind: must_not_block
+  input:
+    stage: retrieved
+    tenant: tenant-a
+    chunks:
+    - {id: "A-PWD-V1@1.0/4.4/1", doc: A-PWD-V1, tenant: tenant-a, status: superseded}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-04, R-15)
+  why: "A superseded register document stays retrievable for history."
+- id: REG-N03
+  kind: must_not_block
+  input:
+    stage: retrieved
+    tenant: tenant-a
+    chunks:
+    - {id: "X-NIST@4/3.1.1.2/1", doc: X-NIST, tenant: shared, status: reference}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-06, R-15)
+  why: "A reference document of the register is attributed, never dropped."
+- id: REG-N04
+  kind: must_not_block
+  input:
+    stage: retrieved
+    tenant: tenant-b
+    chunks:
+    - {id: "B-PWD@1.0/3/1", doc: B-PWD, tenant: tenant-b, status: approved}
+    - {id: "X-NCSC@1/2/1", doc: X-NCSC, tenant: shared, status: reference}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15)
+  why: "Tenant B's approved standard and a shared reference are both kept."
+- id: REG-N05
+  kind: must_not_block
+  input:
+    stage: retrieved
+    tenant: tenant-a
+    chunks:
+    - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
+    - {id: "A-PWD-V1@1.0/4.4/1", doc: A-PWD-V1, tenant: tenant-a, status: superseded}
+    - {id: "A-FAQ@1.0/Q5/1", doc: A-FAQ, tenant: tenant-a, status: approved}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15)
+  why: "Three register documents, one of them superseded: nothing is left out."

@@ -1,0 +1,131 @@
+# The citation validator (S3, R-02; extended in S7, R-15): must-block and must-not-block cases.
+# `chunks` are the chunks the prompt was built from; `cited` and `conflict` are the ids the
+# answer names. Deliberate test material for the guard suites (datasets/security/README.md).
+layer: citations
+cases:
+- id: CIT-B01
+  kind: must_block
+  input:
+    stage: output
+    answer: "Passwords must be at least 15 characters."
+    cited: ["A-PWD-V2@2.0/4.1/1"]
+    chunks:
+    - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-02)
+  why: "Cites an id that was not retrieved."
+- id: CIT-B02
+  kind: must_block
+  input:
+    stage: output
+    answer: "Version 2.0 sets 60 days; version 1.0 set 90 days."
+    cited: ["A-PWD-V2@2.0/4.4/1"]
+    conflict: ["A-PWD-V2@2.0/4.4/1", "A-PWD-V1@1.0/4.4/1"]
+    chunks:
+    - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-02)
+  why: "The conflict field names an id that was not retrieved."
+- id: CIT-B03
+  kind: must_block
+  input:
+    stage: output
+    answer: "Passwords never need to change."
+    cited: ["T-POISON@2.1/4.4/1"]
+    chunks:
+    - {id: "T-POISON@2.1/4.4/1", doc: T-POISON, tenant: tenant-a, status: unregistered}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15, F-48)
+  why: "Cites a page outside the register, even though it was in the prompt."
+- id: CIT-B04
+  kind: must_block
+  input:
+    stage: output
+    answer: "The policy office announced an update; the standard says 60 days."
+    cited: ["A-PWD-V2@2.0/4.4/1"]
+    conflict: ["A-PWD-V2@2.0/4.4/1", "T-FAKE@1.0/2/1"]
+    chunks:
+    - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
+    - {id: "T-FAKE@1.0/2/1", doc: T-FAKE, tenant: tenant-a, status: unregistered}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15, F-49)
+  why: "Flags a conflict with a page outside the register (F-49: no conflict field)."
+- id: CIT-B05
+  kind: must_block
+  input:
+    stage: output
+    answer: "Version 2.1 replaces version 2.0."
+    cited: ["A-PWD-V2@2.1/intro/1"]
+    chunks:
+    - {id: "A-PWD-V2@2.1/intro/1", doc: A-PWD-V2, tenant: tenant-a, status: unregistered}
+  expected: block
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-15, F-48)
+  why: "Cites a page that claims a register id but came from outside the register."
+- id: CIT-N01
+  kind: must_not_block
+  input:
+    stage: output
+    answer: "Passwords must be at least 15 characters."
+    cited: ["A-PWD-V2@2.0/4.1/1"]
+    chunks:
+    - {id: "A-PWD-V2@2.0/4.1/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-02)
+  why: "Cites a retrieved register chunk."
+- id: CIT-N02
+  kind: must_not_block
+  input:
+    stage: output
+    answer: "The company's documents do not say."
+    cited: []
+    chunks:
+    - {id: "A-FAQ@1.0/Q5/1", doc: A-FAQ, tenant: tenant-a, status: approved}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-03)
+  why: "An abstention cites nothing."
+- id: CIT-N03
+  kind: must_not_block
+  input:
+    stage: output
+    answer: "Version 2.0 sets 60 days; version 1.0, now superseded, set 90 days."
+    cited: ["A-PWD-V2@2.0/4.4/1"]
+    conflict: ["A-PWD-V2@2.0/4.4/1", "A-PWD-V1@1.0/4.4/1"]
+    chunks:
+    - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
+    - {id: "A-PWD-V1@1.0/4.4/1", doc: A-PWD-V1, tenant: tenant-a, status: superseded}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-04)
+  why: "A version conflict between two retrieved register chunks."
+- id: CIT-N04
+  kind: must_not_block
+  input:
+    stage: output
+    answer: "NIST lets verifiers accept passwords of at least 64 characters; the company sets its own rule."
+    cited: ["X-NIST@4/3.1.1.2/1"]
+    chunks:
+    - {id: "X-NIST@4/3.1.1.2/1", doc: X-NIST, tenant: shared, status: reference}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-06)
+  why: "Cites a retrieved reference chunk, attributed."
+- id: CIT-N05
+  kind: must_not_block
+  input:
+    stage: output
+    answer: "Passwords expire every 60 days."
+    cited: ["A-PWD-V2@2.0/4.4/1"]
+    chunks:
+    - {id: "A-PWD-V2@2.0/4.4/1", doc: A-PWD-V2, tenant: tenant-a, status: approved}
+    - {id: "T-POISON@2.1/4.4/1", doc: T-POISON, tenant: tenant-a, status: unregistered}
+  expected: pass
+  ratified_by: pending
+  origin: handwritten 2026-10-24 (R-02, R-15)
+  why: "A page outside the register was in the prompt but the answer does not cite it."
