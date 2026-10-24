@@ -14,6 +14,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from raglab.adapters.fake import FakeChat, HashingEmbedder
+from raglab.api import environment
 from raglab.api.app import VersionInfo, create_app
 from raglab.core.ports import ChatModel, Guardrail, Retriever
 from raglab.core.types import Chunk
@@ -71,11 +72,15 @@ def traced_app(
     chunks: Sequence[Chunk] = PACK,
     retriever: Retriever | None = None,
     guards: Sequence[Guardrail] | None = None,
-    capture_content: bool = False,
     environ: Mapping[str, str] | None = None,
     info: VersionInfo = INFO,
     tokens: Mapping[str, frozenset[str]] = TOKENS,
 ) -> Traced:
+    """The app as `raglab serve` would trace it: whether content is captured is decided from the
+    environment exactly as the server decides it (raglab.api.environment), so the default (no
+    environment) is the server's default."""
+    environ = {} if environ is None else environ
+    capture_content = environment.switches(environ, info.provider).capture_content
     exporter, raw = InMemorySpanExporter(), InMemorySpanExporter()
     provider = otel.provider_with(exporter, capture_content, batch=False)
     provider.add_span_processor(SimpleSpanProcessor(raw))
@@ -88,8 +93,7 @@ def traced_app(
         3,
         tracer=tracer,
     )
-    environment = (LOCAL if capture_content else {}) if environ is None else environ
-    app = create_app(pipeline, info, tokens, tracer_provider=provider, environ=environment)
+    app = create_app(pipeline, info, tokens, tracer_provider=provider, environ=environ)
     return Traced(TestClient(app, raise_server_exceptions=False), exporter, raw, model)
 
 
