@@ -113,7 +113,17 @@ tests named below.
 1. **An undefined kappa reads "reported only"** (`undefined` in bar.toml, written before any
    label): it happens only when the labels and the verdicts all fall in one and the same class, so
    agreement beyond chance cannot be measured; never trusted, never gated. The plan's bar did not
-   say; it is my choice and yours to change before the sample is drawn.
+   say; it is my choice, a question for the maintainer, and it can change only before the sample is
+   drawn (the sample pins bar.toml's sha256; after it, a change is a new calibration folder).
+1a. **A shortfall is said in the sample's pins** (the plan: "any shortfall said"), so for a short
+   criterion the labeller can read its strata's counts before labelling (for example "judge pass, 5
+   of 7, 2 more from the other stratum"): aggregate counts, never which items. The v1.1 records'
+   draws above were short on `abstains` both times, so the v2 draw may be too; this is the plan's
+   design, said here so that it is not read later as a blindness slip.
+1b. **`src/raglab/evals/judged.py` changed** (choice 9 below), outside `src/raglab/judge/`: the
+   criteria judge sees it in `git diff origin/main`; the judged run's tests were green after it.
+1c. **Test time:** `tests/judge` took about 14 s before S6 and about 60 s with its tests;
+   `make check` took 259.66 s real, where the S5 and answer-v2 ledgers measured 201.89 to 213.25 s.
 2. **Rule s6-1's details, fixed in code and in calibration.py's docstring before any record:**
    each stratum's shuffle has a stream of its own, `random.Random("<seed>:<criterion>:<verdict>")`
    (a string seed is hashed the same way on every run), so one stratum's size never moves another's
@@ -151,9 +161,11 @@ tests named below.
    orchestrator relayed S4b's developer's count of 1,433 on the current split, to be taken again
    from the merged data).
 3. The cap by the rule (the count × 5.710 s × 1.5, up to the next half hour), with the count, the
-   two means and the rule in `config/judge-local.toml`'s comment; `tests/unit/test_eval_config.py`
-   line 265 replaces the literal `run_timeout_s = 7200` and changes with it. The one-judge test
-   already allows the cap.
+   two means and the rule in `config/judge-local.toml`'s comment. `git grep` for the old cap at
+   stop 1 names what changes with it: `config/judge-local.toml:50`, `tests/unit/test_eval_config.py`
+   line 265 (it replaces the literal `run_timeout_s = 7200`), the example in
+   `src/raglab/evals/config.py` line 77 and the judge session's line in docs/LOCAL-MODEL.md. The
+   one-judge test already allows the cap.
 4. Stop for the maintainer's go on the judge session (about 2 h 15 min, AC power, one model,
    nothing beside it).
 
