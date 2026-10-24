@@ -407,3 +407,102 @@ STOP 0. Ids left out, as above.
    may_quote case also covers R-06 by its features, and the check, which wants no may_quote case
    among R-06's covering cases, fails. The by-design cases should be the may_quote cases that do
    not already cover R-06; that is corrected with the cells, after the maintainer's call.
+
+## The labels judge's review (2026-10-24)
+
+A different model (Fable 5.1) in a context of its own, read-only on the repository, reviewed the 80
+new cases at `8b5fcdd`. Its report stays outside the repository
+(`scratchpad/s4b-labels-judge/s4b-labels-review.md`); what follows is copied from it, case ids
+only.
+
+**The seal.** The judge labelled the 80 cases blind, from the ids, the tenants, the questions and
+the answer key (with F-88 to F-98), the corpus documents and the register, SPEC sections 6 to 9,
+TEST-PLAN section 3 and `CLAUDE.md`, and sealed its labels before it opened either golden file or
+the datasheet: `blind-labels.jsonl`, sha256
+`31d989d24a32d6f0057732a0a00b56d15d6e0558f1f11cbc6b34ef746721e4c3`, sealed at 2026-10-24 00:01
+WEST and made read-only. It opened nothing under `runs/` and ran no model.
+
+**The agreement:** 80 of 80 labels match; observed agreement 1.0000; chance agreement 0.3303 (both
+marginals 39 answer, 18 abstain, 10 flag-conflict, 13 refuse-and-help); Cohen's kappa 1.0000; no
+disagreement. The file's first feature is among the judge's feature ids for 80 of 80 cases, the
+same first feature for 80 of 80. The cases the judge marked borderline before the seal, each
+agreed with the file: G-67, G-78, G-87, G-90, G-52 and G-55. Lab practice, as in S4: the second
+labeller is a model that had the answer key, weaker evidence than a second person labelling from
+the documents alone.
+
+**Its findings** (by id, severity and case ids; the reasons are in its report):
+
+| Finding | Severity | Cases | What | Call |
+|---|---|---|---|---|
+| S4b-L1 | high | background G-40, G-49, G-77; exception-overrides-rule G-18, G-78; procedure G-20, G-76, G-112 | GV2's dev rule fails for three kinds after the seeded split | C1 |
+| S4b-L2 | medium | G-52 (F-92's other cases, G-47 and G-80, label other sections) | F-92's value on the scanned page is not reproduced by this Mac's OCR | C2 |
+| S4b-L3 | medium | the TEST-PLAN cells | GV9's Golden case cells not yet derived from v2 (open work, not a call) | done below, but R-22 |
+| S4b-L4 | low | none | R-22's metadata is stale under D3 (the answer key's `tested_in`, TEST-PLAN's gaps row) | C3 |
+| S4b-L5 | low | G-79 (F-84), G-111 (F-83) | two background features used as location holders on refuse cases, so R-11 is traced to two refuse-and-help cases | C4 |
+| S4b-L6 | low | G-57 | the datasheet's known limit on G-57 states a refusal the code does not make: publish spares a clean run's plain attack phrase (S4's D3), so no check fires on G-57 in a clean run | C5 |
+| S4b-L7 | low | G-51 | its reference states a derived value without its step (D-02) | C5 |
+| S4b-L8 | info | G-52, G-65, G-66, G-67 | rule 7's missing twins and G-52's route, as the datasheet documents; accept | none |
+| S4b-L9 | info | G-107 | the version-history kind's only case is in test; worth a line in the datasheet's splits | none |
+| S4b-L10 | info | F-89, F-91, F-92, F-97 | the multi-topic features cause no labelling or traceability problem | none |
+| S4b-L11 | info | the datasheet | placeholders to fill before F: the S4b part of "Second labeller and agreement" and the v2 result in "Splits" (after C1) | none |
+| S4b-L12 | info | G-57, G-67, G-87, G-78, G-52 | the author's flagged points answered: G-57 by S4b-L6; G-67, G-87 and G-78 agreed; G-52 accepted; the multi-topic features by S4b-L10 | none |
+
+Its other checks at `8b5fcdd`: check-dataset passes both files; the author's rules 2 to 11 hold
+(S2's overlap 4, 4 and 4 words; no planted string; SPEC section 9; silence proofs; 9 of the 18 new
+abstain cases near-miss; tenant B in its own words; the split re-derived equals the committed file;
+no email, register id or phone number in a new case); of the 185 values the cases' features cite at
+their labelled sections, 184 are in the chunk text (the one not is S4b-L2); the answer key's
+additions only, with 50 new values verbatim at their Markdown locations. The ledger's note for the
+labels judge on G-57 (above) repeats the datasheet's sentence that S4b-L6 finds overstated; it is
+corrected with call C5.
+
+**The calls, pending the maintainer** (the options as the judge words them, case ids only):
+
+- **C1, GV2 after the seeded split (S4b-L1).** (1) "Repair in the committed script (Recommended)":
+  a second pass in `scripts/split_golden.py` after the main draw: for each first-feature kind with
+  two or more cases in the whole file and none in dev, in a fixed order of kinds, the kind's
+  lowest-numbered new test case moves to dev, and one new dev case of that case's stratum whose
+  kind keeps a dev case without it, drawn with the seeded generator (which generator is written
+  down first), moves to test; the script is run once more on the file with the new cases' splits
+  removed and committed, and the ledger says the rule was written after the first draw was seen.
+  Simulated by the judge: six splits change (G-40, G-78 and G-76 to dev; G-38, G-72 and G-83 to
+  test), and the counts per slot, label and tenant, the floors and tenant B's test case under each
+  label stay. (2) "Accept the gap as a known limit": GV2's dev clause reported not met for the three
+  kinds, the coverage test's clause edited to the outcome, and the datasheet saying those kinds are
+  measured only in nightly and release runs. Rejected by the judge: a new seed, a hand move, or
+  replacing a dev case's content.
+- **C2, F-92's scanned-page value (S4b-L2).** (1) "Shorten the value to the fragment both readings
+  keep (Recommended)", with SPEC section 8's F-92 row; (2) "Keep only the route sentence at that
+  location"; (3) "Normalise quote characters in the two ingestion comparisons".
+- **C3, R-22's metadata under D3 (S4b-L4).** (1) "Update both now, metadata only (Recommended)";
+  (2) "Leave until S8".
+- **C4, the location-holder features on G-79 and G-111 (S4b-L5).** (1) "Drop F-84 from G-79 and
+  F-83 from G-111, keep the labels (Recommended)", a golden-file edit before the sign-off (the
+  file's sha256 and the v2 row change; the split does not); (2) "Accept and note in the
+  datasheet"; (3) "Add the two sentences as new locations of F-41", without a side, and drop F-83
+  and F-84 from the cases.
+- **C5, two text edits before the sign-off (S4b-L6, S4b-L7).** (1) "Make both edits now
+  (Recommended)": the datasheet's known limit on G-57 says what the code does, and the ledger's note
+  with it; G-51's reference states its step; (2) "Leave as they are".
+
+### S4b-L3 done: the Golden case column from v2 (`007c305`)
+
+Every Golden case cell of TEST-PLAN section 8 now names v2's covering cases, derived from the
+committed file and the answer key: the S4 cells gain v2's ids; R-08, R-09, R-13, R-15, R-16, R-17
+and R-19 name their cases (R-15 and R-17 "(clean runs; the attack runs are S7's)", R-19 "(the
+allow list; the deny list is S7's)"); R-06's by-design part names the four may_quote cases, G-26,
+G-84, G-85 and G-93; R-11 is written as the data stands, G-79 and G-111 included (C4 may drop
+them); R-22 is left "tbd (S4b)", pending C3. The section's opening says the cells come from v2.
+The traceability test's R-06 check, the defect recorded at STOP 1, now holds the cell's by-design
+part to the may_quote cases (`case_ids` of the text after "by design"), which allows G-93 to cover
+R-06 by its feature too; dropping G-85 from that part, or moving G-26 out of it, is named. Run
+after the change: `tests/unit/test_test_plan.py` "1 failed, 13 passed", the one failure
+`test_the_golden_case_column_names_the_cases_that_cover_each_requirement` with one problem left,
+"R-22: the cell is 'tbd (S4b)', not 'none: a gap, no planted feature (S4b, D3)'" (C3); the
+planted-v2 test passes; `test_answer_key.py`, `test_repo_docs.py`, `test_onboarding.py` and
+`test_diagram.py` "196 passed"; privacy "0 hits across 373 files".
+
+Of the four tests failing at STOP 1, none passes yet: the two ingestion tests wait for C2, GV2's
+test for C1, and the traceability test, down from 24 problems to 1, for C3. The datasheet's R-06
+coverage row names G-26 alone by design and does not name G-84 and G-85; it was left with the
+datasheet's other edits (S4b-L11, after C1).
