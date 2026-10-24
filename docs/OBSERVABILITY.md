@@ -8,8 +8,8 @@ ledger.
 ## Tracing is off unless a collector is named
 
 Only `raglab serve` builds a tracer provider, and only when `RAGLAB_OTLP_ENDPOINT` names a
-collector on the loopback interface (`http://127.0.0.1:<port>`; S10 widens it with an allowlist).
-Anything else refuses to start. `raglab eval`, `raglab judge`, `raglab ask` and every other command
+collector on the loopback interface by its address (`http://127.0.0.1:<port>`, not the name
+`localhost`; S10 widens it with an allowlist). Anything else refuses to start. `raglab eval`, `raglab judge`, `raglab ask` and every other command
 use the no-op tracer and build nothing (`tests/obs/test_spans.py`). Spans go over OTLP/HTTP (no
 gRPC: Langfuse takes none, and `grpcio` stays out of the lock), batched, and are flushed when the
 server stops gracefully. `OTEL_EXPORTER_OTLP_ENDPOINT` never decides where spans go, the resource
@@ -60,6 +60,12 @@ never 0, never estimated.
   and an escaped exception's class. Only the method, the route and the status code leave. Health
   checks and the page make no span at all: FastAPI's telemetry covers `POST /ask` only.
 - **The bearer token.** The API turns it into the caller's tenants before the pipeline runs.
+- **A caller's trace context.** The `traceparent`, `tracestate` and `baggage` headers are never
+  read: while raglab traces, the global text-map propagator reads nothing, so every request starts
+  a trace of raglab's own, rooted at its request span; every span is sampled, so a `traceparent`
+  with flags 00 cannot silence a request; and a span leaves with its ids and an empty trace state
+  (the criteria judge's S9-J2; `tests/obs/test_trace_context.py`). Joining a caller's trace (W3C
+  propagation from a trusted gateway) is S10's decision, with the host.
 
 **One filter on the way out.** Every span leaves through `raglab.obs.otel.AllowlistExporter`: only
 the reviewed keys of `names.py` for raglab's spans, the three HTTP keys for FastAPI's, none for

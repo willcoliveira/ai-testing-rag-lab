@@ -283,6 +283,7 @@ def test_serve_builds_a_provider_only_with_an_endpoint(monkeypatch):
         "http://user:pw@127.0.0.1:4318",
         "http://collector.example.com:4318",
         "127.0.0.1:4318",
+        "http://localhost:4318",  # a name, resolved by the machine (S9-J6): refused
     ],
 )
 def test_the_endpoint_is_a_loopback_collector_only(value):
@@ -296,6 +297,7 @@ def test_an_unset_endpoint_is_tracing_off_and_a_loopback_one_is_kept():
     assert otel.endpoint({"RAGLAB_OTLP_ENDPOINT": "http://127.0.0.1:4391/"}) == (
         "http://127.0.0.1:4391"
     )
-    assert otel.endpoint({"RAGLAB_OTLP_ENDPOINT": "http://localhost:4391"}) == (
-        "http://localhost:4391"
+    assert otel.endpoint({"RAGLAB_OTLP_ENDPOINT": "http://127.0.0.2:4391"}) == (
+        "http://127.0.0.2:4391"
     )
+    assert otel.endpoint({"RAGLAB_OTLP_ENDPOINT": "http://[::1]:4391"}) == "http://[::1]:4391"
