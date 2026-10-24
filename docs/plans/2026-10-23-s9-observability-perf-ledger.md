@@ -98,10 +98,13 @@ version moved. `uv lock --check` and `uv lock --project tools/deepeval-check --c
 `make deps` passes (deptry maps the `opentelemetry` namespace without configuration).
 
 **The spec against the package, checked at the start** (a scratch script that imports the 0.66b1
-package's incubating `gen_ai` constants and compares their values, no source read): of the 22
-`gen_ai` keys S9 uses or forbids, 20 are in the package with the same value; two are not,
-`gen_ai.request.reasoning.level` and `gen_ai.retrieval.top_k`, both in the spec at `9ffc7e0`
-(`client-inference.md` and `gen-ai-spans.md`). `error.type`, `server.address` and `server.port` are
+package's incubating `gen_ai` constants and compares their values, no source read): of the 20
+`gen_ai` keys `raglab.obs.names` holds (15 it sets, 5 it never sets), 18 are in the package with
+the same value; two are not, `gen_ai.request.reasoning.level` and `gen_ai.retrieval.top_k`, both in
+the spec at `9ffc7e0` (`client-inference.md` and `gen-ai-spans.md`). (The script also checked
+`gen_ai.response.model` and `gen_ai.response.finish_reasons`, which raglab does not use; both are
+in the package. This sentence first said 22 and 20, counting those two: the criteria judge's
+S9-J3.) `error.type`, `server.address` and `server.port` are
 in its stable attributes. So raglab's constants are its own, read from the spec, and the package is
 not imported.
 
@@ -389,3 +392,27 @@ none of an S9 package:
 One test more than at stop 1 (1531): ONBOARDING's median break names `src/raglab/api/app.py`, which
 `tests/unit/test_onboarding.py` checks exists. `make perf-smoke` with T set passed at `657797d`
 (above).
+
+## The criteria judge, round 0, and fix round 1 (2026-10-24)
+
+The criteria judge (Fable 5.1, its own worktree, detached at `4504355`, 08:57 to 09:48 WEST; the
+report was saved by the orchestrator): **met** OB1, OB2, OB5 to OB7 and OB9 to OB11; **OB3 and
+OB4 met by the plan's tests but broken by S9-J2**; OB8 not applicable, by D2; OB12 needs CI (the
+`check` job stops at the pre-existing audit lines). Its security pass (the plan's choice 14) found
+one candidate, S9-J2, which it verified by execution. Its recount matched the ledger but for
+S9-J3, and one break it did not reproduce exactly: the planted 500 failed 60% and 40% (44 checks)
+on its run against 80% and 20% here, because Starlette closes the keep-alive after the re-raise and
+k6's next request then fails at the socket, by timing; the gate is red either way.
+
+Fix round 1 (the orchestrator's go, 2026-10-24 about 10:00 WEST: "This is fix round 1 (the first
+of at most two)"), with the Mac busy with another stage's live sessions, so the edits came first
+and the runs after its "Mac free":
+
+| Finding | What was done | Commit |
+|---|---|---|
+| **S9-J2 (medium)**, trace-context injection: a `traceparent` with flags 00 silenced a request; with 01 the caller chose the trace id, parented `POST /ask`, and its `tracestate` text rode out on every span's trace state, past the allowlist and the collector's delete | The test first, committed before the fix: `tests/obs/test_trace_context.py` posts `traceparent` with flags 00 and 01, with `tracestate` and `baggage` markers, and asserts one trace of raglab's own, rooted at `POST /ask`, no remote parent, an empty trace state and no marker, in what leaves and in what was recorded; and that `redact()` keeps a span's ids and drops its and its parent's trace state; `every_value()` now reads the trace state too. Then the fix: the provider samples every span (`ALWAYS_ON`); the global text-map propagator reads and writes nothing while raglab traces (`NoRemoteContext`, set in `provider_with`, the one place a provider is built, inside rule 7), since FastAPI 0.144.0's `telemetry` settings offer no propagation switch; and `redact()` rebuilds each span's and its parent's context with its ids and an empty `TraceState`. OBSERVABILITY.md says so | test `43cf728`, fix `4ef1aa4` |
+| **S9-J1 (low)**, D1's slices | The main plan's v0.2 and v0.3 headings and phase rows name S9 in v0.2; its row moves to v0.2's table, "brought forward from v0.3"; the Observability practice row follows; the S9 node moves into the P2 subgraph in the three copies of the phase map, P3 starting at S3h; the dated note says so | `6cc1498` |
+| **S9-J3 (low)**, the recount | "22 and 20" corrected to 20 and 18, above | this ledger |
+| **S9-J4 (info)**, nothing recomputed T from the table | `test_t_follows_from_the_ten_runs_by_the_rule` reads THRESHOLDS.md's ten rows and recomputes T against the script and the cell | `b5dd123` |
+| **S9-J5 (info)**, "opaque object" by convention | Kept as designed: rule 7 fences the imports of `opentelemetry`, and the provider is typed `object` in `raglab.api`. Now tested where it matters for every run that is not `raglab serve`: `test_the_pipeline_and_the_names_load_no_opentelemetry` imports the pipeline, the names and the traced embedder in a fresh interpreter and finds no `opentelemetry` module loaded | `b5dd123` |
+| **S9-J6 (info)**, three observations | (a) The stop-skipped break's 102 of 110 traces: the local file completes only on the collector's graceful flush, which is why the smoke stops the collector before step 5 reads its files; no change. (b) v0.163.0 publishes 4 `.sha256` assets against 204 for v0.162.0, which supports the v0.162.0 pin; recorded. (c) The endpoint check accepted the name `localhost` unresolved: it now takes a loopback address only (`127.0.0.1`, any 127/8 address or `[::1]`, bracketed back into the URL), and the test refuses `http://localhost:4318` | `4ef1aa4` |
