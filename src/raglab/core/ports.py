@@ -129,10 +129,18 @@ class Judge(Protocol):
 class Guardrail(Protocol):
     """One guard layer, with a check at each stage of a request (docs/GUARDRAILS.md). A check that
     returns an event stops the request: at input it is refused before retrieval, after retrieval
-    or on the output the answer is withheld (status blocked)."""
+    or on the output the answer is withheld (status blocked). drop_retrieved (S7) is the one step
+    that does not stop it: it leaves chunks out of the prompt, with an event per document, and the
+    answer goes on from the rest. An event's reason names the rule and the layer, never the text a
+    check removed or withheld."""
 
     @property
     def name(self) -> str: ...
+
+    def fingerprint(self) -> str:
+        """The sha256 of this layer's rules (S7): a baseline made under another guard set is
+        stale until a replay shows the new set changes nothing on its records."""
+        ...
 
     def check_input(
         self, question: str, tenant: str | None, caller_tenants: frozenset[str] | None
@@ -145,4 +153,12 @@ class Guardrail(Protocol):
         self, tenant: str, retrieved: Sequence[ScoredChunk]
     ) -> GuardEvent | None: ...
 
-    def check_output(self, answer: Answer, retrieved_ids: frozenset[str]) -> GuardEvent | None: ...
+    def drop_retrieved(
+        self, tenant: str, retrieved: Sequence[ScoredChunk]
+    ) -> tuple[tuple[ScoredChunk, ...], tuple[GuardEvent, ...]]:
+        """(the chunks kept, in rank order; an event per document left out)."""
+        ...
+
+    def check_output(self, answer: Answer, retrieved: Sequence[ScoredChunk]) -> GuardEvent | None:
+        """retrieved: the chunks the prompt was built from, after every drop step."""
+        ...

@@ -195,7 +195,7 @@ def position_root(tmp_path: Path) -> tuple[Path, eval_config.GenerationConfig, A
         "revision": hashing.revision,
         "dimension": hashing.dimension,
     }
-    pipeline = Pipeline(dense(BEHAVIOUR_CHUNKS), chat, default_guards(), 2)
+    pipeline = Pipeline(dense(BEHAVIOUR_CHUNKS), chat, default_guards(ROOT, BEHAVIOUR_CHUNKS), 2)
     inventory = Inventory(ChunkSettings(), {"pypdf": "x"}, (), tuple(BEHAVIOUR_CHUNKS))
     return root, config, Assembled(pipeline, inventory, description, chat.describe(), "fake")
 

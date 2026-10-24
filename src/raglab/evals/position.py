@@ -39,6 +39,7 @@ from raglab.evals.position_record import POSITION, POSITIONS, answering_index, c
 from raglab.generate.assemble import Assembled
 from raglab.generate.pipeline import Pipeline
 from raglab.generate.prompts import CURRENT as prompt
+from raglab.guard import guard_set
 from raglab.ingest.answer_key import Feature
 
 type Json = dict[str, object]
@@ -281,6 +282,7 @@ def run(
         "generator": {**generator_json, "sha256": canonical_sha256(generator_json)},
         "prompt": {"version": prompt.VERSION, "sha256": prompt.fingerprint()},
         "guards": [guard.name for guard in built.pipeline.guards],
+        "guard_set": guard_set(built.pipeline.guards),
         "intervals": {"method": "wilson", "level": config.generation.level, "unit": "case"},
         "position": position_json,
         "dataset": {

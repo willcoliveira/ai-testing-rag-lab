@@ -193,6 +193,8 @@ def lab_root(tmp_path: Path, questions: list[dict] | None = None) -> Path:
     # the real answer key: publish refuses its answer_must_not_contain strings (S3), and the
     # generation record reads its canaries
     shutil.copyfile(ROOT / "corpus" / "answer-key.yaml", root / "corpus" / "answer-key.yaml")
+    # S7: the secrets and personal-details guard reads the team contacts of SPEC section 6
+    shutil.copyfile(ROOT / "corpus" / "SPEC.md", root / "corpus" / "SPEC.md")
     lines = [json.dumps(q) for q in (QUESTIONS if questions is None else questions)]
     (root / "golden.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return root

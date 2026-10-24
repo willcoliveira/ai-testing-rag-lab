@@ -1,17 +1,22 @@
 """From a question and a tenant to a structured answer:
 
-input guards -> retrieve top k -> retrieved guards -> prompt -> model -> parse -> output guards.
+input guards -> retrieve top k -> retrieved guards -> drop steps -> prompt -> model -> parse ->
+output guards.
 
-Each step can end the request, and none of them guesses an answer:
+Each step but the drop steps can end the request, and none of them guesses an answer:
 - an input guard's event refuses it before retrieval (status refused; the retriever is never
   called);
 - a retrieved guard's event withholds it before the model is called (status blocked);
+- a drop step (S7, the register filter) leaves chunks out of the prompt, with an event per
+  document, and the request goes on from the chunks that remain: the model, the output guards,
+  the answer's citations and the outcome's retrieved chunks are those kept;
 - a model that gives no reply (ChatUnavailable) gives status unavailable;
 - a reply outside the answer schema gives status invalid_output (counted, never repaired);
 - an output guard's event withholds the parsed answer (status blocked; the citation validator).
 
-The Outcome keeps what a run record and the API need: the answer, the retrieved chunks, the guard
-events, the error text of an unavailable or invalid reply, the tokens and the latency.
+The Outcome keeps what a run record and the API need: the answer, the retrieved chunks (those the
+prompt was built from), the event that ended the request, the drop events, the error text of an
+unavailable or invalid reply, the tokens and the latency.
 """
 
 import time
@@ -44,6 +49,7 @@ class Outcome:
     completion_tokens: int | None = None
     latency_ms: float = 0.0
     timed_out: bool = False
+    dropped: tuple[GuardEvent, ...] = ()  # S7: the drop steps' events; the request went on
 
     def refused_by(self) -> str | None:
         """The guard that refused the request at input, if one did."""
@@ -76,6 +82,8 @@ class Pipeline:
     ) -> Outcome:
         started = time.perf_counter()
 
+        dropped: list[GuardEvent] = []
+
         def done(
             answer: Answer,
             retrieved: tuple[ScoredChunk, ...] = (),
@@ -94,6 +102,7 @@ class Pipeline:
                 completion_tokens,
                 round((time.perf_counter() - started) * 1000, 3),
                 timed_out,
+                tuple(dropped),
             )
 
         for guard in self.guards:
@@ -108,6 +117,9 @@ class Pipeline:
         for guard in self.guards:
             if event := guard.check_retrieved(tenant, retrieved):
                 return done(Answer.withheld(Status.BLOCKED), retrieved, event)
+        for guard in self.guards:  # the kept chunks are handed on, explicitly, to every step after
+            retrieved, events = guard.drop_retrieved(tenant, retrieved)
+            dropped.extend(events)
         system, user = prompt.build(question, tenant, retrieved)
         request = ChatRequest(
             (ChatMessage("system", system), ChatMessage("user", user)),
@@ -131,8 +143,7 @@ class Pipeline:
             return done(
                 Answer.withheld(Status.INVALID_OUTPUT), retrieved, None, str(error), *tokens
             )
-        retrieved_ids = frozenset(r.chunk.chunk_id for r in retrieved)
         for guard in self.guards:
-            if event := guard.check_output(answer, retrieved_ids):
+            if event := guard.check_output(answer, retrieved):
                 return done(Answer.withheld(Status.BLOCKED), retrieved, event, None, *tokens)
         return done(answer, retrieved, None, None, *tokens)

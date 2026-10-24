@@ -583,7 +583,21 @@ def test_a_generation_run_writes_a_valid_record(tmp_path):
         2,
     )
     assert manifest["prompt"] == {"version": "answer-v1", "sha256": prompts.CURRENT.fingerprint()}
-    assert manifest["guards"] == ["tenant", "input-limits", "citations"]
+    guards = [
+        "tenant",
+        "input-limits",
+        "injection",
+        "register",
+        "citations",
+        "links",
+        "secrets-pii",
+        "prompt-leak",
+    ]
+    assert manifest["guards"] == guards  # S7: the default guard set
+    assert [layer["name"] for layer in manifest["guard_set"]["layers"]] == [
+        "instruction-scan",
+        *guards,
+    ]
     assert manifest["generator"]["model"] == "fake-echo"
     assert manifest["intervals"] == {"method": "wilson", "level": 0.95, "unit": "case"}
     assert "bootstrap" not in manifest

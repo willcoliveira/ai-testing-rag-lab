@@ -11,6 +11,7 @@ from raglab.generate.pipeline import Pipeline
 from raglab.guard import default_guards
 from raglab.guard.limits import MAX_CHARS, InputLimits
 from raglab.guard.tenant import TenantGuard
+from tests.conftest import ROOT
 from tests.generation_support import small_pipeline
 from tests.retrieval_support import PACK
 
@@ -79,7 +80,16 @@ def test_a_request_without_a_tenant_the_caller_may_use_is_refused_before_retriev
 def test_the_tenant_is_checked_before_the_question():
     pipeline, _ = small_pipeline()
     assert pipeline.ask("", "shared").refused_by() == "tenant"
-    assert [g.name for g in default_guards()] == ["tenant", "input-limits", "citations"]
+    assert [g.name for g in default_guards(ROOT, PACK)] == [
+        "tenant",
+        "input-limits",
+        "injection",
+        "register",
+        "citations",
+        "links",
+        "secrets-pii",
+        "prompt-leak",
+    ]
 
 
 def test_without_any_guard_a_request_with_no_tenant_still_fails_closed():
@@ -110,7 +120,7 @@ class LeakyRetriever:
 
 def test_another_tenants_chunk_after_retrieval_blocks_the_answer_before_the_model():
     chat = FakeChat()
-    pipeline = Pipeline(LeakyRetriever(), chat, default_guards(), 3)
+    pipeline = Pipeline(LeakyRetriever(), chat, default_guards(ROOT, PACK), 3)
     outcome = pipeline.ask(OK_QUESTION, "tenant-a")
     assert outcome.answer.status is Status.BLOCKED
     assert (outcome.events[0].guard, outcome.events[0].stage) == ("tenant", "retrieved")

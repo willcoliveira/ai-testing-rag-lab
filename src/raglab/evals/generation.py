@@ -34,6 +34,7 @@ from raglab.evals.oracle import abstention_oracle, policy_values
 from raglab.generate.assemble import Assembled
 from raglab.generate.pipeline import Outcome
 from raglab.generate.prompts import CURRENT as prompt
+from raglab.guard import guard_set
 from raglab.ingest import answer_key
 
 type Json = dict[str, object]
@@ -269,6 +270,7 @@ def run(
         "generator": {**generator_json, "sha256": canonical_sha256(generator_json)},
         "prompt": {"version": prompt.VERSION, "sha256": prompt.fingerprint()},
         "guards": [guard.name for guard in assembled.pipeline.guards],
+        "guard_set": guard_set(assembled.pipeline.guards),
         "intervals": {"method": "wilson", "level": settings.level, "unit": "case"},
         "dataset": {
             "path": config.dataset,

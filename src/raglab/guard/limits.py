@@ -28,6 +28,13 @@ class InputLimits(NoopGuardrail):
     def name(self) -> str:
         return "input-limits"
 
+    def rules(self) -> object:
+        return {
+            "max_chars": self.max_chars,
+            "allowed_controls": sorted(ALLOWED_CONTROLS),
+            "refused_categories": sorted(REFUSED_CATEGORIES),
+        }
+
     def _refuse(self, reason: str) -> GuardEvent:
         return GuardEvent(self.name, "input", reason)
 
