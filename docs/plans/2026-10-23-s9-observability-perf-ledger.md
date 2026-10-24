@@ -363,3 +363,29 @@ locally (above): "✗ 'med<40' med=111.27ms", k6's exit 99. S9 is `done` in the 
 (`0ecea82`).
 
 The maintainer adds `perf` to `main`'s required checks (D3), through the orchestrator.
+
+## make -k check after OB10
+
+On `24e594a` (this ledger but this section), `/usr/bin/time -p make -k check`: 219.23 s real
+(206.72 s user), the tests 176.86 s. Every target passed but `audit`, on the same eight
+pre-existing lines (filelock 4.0.12 three times, pillow 12.3.0 twice, pypdf 6.19.0 three times),
+none of an S9 package:
+
+    267 files already formatted                                   format
+    All checks passed!                                            lint
+    0 errors, 0 warnings, 0 informations                          types
+    Success! No dependency issues found.                          deps (deptry; vulture silent)
+    Found 8 known vulnerabilities, ignored 43 in 3 packages       audit (pre-existing)
+    (bandit and semgrep silent)                                   sast
+    No findings to report. Good job!                              workflows
+    no leaks found, no leaks found                                secrets
+    0 hits across 388 files (42 rules)                            privacy
+    0 architecture violations in src/raglab                       architecture
+    check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    ========== 1532 passed, 2 deselected, 1 warning in 176.86s (0:02:56) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+One test more than at stop 1 (1531): ONBOARDING's median break names `src/raglab/api/app.py`, which
+`tests/unit/test_onboarding.py` checks exists. `make perf-smoke` with T set passed at `657797d`
+(above).
