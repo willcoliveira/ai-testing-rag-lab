@@ -441,10 +441,11 @@ def test_the_versions_are_read_from_the_maintenance_tables_rows_only():
     assert dataset_check.maintenance_rows("no table") == []
 
 
-def test_the_s4_table_without_a_file_column_is_the_checked_files(tmp_path):
-    """Until the datasheet gains its File column (the integration of v2's cases), the S4 table
-    has none, and each of its rows is the checked file's, as before S4b: the committed datasheet
-    reads so today (developer choice 1)."""
+def test_a_table_without_a_file_column_versions_no_file(tmp_path):
+    """The S4 datasheet's table had no File column; S4b read each of its rows as the checked
+    file's until the datasheet gained one, and dropped that reading after (fix round 1). A table
+    with no File column now names no file, so rule 10 refuses the file and rule 9 has no
+    contract; the committed datasheet names each row's file."""
     path = write_dataset(tmp_path)
     sha = hashlib.sha256(path.read_bytes()).hexdigest()
     legacy = (
@@ -453,10 +454,18 @@ def test_the_s4_table_without_a_file_column_is_the_checked_files(tmp_path):
         f"| v1.1 | d | S4 | x | `{sha}` |\n"
     )
     (path.parent / "DATASHEET.md").write_text(legacy, encoding="utf-8")
-    assert problems(path) == []
-    assert [r.file for r in dataset_check.maintenance_rows(legacy)] == [None, None]
+    assert [r.file for r in dataset_check.maintenance_rows(legacy)] == ["", ""]
+    assert problems(path) == [
+        "golden.v1.jsonl: rule 10 (version): DATASHEET.md's Maintenance table has no File column, "
+        "so no version line names golden.v1.jsonl, so the file has no version and rule 9 no "
+        "contract"
+    ]
     committed = dataset_check.maintenance_rows(DATASHEET.read_text(encoding="utf-8"))
-    assert {r.file for r in committed} <= {None, "golden.v1.jsonl", "golden.v2.jsonl"}
+    assert [(r.version, r.file) for r in committed] == [
+        ("v1", "golden.v1.jsonl"),
+        ("v1.1", "golden.v1.jsonl"),
+        ("v2", "golden.v2.jsonl"),
+    ]
 
 
 # ---------------------------------------------------------------- the CLI and the hard stop

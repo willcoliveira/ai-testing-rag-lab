@@ -257,7 +257,7 @@ def unlisted_dataset_problems(published: Any, datasheet: Any) -> list[str]:
                 f"{path.parent.name}: dataset.sha256 {sha} is no version the datasheet's "
                 "Maintenance table lists"
             )
-        elif row.file is not None and row.file != name:
+        elif row.file != name:
             problems.append(
                 f"{path.parent.name}: dataset {dataset['path']} is {row.version} by its sha256, "
                 f"whose row names {row.file}"

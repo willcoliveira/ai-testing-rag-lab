@@ -210,7 +210,6 @@ def test_a_split_set_by_hand_is_named(script):
     ]
 
 
-@pytest.mark.skipif(not V2.exists(), reason="golden.v2.jsonl lands at the integration of the cases")
 def test_the_committed_v2_file_is_the_scripts_split_of_its_new_cases(script):
     """The plan: "The developer runs it once on the author's cases, and a test runs it again and
     compares." v1.1's ids keep their splits; every other line is split again, the second pass

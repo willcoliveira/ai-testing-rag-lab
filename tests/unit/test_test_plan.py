@@ -138,10 +138,10 @@ def case_ids(cell: str) -> set[str]:
 
 def latest_golden() -> tuple[str, Path]:
     """The golden set's latest version and its file: the highest version of the datasheet's
-    Maintenance table (whose S4 form, with no File column, versions golden.v1.jsonl)."""
+    Maintenance table and the file its File cell names."""
     rows = maintenance((ROOT / "datasets" / "DATASHEET.md").read_text(encoding="utf-8"))
     row = max(rows, key=lambda r: tuple(int(part) for part in r.version[1:].split(".")))
-    return row.version, ROOT / "datasets" / (row.file or "golden.v1.jsonl")
+    return row.version, ROOT / "datasets" / row.file
 
 
 def covering_cases(path: Path) -> tuple[set[str], dict[str, set[str]], set[str]]:

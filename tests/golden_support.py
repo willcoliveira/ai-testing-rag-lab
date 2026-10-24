@@ -94,25 +94,26 @@ def corpus() -> Texts:
 @dataclass(frozen=True)
 class Row:
     version: str
-    file: str | None  # None in the S4 table, which has no File column
+    file: str  # the File cell, backticks taken off
     sha256: str
 
 
 def maintenance(text: str) -> list[Row]:
-    """The version rows of the datasheet's Maintenance table: the first table of the section, a
-    row being one whose first cell is a version and whose last cell is a backticked sha256."""
+    """The version rows of the datasheet's Maintenance table: the first table of the section,
+    which has a File column, a row being one whose first cell is a version and whose last cell
+    is a backticked sha256."""
     section = text.split("\n## Maintenance\n", 1)[1].split("\n## ", 1)[0]
     table = re.search(r"^\|.*?(?=\n[^|]|\Z)", section.strip("\n"), flags=re.M | re.S)
     assert table, "the Maintenance section has a table"
     header, *lines = table.group(0).splitlines()
     names = [c.strip().lower() for c in header.strip().strip("|").split("|")]
-    file_at = names.index("file") if "file" in names else None
+    assert "file" in names, "the Maintenance table has a File column (datasheet v2)"
+    file_at = names.index("file")
     rows: list[Row] = []
     for line in lines:
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         version = re.fullmatch(r"(v\d+(?:\.\d+)*)", cells[0])
         sha = re.fullmatch(r"`([0-9a-f]{64})`", cells[-1])
         if version and sha:
-            file = cells[file_at].strip("`") if file_at is not None else None
-            rows.append(Row(version.group(1), file, sha.group(1)))
+            rows.append(Row(version.group(1), cells[file_at].strip("`"), sha.group(1)))
     return rows

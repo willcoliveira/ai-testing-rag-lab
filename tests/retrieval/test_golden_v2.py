@@ -16,8 +16,8 @@
   answers are derived again in full (`raglab.evals.record.current_golden`).
 
 The file is read here, line by line, never through raglab's loader: a second reading of the file
-the maintainer signs off. Each check is a function of the lines, held now on the planted v2
-(tests/dataset_support.py) and on the committed file once the cases are integrated.
+the maintainer signs off. Each check is a function of the lines, held on the planted v2
+(tests/dataset_support.py) and on the committed file.
 """
 
 import hashlib
@@ -64,7 +64,6 @@ V1_1_SHA256 = "5f8cdaf1878336710335adca98d5691b2ba6e0432698510642c9c7b3dc62e59a"
 # feature kinds that start no case by design (the S4b plan, "Every question type"): the planted
 # secret and personal details go to S7 with the output guard, and F-53 counts through groups
 NO_CASE_KINDS = frozenset({"secret-in-doc", "pii-in-doc", "near-duplicate"})
-needs_v2 = pytest.mark.skipif(not V2.exists(), reason="golden.v2.jsonl lands at the integration")
 
 
 def v1_lines() -> list[str]:
@@ -149,7 +148,6 @@ def test_the_planted_v2_passes_and_each_break_is_named(planted):
     assert new_case_problems(repeated) == ["G-39 asks G-38's question as tenant-a"]
 
 
-@needs_v2
 def test_v2_holds_v1_1_byte_for_byte_then_80_new_cases():
     lines = V2.read_text(encoding="utf-8").splitlines()
     assert frozen_problems(lines) == []
@@ -186,7 +184,6 @@ def test_the_overlap_measure_on_the_planted_cases(planted):
     assert found["retrieval question"] < found["another case"]
 
 
-@needs_v2
 def test_the_datasheet_reports_the_new_cases_overlap():
     """GV1: the datasheet reports S2's measure for v2's new cases, and this test holds the report
     to the measure computed here from the documents and the committed questions (no bound)."""
@@ -285,7 +282,6 @@ def test_r22_stays_a_gap_and_no_feature_names_r20_or_r21():
     assert not named & {"R-02", "R-20", "R-21", "R-22"}
 
 
-@needs_v2
 def test_v2_covers_every_requirement_and_every_question_type():
     assert coverage_problems(golden_lines(V2), answer_key()) == []
 
@@ -297,7 +293,7 @@ def v1_1_manifests() -> list[dict[str, Any]]:
     """Every published manifest that names golden set v1.1's sha256, as the Maintenance table
     lists it for golden.v1.jsonl."""
     rows = maintenance(DATASHEET.read_text(encoding="utf-8"))
-    [v1_1] = [r.sha256 for r in rows if r.version == "v1.1" and r.file in (None, V1.name)]
+    [v1_1] = [r.sha256 for r in rows if r.version == "v1.1" and r.file == V1.name]
     found: list[dict[str, Any]] = []
     for path in sorted((ROOT / publish.PUBLISHED).glob(f"*/{record.MANIFEST}")):
         manifest = json.loads(path.read_text(encoding="utf-8"))

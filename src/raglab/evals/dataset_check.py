@@ -44,8 +44,7 @@ behaviour cases, and rules 9 and 10 for the file, each by the file's own version
 
 **The version a file is held to** is that of the latest row (the highest version) of the
 datasheet's Maintenance table for the file's name: the table's File column names each row's file
-(datasheet v2, S4b). The S4 datasheet's table has no File column; until it gains one, each of
-its rows is the checked file's (the S4b ledger, developer choice 1).
+(datasheet v2, S4b). A table with no File column names no file, so it versions none.
 
 A section may sit in several groups of one question (a FAQ entry that restates two rules); the
 loader refuses it twice as a label of its own, twice in one group, or as both (raglab.evals.golden).
@@ -181,7 +180,7 @@ class VersionRow:
     """A version row of the datasheet's Maintenance table."""
 
     version: str  # "v2"
-    file: str | None  # its File cell; None in a table without a File column (the S4 datasheet)
+    file: str  # its File cell, the backticks taken off; empty in a table with no File column
     sha256: str  # its last cell, the backticks taken off
 
     @property
@@ -196,8 +195,8 @@ def _cells(line: str) -> list[str]:
 def maintenance_rows(text: str) -> list[VersionRow]:
     """The version rows of the datasheet's Maintenance table: the first table of the section
     headed "## Maintenance", up to the next "## " heading. A row is a version row when its first
-    cell is a version (`v1.1`, bold or not); its File cell, when the header has a File column,
-    names its golden file, and its last cell holds the file's sha256 (backticked)."""
+    cell is a version (`v1.1`, bold or not); its File cell names its golden file (empty when the
+    header has no File column), and its last cell holds the file's sha256 (backticked)."""
     marker = f"\n{MAINTENANCE}\n"
     if marker not in f"\n{text}":
         return []
@@ -217,9 +216,8 @@ def maintenance_rows(text: str) -> list[VersionRow]:
         match = VERSION_CELL.match(cells[0])
         if match is None:
             continue
-        file = None
-        if file_at is not None:
-            file = cells[file_at].strip("`").strip() if file_at < len(cells) else ""
+        has_file = file_at is not None and file_at < len(cells)
+        file = cells[file_at].strip("`").strip() if has_file and file_at is not None else ""
         rows.append(VersionRow(f"v{match.group(1)}", file, cells[-1].strip("`").strip()))
     return rows
 
@@ -236,8 +234,13 @@ def latest_row(dataset: Path) -> VersionRow | str:
             f"{path.name} has no version line in its Maintenance table "
             f"('| v2 | <date> | <stage> | `{dataset.name}` | <what changed> | `<sha256>` |')"
         )
-    mine = [row for row in rows if row.file in (None, dataset.name)]
+    mine = [row for row in rows if row.file == dataset.name]
     if not mine:
+        if not any(row.file for row in rows):
+            return (
+                f"{path.name}'s Maintenance table has no File column, so no version line names "
+                f"{dataset.name}"
+            )
         return f"no version line of {path.name}'s Maintenance table names {dataset.name}"
     return max(mine, key=lambda row: row.number)
 
