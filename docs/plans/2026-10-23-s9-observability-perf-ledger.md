@@ -46,3 +46,195 @@ packages": the same pillow and pypdf lines. (Their ids are in pip-audit's output
 check's ticket-id pattern refuses them in a committed file.) The orchestrator fixes them in a separate pull request; this branch
 never touches `AUDIT_SKIP`. Here "green" means `make -k check` with only `audit` red, from exactly
 these lines.
+
+On 2026-10-24 at 03:46 WEST, `make -i audit` on this branch (after the re-lock) gave "Found 8 known
+vulnerabilities, ignored 43 in 3 packages": the same lines plus two more filelock 4.0.12 advisories
+(three in all, each fixed in 4.2.1), published since, as the orchestrator reported for `main`; and
+for the tool's lock the same five. No line names a package S9 added.
+
+## What was built (developer, 2026-10-23 and 2026-10-24, offline)
+
+| Part | Where |
+|---|---|
+| The pins and both locks (OB1) | `pyproject.toml` (`opentelemetry-api`, `-sdk`, `-exporter-otlp-proto-http` at 1.45.1; `[tool.uv] constraint-dependencies` holds `googleapis-common-protos` at 1.75.5), `uv.lock`; `tools/deepeval-check/pyproject.toml` (the same constraint) and its `uv.lock` |
+| The port and the fence (OB2) | `src/raglab/core/ports.py`: `Span`, `Tracer`, `NoopSpan`, `NoopTracer` (standard library only); `scripts/check_architecture.py` rule 7 (`opentelemetry` only in `raglab.obs`) |
+| Tracing (OB3) | `src/raglab/obs/names.py` (the spec's names at `9ffc7e0`, raglab's keys, the per-scope allowlist), `src/raglab/obs/otel.py` (the tracer over the SDK, `AllowlistExporter`, the loopback endpoint check, `provider_with`, `for_endpoint`), `src/raglab/obs/traced.py` (`TracedEmbedder`, `chat_attributes`); `src/raglab/generate/pipeline.py` (the pipeline, retrieval and chat spans); `src/raglab/generate/assemble.py` (a tracer, given only by serve, wraps the embedder and reaches the pipeline) |
+| Redaction and the guard rule (OB4, OB5) | the allowlist above; `src/raglab/core/reasons.py` (a guard decision's fixed key, used by the API's `_reason` and by the trace) |
+| FastAPI's telemetry and the environment (OB3, OB6) | `src/raglab/api/app.py` (`telemetry()`: tracing only with a provider, operation spans, logs, metrics and auto-configuration off, only `POST /ask` traced; the lifespan's shutdown flushes; `create_app` checks the environment); `src/raglab/api/environment.py` (`RAGLAB_ENV`, `PERF_TEST_MODE`, `RAGLAB_TRACE_CONTENT`); `src/raglab/api/server.py` (the checks before anything is built, then the provider) |
+| The perf stub (OB6) | `config/perf.toml`; the `perf-stub` provider in `src/raglab/evals/config.py` (read only with `perf_stub=True`, which only serve passes), `src/raglab/adapters/factory.py` and `fake.py` (FakeChat's echo under that provider name) |
+| The collector (OB7) | `deploy/otel/collector.yaml`, `langfuse.yaml`, `langfuse-stand-in.yaml` |
+| The k6 smoke (OB9) | `perf/smoke.js`; `scripts/perf_smoke.py`; `make perf-smoke`; pr-fast's `perf` job |
+| Tests | `tests/obs/test_spans.py` (22), `tests/obs/test_redaction.py` (18), `tests/obs/test_guard_traces.py` (8), `tests/obs_support.py`; `tests/api/test_perf_mode.py` (59); `tests/unit/test_collector_config.py` (7), `tests/unit/test_perf_smoke.py` (13); additions to `tests/unit/test_architecture.py` (rule 7, 22) and `tests/unit/test_workflow_rules.py` (the perf job) |
+| Docs (OB11, the parts that need no CI run) | `docs/OBSERVABILITY.md` (new), THRESHOLDS (the Performance section, T not set), TEST-PLAN (Q-01's pointer, section 10's lines), GUARDRAILS (the Logs row), COMPATIBILITY (the S9 section), ONBOARDING, the main plan's note and the phase map in three copies, CHANGELOG |
+
+The names follow the plan's suggestions, with these additions: `src/raglab/core/reasons.py` (the
+fixed-key rule in one place for the API and the trace), `src/raglab/api/environment.py`,
+`src/raglab/obs/traced.py`, `tests/obs_support.py`, `tests/unit/test_perf_smoke.py`, and
+`deploy/otel/langfuse-stand-in.yaml`.
+
+## The dependencies (OB1)
+
+PyPI's JSON, read 2026-10-23 at about 23:40 WEST; the main lock was taken at about 23:58 WEST the
+same day (committed at 03:17 on 2026-10-24, `1df477c`, after a pause).
+
+| Package | Version | Uploaded (UTC) | Main lock | Tool lock |
+|---|---|---|---|---|
+| `opentelemetry-api` | 1.45.1 | 2026-10-06 17:32 | already there (FastAPI); now pinned directly | already there |
+| `opentelemetry-sdk` | 1.45.1 | 2026-10-06 17:32 | new | already there |
+| `opentelemetry-semantic-conventions` | 0.66b1 | 2026-10-06 17:32 | new (the SDK pins it) | already there |
+| `opentelemetry-exporter-otlp-proto-http` | 1.45.1 | 2026-10-06 17:32 | new | new |
+| `opentelemetry-exporter-otlp-proto-common` | 1.45.1 | 2026-10-06 17:32 | new | new |
+| `opentelemetry-proto` | 1.45.1 | 2026-10-06 17:32 | new | new |
+| `opentelemetry-exporter-http-transport` | 0.66b1 | 2026-10-06 17:32 | new | new |
+| `opentelemetry-exporter-otlp-common` | 0.66b1 | 2026-10-06 17:32 | new | new |
+| `googleapis-common-protos` | 1.75.5 | 2026-09-29 19:25 | new | new |
+
+Each is at least 17 days older than the lock. `googleapis-common-protos` 1.76.0 was uploaded on
+2026-10-22 at 23:43 UTC, inside the 7-day cooldown, so a `[tool.uv] constraint-dependencies` line
+holds 1.75.5 in both projects, with a comment to drop it after 2026-10-29: a path dependency's
+`[tool.uv]` settings do not reach the tool's lock, which would otherwise have resolved 1.76.0. Eight
+packages are new to the main lock and six to the tool's; the diffs add lines only, so no other
+version moved. `uv lock --check` and `uv lock --project tools/deepeval-check --check` pass;
+`make deps` passes (deptry maps the `opentelemetry` namespace without configuration).
+
+**The spec against the package, checked at the start** (a scratch script that imports the 0.66b1
+package's incubating `gen_ai` constants and compares their values, no source read): of the 22
+`gen_ai` keys S9 uses or forbids, 20 are in the package with the same value; two are not,
+`gen_ai.request.reasoning.level` and `gen_ai.retrieval.top_k`, both in the spec at `9ffc7e0`
+(`client-inference.md` and `gen-ai-spans.md`). `error.type`, `server.address` and `server.port` are
+in its stable attributes. So raglab's constants are its own, read from the spec, and the package is
+not imported.
+
+## The binaries (OB7, OB9)
+
+Release metadata from GitHub's API (`gh api`), read 2026-10-23 at about 23:45 WEST; every archive
+below was downloaded into a new, empty folder and its sha256 computed with `shasum -a 256`.
+
+| Binary | Release (published, UTC) | Archive | Bytes | sha256 (the pin) |
+|---|---|---|---|---|
+| k6 | v2.3.0 (2026-09-21 15:17) | `k6-v2.3.0-linux-amd64.tar.gz` | 30847764 | `39c3117b6af817592dcd0ce4242105c0a7af10948c2a425306f0be8f7a8a8ab1`, as `k6-v2.3.0-checksums.txt` lists it |
+| k6 | v2.3.0 | `k6-v2.3.0-macos-arm64.zip` | 30130878 | `b2417a3038edc5fe81dc178a889237724b595c5c9cfed875822008e46e862c7d`, as listed |
+| the collector, core `otelcol` | v0.162.0 (2026-09-29 12:34) | `otelcol_0.162.0_linux_amd64.tar.gz` | 37254744 | `f99929987a915d3c6b2c9b15bc4938c5cea903a37a3f49e478024a0fa0772339`, as its `.sha256` file says |
+| the collector, core `otelcol` | v0.162.0 | `otelcol_0.162.0_darwin_arm64.tar.gz` | 35177135 | `53de34c02913f54aa240861e0febf67a6839bc8ecf1bfab83a8ae7d355d30674`, as its `.sha256` file says |
+
+The archives' members: `k6-v2.3.0-linux-amd64/k6`, `k6-v2.3.0-macos-arm64/k6`, and `otelcol` (with
+a README) in both collector archives. `k6 version` printed "k6 v2.3.0 (commit/e088784614, go1.26.8,
+darwin/arm64)"; `otelcol --version` "otelcol version 0.162.0".
+
+**The collector's release: v0.162.0, a choice to review.** The plan's rule is "the newest release at
+least seven days old on the day of pinning", and its choice 13 names v0.162.0 for 2026-10-23, with
+its sums. The publish times: v0.163.0 at 2026-10-16 17:40 UTC, v0.163.1 at 19:39 UTC the same day,
+v0.163.2 at 2026-10-21 16:22 UTC. At the pinning (2026-10-23, about 22:45 UTC) v0.163.1 was seven
+days and about three hours old, so a reading of the rule by the hour would give v0.163.1; by the
+calendar day the two v0.163 releases sat on the boundary, and a patch release followed within five
+days. I pinned v0.162.0, as choice 13 says. The maintainer or the judge may prefer v0.163.1; the
+change is the two pins and their sums in `scripts/perf_smoke.py`.
+
+**The distribution: core `otelcol`**, the smallest official one with a macOS arm64 and a linux
+amd64 archive whose own `components` output lists an OTLP receiver, a processor that deletes
+attribute keys and a file exporter. The outputs, on macOS arm64:
+
+| Distribution | Archive, macOS arm64 (linux amd64) | Receivers | Processors | Exporters |
+|---|---|---|---|---|
+| `otelcol-otlp` | 11382048 (11995238) | otlp | none | otlp_grpc, otlp_http |
+| `otelcol-prometheus` | 34037123 (36026338) | blackbox_exporter, otlp, postgres_exporter, prometheus, prometheus_remote_write, stackdriver_exporter, yace_exporter | memory_limiter | debug, otlp_grpc, otlp_http, prometheus, prometheus_remote_write |
+| `otelcol` (core) | 35177135 (37254744) | host_metrics, jaeger, kafka, nop, otlp, prometheus, zipkin | attributes, batch, filter, memory_limiter, probabilistic_sampler, resource, span | debug, file, kafka, nop, otlp_grpc, otlp_http, prometheus, prometheus_remote_write, zipkin |
+
+Core's connectors: forward; its extensions: health_check, pprof, zpages. `otelcol-k8s` and
+`otelcol-ebpf-profiler` publish no macOS arm64 archive, and `otelcol-contrib` (96729035 bytes on
+macOS arm64) is not needed. The component names are this release's (`otlp_http`, not `otlphttp`).
+
+## FastAPI's request span at 0.144.0
+
+Read by test, not from the source: with a provider passed in FastAPI's `telemetry` dict and no
+allowlist, a `POST /ask` through the TestClient recorded `server.address` and `server.port` (from
+the Host header), `url.path`, `url.query` (`q=query-marker` when given), `url.scheme`,
+`http.request.method`, `network.protocol.version`, `http.route`, `http.response.status_code`, and
+on an escaped exception `error.type` with the exception's class name (`RuntimeError`); no user
+agent, no client address, no event (logs are off). Judged harmless and kept: `http.request.method`,
+`http.route`, `http.response.status_code`. Everything else is dropped by the allowlist, which is per
+instrumentation scope, so the chat span's own `server.address` (the configured loopback model
+server) is kept while FastAPI's, the Host header, is not. Under uvicorn (`make perf-smoke`), the
+collector's file held exactly those three keys on every request span.
+
+## Evidence per criterion (developer, 2026-10-24, macOS arm64)
+
+Each break was made on a committed file with `PYTHONDONTWRITEBYTECODE=1`, run, and restored with
+`git checkout -- <file>`; the same check was green again after the restore, and `git status --short`
+was empty.
+
+| OB | Status (before the draft pull request) | Evidence | Break (restored from git) |
+|---|---|---|---|
+| OB1 | met locally; CI runs `make audit` on the pull request | the table above; `uv lock --check` and its tool twin pass; `make -i audit`: no line names an S9 package (the pre-existing lines above); `make deps` passes | not run by the developer: both breaks change a lock or the environment, and four other builds share this Mac; the criteria judge runs them in its own worktree |
+| OB2 | met | `make architecture`: 0 violations; `tests/unit/test_architecture.py` (rule 7: 20 cases of four imports in five layers, obs passes, a planted import in a copy of the real tree); `test_an_eval_run_builds_no_provider_and_makes_no_span` (a generation run with the fake model constructs no `TracerProvider`; the pipeline holds the `NoopTracer`); `test_serve_builds_a_provider_only_with_an_endpoint` | `from opentelemetry import trace` appended to `src/raglab/generate/pipeline.py` and `import opentelemetry.sdk.trace` to `src/raglab/core/ports.py`: `make architecture` "3 architecture violations": `src/raglab/core/ports.py:203: OpenTelemetry (opentelemetry.sdk.trace) is imported only in raglab.obs; elsewhere use the Tracer port of raglab.core`, `src/raglab/generate/pipeline.py:213: OpenTelemetry (opentelemetry) is imported only in raglab.obs; ...`, and rule 1's line for core; restored "0 architecture violations" |
+| OB3 | met offline; COMPATIBILITY names the spec's commit and the date | `tests/obs/test_spans.py`, 22 tests through the API: one trace, the request span its root, each parent; each span's name, kind and exact attributes (FakeChat; the local adapter against its stub server with usage reported, unreported, and only the prompt count); `error.type` `unavailable`, `timeout` (FakeChat and an httpx read timeout through the adapter) and `invalid_output`, with an error status and no description; an error type outside the list refused; the endpoint loopback-only | (1) `USAGE_INPUT_TOKENS` renamed to `gen_ai.usage.prompt_tokens` in `names.py`: "1 failed, 21 passed" (the local adapter's exact attributes); (2) an unreported count recorded as 0 (`if True:` and `count or 0` in the pipeline): "3 failed, 19 passed"; restored "22 passed" |
+| OB4 | met offline | `tests/obs/test_redaction.py`, 18 tests: markers in the question, a chunk, the answer, an invalid reply, an unavailable error, an escaped exception and a test-only token, tenant B's 16 canaries and the system text's first sentence: none in any exported name, attribute, event, status, link, resource or scope, in five cases; only allowlisted keys per scope; no event, link or status description; the resource is the service's name and version even with `OTEL_RESOURCE_ATTRIBUTES` and `OTEL_SERVICE_NAME` set; what raglab's code recorded before the filter holds no marker, no event and no unreviewed key; with the opt-in (`RAGLAB_ENV=local`) the question and the ok answer are on the pipeline span only and a failed request keeps none | (1) the default flipped (`return Switches(perf_mode, True)` in `environment.py`): "6 failed, 12 passed", the first failure "Left contains 2 more items, first extra item: 'raglab.ask, attribute raglab.content.question: zebra-question-7731'"; (2) the parser's exception recorded on the chat span (`get_current_span().record_exception(error)` in the pipeline): "1 failed, 17 passed": the source check finds the event, while the exported spans pass, since the allowlist drops every event; (3) the bearer token set on FastAPI's request span from the route: under `http.route` and `http.request.method` FastAPI overwrote the value when the span ended ("18 passed" both times), and under an unreviewed key (`enduser.id`) the source span held "Bearer demo" and the exported spans did not ("18 passed"); the token never reaches raglab's own code; (4) an unreviewed key with the question on the pipeline span: "6 failed, 12 passed", all in the source checks, while the exported test passed ("5 passed": the allowlist dropped it); restored "18 passed" |
+| OB5 | met offline | `tests/obs/test_guard_traces.py`, 8 tests with the opt-in on: a question over 500 characters, one with a control character, an unknown tenant and no tenant leave no text (the marker or the event's own words) in any span, exported or recorded; an answer the citation guard withheld leaves none; a tenant-B chunk returned for tenant A records no id, no chunk text and no tenant-B canary (its id `B-PWD@1.0/3/1` starts with the canary `B-PWD`), only a count on the retrieval span, and the model is never called; each decision is name, stage and fixed key; every default guard's key is in `REASONS` | (1) the event's text as `raglab.guard.reason`: "6 failed, 2 passed"; (2) the retrieved ids set on the retrieval span before the guards: "1 failed, 7 passed" (the tenant-B case); restored "8 passed" |
+| OB6 | met offline | `tests/api/test_perf_mode.py`, 59 tests: a 24-row table of environment, mode, opt-in and provider in `environment.switches` and in `create_app`; the process environment read by default; the perf config served with `/version` naming `perf-stub` and provenance `fake` (the real assembly over the small pack); neither switch set changes nothing; only serve reads a perf-stub config (`raglab eval`, `raglab ask` and `raglab ollama status` refuse it); the perf config has the local config's retrieval and tokens; six refusals as a subprocess of `raglab serve` that holds no port (the test holds it), each "serve failed: ..." on one line, exit 1, nothing on stdout. `make api-smoke` passes as before (the make check below) | (1) the `RAGLAB_ENV` check removed (`if False:`): "20 failed, 39 passed", among them the prod and unset rows in process and as a subprocess; (2) the check moved from `build_app` and `create_app` into the app's startup: "23 failed, 36 passed", the five subprocess rows among them (exit 3 and uvicorn's "Application startup failed"; the real-model row first reached for Ollama's `/api/tags` on loopback, refused); (3) the mode accepted under any config (`if False:` for the provider check): "6 failed, 53 passed", the local-ollama row in process and as a subprocess among them; restored "59 passed" |
+| OB7 | met locally; [CI] the perf job's log | `tests/unit/test_collector_config.py`, 7 tests (the receiver on `127.0.0.1` only and OTLP over HTTP only; the local pipeline to a file; no metrics endpoint; the delete list equals raglab's content keys and the spec's Opt-In keys, first in the Langfuse pipeline; endpoint and auth from the environment, no key in any file; the stand-in replaces only the exporter; the smoke's collector environment); `tests/unit/test_perf_smoke.py` (the pins; a changed pin and a bad download refused, nothing kept; a pid file refuses the start and no earlier run's numbers are read); `make perf-smoke`: `validate` passed on the three configurations, the fixture span's content keys reached the local file and none passed the Langfuse pipeline; the postcheck passed. Without the Langfuse keys `validate` refuses `langfuse.yaml` ("exporters::otlp_http/langfuse: at least one endpoint must be specified") | (1) the receiver bound to `0.0.0.0`: "1 failed, 6 passed"; (2) `raglab.content.answer` removed from the delete list: the config test "1 failed, 6 passed", and `make perf-smoke` "perf-smoke: failed: 5 the Langfuse pipeline let content keys through: ['raglab.content.answer']"; (3) one character of k6's macOS pin changed (`b2417a30...` to `c2417a30...`): "perf-smoke: failed: k6 2.3.0: .../k6-v2.3.0-macos-arm64.zip has sha256 b2417a30..., not the pinned c2417a30...; it is not used (delete it to fetch the archive again)", nothing started, the postcheck passed; (4) the collector's stop skipped: "perf-smoke: failed: 6 the collector's port 4391 still answers; 6 the collector (pid 18026) is still running; 6 runs/tmp/perf/otelcol.pid was not removed"; the next `make perf-smoke` refused at the start ("runs/tmp/perf/otelcol.pid exists: a collector from an earlier run may still be running (pid 18026)"), and the developer stopped pid 18026 with SIGTERM and removed the pid file. That run also printed the earlier run's numbers: a bug, fixed in `752ed70` with a test |
+| OB8 | not applicable, by D2 ("Collector in CI only, no account") | the Langfuse pipeline is built and validated (OB7) and never sends | |
+| OB9 | met locally; [CI] the perf job | `perf/smoke.js` (one user, 10 warm-up and 100 gated requests, checks rate 1, no failed request, p90 and p95 reported, the median gated once T is set); `make perf-smoke` runs the steps in order and exits non-zero on any failure (the runs below); `tests/unit/test_workflow_rules.py` (the perf job: its own timeout, no needs, the same pinned actions, model and Tesseract steps as `check`, `make perf-smoke` offline last; zizmor: "No findings to report") | (1) a 500 planted in the `/ask` route for the question with `perf-marker-03`: k6 "✗ 'rate==1' rate=80.00%", "✗ 'rate==0' rate=20.00%" (88 of 110 checks), "3 k6 exited with 99", and the trace check "22 traces lack a span"; restored. (2) The median break (a delay of 2 × T) waits for T |
+| OB10 | waiting: the ten report-only runs on the pull request | THRESHOLDS.md's row says "not set" and the script's `MEDIAN_THRESHOLD_MS` is `null`; `test_the_scripts_threshold_equals_the_thresholds_cell` holds them equal | |
+| OB11 | met for what needs no CI run | the docs above; `tests/unit/test_test_plan.py`, `test_diagram.py`, `test_onboarding.py`, `test_readme.py`, `test_repo_docs.py` pass. ARCHITECTURE and README show S9 `wip` (S9 `done` with OB10) | |
+| OB12 | local: green but for the pre-existing audit lines (below); [CI] the pull request's checks | | |
+
+## Local runs of `make perf-smoke` (the Mac, not GitHub's runner)
+
+Each preceded by `make ollama-status` ("pid": null, "port_open": false, "loaded": null). The
+medians are the Mac's, for the record only: T comes from the ten runs on GitHub's runner.
+
+| When (WEST) | Tree | Result | Time | /ask median, p95 (Mac) |
+|---|---|---|---|---|
+| 2026-10-24 03:26 | before `8bfc90c`, uncommitted | passed | 19.68 s real | 5.38 ms, 5.92 ms |
+| between the two | the breaks of OB7 and OB9 above | failed as expected | | |
+| after the commit of `752ed70` (03:43) | `752ed70` | passed | 17.75 s real | 5.29 ms, 5.79 ms |
+
+The first run fetched k6 and the collector into `~/.cache/raglab/tools` (30130878 and 35177135
+bytes); every later run checked both sums from the cache.
+
+## Developer choices (for the review)
+
+1. **An explicit provider, never the global one.** FastAPI takes the provider in its `telemetry`
+   dict ("You can also pass a provider directly"), so `raglab serve` hands it the same provider the
+   pipeline's tracer uses, and the tests give each app its own: the request span is still the root
+   and the pipeline span its child (`test_one_ask_is_one_trace...`). No code sets the global
+   provider. This replaces the plan's OB4 wording "the global provider installed once per test
+   session ... cleared per test", and removes its risk "one global provider per process".
+2. **The allowlist is per instrumentation scope.** raglab's spans keep raglab's reviewed keys,
+   FastAPI's the three HTTP keys, any other scope none; so the chat span's `server.address` (the
+   configured model server) stays while FastAPI's (the Host header) goes.
+3. **FastAPI traces `POST /ask` only** (its `exclude` setting): health checks, the page and unknown
+   paths make no span.
+4. **Content only for an ok answer.** D4's option says "never ... anything of a refused or withheld
+   request"; I read a request whose model failed (unavailable, invalid output) as withheld too, so
+   the opt-in records the question and the answer of an ok answer only.
+5. **The tenant only once every input guard has passed**, slightly stricter than "once the tenant
+   guard has passed", which would depend on the guards' order.
+6. **Retrieval's data source is `policy-pack`**, the one index; the retrieval span is `retrieval
+   policy-pack`, kind client, as the spec says.
+7. **The chat span also sets `gen_ai.prompt.name`** (the current prompt's version, `answer-v1`),
+   conditionally required by the spec "when a named prompt template is used", and `gen_ai.output.type`
+   `json` only when the model's config sends a JSON schema.
+8. **The guard rule's keys live in `raglab.core.reasons`**, used by the API's `_reason` and by the
+   trace, so the two cannot drift; S7 adds its guards' keys there and in `REASONS`.
+9. **`googleapis-common-protos` held by a `constraint-dependencies` line in both projects** (above).
+10. **The collector v0.162.0** (above, a choice to review).
+11. **Ports 8791 (server) and 4391 (collector)**, not the defaults, because other builds share this
+    Mac; `PERF_PORT` and `PERF_OTLP_PORT` change them.
+12. **The Langfuse check runs in every `make perf-smoke`** with a file standing in for Langfuse: the
+    exporter to Langfuse is defined, used by no pipeline, and pointed at a loopback placeholder.
+13. **k6's own summary export**, not `handleSummary` (no jslib fetch at run time), with
+    `--no-usage-report` and `--include-system-env-vars=false`; `ask_duration`, a trend of the gated
+    requests only, carries the median.
+14. **No `/security-review` by the developer**: the plan gives it to the criteria judge (choice 14).
+
+## Notes
+
+- The build paused from about 00:50 to 03:15 WEST on 2026-10-24 (a usage limit); the work in the
+  worktree was kept as it was.
+- The command guard refused several compound shell lines (a heredoc that also ran a script, a
+  binary named through a shell variable, `git -C`); each was split into plain steps or written as a
+  file. None was routed around.
+- `make perf-smoke`'s breaks of OB6 ran `raglab serve` subprocesses that, with the check removed,
+  assembled the real corpus with the cached embedder (`HF_HUB_OFFLINE=1`), and one reached for
+  Ollama's port on loopback, which refused: Ollama was down throughout (`make ollama-status`).
