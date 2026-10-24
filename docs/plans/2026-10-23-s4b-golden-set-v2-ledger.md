@@ -68,7 +68,23 @@ committed file, run, and restored with `git checkout`; the tree was clean after 
 
 ## Runs S4b made
 
-None yet. S4b makes no test-split run (the plan, "The runs S4b makes").
+Every run S4b made, with its split and gate (GV6). All are on golden set v2's dev split under gate
+`manual`; S4b made no test-split run, no nightly run and no judge session (D2). The numbers are
+under "The runs at F" below.
+
+| Run | Suite | Split | Gate | Made by | Where |
+|---|---|---|---|---|---|
+| `20261024T090200Z-retrieval-dense-dev-ade9397` | retrieval | dev | manual | developer, `make eval-retrieval` | published: the retrieval baseline |
+| `20261024T090214Z-retrieval-hybrid-dev-ade9397` | retrieval | dev | manual | developer, `make eval-retrieval` | published |
+| `20261024T090228Z-retrieval-dense-600-dev-ade9397` | retrieval | dev | manual | developer, `make eval-retrieval` | published |
+| `20261024T090351Z-generation-local-ollama-dev-ade9397` | generation (local, Ollama) | dev | manual | developer, `make eval-local`, session 1 | published: the consistency baseline |
+| `20261024T091315Z-generation-local-ollama-dev-ade9397` | generation | dev | manual | session 2 | published: repeat |
+| `20261024T092237Z-generation-local-ollama-dev-ade9397` | generation | dev | manual | session 3 | published: repeat |
+| `20261024T093208Z-generation-local-ollama-dev-ade9397` | generation | dev | manual | session 4 | published: repeat |
+| `20261024T114208Z-generation-local-ollama-dev-ade9397` | generation | dev | manual | session 5 | published: repeat |
+| `20261024T115639Z-generation-local-ollama-dev-a928e88` | generation | dev | manual | developer, `make gate-local` with S2's plant (the live break) | **unpublished**: in `runs/tmp` only, made from a dirty tree |
+
+`make gate` and the tests write no published record.
 
 ## make check at the plan commit
 
@@ -655,3 +671,161 @@ sign-off is the labels judge's blind agreement (80 of 80, kappa 1.0000, chance a
 and its review, with the maintainer's answers on its five calls applied (above). From here
 `golden.v2.jsonl`, the answer key and the datasheet's v2 row do not change; a fix that edits them
 goes back to the maintainer and runs every baseline S4b made again (the plan).
+
+## The freeze F and the runs at F (2026-10-24)
+
+**F is `ade9397e8828bf875fe4925817041b0da16ff7e2`**: the sign-off recorded and the seven configs
+switched to `datasets/golden.v2.jsonl` (`config/fake.toml`, the three retrieval configs,
+`config/local-ollama.toml` and its nightly and release configs); `config/position-local.toml`
+stays on v1.1. Before it, `shasum -a 256 datasets/golden.v2.jsonl` gave the signed-off
+`3d924ad0bd1d…`, `raglab check-dataset` passed both files, and the config, held-out, session and
+end-to-end tests passed ("128 passed"). Every run below was made at F on a clean tree: each
+manifest has `git_sha` ade9397 and `git_dirty` false, and names `datasets/golden.v2.jsonl` with
+sha256 `3d924ad0bd1d…`. The coordinator's go for the live sessions, verbatim in its message: "This
+is my explicit go for those live sessions: the five `make eval-local` and the one `make
+gate-local`." Before them: Ollama down, 23.5 GiB available, AC power (the coordinator's reading at
+09:58; `make ollama-status` at about 10:01: nothing loaded, no process, 23.5 GiB available, "AC
+Power").
+
+### GV10: the retrieval runs (`make eval-retrieval`, 10:01:59 to 10:02:38)
+
+Each run printed "check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions,
+120 behaviour cases, sha256 3d924ad0bd1d)" first; `make` exited 0.
+
+| Config | Run | hit@5 (95%) | mrr@5 (95%) | recall@5 (95%) | n |
+|---|---|---|---|---|---|
+| dense | `20261024T090200Z-retrieval-dense-dev-ade9397` | 0.818 (0.636 to 0.955) | 0.625 (0.451 to 0.784) | 0.682 (0.515 to 0.841) | 22 |
+| hybrid | `20261024T090214Z-retrieval-hybrid-dev-ade9397` | 0.864 (0.727 to 1.000) | 0.590 (0.421 to 0.753) | 0.720 (0.568 to 0.856) | 22 |
+| dense-600 | `20261024T090228Z-retrieval-dense-600-dev-ade9397` | 0.818 (0.636 to 0.955) | 0.647 (0.465 to 0.805) | 0.659 (0.492 to 0.811) | 22 |
+
+`raglab compare`, B minus A, 95% paired bootstrap interval (2000 resamples, seed 20261006), 22
+paired questions:
+
+| A to B | Metric | A | B | B minus A | 95% interval |
+|---|---|---|---|---|---|
+| dense to hybrid | hit@5 | 0.818 | 0.864 | +0.045 | -0.091 to +0.182 |
+| dense to hybrid | mrr@5 | 0.625 | 0.590 | -0.035 | -0.231 to +0.149 |
+| dense to hybrid | recall@5 | 0.682 | 0.720 | +0.038 | -0.114 to +0.197 |
+| dense to dense-600 | hit@5 | 0.818 | 0.818 | +0.000 | +0.000 to +0.000 |
+| dense to dense-600 | mrr@5 | 0.625 | 0.647 | +0.022 | -0.019 to +0.091 |
+| dense to dense-600 | recall@5 | 0.682 | 0.659 | -0.023 | -0.068 to +0.000 |
+
+Flipped (hit): dense to hybrid, found by hybrid only R-Q10 and R-Q33, by dense only R-Q02; dense to
+dense-600, none. Every interval contains 0, as in S2 and S4.
+
+**The unchanged questions, read beside v1.1's runs.** The 22 dev retrieval questions are v1.1's
+lines (GV1 holds them byte for byte), and each v2 run gives every question the same top 5 chunk
+ids, the same scores (to six places), hit, reciprocal rank, recall and labels as its v1.1 run at
+`97011a7` (`20261019T180502Z`, `…180515Z` and `…180529Z`); the metrics and both comparisons are
+those of the S4 ledger. Each pair's corpus sha256 (`8918d4f79673` at 1,200, `6b8059386025` at 600)
+and embedder revision are the same; the dataset sha256 and the config sha256 differ, the config's
+because it names the new file. So nothing to explain: retrieval did not move, and fastembed 0.9.0
+gives the S4 values.
+
+### GV11: the five `make eval-local` sessions
+
+Each session: "model: nemotron-3.5-lightning:30b-a3b-mlx at the pinned digest d1e17d7dabac", "power:
+the Mac draws from 'AC Power'", Ollama 0.40.6, the live contract test "1 passed", the suite, then
+"postcheck passed: port closed, no ollama process, no model loaded"; `make` exited 0. Every run is
+complete (not partial). Mac time is the shell clock just before the launch to the return of `make`
+(after the postcheck); the suite's time is the record's `totals.duration_s`.
+
+| Session | Run | Clock (WEST) | Mac time | Memory before | Contract test | Suite | Statuses | Behaviour pass^3 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `20261024T090351Z-generation-local-ollama-dev-ade9397` | 10:02:54 to 10:12:11 | about 9 min 17 s | 23.6 GiB | 42.16 s | 498.731 s | ok 298, blocked 5 | 0.418 (33 of 79) |
+| 2 | `20261024T091315Z-generation-local-ollama-dev-ade9397` | 10:12:30 to 10:21:41 | about 9 min 11 s | 34.5 GiB | 30.21 s | 504.543 s | ok 300, blocked 3 | 0.430 (34 of 79) |
+| 3 | `20261024T092237Z-generation-local-ollama-dev-ade9397` | 10:21:59 to 10:31:13 | about 9 min 14 s | 36.5 GiB | 22.78 s | 515.387 s | ok 297, blocked 6 | 0.418 (33 of 79) |
+| 4 | `20261024T093208Z-generation-local-ollama-dev-ade9397` | 10:31:31 to 10:40:30 | about 8 min 59 s | 36.5 GiB | 21.60 s | 501.241 s | ok 298, blocked 5 | 0.418 (33 of 79) |
+| 5 | `20261024T114208Z-generation-local-ollama-dev-ade9397` | 12:41:18 to 12:50:38 | about 9 min 20 s | 31.1 GiB | 35.13 s | 508.317 s | ok 301, blocked 2 | 0.418 (33 of 79) |
+
+**Session 5 ran about two hours after session 4**, because the developer agent was stopped by a
+usage limit between sessions; the coordinator found the state at 12:42 WEST (four complete
+records, no fifth started; the server log's last start at 10:31:32 and its runner stopped at
+10:40:29; Ollama down, 31.5 GiB available, AC power) and repeated the go. It is the same commit
+(F), model, digest and config; no run was repeated, and every manifest agrees on the gate's stale
+fields: dataset `3d924ad0bd1d`, config `92f7fe0dbd3e`, prompt `96f42d9bc9c7` (answer-v1), digest
+`d1e17d7dabac`, 3 trials. The blocked trials are the citations guard's (run 1: R-Q25 trial 3, G-22
+trials 1 and 3, G-58 trial 1, G-105 trial 1); no publish refused a record.
+
+**What the model did, as measured** (decision-label rate by the case's effective expected label,
+after the conflict rule; n 79: 46 answer, 18 abstain, 5 flag-conflict, 10 refuse-and-help):
+
+| Run | Decision label | answer | abstain | flag-conflict | refuse-and-help | Over-abstention (n 61) | citation_hit (n 22) |
+|---|---|---|---|---|---|---|---|
+| 1 | 0.595 | 0.957 | 0.167 | 0.000 | 0.000 | 0.016 | 0.803 |
+| 2 | 0.595 | 0.971 | 0.130 | 0.000 | 0.000 | 0.011 | 0.803 |
+| 3 | 0.586 | 0.964 | 0.111 | 0.000 | 0.000 | 0.022 | 0.788 |
+| 4 | 0.591 | 0.978 | 0.093 | 0.000 | 0.000 | 0.022 | 0.788 |
+| 5 | 0.591 | 0.957 | 0.148 | 0.000 | 0.000 | 0.027 | 0.818 |
+
+Counted from the records: the 18 dev abstain cases' 54 trials carry the abstain label 9, 8, 7, 7
+and 9 times; no refuse-and-help trial (30 a run) is labelled refuse-and-help in any run; one
+flag-conflict trial of 24 is labelled flag-conflict, in run 5 only. answer-v1's abstention weakness
+(S3, S4) shows again on v2's larger abstain and refusal slices.
+
+**The publish commit** (`b95fe59`): the eight runs, each published with `raglab publish` (exit 0;
+no refusal), dense and run 1 with `--baseline`; index.json's baselines are now
+`retrieval/retrieval-dense/dev` = `20261024T090200Z-retrieval-dense-dev-ade9397` and
+`generation/generation-local-ollama/dev` = `20261024T090351Z-generation-local-ollama-dev-ade9397`.
+Before the commit, `make privacy` "0 hits across 397 files" and the publish and v2 tests "47
+passed". The v1.1 runs stay published as history (32 runs in the index).
+
+**The margin** (S4's rule, the maintainer's answer-v2 D3 "Keep S4's rule (Recommended)"): run 1
+is the baseline, 33 of 79. The repeats' drops below it, in cases: -1 (run 2, 34 of 79), 0, 0 and
+0. The largest drop is 0, so the margin is the rule's floor, one case: "margin: 1 case(s)",
+written to THRESHOLDS.md's consistency row in place with the run ids and the reason, v1.1's runs
+named as history (`a928e88`). The counts held, the cases did not quite: against run 1, run 2
+gained G-105 and G-29 and lost G-86; run 3 gained G-29 and G-71 and lost G-53 and G-86; runs 4
+and 5 gained G-29 and lost G-86; 31 cases pass in all five runs. `raglab gate --run` on each
+repeat, exit 0 each time:
+
+    consistency gate (Q-05): behaviour_pass^3 0.430 (n 79) passes: the threshold is the baseline 0.418 (20261024T090351Z-generation-local-ollama-dev-ade9397) minus 1 case(s) (1/79), 0.405
+    consistency gate (Q-05): behaviour_pass^3 0.418 (n 79) passes: the threshold is the baseline 0.418 (20261024T090351Z-generation-local-ollama-dev-ade9397) minus 1 case(s) (1/79), 0.405
+    consistency gate (Q-05): behaviour_pass^3 0.418 (n 79) passes: the threshold is the baseline 0.418 (20261024T090351Z-generation-local-ollama-dev-ade9397) minus 1 case(s) (1/79), 0.405
+    consistency gate (Q-05): behaviour_pass^3 0.418 (n 79) passes: the threshold is the baseline 0.418 (20261024T090351Z-generation-local-ollama-dev-ade9397) minus 1 case(s) (1/79), 0.405
+
+A new test, `test_the_one_consistency_row_names_the_published_baseline`, holds THRESHOLDS.md to
+one consistency row whose first run is index.json's baseline, so the plan's break (the old row
+left above the new one) fails it. AV9's `test_the_committed_consistency_baseline_is_current`
+passes on the new baseline (in the publish tests above).
+
+**The same seed.** Across the five runs the 303 (case, trial) pairs match one to one. The answer
+text is identical in all five for 13 of 303 pairs; the decision label for 266; the cited ids for
+122; all three for 12. As in S4, the seed does not reproduce the text at temperature 1.0 and top_p
+0.95, while the label held for most pairs.
+
+**The shared cases, run 1 beside A.** v1.1's 27 dev behaviour cases are v2 dev cases. S4's
+baseline A (`20261019T172035Z-generation-local-ollama-dev-97011a7`) passed 14 of them; run 1 passes
+13: every one A passed but G-29, which run 1 failed and each of the four repeats passed (above).
+So on the shared cases the new baseline is one case below A, inside the run-to-run movement the
+repeats show; the two baselines' overall numbers (0.519 of 27, 0.418 of 79) do not compare.
+
+### GV11: the live break (one `make gate-local`, 12:55:54 to 13:05:35)
+
+S2's plant, dense returning ranks 2 to 6 (`self.store.search(..., k + 1)[1:]` in
+`src/raglab/retrieve/dense.py`), in the working tree at `a928e88` (THRESHOLDS' row committed), then
+one `make gate-local` session (about 9 min 41 s; memory 34.0 GiB; AC power; contract test 29.80
+s; suite 534.982 s). The gate judged the run rather than refusing it (it does not read
+`git_dirty`, and none of its stale fields changed: dataset `3d924ad0bd1d`, config `92f7fe0dbd3e`,
+prompt `96f42d9bc9c7`, digest `d1e17d7dabac`, 3 trials). Its one line, exit 1 (`make` exit 2):
+
+    consistency gate (Q-05): behaviour_pass^3 0.266 (n 79) fails: the threshold is the baseline 0.418 (20261024T090351Z-generation-local-ollama-dev-ade9397) minus 1 case(s) (1/79), 0.405
+
+The run, `20261024T115639Z-generation-local-ollama-dev-a928e88` (21 of 79; `git_dirty` true),
+stays unpublished in `runs/tmp`. With the plant still in, `make gate`'s command (no model):
+"retrieval no-regression gate (22 questions): recall@5 0.356 (n 22) fails: the threshold is the
+baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636",
+exit 1. Restored with `git checkout -- src/raglab/retrieve/dense.py`: `git status --short` empty,
+`git diff --quiet HEAD` true at `a928e880e9b6268eadb45033e2165a3aa92e332e`; the session's postcheck
+passed and `make ollama-status` showed no pid, the port closed, no process and nothing loaded.
+
+**Mac time with the model loaded, S4b:** six sessions of about 9 to 9.7 minutes each, about 56
+minutes in all (the five runs and the live break); the plan estimated about 9 minutes a session.
+
+### Docs (`5db7551`)
+
+ARCHITECTURE and the README class S4b `done`; the README, ONBOARDING (current as of S4b, `make
+check`, check-dataset's two lines, gate-local's v2 threshold and the break's line), TEST-PLAN
+section 10's golden-set line, LOCAL-MODEL (the six sessions) and the CHANGELOG line take their
+numbers from these runs. THRESHOLDS.md's consistency row (`a928e88`) and its judged section (D2,
+`999695c`); the Q-01 latency line now says its baseline is S4's, on v1.1.
