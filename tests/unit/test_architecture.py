@@ -427,6 +427,24 @@ def test_opentelemetry_is_imported_only_in_obs(tmp_path, path, source):
     assert "raglab.obs" in found[0]
 
 
+def test_the_pipeline_and_the_names_load_no_opentelemetry():
+    """S9-J5: rule 7 fences the imports of opentelemetry; raglab.generate imports raglab.obs's
+    names and traced embedder, which import none, so the pipeline (and every run that is not
+    `raglab serve` with an endpoint) never loads the SDK. Checked in a fresh interpreter."""
+    import subprocess
+    import sys
+
+    code = (
+        "import sys, raglab.core.ports, raglab.obs.names, raglab.obs.traced, "
+        "raglab.generate.pipeline; "
+        "print(sorted(m for m in sys.modules if m.split('.')[0] == 'opentelemetry'))"
+    )
+    done = subprocess.run(
+        [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=True
+    )
+    assert done.stdout.strip() == "[]", done.stdout
+
+
 def test_opentelemetry_in_obs_passes(tmp_path):
     package = make_package(
         tmp_path,

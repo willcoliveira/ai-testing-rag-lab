@@ -9,8 +9,10 @@ starts: the binaries' real runs are `make perf-smoke`'s."""
 import hashlib
 import io
 import json
+import math
 import re
 import tarfile
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -247,6 +249,21 @@ def test_the_scripts_threshold_equals_the_thresholds_cell():
         assert cell.startswith("not set"), cell
     else:
         assert cell.startswith(f"median < {value} ms"), cell
+
+
+def test_t_follows_from_the_ten_runs_by_the_rule():
+    """S9-J4: T is recomputed from THRESHOLDS.md's table of the ten report-only runs, by the rule
+    written before them: twice the largest median, rounded up to the next 10 ms. Ten attempts, all
+    kept, and the script's value is the result."""
+    text = (ROOT / "docs" / "THRESHOLDS.md").read_text(encoding="utf-8")
+    table = text.split("**The ten report-only runs**", 1)[1].split("\n## ", 1)[0]
+    rows = re.findall(r"^\| (\d+) \| (\d+\.\d+) ms \| (\d+\.\d+) ms \|$", table, flags=re.M)
+    assert [int(attempt) for attempt, _, _ in rows] == list(range(1, 11))
+    largest = max(Decimal(median) for _, median, _ in rows)
+    t = math.ceil(2 * largest / 10) * 10
+    assert smoke.script_constant("MEDIAN_THRESHOLD_MS") == str(t)
+    assert thresholds_cell().startswith(f"median < {t} ms")
+    assert f"**{t} ms**" in table
 
 
 def test_the_make_target_runs_the_script_offline():
