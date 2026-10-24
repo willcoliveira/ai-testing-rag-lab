@@ -97,5 +97,5 @@ class EgressGuard:
     def __enter__(self) -> "EgressGuard":
         return self.install()
 
-    def __exit__(self, *exc: object) -> None:
+    def __exit__(self, *_: object) -> None:
         self.uninstall()
