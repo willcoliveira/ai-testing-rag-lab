@@ -103,6 +103,9 @@ def test_a_pid_file_left_by_a_killed_run_refuses_the_start(tmp_path, monkeypatch
     monkeypatch.setattr(smoke, "WORK", tmp_path / "runs" / "tmp" / "perf")
     smoke.WORK.mkdir(parents=True)
     (smoke.WORK / "otelcol.pid").write_text("4242\n", encoding="utf-8")
+    # an earlier run's files are never read again: no stale report, no stale trace check
+    summary = {"metrics": {"ask_duration": {"med": 1.0}, "http_reqs": {"count": 1}}}
+    (smoke.WORK / "k6-summary.json").write_text(json.dumps(summary), encoding="utf-8")
 
     def nothing_starts(*args, **kwargs):
         raise AssertionError("nothing may start")
@@ -114,6 +117,8 @@ def test_a_pid_file_left_by_a_killed_run_refuses_the_start(tmp_path, monkeypatch
     out = capsys.readouterr().out
     assert "may still be running (pid 4242)" in out
     assert out.splitlines()[-1].startswith("perf-smoke: failed: ")
+    assert "ok   5" not in out
+    assert "/ask median" not in out
 
 
 def otlp_line(spans: list[dict]) -> str:

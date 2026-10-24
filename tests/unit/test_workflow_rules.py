@@ -382,7 +382,7 @@ def test_dependabot_watches_the_deepeval_tool_project_and_keeps_deepeval_bumps_a
 
 
 def test_pr_fast_runs_the_k6_smoke_in_a_job_of_its_own():
-    """S9 OB9 (D3: "Own parallel job; median gated at 2× the slowest of ten runs"): the perf job
+    """S9 OB9 (D3: a job of its own, the median gated once T is set): the perf job
     runs beside check (no needs), under the same rules, with its own timeout; the model restored by
     revision and fetched with its hashes checked, and pinned Tesseract, both before the smoke; then
     `make perf-smoke` offline. k6 and the collector come from their release archives, their sha256

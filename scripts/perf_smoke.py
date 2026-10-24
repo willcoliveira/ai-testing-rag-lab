@@ -506,6 +506,7 @@ def main(argv: list[str] | None = None) -> int:
     exits: dict[str, int] = {}
     stats: dict[str, float] | None = None
     sent = 0
+    k6_ran = False  # steps 5 and the report read only what this run wrote, never an earlier run's
     with interruptible():
         try:
             if pid_file.exists():
@@ -572,6 +573,7 @@ def main(argv: list[str] | None = None) -> int:
                 env={"PATH": os.environ.get("PATH", ""), "HOME": os.environ.get("HOME", "")},
                 check=False,
             )
+            k6_ran = True
             if k6_run.returncode != 0:
                 failures.append(
                     f"3 k6 exited with {k6_run.returncode} (99: a threshold was crossed)"
@@ -604,7 +606,7 @@ def main(argv: list[str] | None = None) -> int:
             "collector (exit 0)",
             flush=True,
         )
-    if summary.exists():
+    if k6_ran and summary.exists():
         sent = requests_sent(summary)
         stats = median_report(summary)
         markers = sorted(set(MARKER.findall((ROOT / SCRIPT).read_text(encoding="utf-8"))))
