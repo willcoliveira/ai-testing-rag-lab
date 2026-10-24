@@ -4,9 +4,9 @@
 // One virtual user, because /ask runs behind a lock: more users would measure the queue, not the
 // service. A warm-up of WARMUP requests is not gated; then COUNT requests, whose durations go to
 // the ask_duration trend. Every reply must be 200 with status ok (checks rate 1) and no request
-// may fail. The median of ask_duration is gated at T once T is set by the rule in THRESHOLDS.md
-// (ten report-only runs on GitHub's runner, T = 2 x the largest of their medians, rounded up to the
-// next 10 ms); until then it is reported, with p90, p95, the minimum and the maximum, never gated.
+// may fail. The median of ask_duration is gated at T, set by the rule in THRESHOLDS.md (ten
+// report-only runs on GitHub's runner, T = 2 x the largest of their medians, rounded up to the next
+// 10 ms); p90, p95, the minimum and the maximum are reported, never gated.
 // The questions are written here, none from the golden set's test split, and each carries a
 // marker that perf_smoke.py then looks for in the collector's file: it must appear nowhere.
 import http from 'k6/http';
@@ -14,9 +14,11 @@ import { check } from 'k6';
 import exec from 'k6/execution';
 import { Trend } from 'k6/metrics';
 
-// T in milliseconds, or null while it is not set; tests/unit/test_perf_smoke.py holds it equal to
-// THRESHOLDS.md's cell
-const MEDIAN_THRESHOLD_MS = null;
+// T in milliseconds, set on 2026-10-24 by the rule from ten report-only runs of the perf job on
+// GitHub's runner (pr-fast run 40074154534, attempts 1 to 10; the largest median 15.38 ms, so
+// 2 x 15.38 = 30.76 ms, rounded up to the next 10 ms); tests/unit/test_perf_smoke.py holds it equal
+// to THRESHOLDS.md's cell, and it changes only in a reviewed pull request with ten new runs
+const MEDIAN_THRESHOLD_MS = 40;
 const WARMUP = 10;
 const COUNT = 100;
 const QUESTIONS = [
