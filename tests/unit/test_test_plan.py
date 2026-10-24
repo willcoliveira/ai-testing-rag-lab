@@ -196,8 +196,12 @@ def golden_case_problems(cells: dict[str, str], version: str, path: Path) -> lis
         if not named <= behaviour:
             problems.append(f"{rid}: {sorted(named - behaviour)} are not behaviour cases")
         wanted = covering.get(rid, set()) | (quoted if rid == "R-06" else set())
-        if named != wanted:
-            problems.append(f"{rid}: the cell names {sorted(named)}, not {sorted(wanted)}")
+        if wanted - named:
+            problems.append(f"{rid}: the cell lacks {sorted(wanted - named)}")
+        if named - wanted:
+            problems.append(
+                f"{rid}: the cell names {sorted(named - wanted)}, which do not cover it"
+            )
     return problems
 
 
@@ -231,13 +235,16 @@ def test_on_a_planted_v2_s4bs_cells_name_their_cases_and_each_break_is_named(tmp
     assert golden_case_problems(cells, "v1.1", path) == [f"{rid} is S4b's" for rid in S4B_CELLS]
     back = {**cells, "R-08": "tbd (S4b)"}
     assert golden_case_problems(back, "v2", path) == [
-        f"R-08: the cell names [], not {sorted(covering['R-08'])}"
+        f"R-08: the cell lacks {sorted(covering['R-08'])}"
     ]
+    # the criteria judge's S4b-J5: a dropped case is named alone, not inside both lists
     dropped = sorted(covering["R-13"])[0]
     fewer = {**cells, "R-13": cell_of(covering["R-13"] - {dropped})}
-    [problem] = golden_case_problems(fewer, "v2", path)
-    assert problem.startswith("R-13: the cell names")
-    assert f"'{dropped}'" in problem
+    assert golden_case_problems(fewer, "v2", path) == [f"R-13: the cell lacks ['{dropped}']"]
+    extra = {**cells, "R-08": cell_of(covering["R-08"] | {"G-40"})}
+    assert golden_case_problems(extra, "v2", path) == [
+        "R-08: the cell names ['G-40'], which do not cover it"
+    ]
 
 
 def test_case_ids_reads_ranges_and_lists():
