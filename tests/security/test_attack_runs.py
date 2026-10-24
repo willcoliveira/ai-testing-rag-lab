@@ -6,9 +6,11 @@ maintainer's go; nothing here starts a model server.
 AG9's offline break: a copy of a defences-on record with one F-47 string planted in an answer,
 resealed so it still validates, is refused by publish naming F-47."""
 
+import contextlib
 import json
 import re
 import shutil
+import socket
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from functools import cache
@@ -19,7 +21,9 @@ import pytest
 
 from raglab.__main__ import main
 from raglab.adapters import factory
+from raglab.adapters.fake import FakeChat
 from raglab.core.ports import Embedder
+from raglab.core.types import ChatReply, ChatRequest
 from raglab.evals import attack, attack_record, publish, record
 from raglab.evals import config as eval_config
 from raglab.evals.retrieval import GitState
@@ -136,13 +140,19 @@ class Remembering:
 
 
 @cache
+def remembering() -> tuple[Remembering, dict[str, object]]:
+    """The real local embedder, remembering its vectors across this module's runs."""
+    real, description = local_embedder()
+    return Remembering(real), description
+
+
+@cache
 def local_records(tmp: str) -> dict[str, Path]:
     """A defences-on and a defences-off attack run made with the real corpus and embedder and the
     OpenAI-compatible adapter against the in-process stub server that echoes (provenance local, as
     publish requires), one trial, from a clean commit."""
     config = eval_config.load_generation(one_trial(Path(tmp), LOCAL), ROOT)
-    real, description = local_embedder()
-    embedder = Remembering(real)  # both configurations index the same texts: embed them once
+    embedder, description = remembering()
     model, chat_description, provenance = factory.chat(
         "openai-compat",
         "stub-model:1b",
@@ -283,6 +293,46 @@ def test_a_forged_attack_record_is_refused(
     (run_dir / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
     found = record.validate(run_dir, ROOT)
     assert any(problem in p for p in found), found
+
+
+class Snooping:
+    """A chat model double that tries a lookup off loopback before it answers like the echo
+    model (AG8's break, made a test: the run must record the attempt)."""
+
+    def __init__(self) -> None:
+        self.inner = FakeChat()
+
+    @property
+    def model(self) -> str:
+        return "snooping-echo"
+
+    def describe(self) -> dict[str, object]:
+        return {"provider": "fake", "model": "snooping-echo", "digest": "fake"}
+
+    def complete(self, request: ChatRequest) -> ChatReply:
+        with contextlib.suppress(OSError):
+            socket.getaddrinfo("192.0.2.1", 80)
+        return self.inner.complete(request)
+
+
+def test_an_attempt_off_loopback_during_a_run_is_recorded_and_fails_its_gate(tmp_path: Path):
+    config = eval_config.load_generation(one_trial(tmp_path, FAKE), ROOT)
+    embedder, description = remembering()
+    chat = Snooping()
+    with EgressGuard() as egress:
+        built = attack.assemble_for(
+            config,
+            ROOT,
+            "defences-on",
+            embedder=(embedder, description, "local"),
+            chat=(chat, chat.describe(), "fake"),
+        )
+        manifest, _ = attack.run(
+            config, ROOT, built, "defences-on", egress, git=GIT, clock=lambda: WHEN
+        )
+    block: Any = manifest["attack"]
+    assert block["egress"].startswith("lookup 192.0.2.1:80")
+    assert attack.unsafe(manifest)[0].startswith("egress: lookup 192.0.2.1:80")
 
 
 # ---------------------------------------------------------------- labels, configs, make
