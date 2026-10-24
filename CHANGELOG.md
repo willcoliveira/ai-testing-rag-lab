@@ -5,6 +5,16 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- S7a, attack and guardrails (plan `docs/plans/2026-10-23-s7-attack-guardrails.md`, ledger beside
+  it; S7b, the promptfoo red team and Guardrails AI, follows S6): the rule layer behind the
+  `Guardrail` port (an input injection detector, a register filter that leaves pages outside the
+  register out of the prompt, an instruction scan before indexing, link, secrets and
+  personal-details and prompt-leak guards, the citation validator extended to the register), each
+  with a fixed reason key; `docs/THREAT-MODEL.md` (OWASP LLM Top 10 2026); the security pack
+  `datasets/security/` (deliberate test material, planted values by reference); the deterministic
+  attack suite in pr-fast, each attack landing without its defences and stopped by each alone; the
+  guard set in the staleness rule, kept current by a zero-event replay (`make replay`); per-layer
+  error rates and latency (`make guard-suites`, docs/THRESHOLDS.md).
 - answer-v2, the prompt fix for abstention (plan `docs/plans/2026-10-21-answer-v2.md`, ledger
   beside it), measured on dev and not adopted (the user's decision, verbatim: "Not adopted, runs
   stay published (Recommended)"): its first run after the sign-off gained four cases on answer-v1's

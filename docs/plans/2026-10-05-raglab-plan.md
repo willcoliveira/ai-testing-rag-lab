@@ -451,6 +451,15 @@ on 2026-10-22 and 2026-10-23 and not adopted, the user's answer verbatim "Not ad
 published (Recommended)": answer-v1 stays the current prompt and the consistency baseline, and
 answer-v2's runs stay published as a measured result (`docs/plans/2026-10-21-answer-v2-ledger.md`).
 
+Decision (2026-10-23): S7 is built as two pull requests under its one node. Asked to approve the S7
+plan with its five recommended answers, the user answered, verbatim: "All five as recommended
+(Recommended)". D1, "Split: S7a now, S7b after S6 (Recommended)": S7a (the threat model, the rule
+layer, the deterministic attack suite, the suites per filter and the live attack runs) now, S7b
+(the promptfoo red team and the Guardrails AI extra) after S6. D3, "On by default, proven inert by
+replay (Recommended)": the new guards join the default pipeline, and a consistency baseline stays
+current for a new guard set only through a committed replay over its own records with zero events
+(`docs/plans/2026-10-23-s7-attack-guardrails.md`).
+
 **v0.2 (S5, S4b, S6–S8).** Judged, calibrated, attacked, gated.
 
 | # | Stage | Build project / how-to step | Key acceptance criteria |

@@ -114,6 +114,16 @@ A run is published only from a clean, committed tree, with its provenance (`loca
 embedder) in the manifest. Run record v1 is `schemas/run-record.v1.json`; thresholds and their
 reasons are in [docs/THRESHOLDS.md](docs/THRESHOLDS.md).
 
+Attack and guardrails (S7a): [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) maps the OWASP Top 10
+for LLM Applications 2026 to tests, and a rule layer joins the guards (an injection detector, a
+register filter, an instruction scan before indexing, link, secrets and personal-details and
+prompt-leak guards; [docs/GUARDRAILS.md](docs/GUARDRAILS.md)). The deterministic attack suite runs
+in pr-fast on the fake model: each planted attack lands with its defences removed and is stopped
+by each defence alone. Every layer's must-block and must-not-block cases
+([datasets/security/](datasets/security/README.md), deliberate test material) are decided binary
+per build; `make guard-suites` measures each layer's error rates and added latency, and
+`make replay` shows a new guard set inert on the consistency baseline's own records.
+
 `make hooks` is required in every clone, not optional: the hooks check each commit message, each
 staged change and each push for secrets and private names. CI checks a pull request's files and
 commits again, but only with the generic example list.

@@ -238,6 +238,21 @@ position-local:
 		--run "uv run pytest -m live tests/contract/test_chat_contract.py" \
 		--run "uv run raglab position --config $(POSITION_CONFIG)"
 
+# S7 (AG6): every guard layer over its must-block and must-not-block cases (datasets/security/ and
+# the derived suites: the golden set's dev questions, the clean inventory, the attack pages and
+# the consistency baseline's recorded answers), no model; per layer the miss and false-block rates
+# with their Wilson intervals and the added latency, written to runs/guard-suites/. make test
+# already decides every case binary per build (tests/security/); this is the measured record.
+.PHONY: guard-suites replay
+guard-suites:
+	HF_HUB_OFFLINE=1 uv run raglab guard-suites
+
+# S7 (AG10, D3): today's default guards replayed over the consistency baseline and its repeats, no
+# model. Zero events writes runs/replays/<baseline>--<guard set sha256>.json, which keeps the
+# baseline current for the new guard set; any event is printed and nothing is written.
+replay:
+	HF_HUB_OFFLINE=1 uv run raglab replay
+
 # S3 AC10, AC11: the container with the fake model and the baked-in embedder (deploy/Dockerfile),
 # run on 127.0.0.1 only, and the ZAP baseline scan against it (deploy/zap/)
 IMAGE := raglab:local

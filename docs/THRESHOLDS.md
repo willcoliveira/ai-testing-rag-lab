@@ -99,3 +99,41 @@ nightly, release and the capstone only.
 
 Lab practice: a production system would set the margin from repeated runs of the gate on the CI
 runner itself (its spread over, say, 20 runs), not from a one-question rule.
+
+## Guards (S7)
+
+Every guard layer is gated case by case, binary per build: a single miss of a must-block case or a
+single false block of a must-not-block case fails `make test` and pr-fast, and the failure names
+the case and the layer (`tests/security/test_guard_cases.py`; the attack suite,
+`tests/security/test_attack_suite.py`, the same way). The reason: the main plan's targets set
+"injection resisted", "zero cross-tenant leaks", "cited ids are always ones that were retrieved"
+and "every must-block and must-not-block case passes" at 100% from the start, so no rate below
+100% is accepted and none is set from a run. The rates and latencies below are reported, not
+gated: the 95% Wilson interval says how far "0 of n" is from proof (0 of 5 still allows a miss rate
+up to 0.434), and the latency is what each layer adds to a request.
+
+From `runs/guard-suites/20261024T030214Z-ebcdb7d.json` (`make guard-suites` on the maintainer's
+Mac, provenance local, the dev split, from a clean tree at `ebcdb7d`; the latency is the layer's
+own check, in-process, over all of its cases):
+
+| Layer | Must-block: misses / n (95% Wilson) | Must-not-block: false blocks / n (95% Wilson) | Added latency p50 / p95 (ms) | Cases |
+|---|---|---|---|---|
+| Tenant guard | 0 / 5 (0.000 to 0.434) | 0 / 54 (0.000 to 0.066) | 0.000375 / 0.006933 | the pack; the golden set's 49 dev questions |
+| Input limits | 0 / 6 (0.000 to 0.390) | 0 / 54 (0.000 to 0.066) | 0.004520 / 0.007640 | the pack; the 49 dev questions |
+| Input injection detector | 0 / 10 (0.000 to 0.278) | 0 / 59 (0.000 to 0.061) | 0.018167 / 0.028217 | the pack; the 49 dev questions |
+| Instruction scan | 0 / 7 (0.000 to 0.354) | 0 / 235 (0.000 to 0.016) | 0.049959 / 0.146539 | the pack; F-47's chunk; the 228 clean chunks |
+| Register filter | 0 / 29 (0.000 to 0.117) | 0 / 233 (0.000 to 0.016) | 0.000417 / 0.000792 | the pack; the 24 attack-page chunks; the 228 clean chunks |
+| Citation validator | 0 / 5 (0.000 to 0.434) | 0 / 735 (0.000 to 0.005) | 0.000791 / 0.001084 | the pack; 730 recorded answers |
+| Link guard | 0 / 6 (0.000 to 0.390) | 0 / 736 (0.000 to 0.005) | 0.003959 / 0.010500 | the pack; 730 recorded answers |
+| Secrets and personal-details guard | 0 / 8 (0.000 to 0.324) | 0 / 738 (0.000 to 0.005) | 0.015833 / 0.045906 | the pack; 730 recorded answers |
+| Prompt-leak guard | 0 / 6 (0.000 to 0.390) | 0 / 736 (0.000 to 0.005) | 0.017562 / 0.051196 | the pack; 730 recorded answers |
+
+The recorded answers are the 730 answered case-trials (status ok) of the consistency baseline
+`20261019T172035Z-generation-local-ollama-dev-97011a7` and its four repeats (golden set v1.1);
+S4b's v2 runs replace them once S4b merges. The test split's questions are checked only at
+nightly and release (`raglab guard-suites --split test --gate nightly`).
+
+Lab practice: a production system would also measure each layer on live traffic samples, where
+the false-block rate on real questions is the number that matters, and would set its classifier
+thresholds from those; here every case is handwritten or derived from the signed-off golden set
+and corpus, and the rules have no threshold to tune.
