@@ -124,10 +124,13 @@ the postcheck runs. A pid file left by a run that was killed makes the next star
 you stop that collector and delete the file. The ports are `PERF_PORT` and `PERF_OTLP_PORT`.
 
 **The gate.** Every reply must be 200 with status ok and no request may fail. The median of the
-100 gated requests is gated at T once T is set by the rule in [THRESHOLDS.md](THRESHOLDS.md):
-ten report-only runs of the job at one commit, T = 2 × the largest median, rounded up to the next
-10 ms. p90, p95, the minimum and the maximum are reported, in the log and the job's step summary,
-never gated. It is the HTTP path on the stub on GitHub's runner, not Q-01.
+100 gated requests must be under T = 40 ms, set on 2026-10-24 by the rule in
+[THRESHOLDS.md](THRESHOLDS.md): ten report-only runs of the job at one commit, T = 2 × the largest
+median (15.38 ms), rounded up to the next 10 ms. A slower median fails the job with k6's line
+`✗ 'med<40'`. p90, p95, the minimum and the maximum are reported, in the log and the job's step
+summary, never gated. It is the HTTP path on the stub on GitHub's runner, not Q-01. T changes only
+in a reviewed pull request with ten new runs (a change of k6, of the runner image, of the stub, or
+a guard that adds latency to `/ask`).
 
 Lab practice: a smoke, not a load test. It catches a regression that doubles the API's time, not
 one of 10%; production load-tests a staging copy of the real deployment, with the model in the

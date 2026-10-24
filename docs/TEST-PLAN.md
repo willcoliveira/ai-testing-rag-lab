@@ -370,8 +370,9 @@ observability (S9, raglab serve only): one trace per /ask (FastAPI's request spa
   of keys; content off by default (the opt-in only where RAGLAB_ENV is ci or local); nothing a
   guard removed is kept; tests/obs (docs/OBSERVABILITY.md)
 perf (S9, pr-fast's perf job): the k6 smoke on the perf stub, one user, 10 warm-up and 100 gated
-  /ask requests; every check and no failure gated, the median at T once ten runs set it, p95
-  reported (docs/THRESHOLDS.md); PERF_TEST_MODE refused outside ci and local
+  /ask requests; every check and no failure gated, the median under T = 40 ms (set from ten runs
+  on GitHub's runner), p95 reported (docs/THRESHOLDS.md); PERF_TEST_MODE refused outside ci and
+  local
 security: <from S7: planted instruction, two tenants, poisoned duplicate; the attack files are
   ready and loaded only by raglab.ingest.attacks>
 report: <from S8: per case cause (ingestion/retrieval/generation/abstention), intervals, paired diff>

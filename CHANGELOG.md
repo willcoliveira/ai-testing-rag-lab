@@ -10,7 +10,7 @@ One line per change, newest first, grouped by release. Each pull request adds it
   gen_ai spans for /ask behind a Tracer port, leaving through an allowlist with content off by
   default and nothing a guard removed; `PERF_TEST_MODE` and the content opt-in refused outside
   `RAGLAB_ENV` ci or local; `make perf-smoke` and pr-fast's `perf` job, the k6 smoke against the
-  perf stub with the collector and its Langfuse pipeline checked; the median's threshold is set
+  perf stub with the collector and its Langfuse pipeline checked; the median gated at 40 ms, set
   from ten runs on GitHub's runner.
 - answer-v2, the prompt fix for abstention (plan `docs/plans/2026-10-21-answer-v2.md`, ledger
   beside it), measured on dev and not adopted (the user's decision, verbatim: "Not adopted, runs

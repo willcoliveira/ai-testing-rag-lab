@@ -101,6 +101,7 @@ break. Restore each file with `git checkout -- <file>`, and never commit a break
 | Change the chunker's default budget | `uv run pytest tests/ingestion/test_inventory_snapshot.py` | The snapshot test fails and prints the chunk diff; `make inventory-snapshot` regenerates it on purpose |
 | Record the guard event's own text as `raglab.guard.reason` in `src/raglab/generate/pipeline.py` | `uv run pytest tests/obs/test_guard_traces.py` | 6 failures: the refused question's marker and the event's text are in the trace |
 | Drop `raglab.content.answer` from the delete list in `deploy/otel/langfuse.yaml` | `make perf-smoke` | `the Langfuse pipeline let content keys through: ['raglab.content.answer']`, and `perf-smoke: failed` |
+| Sleep 80 ms (2 × T) before the pipeline in `ask_locked` in `src/raglab/api/app.py` | `make perf-smoke` | k6's `✗ 'med<40'`, then `k6 exited with 99 (99: a threshold was crossed)` and `perf-smoke: failed` |
 
 ## Concepts already built
 
@@ -166,6 +167,5 @@ Judged quality started in S5: the local judge has judged the dev slice under the
 | A judge calibrated against human labels (kappa) | S6 |
 | Prompt injection, poisoned documents, red team, Guardrails AI (the attack documents are in the corpus but kept out of the default ingest) | S7 |
 | Every failure tagged with its cause, a suite audit and GATES.md | S8 |
-| The k6 smoke's median gated at T, set from ten report-only runs on GitHub's runner | S9, after those runs |
 | Browser and accessibility tests of the UI and the playground | Track B |
 | The teaching playground on Pages | S11, at go-public |

@@ -110,7 +110,9 @@ container; it is not a provider and has no line here.
 ## Observability and performance (S9)
 
 Tested on 2026-10-24 on macOS (Apple silicon), offline (`make test`, `make perf-smoke`; the S9
-ledger); the pull request's perf job runs the same on GitHub's `ubuntu-24.04` runner.
+ledger), and on GitHub's `ubuntu-24.04` runner the same day: the pull request's perf job passed
+ten times at one commit (pr-fast run 40074154534, attempts 1 to 10), with the linux amd64 archives
+of k6 and the collector checked against their pins.
 
 | Piece | Version | What was checked |
 |---|---|---|
