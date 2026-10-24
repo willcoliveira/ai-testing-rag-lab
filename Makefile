@@ -50,7 +50,7 @@ AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8
 	GHSA-qfv9-64jg-mh7p \
 	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate api-smoke perf-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -126,6 +126,16 @@ gate:
 API_SMOKE_PORT ?= 8765
 api-smoke:
 	HF_HUB_OFFLINE=1 uv run python scripts/api_smoke.py --port $(API_SMOKE_PORT)
+
+# S9: the k6 smoke against the perf stub (docs/OBSERVABILITY.md). The collector (deploy/otel/) and
+# `raglab serve --config config/perf.toml` (PERF_TEST_MODE=1, RAGLAB_ENV=ci) on loopback; k6 2.3.0
+# and the collector fetched once into ~/.cache/raglab/tools, each archive's sha256 checked on every
+# use; the trace files checked; both stopped and the postcheck run, also on Ctrl-C, SIGTERM or
+# SIGHUP. Model-free; not in `make check`: pr-fast's perf job runs it.
+PERF_PORT ?= 8791
+PERF_OTLP_PORT ?= 4391
+perf-smoke:
+	HF_HUB_OFFLINE=1 uv run python scripts/perf_smoke.py --port $(PERF_PORT) --otlp-port $(PERF_OTLP_PORT)
 
 # S3 AC15: the local model server for one session only, never a resident service
 # (docs/LOCAL-MODEL.md). ollama-up and ollama-down are the manual pair; eval-local starts the server,

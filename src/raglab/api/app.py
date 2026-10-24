@@ -23,23 +23,35 @@ CDN). One request runs at a time (a lock; lab scale).
 
 A response's `reason` is one of REASONS, a fixed vocabulary: never the adapter's, the parser's or
 a guard's own text (judge S3-S3), which goes to the server log (logger `raglab.api`) and, in a
-run, to the record's guard events and error field.
+run, to the record's guard events and error field. The key of a guard's decision comes from
+raglab.core.reasons, the rule the trace uses too (S9).
+
+S9: FastAPI's own telemetry is set explicitly (docs/OBSERVABILITY.md). With a tracer provider
+(`raglab serve` with an OTLP endpoint) its request span for POST /ask is the root of the trace and
+every other path is left out; operation spans, OpenTelemetry logs (exception messages and stack
+traces) and metrics are off; auto-configuration is off in code, so FASTAPI_OTEL_AUTO_CONFIGURE in
+the environment cannot add an exporter. Without a provider, tracing is off too. create_app refuses
+an environment that may not serve this model (raglab.api.environment).
 """
 
 import hmac
 import json
 import logging
+import os
 import threading
-from collections.abc import Mapping
+from collections.abc import AsyncGenerator, Callable, Mapping, MutableMapping
+from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from raglab.api import environment
+from raglab.core.reasons import reason_key
 from raglab.core.types import ScoredChunk, Status
 from raglab.generate.pipeline import Outcome, Pipeline
 
@@ -168,7 +180,7 @@ def _reason(outcome: Outcome) -> str | None:
     text is logged."""
     refused = outcome.refused_by()
     key = (
-        ("tenant" if refused in ("tenant", "pipeline") else "input")
+        reason_key(outcome.events[0])
         if refused is not None
         else STATUS_REASONS.get(outcome.answer.status)
     )
@@ -213,10 +225,57 @@ async def _server_error(request: Request, error: Exception) -> JSONResponse:
     )
 
 
+TRACED_PATH = "/ask"
+
+
+def _not_traced(scope: MutableMapping[str, Any]) -> bool:
+    """FastAPI's request spans cover POST /ask only; health checks and pages make none."""
+    return scope.get("path") != TRACED_PATH
+
+
+def telemetry(tracer_provider: object | None) -> dict[str, object]:
+    """FastAPI's telemetry settings, each one explicit (FastAPI 0.144.0's `telemetry` dict)."""
+    settings: dict[str, object] = {
+        "tracing": tracer_provider is not None,
+        "operation_spans": False,
+        "logs": False,
+        "metrics": False,
+        "auto_configure": False,
+        "exclude": _not_traced,
+    }
+    if tracer_provider is not None:
+        settings["tracer_provider"] = tracer_provider
+    return settings
+
+
 def create_app(
-    pipeline: Pipeline, info: VersionInfo, tokens: Mapping[str, frozenset[str]], seed: int = 0
+    pipeline: Pipeline,
+    info: VersionInfo,
+    tokens: Mapping[str, frozenset[str]],
+    seed: int = 0,
+    *,
+    tracer_provider: object | None = None,
+    on_shutdown: Callable[[], None] | None = None,
+    environ: Mapping[str, str] | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="raglab", docs_url=None, redoc_url=None, openapi_url=None)
+    """The app. tracer_provider (raglab.obs.otel.Tracing.provider, opaque here) turns FastAPI's
+    request span on; on_shutdown runs when the server stops gracefully (it flushes the spans)."""
+    environment.switches(os.environ if environ is None else environ, info.provider)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
+        yield
+        if on_shutdown is not None:
+            on_shutdown()
+
+    app = FastAPI(
+        title="raglab",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
+        telemetry=cast(Any, telemetry(tracer_provider)),
+    )
     app.add_middleware(SecurityHeaders)
     app.add_exception_handler(Exception, _server_error)
     lock = threading.Lock()
