@@ -491,3 +491,47 @@ endpoint, and the S9-J4 and S9-J5 tests.
 **`make perf-smoke`**, at `a8b8f54`: passed, 16.53 s, "✓ 'med<40' med=5.27ms"; at `4229108`,
 after the vulture fix: passed, 16.44 s, "✓ 'med<40' med=5.19ms" (the Mac's medians; T comes from
 GitHub's runner).
+
+## The merge of main (2026-10-24)
+
+The orchestrator's go, at about 21:00 WEST: merge `main` now that the audit fix is merged (pull
+request #29, merge commit `dc3fd5b`, which changes `uv.lock` (filelock 4.0.12 to 4.2.1), the
+Makefile (five more `AUDIT_SKIP` ids and their comments) and CHANGELOG.md). `git fetch origin`,
+then `git merge --no-ff origin/main` at `1366fe9`: merge commit **`b384c0d`** (parents `1366fe9`
+and `dc3fd5b`), git's default message, which the hooks passed.
+
+- **CHANGELOG.md conflicted**, as expected: both sides added a line at the top of Unreleased.
+  Resolved keeping every line: S9's line first, then main's ("The advisories published on
+  2026-10-23, ..."), then the rest as on main; against `main`, the file differs only by S9's line.
+- **The Makefile merged cleanly**: main's `AUDIT_SKIP` block and S9's `.PHONY` line are separated
+  by an unchanged blank line. Against `main`, it differs only by S9's `perf-smoke` in `.PHONY` and
+  its target.
+- **`uv.lock` merged cleanly**: filelock is 4.2.1 (no `uv lock --upgrade-package` was needed, and
+  no other version moved). `uv lock --check` "Resolved 86 packages"; `uv lock --project
+  tools/deepeval-check --check` "Resolved 100 packages"; `uv export --project tools/deepeval-check
+  --locked ...` exit 0; the tool's lock is unchanged by the merge (its filelock is 4.2.4, through
+  DeepEval, as before; why its audit line never listed filelock); the installed filelock is 4.2.1.
+- Nothing else conflicted.
+
+**`make -k check API_SMOKE_PORT=8766`** on `b384c0d` (the S4b developer's check used the default
+8765 at the same time; no live session, `make ollama-status` clean): **exit 0**, 216.93 s real
+(206.84 s user), the tests 175.68 s. Every target green, `audit` included:
+
+    268 files already formatted                                   format
+    All checks passed!                                            lint
+    0 errors, 0 warnings, 0 informations                          types
+    Success! No dependency issues found.                          deps (deptry; vulture silent)
+    No known vulnerabilities found, 48 ignored                    audit, the main environment
+    No known vulnerabilities found, 48 ignored                    audit, the DeepEval tool's lock
+    (bandit and semgrep silent)                                   sast
+    No findings to report. Good job!                              workflows
+    no leaks found, no leaks found                                secrets
+    0 hits across 389 files (42 rules)                            privacy
+    0 architecture violations in src/raglab                       architecture
+    check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    ========== 1538 passed, 2 deselected, 1 warning in 175.68s (0:02:55) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed                                             (on http://127.0.0.1:8766/)
+
+So OB12's local half is now met with `audit` green; its [CI] half is the pull request's next
+pr-fast run, where the `check` job's steps 17 to 25 run for the first time.
