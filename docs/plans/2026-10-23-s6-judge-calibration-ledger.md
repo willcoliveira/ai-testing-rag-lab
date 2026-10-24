@@ -453,3 +453,72 @@ comment so it does not name the plan's file (`config/judge-local.toml` only; the
 as strict), or narrow the pattern to the calibration folder and the label files
 (`datasets/calibration`, `labels.jsonl`, `relabels`, `raglab.evals.label` and
 `raglab.evals.calibration`). Either is followed by the full `make -k check` again.
+
+## The cap's comment reworded, and the count reconciled (2026-10-24)
+
+The orchestrator's go, verbatim: "Go for (a): reword the cap comment in config/judge-local.toml so
+it no longer names the plan file. Keep the rule and the numbers, and keep the test strict." Done in
+`e87225e`: one comment line, "(S6, docs/plans/2026-10-23-s6-judge-calibration.md, "The cap")"
+to "(S6's plan, its section "The cap")"; the rule, the numbers, the value and the path test
+unchanged. `config/judge-local.toml` is now sha256
+`4d7b79f03a1f10609cfb90215fd20427f4362ce07e7ebc33620a19e0222821fc` (the file sha256 the v2 record
+will carry, in place of `dac42367c992…` above); its canonical sha256 is unchanged,
+`6d0e2f3c4a84029d82674e230f76acf2efcf89a353ca2002d42fb815e6d305ec`. The tests it touches
+(`test_calibration_leak.py`, `test_judged_cap.py`, `test_answer_v2_one_judge.py`,
+`tests/unit/test_eval_config.py`): "57 passed, 1 skipped".
+
+**The count: the dry run's 1,400 against S4b's design count of 1,433** (S4b ledger, "The design
+count of judge calls for v2's dev slice (GV12)": "1,033 verdicts (3 x 324 per trial + 61
+`context_sufficient`), 381 checks (repeatability 280, order 101) and 19 canaries", about 7,715 s at
+5.38 s a call):
+
+| Kind | S4b's design count | The dry run | Difference |
+|---|---|---|---|
+| verdicts on each trial's answer | 972 (3 × 324) | 954 | −18 |
+| `context_sufficient` | 61 | 61 | 0 |
+| repeatability | 280 | 268 | −12 |
+| order | 101 | 98 | −3 |
+| canaries | 19 | 19 | 0 |
+| **in all** | **1,433** | **1,400** | **−33** |
+
+Why, from S4b's run 1 (a generation record: its statuses, no judge verdict): the design count is "a
+count from the cases and the frozen criteria, not a measurement", so it takes every trial as giving
+an answer. Run 1 withheld five trials, each `blocked` by the citation validator at the output stage
+("the answer cites ids that were not retrieved"): R-Q25 trial 3 (a retrieval question: `grounded`
+and `relevant`), G-22 trials 1 and 3 (`flag-conflict`, four criteria each), G-58 trial 1 and G-105
+trial 1 (`answer`, four each). A withheld trial has no text, so no criterion of its answer is
+judged: 2 + 4 + 4 + 4 + 4 = 18 verdicts. Three of the five are trial 1 (G-22, G-58, G-105), so
+their repeatability calls (4 each, 12) and their order checks (one each, 3) are not made either.
+`context_sufficient` stays at 61: it reads the retrieval, which a withheld trial still has. Counted
+from the record with the judged record's own rules (a scratch script), the run as it is gives
+1,400, the dry run's count, and the same run with every trial set to ok gives 1,433, S4b's.
+
+**What it changes:** not the cap. The rule on 1,433 calls would give 1,433 × 5.710 s × 1.5 =
+12,273.6 s, up to the same 12,600 s. The estimate is 33 calls shorter, 178 to 188 s (about 3
+minutes) at 5.384 to 5.710 s a call: S4b's 7,715 s (2 h 8 min 35 s) at 5.38 s becomes 7,537 s (2
+h 5 min 37 s) at 1,400 calls; the session estimate above (about 2 h 6 min to 2 h 15 min) already
+counts 1,400.
+
+**The session's command, as the orchestrator gives it for the go:** `caffeinate -i make judge-local
+RUN=20261024T090351Z-generation-local-ollama-dev-ade9397`. In its words: "This Mac's system sleep
+is set to 1 minute, and `make judge-local` holds no wake assertion of its own. `caffeinate -i`
+keeps the Mac awake only while the command runs and changes no setting." The ledger records the
+wrapper again when the session runs.
+
+## make -k check at stop 2, again (2026-10-24, 21:54 to 21:59 WEST, at `e87225e`): green
+
+`/usr/bin/time -p make -k check API_SMOKE_PORT=8767`: real 288.54 s (user 280.86 s, sys 14.76 s),
+**exit 0**. format "277 files already formatted"; lint "All checks passed!"; types "0 errors, 0
+warnings, 0 informations"; deps "Success! No dependency issues found."; audit, both lines "No known
+vulnerabilities found, 48 ignored"; sast silent; workflows "No findings to report. Good job!";
+secrets "no leaks found" twice (409 commits); privacy "0 hits across 411 files (42 rules)";
+architecture "0 architecture violations in src/raglab"; check-dataset "datasets/golden.v1.jsonl
+passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)" and
+"datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256
+3d924ad0bd1d)"; model in the cache; test **"1488 passed, 3 skipped, 2 deselected, 1 warning in
+246.88s (0:04:06)"** (the 3 skips: no committed calibration files yet; the warning starlette's, as
+on `main`); gate "recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682
+(20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636"; api-smoke
+"api-smoke: passed".
+
+The stop before the live session holds: the judge session waits for the maintainer's go.
