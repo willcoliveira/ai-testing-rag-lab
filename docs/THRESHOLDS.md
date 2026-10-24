@@ -43,15 +43,19 @@ config (S4b ledger).
 
 Nothing judged is gated in S5. The criteria are docs/CRITERIA.md's, signed off on 2026-10-20 and
 again on 2026-10-21 (`correct` reworded: judge-v2); the numbers are the judged baseline's,
-`runs/published/20261021T081852Z-judge-local-dev-5aa0ec5/` (its `report.md`): the consistency
-baseline's answers judged by the local judge under judge-v2. The first judged record,
-`runs/published/20261020T195341Z-judge-local-dev-25ccc0d/` (judge-v1), stays published as the
-evidence for the second sign-off; its numbers are not the baseline's.
+`runs/published/20261024T210231Z-judge-local-dev-c8da78b/` (its `report.md`): golden set v2's
+consistency baseline (S4b's run 1, answer-v1, dev, ×3) judged by the local judge under judge-v2 on
+2026-10-24, in S6's first live step (the S6 ledger). Until the calibration's labels are sealed,
+the labeller does not open that record's `cases.jsonl` or `report.md`
+(`datasets/calibration/README.md`). The v1.1 judged records stay published as history:
+`runs/published/20261021T081852Z-judge-local-dev-5aa0ec5/`, the judged baseline on golden set
+v1.1 until S6; `runs/published/20261023T090413Z-judge-local-dev-c14acb0/`, answer-v2's (measured,
+not adopted); and `runs/published/20261020T195341Z-judge-local-dev-25ccc0d/` (judge-v1), the
+evidence for the second sign-off. Their numbers are v1.1's and do not compare with v2's.
 
-**Golden set v2 (S4b).** The judged baseline stays `5aa0ec5`, on golden set v1.1's dev split,
-until S6 judges v2's consistency baseline as its first live step: the user's answer to S4b's D2,
+**Golden set v2 (S4b).** The judged baseline stayed `5aa0ec5`, on golden set v1.1's dev split,
+until S6 judged v2's consistency baseline as its first live step: the user's answer to S4b's D2,
 verbatim, "In S6, as its first live step (Recommended)". S4b changes none of the judge's files.
-The judged numbers above are v1.1's and do not compare with a run on v2.
 
 | Metric | Gate | Threshold | Reason |
 |---|---|---|---|
@@ -64,8 +68,9 @@ The judged numbers above are v1.1's and do not compare with a run on v2.
 ### The judge's calibration bar (S6)
 
 Written before any sample or label exists, in `datasets/calibration/judge-v2-c1/bar.toml` (commit
-`d7c9b76`, the bar and the labelling guide in a commit of their own), which `raglab calibrate`
-reads; `tests/judge/test_calibration_bar.py` holds this table equal to that file. The maintainer's answers (2026-10-23), verbatim: D1 "grounded and abstains, 15 each
+`d7c9b76`, the bar and the labelling guide in a commit of their own; the sample, drawn from the
+judged baseline on golden set v2, followed in `44b4adc`), which `raglab calibrate` reads;
+`tests/judge/test_calibration_bar.py` holds this table equal to that file. The maintainer's answers (2026-10-23), verbatim: D1 "grounded and abstains, 15 each
 (Recommended)"; D2 "kappa 0.80 trusts, under 0.60 stops (Recommended)". Per calibrated criterion,
 the bar reads Cohen's kappa of the judge against the maintainer's sealed labels on the criterion's
 items: the point estimate. It never reads the interval, the weighted TPR and TNR, the pooled kappa,
