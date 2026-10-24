@@ -479,7 +479,7 @@ def report(stats: Mapping[str, float], sent: int) -> str:
 def interruptible() -> Generator[None]:
     """SIGTERM and SIGHUP end the run as Ctrl-C does, so every finally block runs."""
 
-    def handler(signum: int, frame: object) -> None:
+    def handler(signum: int, _frame: object) -> None:
         raise Interrupted(signum)
 
     previous = {sig: signal.signal(sig, handler) for sig in (signal.SIGTERM, signal.SIGHUP)}
