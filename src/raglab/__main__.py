@@ -454,6 +454,7 @@ def calibrate(args: argparse.Namespace) -> int:
             for row in calibration.disagreement_details(root, folder):
                 print(json.dumps(row, indent=2, ensure_ascii=False))
         elif args.action == "record":
+            calibration.read_inputs(root, folder)  # its refusals first, then the commits
             rec = calibration.write_record(root, folder, calibration.git_commits(root, folder))
             print((folder / calibration.RECORD_MD).read_text(encoding="utf-8"))
             print(f"record: {folder / calibration.RECORD_JSON} ({rec['status']})")

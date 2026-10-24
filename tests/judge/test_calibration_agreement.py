@@ -10,9 +10,20 @@ from typing import Any
 
 import pytest
 
+from raglab.__main__ import main
 from raglab.evals import calibration
 from raglab.evals.calibration import CalibrationError, Item, Pair
-from tests.calibration_support import SEALED, answers_for, asker, inventory, sampled_root, ticking
+from tests.calibration_support import (
+    FOLDER,
+    REASON,
+    SEALED,
+    answers_for,
+    asker,
+    inventory,
+    published_root,
+    sampled_root,
+    ticking,
+)
 from tests.conftest import ROOT
 from tests.judge_support import reseal
 from tests.retrieval_support import read_run
@@ -349,3 +360,24 @@ def test_the_record_is_generated_never_edited_by_hand(tmp_path):
 def test_every_committed_record_regenerates_from_its_inputs(folder):
     """The regenerate test on the repository (no record exists until the labels are sealed)."""
     assert calibration.record_problems(ROOT, folder) == []
+
+
+def test_the_calibrate_command_draws_lists_and_refuses(tmp_path, capsys):
+    """`raglab calibrate`: sample prints aggregate counts only (never an item's verdict); check
+    draws it again; disagreements and record refuse before the labels are sealed; record also
+    refuses where git cannot name the commits of its inputs."""
+    root, run_id, _, _ = published_root(tmp_path)
+    args = ["--folder", FOLDER, "--root", str(root)]
+    assert main(["calibrate", "sample", "--judged", run_id, *args]) == 0
+    out = capsys.readouterr().out
+    assert "grounded: 6 items, 3 of the frame's 8 judge passes and 3 of its 6 judge fails" in out
+    assert REASON not in out
+    assert main(["calibrate", "check", *args]) == 0
+    assert "draws and regenerates as committed" in capsys.readouterr().out
+    for action in ("disagreements", "record"):
+        assert main(["calibrate", action, *args]) == 1
+        assert "labels.jsonl is not sealed" in capsys.readouterr().err
+    root, folder, _, _, _ = labelled(tmp_path / "sealed")
+    assert main(["calibrate", "record", "--folder", FOLDER, "--root", str(root)]) == 1
+    assert "git log cannot name the commit" in capsys.readouterr().err
+    assert not (folder / calibration.RECORD_JSON).exists()

@@ -484,7 +484,10 @@ def read_sample(folder: Path) -> Sample:
     try:
         raw = path.read_bytes()
     except OSError as error:
-        raise CalibrationError(f"{path}: no sample has been drawn ({error})") from error
+        raise CalibrationError(
+            f"{folder.name}: no sample has been drawn ({SAMPLE} is missing): raglab calibrate "
+            "sample draws it from the published judged record"
+        ) from error
     rows = [line for line in raw.decode("utf-8").splitlines() if line.strip()]
     if not rows:
         raise CalibrationError(f"{path}: empty")
@@ -1012,8 +1015,10 @@ def _git_commit(root: Path, path: Path) -> str:
     # fixed git arguments, no shell
     command = [executable, "log", "-1", "--format=%H", "--", rel]
     done = subprocess.run(  # noqa: S603  # nosec B603
-        command, cwd=root, check=True, capture_output=True, text=True
+        command, cwd=root, check=False, capture_output=True, text=True
     )
+    if done.returncode != 0:
+        raise CalibrationError(f"git log cannot name the commit of {rel}: {done.stderr.strip()}")
     return done.stdout.strip()
 
 
