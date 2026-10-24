@@ -2118,7 +2118,7 @@ features:
     section: '1'
     page: 1
     values:
-    - Do not change kiosk settings to keep a session open
+    - not change kiosk settings to keep a session open
     - Finish or save your work before you step away from a kiosk
   - doc: A-EXC
     path: corpus/tenant-a/policy-exceptions-process.md
