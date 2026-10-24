@@ -5,6 +5,19 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- S4b, golden set v2 (plan `docs/plans/2026-10-23-s4b-golden-set-v2.md`, ledger beside it):
+  `datasets/golden.v2.jsonl`, golden set v1.1's 74 lines and 80 new behaviour cases (120 in the mix
+  45/24/24/12/15, 33 asked as tenant B, every requirement with a planted feature traced), the
+  answer-key additions F-88 to F-98, datasheet v2, a labels judge's 80 of 80, and the
+  maintainer's sign-off ("Signed off as is"); `raglab check-dataset` holds each golden file to its
+  own version, read from the datasheet's Maintenance row; `scripts/split_golden.py`, the seeded
+  split (seed 20261023) with a second pass added after the first draw by the maintainer's answer
+  to the labels judge's call C1; `make eval-retrieval`. Republished on v2 at the frozen commit
+  `ade9397`: the retrieval baseline (dense, recall@5 0.682, hybrid 0.720 and dense-600 0.659 beside
+  it, each question's top 5 as on v1.1) and the consistency baseline
+  (`20261024T090351Z-generation-local-ollama-dev-ade9397`, behaviour pass^3 0.418, 33 of 79, four
+  repeats at 34, 33, 33 and 33, margin one case). The judged baseline stays on v1.1 until S6
+  (D2); R-22 stays a gap for S8 (D3).
 - The advisories published on 2026-10-23, so the audit passes on `main` again: filelock 4.0.12 →
   4.2.1 (three advisories, fixed in 4.2.1, taken once its 7-day cooldown had passed; replaces
   Dependabot's #28); and five more join `make audit`'s skips, under the same decisions and review

@@ -1,11 +1,13 @@
 # Onboarding
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
-guards, and where each concept already lives. It is current as of S5 (2026-10-21): the judge, its
-criteria and canaries (signed off), the judged record, the position test, the cost formula and the
-fenced DeepEval tool are built; the judged baseline and the position test are published; ADR-002
-records the user's choice, local only for now; and a session runs on AC power only (the S5
-ledger). Every stage that adds a
+guards, and where each concept already lives. It is current as of S4b (2026-10-24): golden set v2
+(`datasets/golden.v2.jsonl`, 120 behaviour cases over both tenants) is signed off, checked per
+version beside the frozen v1.1, and the retrieval and consistency baselines are republished on it.
+Before it, S5 built the judge, its criteria and canaries (signed off), the judged record, the
+position test, the cost formula and the fenced DeepEval tool; the judged baseline (on v1.1, until
+S6) and the position test are published; ADR-002 records the user's choice, local only for now;
+and a session runs on AC power only (the S5 ledger). Every stage that adds a
 command or a concept updates it, and
 `tests/unit/test_onboarding.py` checks that every path, `make` target and `raglab` command named
 here exists, and that the stage this line names is not still in progress once the phase map marks
@@ -36,14 +38,15 @@ CI.
 
 | Command | What it shows | What you should see |
 |---|---|---|
-| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 ... passes`. Since S4 the retrieval baseline is the dense dev run on golden set v1.1 (recall@5 0.682) |
-| `make check-dataset` (or `uv run raglab check-dataset`) | The golden file against its ten rules before any run: labels, features, the answer, abstain, conflict and refusal shapes, planted strings, the mix, the datasheet's sha256 line | One `check-dataset: datasets/golden.v1.jsonl passes (...)` line; a broken case is named with its rule, and every `raglab eval` and `raglab gate` stops on it |
+| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 ... passes`. Since S4b the retrieval baseline is the dense dev run on golden set v2 (recall@5 0.682, the same 22 dev questions and the same top 5 as on v1.1) |
+| `make check-dataset` (or `uv run raglab check-dataset`) | Every golden file against its ten rules before any run, each by the version its datasheet row gives it: labels, features, the answer, abstain, conflict and refusal shapes, planted strings, the version's mix, the datasheet's sha256 line | Two lines, one per golden file: `check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, ...)` and `check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, ...)`; a broken case is named with its rule, and every `raglab eval` and `raglab gate` stops on it |
 | `uv run raglab ingest` | The pack parsed and chunked into `runs/tmp/inventory.json` | 228 chunks from 21 documents |
 | `uv run raglab ingest --chunk-size 600 --compare corpus/inventory.snapshot.json` | A chunking change as a reviewable diff | 249 chunks, with the changed ids listed |
 | `uv run python scripts/chunk_experiment.py --chunk-size 600` | Which planted features a smaller chunk breaks | 0 split at 1,200 and 1 split at 600 (F-16) |
 | `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml` | One retrieval run, written as a run record | A folder in `runs/tmp/` with `manifest.json`, `cases.jsonl` and `report.md`; recall@5 0.682 |
 | The same with `config/retrieval-hybrid.toml`, then `uv run raglab compare <dense run> <hybrid run>` | A paired comparison with bootstrap intervals and the questions that flipped | Every interval contains 0; only hybrid finds R-Q10 and R-Q33; only dense finds R-Q02 |
 | `make gate` | The no-regression gate that pr-fast runs | The pass line above |
+| `make eval-retrieval` | S4b: the three retrieval configurations (dense, hybrid, dense-600) on the dev split, one after another, with the embedder only: the runs a dataset change republishes | Three run folders in `runs/tmp/`, each after its config's `check-dataset ... passes` line |
 | `make playground` | The published runs in a browser | http://127.0.0.1:8000/ listing the published runs with per-question hits |
 | `uv run raglab ask --config config/fake.toml --tenant tenant-a "How long must a password be?"` | One answer from the fake model, as JSON | Status `ok`, label `answer`, the retrieved chunks' text, and their ids in `cited_ids` |
 | `uv run raglab ask --config config/fake.toml --tenant shared "x"` | The tenant guard failing closed | Status `refused`, no answer, exit 1 |
@@ -54,7 +57,7 @@ CI.
 | `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml --split test` | The test split held out | Refused: test and all run only with `--gate nightly` or `--gate release` |
 | `make ollama-status` | Whether a local model server is up, and the memory available | No pid, port closed, no ollama process |
 | `make eval-local` | The live run on Ollama (needs Ollama and the pinned model; docs/LOCAL-MODEL.md) | The live contract test, the run record, then `postcheck passed` |
-| `make gate-local` | The consistency gate (Q-05) on Ollama: a dev run, then `raglab gate` against the published local baseline | One `consistency gate (Q-05): ...` line; it refuses to judge until docs/THRESHOLDS.md sets the margin from runs |
+| `make gate-local` | The consistency gate (Q-05) on Ollama: a dev run, then `raglab gate` against the published local baseline | One `consistency gate (Q-05): ...` line; it refuses to judge until docs/THRESHOLDS.md sets the margin from runs. Since S4b, on golden set v2: the baseline 0.418 (33 of 79) minus one case, so a run passes at 0.405 or above; with S2's plant (dense returning ranks 2 to 6) it fails at 0.266 (S4b ledger) |
 | `make nightly-local` | The local nightly on Ollama: every split, `--gate nightly` | The live contract test, then a run record of split all |
 | `make container`, then `make zap` | The fake-model container and its ZAP baseline scan (Docker) | No FAIL and no WARN; three Informational alerts, each ignored with its reason in `deploy/zap/rules.tsv` |
 | `make corpus` | Rebuilds the PDF, HTML and scanned PNG from the Markdown sources | No change in `git status` |

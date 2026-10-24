@@ -1,6 +1,9 @@
 """The eval configs are read strictly, and the three committed ones say what the plan compares:
 dense at 1,200, hybrid at 1,200 and dense at 600, on the same questions with the pinned model."""
 
+import re
+import tomllib
+
 import pytest
 
 from raglab.adapters import factory, fastembed_embed
@@ -10,6 +13,58 @@ from tests.retrieval_support import config_text
 
 pytestmark = pytest.mark.unit
 COMMITTED = sorted((ROOT / "config").glob("retrieval-*.toml"))
+# S4b: the configs that move to golden set v2 together, at the freeze F (the S4b plan, "What
+# gets built", and D1's answer); the position test's config stays on v1.1, whose ten cases its
+# record ran (S5)
+MOVING = (
+    "fake",
+    "retrieval-dense",
+    "retrieval-hybrid",
+    "retrieval-dense-600",
+    "local-ollama",
+    "local-ollama-nightly",
+    "local-ollama-release",
+)
+
+
+def dataset_of(name: str) -> str:
+    """The golden file a committed config names."""
+    text = (ROOT / "config" / f"{name}.toml").read_text(encoding="utf-8")
+    return str(tomllib.loads(text)["dataset"]["path"])
+
+
+def test_make_eval_retrieval_runs_the_three_committed_configs_on_their_dev_split():
+    """S4b (GV10): one `make` target for the three retrieval runs a dataset change republishes,
+    dense first: each committed retrieval config, offline, on its own split (dev), under the
+    default gate (manual) and output folder (runs/tmp). It is not part of `make check`."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    target = makefile.split("\neval-retrieval:\n", 1)[1].split("\n\n", 1)[0]
+    order = ("retrieval-dense", "retrieval-hybrid", "retrieval-dense-600")
+    assert [line.strip() for line in target.splitlines()] == [
+        f"HF_HUB_OFFLINE=1 uv run raglab eval --suite retrieval --config config/{name}.toml"
+        for name in order
+    ]
+    assert {p.stem for p in COMMITTED} == set(order)
+    check = re.search(r"^check:(.*)$", makefile, flags=re.M)
+    assert check is not None
+    assert "eval-retrieval" not in check.group(1).split()
+    assert all(config.load(ROOT / "config" / f"{n}.toml", ROOT).split == "dev" for n in order)
+
+
+def test_the_configs_name_one_golden_file_and_the_position_test_keeps_v1_1():
+    """S4b: the seven configs that run golden set v2 from the freeze F name one golden file at
+    any time (golden.v1.jsonl until F, golden.v2.jsonl from it, all in the one commit); the
+    position test's names golden.v1.jsonl; and no other config names a dataset."""
+    with_dataset = {
+        p.stem
+        for p in (ROOT / "config").glob("*.toml")
+        if "dataset" in tomllib.loads(p.read_text(encoding="utf-8"))
+    }
+    assert with_dataset == {*MOVING, "position-local"}
+    [path] = {dataset_of(name) for name in MOVING}
+    assert re.fullmatch(r"datasets/golden\.v(1|2)\.jsonl", path), path
+    assert (ROOT / path).is_file()
+    assert dataset_of("position-local") == "datasets/golden.v1.jsonl"
 
 
 def test_the_three_committed_configs():
@@ -29,7 +84,7 @@ def test_the_three_committed_configs():
     assert (small.retriever.kind, small.chunker.chunk_size) == ("dense", 600)
     for c in loaded.values():
         assert c.path == f"config/{c.name}.toml"
-        assert (c.dataset, c.split, c.retriever.k) == ("datasets/golden.v1.jsonl", "dev", 5)
+        assert (c.dataset, c.split, c.retriever.k) == (dataset_of("fake"), "dev", 5)
         assert (c.bootstrap.resamples, c.bootstrap.level) == (2000, 0.95)
         assert c.bootstrap.seed == dense.bootstrap.seed
         assert c.chunker.overlap == 1
@@ -138,7 +193,7 @@ def test_the_committed_generation_configs():
     )
     for c in (fake, local):
         assert (c.dataset, c.split, c.retriever.k, c.chunker.chunk_size) == (
-            "datasets/golden.v1.jsonl",
+            dataset_of("fake"),
             "dev",
             5,
             1200,
