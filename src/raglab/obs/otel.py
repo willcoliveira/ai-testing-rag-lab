@@ -211,6 +211,7 @@ class NoRemoteContext(TextMapPropagator):
         context: Context | None = None,
         getter: Getter[CarrierT] = default_getter,
     ) -> Context:
+        del carrier, getter  # the interface's names (callers pass them by keyword), never read
         return Context() if context is None else context
 
     def inject(
@@ -219,7 +220,7 @@ class NoRemoteContext(TextMapPropagator):
         context: Context | None = None,
         setter: Setter[CarrierT] = default_setter,
     ) -> None:
-        return None
+        del carrier, context, setter  # the interface's names, never used: nothing is injected
 
     @property
     def fields(self) -> set[str]:
