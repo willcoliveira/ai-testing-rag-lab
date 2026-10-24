@@ -885,10 +885,13 @@ worktree detached at `e90059e`, a separate context, offline from 13:18 to 13:57 
 break; its report stays outside the repository (`scratchpad/s4b-judge/report.md`, saved by the
 orchestrator), and the numbers below are copied from it. **14 of 14 criteria met**, GV4, GV10 and
 GV14 with CI clauses (pr-fast's dataset step, the pull request's gate line, pr-fast green). It
-recomputed about 476 numbers in 12 categories (the Golden case cells, the agreement, the design
-count, the runs' provenance, the retrieval metrics and comparisons, the generation runs, the
-margin, the same-seed and shared-case readings, the live break, the Mac times, the split, the
-judge hashes, the `make -k check` tail): **0 mismatches**. Every planned break went red and both
+recomputed about 476 numbers in 12 categories: the golden set's own counts (98 numbers, by mix,
+label, tenant, split, floors, probes and overlap; until fix round 2 this ledger called them "the
+Golden case cells", which are TEST-PLAN's column, not this category: the criteria judge's
+S4b-J9), the agreement, the design count, the runs' provenance, the retrieval metrics and
+comparisons, the generation runs, the margin, the same-seed and shared-case readings, the live
+break, the Mac times, the split, the judge hashes and the `make -k check` tail: **0
+mismatches**. Every planned break went red and both
 expected passes passed; its stronger breaks went red too (a mix changed in a v1.1 line inside v2,
 a field changed inside v1.1, a hit flipped in run 1's record, a same-stratum dev and test swap,
 THRESHOLDS' first run id altered, the index baseline pointed at run 2, `config/judge-local.toml`
@@ -927,7 +930,7 @@ datasheet v2 row changed.
 | S4b-J5 (info) | The traceability test names the cases a cell lacks, and the cases it names that do not cover the requirement, as set differences | `be9ddf7` | Red before: the judge's break b printed both lists. After, on TEST-PLAN with G-73 dropped from R-08's cell: "R-08: the cell lacks ['G-73']"; restored, `test_test_plan.py` "14 passed" |
 | S4b-J6 (info) | The datasheet says its "18 a labelled section" leaves out `may_quote` sections, and that 20 share one with them (G-85's and G-93's quotes) | `1fe17f1` | Recomputed from the committed files: 18 of 28 by labels and group members, 20 of 28 with `may_quote` on both sides; check-dataset passes both files (prose only) |
 | S4b-J7 (info) | Nothing in this PR: `make audit` is red on `main`, fixed by the coordinator's `build(deps)` pull request, merged into this branch after | none | the audit lines under each `make -k check` |
-| The cleanup | `raglab check-dataset` no longer reads a Maintenance table without a File column as the checked file's (such a table now versions no file, and rule 10 says so); the test-side reader requires the File column; the skips on the committed v2 file's tests are gone | `c9e67e9` | Every check-dataset and v2 test: "105 passed"; check-dataset passes both files; the breaks below |
+| The cleanup | `raglab check-dataset` no longer reads a Maintenance table without a File column as the checked file's (such a table now versions no file, and rule 10 says so); the test-side reader requires the File column; the skips on the committed v2 file's tests are gone | `c9e67e9` | "105 passed" for six files, `tests/unit/test_check_dataset.py`, `tests/unit/test_split_golden.py`, `tests/retrieval/test_golden_v2.py`, `tests/retrieval/test_publish.py`, `tests/unit/test_test_plan.py` and `tests/retrieval/test_golden_behaviour.py` (named in fix round 2, the criteria judge's S4b-J8; re-run at `7c09282`: "105 passed"; the judge's subsets: 44 for the first and third, 61 with the second, 83 with the fourth, 97 with the fifth, and the sixth adds 8); check-dataset passes both files; the breaks below |
 
 **The plan's GV4 and GV8 breaks, again after the cleanup**, each on a committed file and restored
 with `git checkout` (the tree clean after each, check-dataset passing both files again):
@@ -960,8 +963,33 @@ twice, pypdf 6.19.0 three times). Every other target passes:
 
 The count, 1419, is the same as at STOP 3: the round added no test function (S4b-J5's extra
 break sits in an existing test, and the cleanup replaced one test with another), and the removed
-skips were inert; no test is skipped. Nothing pushed; no live session in this round; the golden files, the answer key, the
-datasheet's v2 row and every published record are as they were at `e90059e`.
+skips were inert; no test is skipped. Nothing pushed; no live session in this round; the golden
+files, the answer key, the datasheet's v2 row and every published record are as they were at
+`e90059e`.
+
+## Fix round 2 (2026-10-24)
+
+**The criteria judge's re-check of fix round 1 at `7c09282`** (14:12 to 14:33 WEST; appended to
+its report): the golden files, `corpus/`, `runs/published`, CRITERIA.md, the canary set, `config/`
+and `src/raglab/judge` are byte for byte those of `e90059e`; the datasheet's diff is S4b-J6's
+sentence only, and its v2 row is unchanged. S4b-J1, J2, J3, J5 and J6 are closed; S4b-J4 is open,
+deferred to S8 with its evidence; S4b-J7 is open by design (the audit pull request). The cleanup
+holds: no test skipped (453 passed in the touched set), every published record validates,
+check-dataset passes both files, and a new break, the File column removed from the committed
+table, fails both files on rule 10 and fails the test-side reader; the GV4 and GV8 breaks went red
+again and the expected passes passed. Its `make -k check` at `7c09282` (real 236.35 s): only
+`audit` red, 1419 passed, the gate at 0.682, api-smoke passed. **No verdict changed: 14 of 14
+met**, GV4, GV10 and GV14 with CI clauses. Two new info findings, both ledger text; the
+coordinator set fix round 2 to them, docs only, with no full `make check` for ledger text.
+
+| Finding | What was done | Commit | Evidence |
+|---|---|---|---|
+| S4b-J8 (info): the cleanup's "105 passed" could not be reproduced from its description | Fix round 1's table names the six files that gave it: `tests/unit/test_check_dataset.py`, `tests/unit/test_split_golden.py`, `tests/retrieval/test_golden_v2.py`, `tests/retrieval/test_publish.py`, `tests/unit/test_test_plan.py` and `tests/retrieval/test_golden_behaviour.py` | this commit | Re-run at `7c09282`, the six files in one call: "105 passed"; `test_golden_behaviour.py` alone "8 passed", and `test_check_dataset.py` with `test_golden_v2.py` "44 passed", as the judge counts (its 97 for the first five files, plus these 8) |
+| S4b-J9 (info): round 0's first recount category was named "the Golden case cells" | The phrase now says the golden set's own counts (98 numbers, by mix, label, tenant, split, floors, probes and overlap), not TEST-PLAN's column | this commit | the judge's report, "Recount" |
+
+After the edit, `tests/unit/test_repo_docs.py` and `tests/unit/test_diagram.py` (which reads the
+plans' front matter): "13 passed"; `make privacy`: "0 hits across 397 files (42 rules)". Ledger
+text only: no full `make check` was run in this round.
 
 ## Not in this PR
 
@@ -977,3 +1005,4 @@ datasheet's v2 row and every published record are as they were at `e90059e`.
 | Round | Head | Result |
 |---|---|---|
 | 0, the verdict | `e90059e` | 14 of 14 met (GV4, GV10 and GV14 with CI clauses); about 476 numbers recomputed, 0 mismatches; every break red and both expected passes passing; the live break 0.266 fails (13:59:05 to 14:08:42, postcheck passed). Findings S4b-J1 to S4b-J7 (two low, five info after S4b-J2's reduction): fix round 1 |
+| 1, re-check | `7c09282` | S4b-J1, J2, J3, J5 and J6 closed; S4b-J4 deferred to S8 with evidence; S4b-J7 open by design; the cleanup verified, a new break (the File column removed) failing both files; `make -k check` only `audit` red, 1419 passed. No verdict changed: 14 of 14 met. New: S4b-J8 and S4b-J9 (info, ledger text): fix round 2 |
