@@ -677,3 +677,52 @@ Every other target passed:
     ===== 1 failed, 1587 passed, 2 deselected, 1 warning in 201.30s (0:03:21) ======
     retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636
     api-smoke: passed                                             (on http://127.0.0.1:8766/)
+
+### The integration change of the merge with S4b (2026-10-24)
+
+S9 had used both fix rounds, so the one change this failure needs went to the maintainer through
+the orchestrator. The question, verbatim: "Merging S4b into S9 fails one test: S9's new perf config
+still names golden v1.1, and S4b's test allows only the position test to stay on v1.1. S9 has used
+both fix rounds. Can it make this one integration change?" The option: `config/perf.toml` names
+`golden.v2.jsonl`; S4b's test gains one entry, perf, a config added after the freeze, which must
+name v2; nothing else changes. The maintainer's go, verbatim: "Point it at v2 (Recommended)".
+
+**The change** (`faf7c75`): `config/perf.toml`'s `[dataset] path` is `datasets/golden.v2.jsonl`
+(the split unchanged, `dev`; its comment names no golden file, so it is unchanged). In
+`tests/unit/test_eval_config.py`, `MOVING`, the seven configs moved at the freeze F, is as it was;
+a separate tuple `AFTER_F = ("perf",)` holds the configs added after F, under a one-line comment
+naming S9 and the go; the test asserts `with_dataset == {*MOVING, *AFTER_F, "position-local"}` and
+that every config in `AFTER_F` names `datasets/golden.v2.jsonl`; its docstring says so. `raglab
+serve` never reads the golden set, so the perf smoke serves exactly as before.
+
+**Evidence:**
+
+- Red: the failure of the merge's check above, `test_the_configs_name_one_golden_file_and_the_position_test_keeps_v1_1`,
+  "Extra items in the left set: 'perf'".
+- Green: the test passes ("1 passed"); `tests/unit/test_eval_config.py`, `tests/api/test_perf_mode.py`
+  and `tests/generation/test_prompt_snapshot.py` (which reads every config): "121 passed".
+- The break, on the committed file: `config/perf.toml` back to `datasets/golden.v1.jsonl`: "1
+  failed, 45 passed", the new assertion "AssertionError: perf" (`'datasets/golden.v1.jsonl' ==
+  'datasets/golden.v2.jsonl'`); restored with `git checkout`, "46 passed".
+- `make perf-smoke` at `faf7c75`: passed, 17.02 s, "✓ 'med<40' med=5.25ms" (the Mac's).
+
+**`make -k check API_SMOKE_PORT=8766`** on `faf7c75` (S6 may have run its own check on 8767; no
+live session, `make ollama-status` clean): **exit 0**, 243.30 s real (235.59 s user), the tests
+200.67 s. Every target green:
+
+    282 files already formatted                                   format
+    All checks passed!                                            lint
+    0 errors, 0 warnings, 0 informations                          types
+    Success! No dependency issues found.                          deps (deptry; vulture silent)
+    No known vulnerabilities found, 48 ignored                    audit, the main environment
+    No known vulnerabilities found, 48 ignored                    audit, the DeepEval tool's lock
+    (bandit and semgrep silent)                                   sast
+    No findings to report. Good job!                              workflows
+    no leaks found, no leaks found                                secrets
+    0 hits across 420 files (42 rules)                            privacy
+    0 architecture violations in src/raglab                       architecture
+    check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 3d924ad0bd1d)
+    ========== 1588 passed, 2 deselected, 1 warning in 200.67s (0:03:20) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636
+    api-smoke: passed                                             (on http://127.0.0.1:8766/)
