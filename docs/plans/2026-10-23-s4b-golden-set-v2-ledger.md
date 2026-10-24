@@ -359,3 +359,51 @@ The TEST-PLAN Golden case cells derived from v2 (GV9; `test_the_golden_case_colu
 fails until they are written), the removal of the S4 table reading (no File column) and of the
 skips of the v2 file's tests, ONBOARDING's line naming both files, and the README's and
 section 10's v2 lines.
+
+## make -k check at STOP 1 (`8b5fcdd`)
+
+Run once on `8b5fcdd`, a clean tree, this Mac (`make -k check`, 2026-10-24 at about 00:07 WEST),
+while the labels judge reviews at that head. **Exit 2; two targets fail, `audit` and `test`.**
+Every other target passes: `format` ("256 files already formatted"), `lint` ("All checks
+passed!"), `types` ("0 errors, 0 warnings, 0 informations"), `deps` ("Success! No dependency
+issues found.", vulture silent), `sast` (bandit and semgrep silent), `workflows` (zizmor),
+`secrets` (gitleaks "no leaks found" twice), `privacy` ("0 hits across 373 files (42 rules)"),
+`architecture` ("0 architecture violations in src/raglab"), `check-dataset` (both files, below),
+`model` ("already in the cache"), `gate` and `api-smoke`:
+
+    check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 481063f43750)
+    ===== 4 failed, 1409 passed, 2 deselected, 1 warning in 195.66s (0:03:15) ======
+    make: *** [test] Error 1
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+**`audit`**, pre-existing on `main` (the coordinator's `build(deps)` pull request): "Found 8 known
+vulnerabilities, ignored 43 in 3 packages", now three for filelock 4.0.12 (fixed in 4.2.1), two
+for Pillow 12.3.0 (13.0.0) and three for pypdf 6.19.0 (6.21.2); two filelock ones more than at
+STOP 0. Ids left out, as above.
+
+**`test`**, four tests, each for a reason recorded above; none was changed:
+
+1. `tests/ingestion/test_chunk_boundaries.py::test_every_feature_keeps_its_cited_values_in_one_chunk_at_default_settings`:
+   "F-92 A-DEVICE-B 1: 1 chunks; the closest, A-DEVICE-B@1.0/1/1, lacks 'Do not change kiosk
+   settings to keep a session open'". F-92's scanned-page value, which this Mac's OCR reads with
+   a stray quote mark; with the maintainer.
+2. `tests/ingestion/test_ingest_formats.py::test_every_cited_value_is_in_the_extracted_text_at_its_place[A-DEVICE-B]`:
+   "F-92 A-DEVICE-B section 1: 'Do not change kiosk settings to keep a session open' missing" (the
+   OCR text reads "Do ‘not change kiosk settings to keep a session open."). The same value.
+3. `tests/retrieval/test_golden_v2.py::test_v2_covers_every_requirement_and_every_question_type`:
+   GV2, three problems, the first "the background kind's cases (G-40, G-49, G-77) are all in
+   test", then exception-overrides-rule (G-18, G-78) and procedure (G-20, G-76, G-112); with the
+   maintainer.
+4. `tests/unit/test_test_plan.py::test_the_golden_case_column_names_the_cases_that_cover_each_requirement`:
+   24 problems, the first "R-06: ['G-26', 'G-84', 'G-85', 'G-93'] are not by design". 23 of them
+   are TEST-PLAN's Golden case column not yet derived from v2, now the latest version: R-22's
+   cell still "tbd (S4b)", the notes of R-15, R-17 and R-19 missing, and the cells of R-01,
+   R-03 to R-07, R-10 to R-14, R-18 and R-23 and of R-08, R-09, R-13, R-15 to R-17 and R-19
+   naming v1.1's cases only (or "tbd (S4b)"). The integration stopped at GV2 before writing them.
+   The 24th is the test's own: its by-design check for R-06 was written for v1.1, where G-26, the
+   one may_quote case, covers R-06 by design only; in v2 G-93's feature, F-96, names R-06, so a
+   may_quote case also covers R-06 by its features, and the check, which wants no may_quote case
+   among R-06's covering cases, fails. The by-design cases should be the may_quote cases that do
+   not already cover R-06; that is corrected with the cells, after the maintainer's call.
