@@ -4,6 +4,7 @@ drawn again from the published record it pins. The v1.1 judged records serve as 
 are never sampled for labels: their verdicts are quoted in the S5 and answer-v2 ledgers."""
 
 import json
+import random
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
@@ -72,6 +73,22 @@ def test_the_draw_on_a_v11_record_is_stratified_seeded_and_one_answer_once():
     }
     for i in drawn.items:
         assert verdict[i.key] in ("pass", "fail")
+
+
+def test_each_stratum_is_taken_in_its_own_seeded_shuffle():
+    """Within a stratum, the answers sorted by case id and trial and shuffled with
+    random.Random("<seed>:<criterion>:<verdict>"), then taken in that order: computed here apart
+    from the draw."""
+    lines = [line(f"P{n:02d}", 1, grounded="pass") for n in range(12)]
+    lines += [line(f"F{n:02d}", 1, grounded="fail") for n in range(12)]
+    drawn = calibration.draw(lines, bar(grounded=(3, 4)))
+    for side, wanted in (("pass", 3), ("fail", 4)):
+        order = sorted(
+            (c["case_id"], 1) for c in lines if c["verdicts"]["grounded"]["verdict"] == side
+        )
+        random.Random(f"20261023:grounded:{side}").shuffle(order)  # noqa: S311
+        taken = {(i.case_id, i.trial) for i in drawn.items} & set(order)
+        assert taken == set(order[:wanted]), side
 
 
 def test_one_item_per_case_first_then_second_trials_in_the_same_order():
