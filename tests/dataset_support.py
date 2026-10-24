@@ -289,7 +289,8 @@ def v2_lines(cases: list[dict[str, Any]] | None = None, split: bool = True) -> l
     """v1.1's lines as committed, then the planted cases, split by scripts/split_golden.py unless
     split is False (a case that has a split keeps it)."""
     lines = [*V1.read_text(encoding="utf-8").splitlines(), *map(json.dumps, cases or V2_CASES)]
-    return splitter().split(lines, v1_ids())[0] if split else lines
+    kinds = splitter().feature_kinds(ROOT)
+    return splitter().split(lines, v1_ids(), kinds)[0] if split else lines
 
 
 def write_v2(

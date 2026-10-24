@@ -506,3 +506,54 @@ Of the four tests failing at STOP 1, none passes yet: the two ingestion tests wa
 test for C1, and the traceability test, down from 24 problems to 1, for C3. The datasheet's R-06
 coverage row names G-26 alone by design and does not name G-84 and G-85; it was left with the
 datasheet's other edits (S4b-L11, after C1).
+
+## The maintainer's answers on the calls (2026-10-24)
+
+The maintainer's answers, early on 2026-10-24, through the coordinator's question prompt, each
+with its question, verbatim:
+
+1. Question: "S4b C1: the seeded split put every case of three kinds in test (background;
+   exception-overrides-rule; procedure, R-23), so dev runs would never measure them. How should it
+   be fixed?" Answer: "Repair in the committed script (Recommended)".
+2. Question: "S4b C2: this Mac's OCR misreads F-92's value on the scanned page, \"Do not change
+   kiosk settings to keep a session open\", as \"Do ‘not…\", so two ingestion tests fail. What
+   should the answer key cite?" Answer: "Shorten the value to the fragment both readings keep
+   (Recommended)".
+3. Question: "S4b C3–C5: three small fixes before your sign-off. C3: R-22's stale metadata is
+   updated to say S8, per your earlier decision. C4: two background features that only hold
+   locations on G-79 and G-111 are dropped, so R-11 isn't traced to refusal cases. C5: the
+   datasheet's G-57 limit is corrected to what the code does, and G-51's reference answer gains
+   its arithmetic step. Make all three as recommended?" Answer: "All three as recommended
+   (Recommended)". That is C3 "Update both now, metadata only (Recommended)", C4 "Drop F-84 from
+   G-79 and F-83 from G-111, keep the labels (Recommended)" and C5 "Make both edits now
+   (Recommended)".
+
+### C1: the second pass, written after the first draw was seen
+
+**Said plainly: the second pass was written after the first draw was seen**, and after the labels
+judge's simulation had named the six ids it expected to move. The first draw's output stays above
+("The split"), as committed at `e91275c`. The pass is the labels judge's C1 option 1, in
+`scripts/split_golden.py` (its docstring):
+
+- After the main draw, for each first-feature kind (the answer key's kind of a behaviour case's
+  first feature) with two or more behaviour cases in the whole file, v1.1's included, and none in
+  dev, taken in the order of the kinds' names: (a) the kind's lowest-numbered new test case moves
+  to dev; (b) among the new dev cases of that case's stratum (slot, label, tenant), those whose own
+  kind would still have a dev case in the whole file after they moved are eligible; sorted by
+  number and shuffled, the first moves to test. Each stratum keeps its count of test cases.
+- **The generator, chosen and written down before the pass first ran: a fresh
+  `random.Random(20261023)`, made once for the pass**, not the main draw's generator continued
+  (the labels judge's simulation found the same six ids either way).
+- The fixed order of kinds is their names, sorted. A kind with no new case to move, or a stratum
+  with no eligible case, stops the script and nothing is written. The pass reads the kinds from
+  the answer key (`raglab.ingest.answer_key`), so the script takes `--root`.
+
+Tests (`tests/unit/test_split_golden.py`): on cases built in the test, the lowest-numbered new
+test case of an all-test kind moves to dev and one eligible case of its stratum, drawn by a fresh
+`random.Random(20261023)` computed again in the test, moves to test (a single-case kind's case, a
+case of another stratum and the moved case are never eligible); a kind with a dev case, or of one
+case, is left; the two stops; the pass through `split()` is seeded. The fixture and the GV6 test
+pass the answer key's kinds. **One run before the commit:** the GV6 re-split test, run on the
+committed file with the pass in place and nothing changed after, failed on 6 lines (the first,
+"G-38: split dev, the seeded rule gives test"): the pass's first run, in memory, before the code
+was committed; the code was not edited after it.
