@@ -43,11 +43,13 @@ pytestmark = pytest.mark.unit
 # answer-v1's judged consistency baseline (S5), and answer-v2's judged record compared with it
 A_JUDGED = "20261021T081852Z-judge-local-dev-5aa0ec5"
 B_JUDGED = "20261023T090413Z-judge-local-dev-c14acb0"
+# S6's judged baseline on golden set v2 (S4b's run 1, judged on 2026-10-24 under today's cap)
+V2_JUDGED = "20261024T210231Z-judge-local-dev-c8da78b"
 JUDGE_CONFIG = ROOT / "config" / "judge-local.toml"
-# Each record held to today's judge, with the cap it was made under (the S5 cap, set from the
-# short judge session of 2026-10-20). S6's judged baseline on golden set v2 joins it with the cap
-# it is made under, today's, and is then matched exactly, its file sha256 included.
-RECORDS: dict[str, float] = {A_JUDGED: 7200.0, B_JUDGED: 7200.0}
+# Each record held to today's judge, with the cap it was made under: the S5 cap (set from the
+# short judge session of 2026-10-20) for the two v1.1 records; today's, S6's, for the judged
+# baseline on golden set v2, which is then matched exactly, its file sha256 included.
+RECORDS: dict[str, float] = {A_JUDGED: 7200.0, B_JUDGED: 7200.0, V2_JUDGED: 12600.0}
 
 
 def judged_manifest(run_id: str) -> dict:
