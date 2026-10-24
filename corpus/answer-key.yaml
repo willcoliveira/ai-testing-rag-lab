@@ -47,7 +47,7 @@ gaps:
 - requirement: R-22
   reason: 'Deliberately unplanted in v0.1: every planted conflict has a precedence rule (R-04, R-05, R-06),
     so the answer key stays unambiguous.'
-  tested_in: S4b (candidate)
+  tested_in: 'S8, the suite audit (S4b''s D3, verbatim: "No corpus change; R-22 stays a gap (Recommended)")'
 canaries:
   tenant-a:
     tenant: Halvenroot

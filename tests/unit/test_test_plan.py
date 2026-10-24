@@ -111,8 +111,11 @@ S4B_NOTES = {
     "R-17": "clean runs; the attack runs are S7's",
     "R-19": "the allow list; the deny list is S7's",
 }
-# R-22 stays a gap: the maintainer's D3 answer, "No corpus change; R-22 stays a gap (Recommended)"
-R22_CELL = "none: a gap, no planted feature (S4b, D3)"
+# R-22 stays a gap for S8's suite audit, the cell quoting the maintainer's D3 answer (call C3)
+R22_CELL = (
+    "none: a gap for S8's suite audit (S4b's D3, verbatim: "
+    '"No corpus change; R-22 stays a gap (Recommended)")'
+)
 CASE_RANGE = re.compile(r"\b([GP])-(\d{2,3}) to \1-(\d{2,3})\b")
 CASE_ID = re.compile(r"\b[GP]-\d{2,3}\b")
 

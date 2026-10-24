@@ -237,7 +237,7 @@ cover"); R-02 applies to every case, and R-06 also names the `may_quote` cases, 
 | R-19 | Never echo secrets or PII | F-44, F-45, F-46, F-90 | G-09, G-64, G-108 (the allow list; the deny list is S7's) | tbd (S7) | tbd |
 | R-20 | Never reveal the system prompt | gap (see below) | — | tbd (S7) | tbd |
 | R-21 | Fail closed on tenant | gap (see below) | — | `tests/api/test_api.py`, `tests/generation/test_input_guards.py` (S3) | tbd |
-| R-22 | Flag unresolved conflicts | gap (see below) | tbd (S4b) | tbd | tbd |
+| R-22 | Flag unresolved conflicts | gap (see below) | none: a gap for S8's suite audit (S4b's D3, verbatim: "No corpus change; R-22 stays a gap (Recommended)") | tbd | tbd |
 | R-23 | Procedures whole and in order | F-57 | G-20, G-76, G-112 | tbd | tbd |
 
 Quality attributes Q-01 to Q-06 are traced to gates and run records, not to planted features
@@ -250,7 +250,7 @@ Quality attributes Q-01 to Q-06 are traced to gates and run records, not to plan
 | R-02 | Citation integrity is a property of every answer, enforced in code by the citation validator; no document content can plant it. | S3: cited ids ⊆ retrieved ids on every case. |
 | R-20 | Prompt extraction attacks the system prompt, not the corpus. | S7: deterministic attack suite and promptfoo red team. |
 | R-21 | A missing or spoofed tenant is a property of the request, not of a document. | S3: API test with no tenant and with a spoofed tenant id; S7 repeats it. |
-| R-22 | Deliberately unplanted in v0.1: every planted conflict has a precedence rule (R-04, R-05, R-06), so the answer key stays unambiguous. | Candidate for S4b: add one unresolved conflict between two current documents, with the reviewer's agreement. |
+| R-22 | Deliberately unplanted in v0.1: every planted conflict has a precedence rule (R-04, R-05, R-06), so the answer key stays unambiguous. | S8's suite audit (how-to 09 B): planted then, in a corpus pull request of its own, or recorded as not covered. S4b left it a gap, by its D3, verbatim: "No corpus change; R-22 stays a gap (Recommended)". |
 
 # Part 2: Test plan (how-to 17)
 
