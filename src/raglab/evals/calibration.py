@@ -46,9 +46,10 @@ is stratified by the judge's verdict, each item is weighted by its stratum's fra
 sample size, and the unweighted shares are shown beside. The point estimates are exact fractions,
 so a bar line is compared without rounding. The intervals are 95% percentile intervals (type 7, as
 `raglab compare`) from a bootstrap within strata: each resample draws each stratum's own number of
-items from it with replacement, strata in the bar's order (judge passes, then fails), with one
-`random.Random(<agreement seed>)` stream; a resample whose statistic is undefined is counted and
-reported, never imputed. Beside them: the judged record's repeatability and order agreement on the
+items from it with replacement, strata in the bar's order (judge passes, then fails); each scope (a
+criterion, then pooled) draws its resamples from a stream of its own,
+`random.Random(<agreement seed>)`; a resample whose statistic is undefined is counted and reported,
+never imputed. Beside them: the judged record's repeatability and order agreement on the
 same criteria; the re-label's agreement with the labels (D3); the corrections after the verdicts
 were seen (a "human error"), reported and never read by the bar.
 
