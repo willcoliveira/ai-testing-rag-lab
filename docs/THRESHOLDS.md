@@ -55,9 +55,9 @@ evidence for the second sign-off; its numbers are not the baseline's.
 
 ### The judge's calibration bar (S6)
 
-Written before any sample or label exists, in `datasets/calibration/judge-v2-c1/bar.toml`, which
-`raglab calibrate` reads; `tests/judge/test_calibration_bar.py` holds this table equal to that
-file. The maintainer's answers (2026-10-23), verbatim: D1 "grounded and abstains, 15 each
+Written before any sample or label exists, in `datasets/calibration/judge-v2-c1/bar.toml` (commit
+`d7c9b76`, the bar and the labelling guide in a commit of their own), which `raglab calibrate`
+reads; `tests/judge/test_calibration_bar.py` holds this table equal to that file. The maintainer's answers (2026-10-23), verbatim: D1 "grounded and abstains, 15 each
 (Recommended)"; D2 "kappa 0.80 trusts, under 0.60 stops (Recommended)". Per calibrated criterion,
 the bar reads Cohen's kappa of the judge against the maintainer's sealed labels on the criterion's
 items: the point estimate. It never reads the interval, the weighted TPR and TNR, the pooled kappa,
@@ -79,6 +79,27 @@ stays reported. 30 labels are a precursor, not the calibration study: the interv
 the bar reads the point estimate. The other five criteria (`cites_support`, `correct`, `relevant`,
 `refuses_and_helps`, `context_sufficient`) are not calibrated by these labels: they stay reported
 and are never gated until labels of their own calibrate them.
+
+### The calibration's verdicts (S6)
+
+Per calibrated criterion, its status by the bar, from the calibration's record, which
+`tests/judge/test_calibration_thresholds.py` holds these rows equal to (the status and the kappa).
+Until the labels are sealed and the record exists, each row waits, and every judged criterion stays
+reported, not gated.
+
+| Criterion | Status | Kappa [95%] | TPR, TNR weighted [95%] | Record |
+|---|---|---|---|---|
+| `grounded` | waiting for the labels | - | - | `datasets/calibration/judge-v2-c1/record.md`, once the labels are sealed |
+| `abstains` | waiting for the labels | - | - | `datasets/calibration/judge-v2-c1/record.md`, once the labels are sealed |
+
+- **Recalibration triggers** (how-to 05 step 7): a change of the judge's model, digest or prompt
+  version; a change of docs/CRITERIA.md or of the canary set; a new golden set version; S8's drift
+  alert on a judged pass rate; and the gate map's manual calibration re-run before each release.
+  Each makes the record history for the judge it no longer describes.
+- **The judged record's limit (AV2-J3):** a published judged record's integrity rests on the
+  reviewed commit that publishes it, since its checks hold each verdict to its reply and not the
+  reply to the judge; the calibration pins the judged record's manifest sha256, so a verdict
+  changed after the sample is drawn is refused.
 
 ## Cost and latency (S5, Q-01, Q-02)
 

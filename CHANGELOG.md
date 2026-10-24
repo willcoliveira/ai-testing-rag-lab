@@ -5,6 +5,15 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- S6, judge calibration (plan `docs/plans/2026-10-23-s6-judge-calibration.md`, ledger beside it):
+  the bar (`datasets/calibration/judge-v2-c1/bar.toml`; D2, "kappa 0.80 trusts, under 0.60 stops
+  (Recommended)") and the labelling guide written before any sample; rule s6-1, a seeded sample
+  stratified by criterion and the judge's verdict that holds no verdict; `raglab label` (`make
+  label`, `make relabel`), blind, in the judge's schema, sealed; `raglab calibrate` (`make
+  calibrate`): kappa, the confusion table, TPR and TNR weighted by stratum with intervals from a
+  bootstrap within strata, the record in how-to 05's template, and its refusals; the guard that
+  keeps labels out of the judge; the one-judge test holds the same judge, the cap excepted. The
+  judged baseline on golden set v2, the sample, the labels and the verdicts follow S4b's merge.
 - answer-v2, the prompt fix for abstention (plan `docs/plans/2026-10-21-answer-v2.md`, ledger
   beside it), measured on dev and not adopted (the user's decision, verbatim: "Not adopted, runs
   stay published (Recommended)"): its first run after the sign-off gained four cases on answer-v1's

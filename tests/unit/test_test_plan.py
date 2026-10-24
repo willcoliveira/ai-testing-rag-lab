@@ -283,15 +283,19 @@ def criteria_requirements() -> dict[str, list[str]]:
     return covers
 
 
-def test_r5_names_its_tests_and_its_gate_local_until_keys_reported_until_s6():
+def test_r5_names_its_tests_and_its_gate_local_until_keys_by_the_s6_calibration():
     """S5 AC14: R5 is built, so it names its tests (the arrows test checks each exists) and its
-    gate says local until keys and reported until S6; its oracle says what is judged and what
-    stays label-based."""
+    gate says local until keys; its oracle says what is judged and what stays label-based. S6
+    (JC12): its gate is per criterion by the calibration's verdicts in docs/THRESHOLDS.md, no
+    longer "until S6"."""
     rows = {r[0]: r for r in all_rows()}
     r5 = rows["R5"]
     assert r5[4].startswith("`tests/"), "R5 is S5's and must name its tests"
     assert "local until keys" in r5[5]
-    assert "reported, not gated, until S6" in r5[5]
+    assert "reported, not gated, until S6" not in r5[5]
+    assert "per criterion by the S6 calibration" in r5[5]
+    assert "The calibration's verdicts (S6)" in r5[5]
+    assert "only a criterion trusted there may gate" in r5[5]
     assert "docs/CRITERIA.md" in r5[3]
     assert "label-based" in r5[3]
 
