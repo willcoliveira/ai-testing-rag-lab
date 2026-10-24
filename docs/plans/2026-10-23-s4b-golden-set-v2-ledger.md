@@ -923,7 +923,7 @@ datasheet v2 row changed.
 | S4b-J1 (low) | The ledger's reading of the unchanged questions names the other manifest differences: the embedder block (fastembed 0.8.1 to 0.9.0 and its fingerprint) and the tools (numpy 2.5.3 to 2.5.4, raglab 0.0.1 to 0.1.0), with the results still identical per question | `0fd1509` | Read from the three pairs of manifests: each differs in config (`file_sha256`, `sha256`), dataset (`path`, `sha256`), embedder (`fastembed`, `sha256`), tools (`numpy`, `raglab`), and its run's own id, time, commit, duration and file hashes |
 | S4b-J2 (info) | Disclosed under the labels judge's seal: the orchestrator cut the blind inputs at 23:51 with `make_blind.py` and left a copy of the labelled file in the labels judge's folder; `make_labels.py` reads only the two blind inputs (checked by the orchestrator and the criteria judge); the blindness rests on the labels judge's instructions and statement; next time such inputs are cut outside the judge's folder | `0fd1509` | none to run |
 | S4b-J3 (info) | The in-memory run note says what git shows (the script unchanged since `9b1eb19`, before `8c72231`, and its re-run reproducing the file and the six moves) and marks the rest as the developer's statement | `0fd1509` | none to run |
-| S4b-J4 (low) | Recorded under "Not in this PR" (below), for S8; no code change | this commit | none to run |
+| S4b-J4 (low) | Recorded under "Not in this PR" (below), for S8; no code change | `ada9d04` | none to run |
 | S4b-J5 (info) | The traceability test names the cases a cell lacks, and the cases it names that do not cover the requirement, as set differences | `be9ddf7` | Red before: the judge's break b printed both lists. After, on TEST-PLAN with G-73 dropped from R-08's cell: "R-08: the cell lacks ['G-73']"; restored, `test_test_plan.py` "14 passed" |
 | S4b-J6 (info) | The datasheet says its "18 a labelled section" leaves out `may_quote` sections, and that 20 share one with them (G-85's and G-93's quotes) | `1fe17f1` | Recomputed from the committed files: 18 of 28 by labels and group members, 20 of 28 with `may_quote` on both sides; check-dataset passes both files (prose only) |
 | S4b-J7 (info) | Nothing in this PR: `make audit` is red on `main`, fixed by the coordinator's `build(deps)` pull request, merged into this branch after | none | the audit lines under each `make -k check` |
@@ -936,6 +936,32 @@ with `git checkout` (the tree clean after each, check-dataset passing both files
 - GV4, every tenant B test case of one label moved to dev (G-66, tenant B's only refuse-and-help test case): "golden.v2.jsonl: rule 9 (mix): no tenant-b refuse-and-help case is in the test split" and rule 10; v1.1 passes (expected pass).
 - GV8, the v2 row removed: `test_every_published_run_names_a_dataset_version_the_datasheet_lists` fails, "Left contains 8 more items, first extra item: \"20261024T090200Z-retrieval-dense-dev-ade9397: dataset.sha256 3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e is no version the datasheet's Maintenance table lists\"" (every v2 run named), and check-dataset: "golden.v2.jsonl: rule 10 (version): no version line of DATASHEET.md's Maintenance table names golden.v2.jsonl, so the file has no version and rule 9 no contract". With v2's own sha256 then written in prose: the same failures, so a hash in prose is still no version.
 - GV8, a sha256 written in prose outside the table (expected pass): the version tests "5 passed", and check-dataset passes both files.
+
+**make -k check at the end of fix round 1** (`ada9d04`, a clean tree, 14:18:14 to 14:22:12 WEST,
+no session running): **exit 2, `audit` the only red target**, pre-existing on `main` ("Found 8
+known vulnerabilities, ignored 43 in 3 packages": filelock 4.0.12 three times, Pillow 12.3.0
+twice, pypdf 6.19.0 three times). Every other target passes:
+
+    264 files already formatted
+    All checks passed!
+    0 errors, 0 warnings, 0 informations
+    Success! No dependency issues found.
+    Found 8 known vulnerabilities, ignored 43 in 3 packages
+    make: *** [audit] Error 1
+    no leaks found
+    no leaks found
+    0 hits across 397 files (42 rules)
+    0 architecture violations in src/raglab
+    check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 3d924ad0bd1d)
+    ========== 1419 passed, 2 deselected, 1 warning in 194.47s (0:03:14) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636
+    api-smoke: passed
+
+The count, 1419, is the same as at STOP 3: the round added no test function (S4b-J5's extra
+break sits in an existing test, and the cleanup replaced one test with another), and the removed
+skips were inert; no test is skipped. Nothing pushed; no live session in this round; the golden files, the answer key, the
+datasheet's v2 row and every published record are as they were at `e90059e`.
 
 ## Not in this PR
 
