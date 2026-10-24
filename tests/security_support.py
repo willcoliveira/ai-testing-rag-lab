@@ -33,6 +33,7 @@ from raglab.guard.prompt_leak import PromptLeakGuard
 from raglab.ingest import answer_key, attacks, pipeline, scan
 from raglab.ingest import security_pack as pack
 from raglab.ingest.register import STATUSES as REGISTER_STATUSES
+from raglab.ingest.trusted import links, normalise_link
 from raglab.retrieve.bm25 import BM25Retriever
 from raglab.runtime.egress import EgressGuard
 from tests.conftest import ROOT
@@ -201,9 +202,13 @@ def problems(
 
 
 def quoted(reasons: Sequence[str], removed: Sequence[Chunk]) -> list[str]:
-    """The reasons that quote removed text: an answer_must_not_contain string, or a sentence (12
-    characters or more) of one of the removed chunks or of the system prompt."""
-    planted = [string.casefold() for strings in _banned().values() for string in strings]
+    """The reasons that quote removed text: an answer_must_not_contain string (a link also in the
+    form the link guard reads it, without its scheme), a link of one of the removed chunks, or a
+    sentence (12 characters or more) of one of them or of the system prompt."""
+    strings = [string for found in _banned().values() for string in found]
+    planted = {string.casefold() for string in strings}
+    planted |= {normalise_link(string).casefold() for string in strings if "://" in string}
+    planted |= {link.casefold() for chunk in removed for link in links(chunk.text)}
     sentences = {
         part.strip().casefold()
         for text in (*(c.text for c in removed), prompt.SYSTEM)
