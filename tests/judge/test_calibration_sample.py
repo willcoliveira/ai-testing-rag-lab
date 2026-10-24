@@ -92,13 +92,21 @@ def test_each_stratum_is_taken_in_its_own_seeded_shuffle():
 
 
 def test_one_item_per_case_first_then_second_trials_in_the_same_order():
-    """Case A has three trials in the stratum, B and C one each: four items take A, B and C
-    first, then a second trial of A."""
-    lines = [line("A", t, grounded="pass") for t in (1, 2, 3)]
+    """Case A has five trials in the stratum, B and C one each: four items take A's first in the
+    seeded order, B and C, then A's next, although the order puts four of A's trials first."""
+    lines = [line("A", t, grounded="pass") for t in range(1, 6)]
     lines += [line("B", 1, grounded="pass"), line("C", 1, grounded="pass")]
     lines += [line("D", t, grounded="fail") for t in (1, 2)]
+    order = sorted((c["case_id"], c["trial"]) for c in lines if c["case_id"] != "D")
+    random.Random("20261023:grounded:pass").shuffle(order)  # noqa: S311
+    first_round = [
+        next(a for a in order if a[0] == case) for case in dict.fromkeys(c for c, _ in order)
+    ]
+    second = next(a for a in order if a not in first_round)
+    assert {*first_round, second} != set(order[:4]), "the order puts A's trials first"
     drawn = calibration.draw(lines, bar(grounded=(4, 2)))
-    passes = [(i.case_id, i.trial) for i in drawn.items if i.case_id != "D"]
+    passes = {(i.case_id, i.trial) for i in drawn.items if i.case_id != "D"}
+    assert passes == {*first_round, second}
     assert Counter(case for case, _ in passes) == {"A": 2, "B": 1, "C": 1}
     assert drawn.shortfall == ()
 
