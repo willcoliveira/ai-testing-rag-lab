@@ -144,7 +144,8 @@ The 3 skipped tests are the checks of the committed `golden.v2.jsonl`, which doe
    table has no File column; while the committed datasheet has that form, each of its rows is
    the checked file's, so `make check` stays green before the cases. That reading goes at the
    integration, with its test, once the datasheet has its File column (S4's precedent: the
-   integration removed a temporary exemption, S4 ledger, decision 1).
+   integration removed a temporary exemption, S4 ledger, decision 1). **Removed in fix round 1**
+   (`c9e67e9`), later than planned: a table with no File column now versions no file.
 2. **A must-not-block case** is one with a feature of kind exactly `must-not-block` (F-54 to
    F-56), the set rule 6 already reads. v1.1 then has 2 (G-12, G-33), as the plan counts; F-46's
    kind, `contact (must-not-block)`, is not counted.
@@ -163,7 +164,8 @@ The 3 skipped tests are the checks of the committed `golden.v2.jsonl`, which doe
 7. **v1.1's lines inside v2 are compared byte for byte**, a stricter reading of GV1's "unchanged
    (every field)".
 8. **The tests of the committed v2 file are skipped while it does not exist**; the skip goes at
-   the integration, so a missing file then fails.
+   the integration, so a missing file then fails. **Removed in fix round 1** (`c9e67e9`), later
+   than planned; the skips were inert from the integration on, since the file existed.
 9. **R-06's by-design cases** are derived as the may_quote cases (in v1.1, G-26 alone, as before).
 10. **The S4b cells' words** in TEST-PLAN, which the test holds: R-15 and R-17 end "(clean runs;
     the attack runs are S7's)", R-19 "(the allow list; the deny list is S7's)", and R-22 reads
@@ -442,6 +444,14 @@ the datasheet: `blind-labels.jsonl`, sha256
 `31d989d24a32d6f0057732a0a00b56d15d6e0558f1f11cbc6b34ef746721e4c3`, sealed at 2026-10-24 00:01
 WEST and made read-only. It opened nothing under `runs/` and ran no model.
 
+**How blind, disclosed in fix round 1 (the criteria judge's S4b-J2, reduced from low to info):**
+the orchestrator cut the labels judge's blind inputs at 23:51 with `make_blind.py`, and left a copy
+of the labelled file, `src/golden.v2.at-253d18a.jsonl` (sha256 `154536a9…`, the author's file
+before the split), inside the labels judge's folder. The labels judge's `make_labels.py` reads only
+`blind/questions.jsonl` and `blind/answer-key.yaml`: the orchestrator and the criteria judge both
+checked it. So the blindness rests on the labels judge's instructions and its statement, not on
+the file system. Next time the orchestrator cuts such inputs outside the judge's folder.
+
 **The agreement:** 80 of 80 labels match; observed agreement 1.0000; chance agreement 0.3303 (both
 marginals 39 answer, 18 abstain, 10 flag-conflict, 13 refuse-and-help); Cohen's kappa 1.0000; no
 disagreement. The file's first feature is among the judge's feature ids for 80 of 80 cases, the
@@ -574,9 +584,13 @@ test case of an all-test kind moves to dev and one eligible case of its stratum,
 case of another stratum and the moved case are never eligible); a kind with a dev case, or of one
 case, is left; the two stops; the pass through `split()` is seeded. The fixture and the GV6 test
 pass the answer key's kinds. **One run before the commit:** the GV6 re-split test, run on the
-committed file with the pass in place and nothing changed after, failed on 6 lines (the first,
-"G-38: split dev, the seeded rule gives test"): the pass's first run, in memory, before the code
-was committed; the code was not edited after it.
+committed file with the pass in place, failed on 6 lines (the first, "G-38: split dev, the seeded
+rule gives test"): the pass's first run, in memory, before the code was committed. **Reworded in
+fix round 1 (the criteria judge's S4b-J3), to what can be verified:** the script is unchanged
+since `9b1eb19`, which comes before `8c72231` (the run that wrote the file), and running it again
+reproduces the file and the six moves (the GV6 test, and the criteria judge's own re-run). That
+the code was not edited between the in-memory run and `9b1eb19` is the developer's statement; git
+cannot show it.
 
 **The run** (`8c72231`). The pass was committed as `9b1eb19`; then the 80 new lines' splits were
 taken out (which gave back the question author's bytes exactly, sha256 `154536a96941...`) and
@@ -719,8 +733,12 @@ ids, the same scores (to six places), hit, reciprocal rank, recall and labels as
 `97011a7` (`20261019T180502Z`, `…180515Z` and `…180529Z`); the metrics and both comparisons are
 those of the S4 ledger. Each pair's corpus sha256 (`8918d4f79673` at 1,200, `6b8059386025` at 600)
 and embedder revision are the same; the dataset sha256 and the config sha256 differ, the config's
-because it names the new file. So nothing to explain: retrieval did not move, and fastembed 0.9.0
-gives the S4 values.
+because it names the new file. **Corrected in fix round 1 (the criteria judge's S4b-J1):** besides
+the dataset and config sha256, the v2 manifests differ from v1.1's in the embedder block (fastembed
+0.8.1 to 0.9.0, and with it the embedder's fingerprint, its `sha256`) and in the tools (numpy
+2.5.3 to 2.5.4, raglab 0.0.1 to 0.1.0), beside what each run has of its own (its id, time, commit,
+duration and file hashes); the results are still identical per question. So nothing to explain:
+retrieval did not move, and fastembed 0.9.0 gives the S4 values.
 
 ### GV11: the five `make eval-local` sessions
 
