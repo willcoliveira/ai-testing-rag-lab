@@ -170,8 +170,11 @@ def test_the_sample_file_holds_the_pins_and_the_item_keys_only(tmp_path):
     for row in rows[1:]:
         assert list(row) == list(calibration.ITEM_FIELDS)
     text = (folder / calibration.SAMPLE).read_text()
-    for word in ('"verdict"', '"stratum"', "REASON", "QUOTE"):
-        assert word not in text
+    items = "\n".join(text.splitlines()[1:])
+    for word in ('"verdict"', '"stratum"', '"judge', "pass", "fail"):
+        assert word not in items, word
+    for word in ('"verdict"', "REASON", "QUOTE"):  # the pins hold aggregates only
+        assert word not in text, word
 
 
 def test_a_sample_with_a_verdict_field_is_refused(tmp_path):
