@@ -173,10 +173,10 @@ was empty.
 | OB6 | met offline | `tests/api/test_perf_mode.py`, 59 tests: a 24-row table of environment, mode, opt-in and provider in `environment.switches` and in `create_app`; the process environment read by default; the perf config served with `/version` naming `perf-stub` and provenance `fake` (the real assembly over the small pack); neither switch set changes nothing; only serve reads a perf-stub config (`raglab eval`, `raglab ask` and `raglab ollama status` refuse it); the perf config has the local config's retrieval and tokens; six refusals as a subprocess of `raglab serve` that holds no port (the test holds it), each "serve failed: ..." on one line, exit 1, nothing on stdout. `make api-smoke` passes as before (the make check below) | (1) the `RAGLAB_ENV` check removed (`if False:`): "20 failed, 39 passed", among them the prod and unset rows in process and as a subprocess; (2) the check moved from `build_app` and `create_app` into the app's startup: "23 failed, 36 passed", the five subprocess rows among them (exit 3 and uvicorn's "Application startup failed"; the real-model row first reached for Ollama's `/api/tags` on loopback, refused); (3) the mode accepted under any config (`if False:` for the provider check): "6 failed, 53 passed", the local-ollama row in process and as a subprocess among them; restored "59 passed" |
 | OB7 | met locally; [CI] the perf job's log | `tests/unit/test_collector_config.py`, 7 tests (the receiver on `127.0.0.1` only and OTLP over HTTP only; the local pipeline to a file; no metrics endpoint; the delete list equals raglab's content keys and the spec's Opt-In keys, first in the Langfuse pipeline; endpoint and auth from the environment, no key in any file; the stand-in replaces only the exporter; the smoke's collector environment); `tests/unit/test_perf_smoke.py` (the pins; a changed pin and a bad download refused, nothing kept; a pid file refuses the start and no earlier run's numbers are read); `make perf-smoke`: `validate` passed on the three configurations, the fixture span's content keys reached the local file and none passed the Langfuse pipeline; the postcheck passed. Without the Langfuse keys `validate` refuses `langfuse.yaml` ("exporters::otlp_http/langfuse: at least one endpoint must be specified") | (1) the receiver bound to `0.0.0.0`: "1 failed, 6 passed"; (2) `raglab.content.answer` removed from the delete list: the config test "1 failed, 6 passed", and `make perf-smoke` "perf-smoke: failed: 5 the Langfuse pipeline let content keys through: ['raglab.content.answer']"; (3) one character of k6's macOS pin changed (`b2417a30...` to `c2417a30...`): "perf-smoke: failed: k6 2.3.0: .../k6-v2.3.0-macos-arm64.zip has sha256 b2417a30..., not the pinned c2417a30...; it is not used (delete it to fetch the archive again)", nothing started, the postcheck passed; (4) the collector's stop skipped: "perf-smoke: failed: 6 the collector's port 4391 still answers; 6 the collector (pid 18026) is still running; 6 runs/tmp/perf/otelcol.pid was not removed"; the next `make perf-smoke` refused at the start ("runs/tmp/perf/otelcol.pid exists: a collector from an earlier run may still be running (pid 18026)"), and the developer stopped pid 18026 with SIGTERM and removed the pid file. That run also printed the earlier run's numbers: a bug, fixed in `752ed70` with a test |
 | OB8 | not applicable, by D2 ("Collector in CI only, no account") | the Langfuse pipeline is built and validated (OB7) and never sends | |
-| OB9 | met locally; [CI] the perf job | `perf/smoke.js` (one user, 10 warm-up and 100 gated requests, checks rate 1, no failed request, p90 and p95 reported, the median gated once T is set); `make perf-smoke` runs the steps in order and exits non-zero on any failure (the runs below); `tests/unit/test_workflow_rules.py` (the perf job: its own timeout, no needs, the same pinned actions, model and Tesseract steps as `check`, `make perf-smoke` offline last; zizmor: "No findings to report") | (1) a 500 planted in the `/ask` route for the question with `perf-marker-03`: k6 "✗ 'rate==1' rate=80.00%", "✗ 'rate==0' rate=20.00%" (88 of 110 checks), "3 k6 exited with 99", and the trace check "22 traces lack a span"; restored. (2) The median break (a delay of 2 × T) waits for T |
-| OB10 | waiting: the ten report-only runs on the pull request | THRESHOLDS.md's row says "not set" and the script's `MEDIAN_THRESHOLD_MS` is `null`; `test_the_scripts_threshold_equals_the_thresholds_cell` holds them equal | |
-| OB11 | met for what needs no CI run | the docs above; `tests/unit/test_test_plan.py`, `test_diagram.py`, `test_onboarding.py`, `test_readme.py`, `test_repo_docs.py` pass. ARCHITECTURE and README show S9 `wip` (S9 `done` with OB10) | |
-| OB12 | local: green but for the pre-existing audit lines (below); [CI] the pull request's checks | | |
+| OB9 | met, locally and in CI (the perf job passed ten times on the pull request, below) | `perf/smoke.js` (one user, 10 warm-up and 100 gated requests, checks rate 1, no failed request, the median under T = 40 ms, p90 and p95 reported); `make perf-smoke` runs the steps in order and exits non-zero on any failure (the runs below); `tests/unit/test_workflow_rules.py` (the perf job: its own timeout, no needs, the same pinned actions, model and Tesseract steps as `check`, `make perf-smoke` offline last; zizmor: "No findings to report") | (1) a 500 planted in the `/ask` route for the question with `perf-marker-03`: k6 "✗ 'rate==1' rate=80.00%", "✗ 'rate==0' rate=20.00%" (88 of 110 checks), "3 k6 exited with 99", and the trace check "22 traces lack a span"; restored. (2) With T set (`657797d`), a delay of 2 × T, `sleep(0.080)` before the pipeline in `ask_locked`: k6 "✗ 'med<40' med=111.27ms" (checks and failures still held), "perf-smoke: failed: 3 k6 exited with 99 (99: a threshold was crossed)"; restored, and the next run passed with "✓ 'med<40' med=5.4ms" |
+| OB10 | met | the ten runs and the arithmetic below (OB10's section); THRESHOLDS.md's row (`median < 40 ms`, the ten attempts with their medians and p95s, the rule, the reason, the provenance: the fake model, GitHub's runner; "not Q-01"); `perf/smoke.js` `MEDIAN_THRESHOLD_MS = 40`; `test_the_scripts_threshold_equals_the_thresholds_cell` passes | the criteria judge's: the script's T edited alone, and T recomputed from the ten logs |
+| OB11 | met | the docs above, and since T: OBSERVABILITY's gate, TEST-PLAN's perf line, COMPATIBILITY's CI line, ONBOARDING's median break (its "Not testable yet" row removed), CHANGELOG; ARCHITECTURE and README show S9 `done` (`0ecea82`); `tests/unit/test_test_plan.py`, `test_diagram.py`, `test_onboarding.py`, `test_readme.py`, `test_repo_docs.py` pass | |
+| OB12 | local: green but for the pre-existing audit lines (the make check sections below); [CI] the `check` job stops at `make audit` on the same pre-existing lines, so its later steps wait for the audit pull request | the pull request's first run (below) | |
 
 ## Local runs of `make perf-smoke` (the Mac, not GitHub's runner)
 
@@ -188,26 +188,40 @@ medians are the Mac's, for the record only: T comes from the ten runs on GitHub'
 | 2026-10-24 03:26 | before `8bfc90c`, uncommitted | passed | 19.68 s real | 5.38 ms, 5.92 ms |
 | between the two | the breaks of OB7 and OB9 above | failed as expected | | |
 | after the commit of `752ed70` (03:43) | `752ed70` | passed | 17.75 s real | 5.29 ms, 5.79 ms |
+| 2026-10-24, after `657797d` (T set) | OB9's median break | failed as expected (above) | | 111.27 ms, 118.95 ms |
+| right after it | `657797d` | passed, "✓ 'med<40' med=5.4ms" | 17.66 s real | 5.41 ms, 6.08 ms |
 
 The first run fetched k6 and the collector into `~/.cache/raglab/tools` (30130878 and 35177135
 bytes); every later run checked both sums from the cache.
 
 ## Developer choices (for the review)
 
-1. **An explicit provider, never the global one.** FastAPI takes the provider in its `telemetry`
-   dict ("You can also pass a provider directly"), so `raglab serve` hands it the same provider the
-   pipeline's tracer uses, and the tests give each app its own: the request span is still the root
-   and the pipeline span its child (`test_one_ask_is_one_trace...`). No code sets the global
-   provider. This replaces the plan's OB4 wording "the global provider installed once per test
-   session ... cleared per test", and removes its risk "one global provider per process".
+Five of them were put to the maintainer through the orchestrator at stop 1 and confirmed on
+2026-10-24, as decided ("Your five items to confirm are fine as you decided", the orchestrator's
+message): 1 and 3 together (the provider handed to FastAPI, only `POST /ask` traced), 4 (content
+only for an ok answer), 9 (the constraint, dropped after 2026-10-29), 10 (the collector v0.162.0)
+and 11 (the ports). Each carries its reason below.
+
+1. **An explicit provider, never the global one** (confirmed). FastAPI takes the provider in its
+   `telemetry` dict ("You can also pass a provider directly"), so `raglab serve` hands it the same
+   provider the pipeline's tracer uses, and the tests give each app its own: the request span is
+   still the root and the pipeline span its child (`test_one_ask_is_one_trace...`). No code sets the
+   global provider. The reason: nothing is shared between tests or leaks into a process that never
+   asked for tracing, and an eval run cannot pick up a provider by accident. This replaces the
+   plan's OB4 wording "the global provider installed once per test session ... cleared per test",
+   and removes its risk "one global provider per process".
 2. **The allowlist is per instrumentation scope.** raglab's spans keep raglab's reviewed keys,
    FastAPI's the three HTTP keys, any other scope none; so the chat span's `server.address` (the
    configured model server) stays while FastAPI's (the Host header) goes.
-3. **FastAPI traces `POST /ask` only** (its `exclude` setting): health checks, the page and unknown
-   paths make no span.
-4. **Content only for an ok answer.** D4's option says "never ... anything of a refused or withheld
-   request"; I read a request whose model failed (unavailable, invalid output) as withheld too, so
-   the opt-in records the question and the answer of an ok answer only.
+3. **FastAPI traces `POST /ask` only** (its `exclude` setting; confirmed): health checks, the page
+   and unknown paths make no span. The reason: the plan's span table names one request span, the
+   API smoke's and the perf smoke's health polling would otherwise fill the traces, and an unknown
+   path never becomes a span name.
+4. **Content only for an ok answer** (confirmed). D4's option says "never ... anything of a refused
+   or withheld request"; I read a request whose model failed (unavailable, invalid output) as
+   withheld too, so the opt-in records the question and the answer of an ok answer only. The
+   reason: the stricter reading keeps the rule one sentence long and leaves no failure path that
+   records the question.
 5. **The tenant only once every input guard has passed**, slightly stricter than "once the tenant
    guard has passed", which would depend on the guards' order.
 6. **Retrieval's data source is `policy-pack`**, the one index; the retrieval span is `retrieval
@@ -217,10 +231,18 @@ bytes); every later run checked both sums from the cache.
    `json` only when the model's config sends a JSON schema.
 8. **The guard rule's keys live in `raglab.core.reasons`**, used by the API's `_reason` and by the
    trace, so the two cannot drift; S7 adds its guards' keys there and in `REASONS`.
-9. **`googleapis-common-protos` held by a `constraint-dependencies` line in both projects** (above).
-10. **The collector v0.162.0** (above, a choice to review).
-11. **Ports 8791 (server) and 4391 (collector)**, not the defaults, because other builds share this
-    Mac; `PERF_PORT` and `PERF_OTLP_PORT` change them.
+9. **`googleapis-common-protos` held by a `constraint-dependencies` line in both projects**
+   (confirmed; above). The reason: 1.76.0 is inside the 7-day cooldown, and the constraint keeps a
+   re-lock (a merge of `main`, another stage's dependency) from picking it up before 2026-10-29.
+   **A follow-up:** after 2026-10-29, drop the line from `pyproject.toml` and
+   `tools/deepeval-check/pyproject.toml` and re-lock both projects, in a pull request of its own or
+   with the next dependency change.
+10. **The collector v0.162.0** (confirmed, per the plan's choice 13; above). The reason: the plan
+    names it, with its sums, and v0.163.0 and v0.163.1 sat on the cooldown's boundary when it was
+    pinned, followed within five days by a patch release.
+11. **Ports 8791 (server) and 4391 (collector)** (confirmed), not the defaults (8000 for `raglab
+    serve`, 4318 for OTLP/HTTP), because other builds and the maintainer share this Mac and the API
+    smoke uses 8765; `PERF_PORT` and `PERF_OTLP_PORT` change them.
 12. **The Langfuse check runs in every `make perf-smoke`** with a file standing in for Langfuse: the
     exporter to Langfuse is defined, used by no pipeline, and pointed at a loopback placeholder.
 13. **k6's own summary export**, not `handleSummary` (no jslib fetch at run time), with
@@ -286,3 +308,58 @@ largest median, rounded up to the next 10 ms, written in `perf/smoke.js` (`MEDIA
 and THRESHOLDS.md's cell (`median < T ms`, with the ten run ids, medians and p95s), which the test
 holds equal; then S9 `done` in the phase map, ONBOARDING's last row moved, and the median break
 (a delay of 2 × T in the `/ask` route) run locally.
+
+## The pull request's first run, and OB10 (2026-10-24)
+
+The orchestrator pushed the branch at `12f8e70` and opened draft pull request #27. pr-fast run
+40074154534 (event `pull_request`, head `12f8e70`), its first attempt, read through GitHub's jobs
+API and each job's own log:
+
+- **`conventions`**: success, 7 s.
+- **`check`**: failure at its step 16, "Vulnerable dependencies", after 58 s; steps 1 to 15 passed
+  (the dataset check, the model, Format, Lint, Types, Dependencies and dead code among them) and 17
+  to 25 were skipped. Its audit printed "Found 8 known vulnerabilities, ignored 43 in 3 packages",
+  the eight pre-existing lines (filelock 4.0.12 three times, pillow 12.3.0 twice, pypdf 6.19.0
+  three times), none of an S9 package. The skipped steps (SAST to the API smoke) ran locally
+  (`make -k check`, below) and run in CI once the orchestrator's audit pull request has merged and
+  this branch has merged `main`.
+- **`perf`**: success, 72 s. Its log: "ok   k6 2.3.0: k6-v2.3.0-linux-amd64.tar.gz, sha256
+  39c3117b6af817592dcd0ce4242105c0a7af10948c2a425306f0be8f7a8a8ab1 (the pin)", "ok   otelcol
+  0.162.0: otelcol_0.162.0_linux_amd64.tar.gz, sha256
+  f99929987a915d3c6b2c9b15bc4938c5cea903a37a3f49e478024a0fa0772339 (the pin)", `validate` on the
+  three configurations, steps 1 to 6 `ok` (110 traces of /ask with their five spans), "perf-smoke:
+  passed". The linux pins and archive members, checked by download on the Mac, ran for the first
+  time here.
+
+**The ten report-only runs (OB10).** The orchestrator re-ran the perf job of that run at the same
+commit, attempts 1 to 10, and kept every one; all ten succeeded. I read each attempt's job through
+GitHub's API (head `12f8e70`, its attempt number, conclusion success, name `perf`) and its own log
+through the job-logs API: each log has one "perf-smoke: passed" line and the median line below,
+the same values as the orchestrator's list. (`gh run view --job <id> --log` printed the tenth
+attempt's log for every job id, so it was not used.) The jobs' 12-digit ids are not written here:
+the privacy check's pattern refuses them, and the run id with the attempt names each job.
+
+| Run 40074154534, attempt | /ask median | p95 | p90 | min | max | perf job |
+|---|---|---|---|---|---|---|
+| 1 | 15.13 ms | 17.52 ms | 17.35 ms | 13.00 ms | 38.34 ms | 72 s |
+| 2 | 14.27 ms | 16.75 ms | 16.45 ms | 12.22 ms | 30.88 ms | 85 s |
+| 3 | 14.50 ms | 16.71 ms | 16.46 ms | 12.25 ms | 33.52 ms | 84 s |
+| 4 | 14.34 ms | 16.70 ms | 16.47 ms | 12.41 ms | 34.72 ms | 70 s |
+| 5 | 8.01 ms | 9.39 ms | 8.91 ms | 6.83 ms | 18.27 ms | 55 s |
+| 6 | 15.38 ms | 17.69 ms | 17.46 ms | 12.71 ms | 34.23 ms | 75 s |
+| 7 | 14.73 ms | 17.12 ms | 16.97 ms | 12.60 ms | 29.27 ms | 78 s |
+| 8 | 13.85 ms | 16.50 ms | 15.95 ms | 11.52 ms | 37.33 ms | 83 s |
+| 9 | 14.42 ms | 16.87 ms | 16.47 ms | 12.29 ms | 40.18 ms | 77 s |
+| 10 | 12.24 ms | 13.73 ms | 13.68 ms | 9.93 ms | 14.18 ms | 74 s |
+
+**T, by the rule written before the runs:** the largest of the ten medians is attempt 6's, 15.38
+ms; 2 × 15.38 ms = 30.76 ms; rounded up to the next 10 ms, **T = 40 ms**. The medians span 8.01 to
+15.38 ms (a factor of 1.92 between the fastest runner and the slowest). T is in `perf/smoke.js`
+(`MEDIAN_THRESHOLD_MS = 40`) and THRESHOLDS.md's cell (`median < 40 ms`, with the ten attempts,
+their medians and p95s, the rule, the reason and the provenance), committed in `657797d`; the test
+holds them equal. The perf job took 55 to 85 s per attempt, under the plan's estimate of 3 to 6
+minutes, and the `check` job's 900 s budget is untouched by it. OB9's median break then ran
+locally (above): "✗ 'med<40' med=111.27ms", k6's exit 99. S9 is `done` in the phase map
+(`0ecea82`).
+
+The maintainer adds `perf` to `main`'s required checks (D3), through the orchestrator.
