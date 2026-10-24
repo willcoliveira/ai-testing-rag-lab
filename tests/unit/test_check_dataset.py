@@ -1,11 +1,15 @@
-"""S4 AC3: `raglab check-dataset` is a hard stop. Each of its ten rules is broken on a planted copy
-of a valid golden set (tests/dataset_support.py: the committed retrieval questions and 40
-behaviour cases from the plan's draft) and the check exits 1 naming the case and the rule; the
-valid copy and the committed file exit 0. Every `raglab eval` and `raglab gate` runs it first and
-stops before any model, embedder or ingestion starts."""
+"""S4 AC3 and S4b GV4: `raglab check-dataset` is a hard stop, per golden file and per version.
+Each of its ten rules is broken on a planted copy of a valid golden set (tests/dataset_support.py:
+v1.1, the committed retrieval questions and 40 behaviour cases from the S4 plan's draft; v2,
+golden set v1.1's lines and 80 planted cases split by scripts/split_golden.py) and the check
+exits 1 naming the case and the rule; the valid copies and the committed files exit 0. Rules 9
+and 10 hold each file to its own version, read from the datasheet's Maintenance row for the file.
+Every `raglab eval` and `raglab gate` runs it first on its config's file and stops before any
+model, embedder or ingestion starts."""
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -14,10 +18,22 @@ import pytest
 from raglab.__main__ import main
 from raglab.evals import dataset_check
 from tests.conftest import ROOT
-from tests.dataset_support import CASES, edited, sec, write_dataset
+from tests.dataset_support import (
+    CASES,
+    HEADER,
+    V2_CASES,
+    edited,
+    edited_lines,
+    maintenance,
+    sec,
+    v2_lines,
+    write_dataset,
+    write_v2,
+)
 
 pytestmark = pytest.mark.unit
 COMMITTED = ROOT / "datasets" / "golden.v1.jsonl"
+DATASHEET = ROOT / "datasets" / "DATASHEET.md"
 
 
 def problems(path: Path) -> list[str]:
@@ -29,39 +45,62 @@ def has(found: list[str], case: str, rule: int, text: str = "") -> bool:
     return any(p.startswith(head) and text in p for p in found)
 
 
-def test_the_valid_copy_and_the_committed_file_pass(tmp_path, capsys):
-    path = write_dataset(tmp_path)
+def test_the_valid_copies_and_the_committed_files_pass(tmp_path, capsys):
+    path = write_dataset(tmp_path / "v1")
     report = dataset_check.check(ROOT, path)
     assert report.problems == ()
-    assert (report.retrieval, report.behaviour) == (34, 40)
+    assert (report.retrieval, report.behaviour, report.version) == (34, 40, "v1.1")
+    path2 = write_v2(tmp_path / "v2")
+    report = dataset_check.check(ROOT, path2)
+    assert report.problems == ()
+    assert (report.retrieval, report.behaviour, report.version) == (34, 120, "v2")
     assert main(["check-dataset", "--dataset", str(path), "--root", str(ROOT)]) == 0
-    assert "passes (34 retrieval questions, 40 behaviour cases" in capsys.readouterr().out
+    assert "passes as v1.1 (34 retrieval questions, 40 behaviour cases" in capsys.readouterr().out
+    assert main(["check-dataset", "--dataset", str(path2), "--root", str(ROOT)]) == 0
+    assert "passes as v2 (34 retrieval questions, 120 behaviour cases" in capsys.readouterr().out
+    # with no --dataset, every golden file of the repo, one verdict line each
+    golden = sorted((ROOT / "datasets").glob("golden.v*.jsonl"))
+    assert COMMITTED in golden
     assert main(["check-dataset", "--root", str(ROOT)]) == 0
     out = capsys.readouterr().out.splitlines()
-    assert len(out) == 1
-    assert out[0].startswith(
-        "check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour"
+    assert [line.split(" passes as ")[0] for line in out] == [
+        f"check-dataset: datasets/{p.name}" for p in golden
+    ]
+    assert out[0] == (
+        "check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 "
+        f"behaviour cases, sha256 {hashlib.sha256(COMMITTED.read_bytes()).hexdigest()[:12]})"
     )
 
 
-def test_the_committed_datasheet_records_the_committed_file():
-    """Rule 10 on the committed pair: the datasheet's latest version line is v1.1 and carries the
-    golden file's sha256; one byte more in the file and the rule fails (the next test's copy)."""
-    text = (ROOT / "datasets" / "DATASHEET.md").read_text(encoding="utf-8")
-    latest = dataset_check.latest_version(text)
-    assert latest is not None
-    assert latest[0] == "v1.1"
-    assert hashlib.sha256(COMMITTED.read_bytes()).hexdigest() in latest[1]
+def test_both_files_are_checked_and_one_failing_file_fails_the_command(tmp_path, capsys):
+    v1 = write_dataset(tmp_path / "v1")
+    v2 = write_v2(tmp_path / "v2", edited_lines(v2_lines(), "G-38", mix="multi-chunk"))
+    command = ["check-dataset", "--dataset", str(v1), "--dataset", str(v2), "--root", str(ROOT)]
+    assert main(command) == 1
+    out = capsys.readouterr().out
+    assert f"check-dataset: {v1} passes as v1.1" in out
+    assert "golden.v2.jsonl: rule 9 (mix): 44 single-chunk case(s), the mix asks for 45" in out
+    assert f"check-dataset: {v2} fails 2 check(s)" in out
+
+
+def test_the_committed_datasheet_records_the_committed_v1_file():
+    """Rule 10 on the committed pair: the latest Maintenance row for golden.v1.jsonl is v1.1 and
+    carries the file's sha256; one byte more in the file and the rule fails (the next test)."""
+    row = dataset_check.latest_row(COMMITTED)
+    assert isinstance(row, dataset_check.VersionRow)
+    assert row.version == "v1.1"
+    assert row.sha256 == hashlib.sha256(COMMITTED.read_bytes()).hexdigest()
 
 
 def test_a_golden_file_edited_without_a_new_version_line_fails_rule_10(tmp_path):
     copy = tmp_path / COMMITTED.name
     copy.write_bytes(COMMITTED.read_bytes() + b"\n")
-    (tmp_path / "DATASHEET.md").write_bytes((ROOT / "datasets" / "DATASHEET.md").read_bytes())
+    (tmp_path / "DATASHEET.md").write_bytes(DATASHEET.read_bytes())
     found = problems(copy)
     assert found == [
-        f"{copy.name}: rule 10 (version): the latest version line of DATASHEET.md (v1.1) does "
-        f"not carry the file's sha256 {hashlib.sha256(copy.read_bytes()).hexdigest()}"
+        f"{copy.name}: rule 10 (version): the latest version line of DATASHEET.md for "
+        f"{copy.name} (v1.1) does not carry the file's sha256 "
+        f"{hashlib.sha256(copy.read_bytes()).hexdigest()}"
     ]
 
 
@@ -104,6 +143,16 @@ def test_rule_1_the_same_question_as_two_tenants_is_two_cases(tmp_path):
     [p02] = [c for c in CASES if c["id"] == "P-02"]
     assert p01["question"] == p02["question"]
     assert p01["tenant"] != p02["tenant"]
+
+
+def test_rule_1_in_v2_a_new_case_given_an_existing_id_or_no_split(tmp_path):
+    """GV1's break: a new case given an existing id (G-26's) is named by rule 1; and a case left
+    without a split (the script not run) does not parse."""
+    reused = edited_lines(v2_lines(), "G-117", id="G-26")
+    assert has(problems(write_v2(tmp_path / "a", reused)), "G-26", 1, "the id is used twice")
+    unsplit = v2_lines(split=False)
+    found = problems(write_v2(tmp_path / "b", unsplit))
+    assert has(found, "G-38", 1, "split must be a non-empty string, got None")
 
 
 # ---------------------------------------------------------------- rule 2
@@ -191,12 +240,13 @@ def test_rule_8_no_planted_string_or_other_tenant_canary_in_a_question(tmp_path)
     assert has(found, "G-14", 8, "a canary of tenant-a")
 
 
-# ---------------------------------------------------------------- rules 9 and 10
+# ---------------------------------------------------------------- rule 9: v1.1
 
 
-def test_rule_9_the_mix_the_test_split_and_the_probes(tmp_path):
-    """AC1's breaks: one case's mix moved from single-chunk to multi-chunk (still 40 cases); the
-    test-split refuse-and-help cases moved to dev; and an S3 probe moved to test."""
+def test_rule_9_v1_1_the_mix_the_test_split_and_the_probes(tmp_path):
+    """S4 AC1's breaks, kept for v1.1: one case's mix moved from single-chunk to multi-chunk
+    (still 40 cases); the test-split refuse-and-help cases moved to dev; and an S3 probe moved to
+    test or dropped."""
     cases = edited("G-02", mix="multi-chunk")
     found = check_planted(tmp_path, cases, "golden.v1.jsonl", 9, "14 single-chunk case(s)")
     assert has(found, "golden.v1.jsonl", 9, "9 multi-chunk case(s), the mix asks for 8")
@@ -209,23 +259,213 @@ def test_rule_9_the_mix_the_test_split_and_the_probes(tmp_path):
     check_planted(tmp_path / "d", gone, "golden.v1.jsonl", 9, "the S3 probe P-03 is not")
 
 
-def test_rule_10_the_datasheets_latest_version_line_carries_the_sha256(tmp_path):
-    stale = (
-        "| Version | sha256 |\n|---|---|\n| v1 | x |\n| v1.1 | " + "a" * 64 + " |\n"
-    )  # a sha256, but another file's
-    path = write_dataset(tmp_path, datasheet=stale)
-    assert has(problems(path), "golden.v1.jsonl", 10, "(v1.1) does not carry the file's sha256")
+def test_rule_9_v1_1_asks_for_no_floor_and_no_tenant_test_case(tmp_path):
+    """v1.1 keeps S4's rule 9 only: its committed file has no tenant B test case under some of
+    tenant B's labels and fewer cases than v2's floors, and it passes."""
+    cases = edited("G-15", split="dev")  # tenant B's only test answer
+    assert not problems(write_dataset(tmp_path, cases))
+
+
+# ---------------------------------------------------------------- rule 9: v2 (S4b GV4)
+
+
+def v2_problems(tmp_path: Path, lines: list[str], name: str = "v2") -> list[str]:
+    return problems(write_v2(tmp_path / name, lines))
+
+
+def ids_where(lines: list[str], **fields: Any) -> list[str]:
+    rows = [json.loads(line) for line in lines]
+    return [r["id"] for r in rows if all(r.get(k) == v for k, v in fields.items())]
+
+
+def test_rule_9_v2_a_case_moved_to_another_slot_names_both(tmp_path):
+    """GV4's break: in v2, one single-chunk case made multi-chunk names both slots."""
+    found = v2_problems(tmp_path, edited_lines(v2_lines(), "G-38", mix="multi-chunk"))
+    assert found == [  # write_v2's row carries the edited file's sha256: rule 10 passes
+        "golden.v2.jsonl: rule 9 (mix): 44 single-chunk case(s), the mix asks for 45",
+        "golden.v2.jsonl: rule 9 (mix): 25 multi-chunk case(s), the mix asks for 24",
+    ]
+
+
+def test_rule_9_v2_every_tenant_b_test_case_of_a_label_moved_to_dev_names_the_label(tmp_path):
+    """GV4's break: every tenant B test case of one label moved to dev, the label named; every
+    tenant B test case moved to dev, the tenant named too."""
+    lines = v2_lines()
+    tested = ids_where(lines, tenant="tenant-b", split="test", expected="abstain")
+    assert tested
+    for case_id in tested:
+        lines = edited_lines(lines, case_id, split="dev")
+    found = v2_problems(tmp_path, lines)
+    assert has(found, "golden.v2.jsonl", 9, "no tenant-b abstain case is in the test split")
+    assert [p for p in found if "rule 9" in p] == [
+        "golden.v2.jsonl: rule 9 (mix): no tenant-b abstain case is in the test split"
+    ]
+    for case_id in ids_where(lines, tenant="tenant-b", split="test"):
+        lines = edited_lines(lines, case_id, split="dev")
+    found = v2_problems(tmp_path, lines, "all")
+    assert has(found, "golden.v2.jsonl", 9, "no tenant-b case is in the test split")
+    assert has(found, "golden.v2.jsonl", 9, "no tenant-b answer case is in the test split")
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        # three must-not-block cases built on F-10, a table value at the same section, instead
+        (
+            {"G-45": {"feature_ids": ["F-10"]}, "G-46": {"feature_ids": ["F-10"]},
+             "G-47": {"feature_ids": ["F-10"]}},
+            "6 must-not-block case(s), v2 asks for at least 8",
+        ),
+        (
+            {"G-84": {"may_quote": None}, "G-85": {"may_quote": None}},
+            "1 abstain case(s) with may_quote, v2 asks for at least 3",
+        ),
+        (
+            {"G-93": {"tenant": "tenant-a"}, "G-94": {"tenant": "tenant-a"}},
+            "27 tenant-b case(s), v2 asks for at least 28",
+        ),
+    ],
+)  # fmt: skip
+def test_rule_9_v2_a_floor_one_case_short_is_named(tmp_path, change, message):
+    lines = v2_lines()
+    for case_id, fields in change.items():
+        row = json.loads(next(line for line in lines if json.loads(line)["id"] == case_id))
+        row = {k: v for k, v in {**row, **fields}.items() if v is not None}
+        lines = [json.dumps(row) if json.loads(t)["id"] == case_id else t for t in lines]
+    found = v2_problems(tmp_path, lines)
+    assert [p for p in found if "rule 9" in p] == [f"golden.v2.jsonl: rule 9 (mix): {message}"]
+    assert [p for p in found if "rule 9" not in p and "rule 10" not in p] == []
+
+
+def test_rule_9_the_version_comes_from_the_files_row(tmp_path):
+    """The v1.1 copy held to v2 by its row meets v2's contract nowhere; the v2 copy held to v1.1
+    meets v1.1's mix nowhere; a version with no contract is named."""
+    path = write_dataset(tmp_path / "a")
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    (path.parent / "DATASHEET.md").write_text(maintenance(("v2", path.name, sha)), "utf-8")
+    found = problems(path)
+    for text in (
+        "15 single-chunk case(s), the mix asks for 45",
+        "25 answer case(s), v2 asks for at least 55",
+        "9 abstain case(s), v2 asks for at least 24",
+        "3 flag-conflict case(s), v2 asks for at least 12",
+        "3 refuse-and-help case(s), v2 asks for at least 14",
+        "3 must-not-block case(s), v2 asks for at least 8",  # the fixture's G-21 is on F-55
+        "1 abstain case(s) with may_quote, v2 asks for at least 3",
+        "8 tenant-b case(s), v2 asks for at least 28",
+    ):
+        assert has(found, path.name, 9, text), (text, found)
+    assert not has(found, path.name, 9, "test split")  # tenant B's two labels are tested
+    assert not has(found, path.name, 10)
+    path2 = write_v2(tmp_path / "b")
+    sha2 = hashlib.sha256(path2.read_bytes()).hexdigest()
+    (path2.parent / "DATASHEET.md").write_text(maintenance(("v1.1", path2.name, sha2)), "utf-8")
+    found = problems(path2)
+    assert has(found, path2.name, 9, "45 single-chunk case(s), the mix asks for 15")
+    assert not has(found, path2.name, 9, "asks for at least")
+    (path2.parent / "DATASHEET.md").write_text(maintenance(("v1.2", path2.name, sha2)), "utf-8")
+    assert problems(path2) == [
+        "golden.v2.jsonl: rule 9 (mix): v1.2 has no contract in check-dataset (it knows v1.1, v2)"
+    ]
+
+
+def test_rule_9_v2_the_s3_probes_stay_in_dev(tmp_path):
+    found = v2_problems(tmp_path, edited_lines(v2_lines(), "P-02", split="test"))
+    assert has(found, "P-02", 9, "an S3 probe stays in dev")
+
+
+def test_the_planted_v2_cases_meet_v2_without_their_v1_1_neighbours():
+    """The planted cases are 80, from G-38, with no split until the script assigns one."""
+    assert [c["id"] for c in V2_CASES] == [f"G-{n}" for n in range(38, 118)]
+    assert all("split" not in c for c in V2_CASES)
+
+
+# ---------------------------------------------------------------- rule 10
+
+
+def test_rule_10_the_latest_row_for_the_file_carries_the_sha256(tmp_path):
+    stale = maintenance(("v1", "golden.v1.jsonl", "x"), ("v1.1", "golden.v1.jsonl", "a" * 64))
+    path = write_dataset(tmp_path, datasheet=stale)  # a sha256, but another file's
+    assert has(problems(path), "golden.v1.jsonl", 10, "for golden.v1.jsonl (v1.1) does not carry")
     path = write_dataset(tmp_path / "b", datasheet="# no versions here\n")
     assert has(problems(path), "golden.v1.jsonl", 10, "has no version line")
     path = write_dataset(tmp_path / "c")
     (path.parent / "DATASHEET.md").unlink()
     assert has(problems(path), "golden.v1.jsonl", 10, "no datasheet")
+    other = maintenance(("v2", "golden.v2.jsonl", "a" * 64))
+    path = write_dataset(tmp_path / "d", datasheet=other)
+    assert problems(path) == [
+        "golden.v1.jsonl: rule 10 (version): no version line of DATASHEET.md's Maintenance table "
+        "names golden.v1.jsonl, so the file has no version and rule 9 no contract"
+    ]
 
 
-def test_the_latest_version_is_the_highest_one_listed():
-    text = "- **v1** (S2): x\n| v2 | y |\n| v1.1 | z |\nVersion v9 in prose is not a line.\n"
-    assert dataset_check.latest_version(text) == ("v2", "| v2 | y |")
-    assert dataset_check.latest_version("nothing") is None
+def test_rule_10_each_file_is_held_to_its_own_rows(tmp_path):
+    """Two files beside one datasheet: each passes on its own row, and an edit of one fails only
+    that one."""
+    v2 = write_v2(tmp_path)
+    v1 = tmp_path / "golden.v1.jsonl"
+    v1.write_bytes(COMMITTED.read_bytes())
+    assert problems(v1) == []
+    assert problems(v2) == []
+    v1.write_bytes(COMMITTED.read_bytes() + b"\n")
+    assert has(problems(v1), "golden.v1.jsonl", 10, "for golden.v1.jsonl (v1.1)")
+    assert problems(v2) == []
+
+
+def test_the_versions_are_read_from_the_maintenance_tables_rows_only():
+    """A version in prose, in another section's table or in a second table of the Maintenance
+    section is no row; the File column names each row's file; bold versions are versions."""
+    sha = "b" * 64
+    text = (
+        "# Datasheet\n\nVersion v9 in prose.\n\n## Collection\n\n"
+        "| Version | sha256 |\n|---|---|\n| v8 | `" + "c" * 64 + "` |\n\n"
+        "## Maintenance\n\n"
+        + HEADER
+        + "| v1 | d | S2 | `golden.v1.jsonl` | x | `"
+        + "0" * 64
+        + "` |\n| **v1.1** | d | S4 | `golden.v1.jsonl` | x | `"
+        + sha
+        + "` |\n"
+        "| v2 | d | S4b | `golden.v2.jsonl` | x | `" + "e" * 64 + "` |\n\n"
+        "Then prose.\n\n| v7 | a second table |\n\n## Known limits\n\n| v6 | x |\n"
+    )
+    rows = dataset_check.maintenance_rows(text)
+    assert [(r.version, r.file) for r in rows] == [
+        ("v1", "golden.v1.jsonl"),
+        ("v1.1", "golden.v1.jsonl"),
+        ("v2", "golden.v2.jsonl"),
+    ]
+    assert rows[1].sha256 == sha
+    assert rows[1].number == (1, 1)
+    assert dataset_check.maintenance_rows("no table") == []
+
+
+def test_a_table_without_a_file_column_versions_no_file(tmp_path):
+    """The S4 datasheet's table had no File column; S4b read each of its rows as the checked
+    file's until the datasheet gained one, and dropped that reading after (fix round 1). A table
+    with no File column now names no file, so rule 10 refuses the file and rule 9 has no
+    contract; the committed datasheet names each row's file."""
+    path = write_dataset(tmp_path)
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    legacy = (
+        "## Maintenance\n\n| Version | Date | Stage | What changed | sha256 of golden.v1.jsonl |\n"
+        f"|---|---|---|---|---|\n| v1 | d | S2 | x | `{'0' * 64}` |\n"
+        f"| v1.1 | d | S4 | x | `{sha}` |\n"
+    )
+    (path.parent / "DATASHEET.md").write_text(legacy, encoding="utf-8")
+    assert [r.file for r in dataset_check.maintenance_rows(legacy)] == ["", ""]
+    assert problems(path) == [
+        "golden.v1.jsonl: rule 10 (version): DATASHEET.md's Maintenance table has no File column, "
+        "so no version line names golden.v1.jsonl, so the file has no version and rule 9 no "
+        "contract"
+    ]
+    committed = dataset_check.maintenance_rows(DATASHEET.read_text(encoding="utf-8"))
+    assert [(r.version, r.file) for r in committed] == [
+        ("v1", "golden.v1.jsonl"),
+        ("v1.1", "golden.v1.jsonl"),
+        ("v2", "golden.v2.jsonl"),
+    ]
 
 
 # ---------------------------------------------------------------- the CLI and the hard stop
@@ -239,10 +479,24 @@ def test_the_cli_exits_1_naming_the_case_and_the_rule(tmp_path, capsys):
     assert "fails 1 check(s)" in out
 
 
+def planted_config(source: Path, path: Path, directory: Path) -> Path:
+    """The committed config with its dataset path set to the planted file, whatever golden file
+    it names (v1.1 until the freeze F, v2 from it)."""
+    text = source.read_text(encoding="utf-8")
+    pattern = r'^path = "datasets/golden\.v\d+\.jsonl"$'
+    planted, count = re.subn(pattern, f'path = "{path}"', text, flags=re.M)
+    assert count == 1, source
+    config = directory / source.name
+    config.write_text(planted, encoding="utf-8")
+    return config
+
+
+@pytest.mark.parametrize("version", ["v1.1", "v2"])
 @pytest.mark.parametrize("suite", ["retrieval", "generation"])
-def test_every_eval_and_gate_runs_it_first_and_stops(tmp_path, monkeypatch, capsys, suite):
+def test_every_eval_and_gate_runs_it_first_and_stops(tmp_path, monkeypatch, capsys, suite, version):
     """A broken dataset stops `raglab eval` (both suites) and `raglab gate` before the embedder,
-    the model or the ingestion is built: those are patched to fail the test if reached."""
+    the model or the ingestion is built: those are patched to fail the test if reached. A v1.1
+    copy breaks rule 5; a v2 copy breaks v2's mix."""
     from raglab.adapters import factory
     from raglab.generate import assemble
 
@@ -251,13 +505,14 @@ def test_every_eval_and_gate_runs_it_first_and_stops(tmp_path, monkeypatch, caps
 
     monkeypatch.setattr(factory, "embedder", reached)
     monkeypatch.setattr(assemble, "assemble", reached)
-    path = write_dataset(tmp_path, edited("G-29", relevant=[sec("A-PWD-V2", "4.4")]))
+    if version == "v1.1":
+        path = write_dataset(tmp_path, edited("G-29", relevant=[sec("A-PWD-V2", "4.4")]))
+        expected = "G-29: rule 5 (conflict shape)"
+    else:
+        path = write_v2(tmp_path, edited_lines(v2_lines(), "G-38", mix="multi-chunk"))
+        expected = "golden.v2.jsonl: rule 9 (mix): 44 single-chunk case(s)"
     source = ROOT / "config" / ("retrieval-dense.toml" if suite == "retrieval" else "fake.toml")
-    config = tmp_path / source.name
-    config.write_text(
-        source.read_text(encoding="utf-8").replace("datasets/golden.v1.jsonl", str(path)),
-        encoding="utf-8",
-    )
+    config = planted_config(source, path, tmp_path)
     commands = [["eval", "--suite", suite, "--config", str(config), "--root", str(ROOT)]]
     if suite == "retrieval":
         commands.append(["gate", "--config", str(config), "--root", str(ROOT)])
@@ -265,4 +520,4 @@ def test_every_eval_and_gate_runs_it_first_and_stops(tmp_path, monkeypatch, caps
         assert main(command) == 1, command
         err = capsys.readouterr().err
         assert "check-dataset stopped the run" in err
-        assert "G-29: rule 5 (conflict shape)" in err
+        assert expected in err

@@ -1,0 +1,99 @@
+{
+  "schema_version": "run-record.v1",
+  "run_id": "20261024T090214Z-retrieval-hybrid-dev-ade9397",
+  "created_at": "2026-10-24T09:02:14Z",
+  "suite": "retrieval",
+  "gate": "manual",
+  "split": "dev",
+  "trials": 1,
+  "seed": 20261006,
+  "provenance": "local",
+  "partial": false,
+  "git_sha": "ade9397e8828bf875fe4925817041b0da16ff7e2",
+  "git_dirty": false,
+  "config": {
+    "name": "retrieval-hybrid",
+    "path": "config/retrieval-hybrid.toml",
+    "file_sha256": "942fef97aafab4fc186f99cfacac967c4ac608af9175bd88ed81f83f4f6efd84",
+    "sha256": "54acd1c5197a3c83e48e60f0cb13f1cc6821811f0b3016e4992ba873d6c34550"
+  },
+  "chunker": {
+    "chunk_size": 1200,
+    "overlap": 1,
+    "sha256": "efc92723850c2cd1c95073b805b017abe506cc2d2d9cdd395211aea09f7f18a9"
+  },
+  "embedder": {
+    "provider": "fastembed",
+    "model": "BAAI/bge-small-en-v1.5",
+    "source": "Qdrant/bge-small-en-v1.5-onnx-Q",
+    "revision": "aa8f8b060edb00e03bfdd08813a2949946c8ba55",
+    "dimension": 384,
+    "onnx_sha256": "51f1bd0addd6e859e42c2c8021a5e5461385bb676a649f4b269aa445449f2431",
+    "fastembed": "0.9.0",
+    "onnxruntime": "1.30.0",
+    "sha256": "eae9278a753b7a374f3e79c08d3911092215b909d3e6eedc3c2dcbdd9026e95e"
+  },
+  "retriever": {
+    "kind": "hybrid",
+    "k": 5,
+    "candidates": 50,
+    "rrf_k": 60,
+    "sha256": "17c6f0da73e27b72613d7f30da862f8c443905ec3e1a5dd8c1741101d6db42b8"
+  },
+  "dataset": {
+    "path": "datasets/golden.v2.jsonl",
+    "sha256": "3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e",
+    "questions": 22
+  },
+  "corpus": {
+    "documents": 18,
+    "chunks": 228,
+    "sha256": "8918d4f796732b6e11e0dd92b0844bdd2889e18a0660be26f3cc32484961936e"
+  },
+  "tools": {
+    "python": "3.13.12",
+    "raglab": "0.1.0",
+    "numpy": "2.5.4",
+    "rank-bm25": "0.2.2",
+    "pypdf": "6.19.0",
+    "pyyaml": "6.0.3",
+    "pytesseract": "0.3.13",
+    "tesseract": "5.5.3"
+  },
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20261006,
+    "level": 0.95,
+    "method": "percentile"
+  },
+  "results": {
+    "metrics": {
+      "hit@5": {
+        "value": 0.863636,
+        "ci_low": 0.727273,
+        "ci_high": 1.0,
+        "n": 22
+      },
+      "mrr@5": {
+        "value": 0.590151,
+        "ci_low": 0.421212,
+        "ci_high": 0.75303,
+        "n": 22
+      },
+      "recall@5": {
+        "value": 0.719697,
+        "ci_low": 0.568182,
+        "ci_high": 0.856061,
+        "n": 22
+      }
+    }
+  },
+  "totals": {
+    "cases": 22,
+    "duration_s": 13.491
+  },
+  "files": {
+    "cases.jsonl": "a177b02d3141198939fb08b6379a902f351b13f1d43d5284dd67b5826e6ca00c",
+    "report.md": "e49183a1a8a8014c7646184ceff99cff2089da146cbfe75acd10ad286b5f1853"
+  }
+}

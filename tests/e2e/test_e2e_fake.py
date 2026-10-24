@@ -14,6 +14,7 @@ import yaml
 from fastapi.testclient import TestClient
 
 from raglab.api import server
+from raglab.evals import config as eval_config
 from raglab.evals import golden
 from tests.conftest import ROOT
 
@@ -39,9 +40,8 @@ def answers() -> dict[str, list[tuple[str, str]]]:
     """Every dev question asked as each tenant: (case id, answer text and citations as JSON)."""
     app = server.build_app(ROOT / "config" / "fake.toml", ROOT)
     api = TestClient(app)
-    questions = golden.select(
-        golden.load(ROOT / "datasets" / "golden.v1.jsonl"), "retrieval", "dev"
-    )
+    dataset = eval_config.load_generation(ROOT / "config" / "fake.toml", ROOT).dataset
+    questions = golden.select(golden.load(ROOT / dataset), "retrieval", "dev")
     out: dict[str, list[tuple[str, str]]] = {t: [] for t in TENANTS}
     for tenant in TENANTS:
         for question in questions:

@@ -13,7 +13,7 @@ safely.
 | Command | What it does |
 |---|---|
 | `make eval-local` | The live run: starts the server, runs the live contract test (`tests/contract/test_chat_contract.py -m live`) and the generation suite on `config/local-ollama.toml`, then unloads the model, stops the server and runs the postcheck, on success, on failure, on Ctrl-C (SIGINT), on `kill` (SIGTERM) and on a closed terminal (SIGHUP). A SIGKILL cannot be caught: the server and a loaded model then stay up (the model until the keep-alive ends), the postcheck does not run, and the pid file in `runs/tmp/ollama/` makes the next `up` or session refuse until `make ollama-down` stops it |
-| `make gate-local` | The consistency gate (S4, Q-05) in one session with the same guards: the live contract test, then `raglab gate --config config/local-ollama.toml`, which runs the dev suite x3, writes the run record to `runs/tmp/` and prints one line against the published local baseline and the margin of docs/THRESHOLDS.md. Until a baseline is published it refuses (the first run after the golden set's sign-off is published as the baseline, `raglab publish --baseline`), and until the margin is set from the four repeats it refuses to judge; `raglab gate --run <run>` then gates a finished run again without the model. Both are set since S4: the baseline `20261019T172035Z-generation-local-ollama-dev-97011a7` and a margin of one case. A session (the contract test, then the 22 dev retrieval questions and 27 dev behaviour cases x3) took about 4.5 to 5 minutes on the maintainer's Mac in S4 |
+| `make gate-local` | The consistency gate (S4, Q-05) in one session with the same guards: the live contract test, then `raglab gate --config config/local-ollama.toml`, which runs the dev suite x3, writes the run record to `runs/tmp/` and prints one line against the published local baseline and the margin of docs/THRESHOLDS.md. Until a baseline is published it refuses (the first run after the golden set's sign-off is published as the baseline, `raglab publish --baseline`), and until the margin is set from the four repeats it refuses to judge; `raglab gate --run <run>` then gates a finished run again without the model. Both are set since S4, and again on golden set v2 since S4b: the baseline `20261024T090351Z-generation-local-ollama-dev-ade9397` and a margin of one case (docs/THRESHOLDS.md). A session on v2 (the contract test, then the 22 dev retrieval questions and 79 dev behaviour cases x3, 303 case-trials) took about 9 to 9.5 minutes on the maintainer's Mac in S4b (below); on golden set v1.1 (27 dev behaviour cases, 147 case-trials) it took about 4.5 to 5 minutes in S4 |
 | `make nightly-local` | The local nightly (S4): the live contract test, then the generation suite on every split of `config/local-ollama-nightly.toml` with `--gate nightly`. The test split runs only here and at a release |
 | `make release-local` | The test slice, once per release (v0.1, `runbooks/release.md`): the default retrieval configuration on the test split with the embedder only, then one session with the live contract test and the generation suite on the test split x3 (`config/local-ollama-release.toml`, the local config with split test: a generation run uses its config's split), both with `--gate release` |
 | `make ollama-up` | Starts the server for manual work (after the preflight); stop it with `make ollama-down` |
@@ -144,3 +144,24 @@ an unreadable power source, before the session and while it runs.
 - the whole session, server start to postcheck: 2 min 52.1 s;
 - afterwards: "postcheck passed: port closed, no ollama process, no model loaded", and
   `lsof -iTCP:11434 -sTCP:LISTEN` found nothing.
+
+## The sessions on golden set v2 (S4b, 2026-10-24, the same Mac, AC power)
+
+Five `make eval-local` sessions at the frozen commit `ade9397` and one `make gate-local` (the live
+break), each on golden set v2's dev split: the 22 retrieval questions and the 79 behaviour cases,
+x3 (303 case-trials). The Mac times are the shell clock just before the launch and when `make`
+returned (after the postcheck); the suite's own time is the record's `totals.duration_s`:
+
+| Session | Clock | Mac time | Memory before | Contract test | Suite |
+|---|---|---|---|---|---|
+| 1 | 10:02:54 to 10:12:11 | about 9 min 17 s | 23.6 GiB | 42.16 s | 498.731 s |
+| 2 | 10:12:30 to 10:21:41 | about 9 min 11 s | 34.5 GiB | 30.21 s | 504.543 s |
+| 3 | 10:21:59 to 10:31:13 | about 9 min 14 s | 36.5 GiB | 22.78 s | 515.387 s |
+| 4 | 10:31:31 to 10:40:30 | about 8 min 59 s | 36.5 GiB | 21.60 s | 501.241 s |
+| 5 | 12:41:18 to 12:50:38 | about 9 min 20 s | 31.1 GiB | 35.13 s | 508.317 s |
+| the live break | 12:55:54 to 13:05:35 | about 9 min 41 s | 34.0 GiB | 29.80 s | 534.982 s |
+
+About 1.6 to 1.8 s of suite time per case-trial, against 1.56 to 1.64 s on v1.1 in S4. Session 5
+ran about two hours after session 4: the developer agent had stopped on a usage limit between
+them. Every session started Ollama 0.40.6, checked the pinned digest and read "the Mac draws from
+'AC Power'", and every postcheck passed.

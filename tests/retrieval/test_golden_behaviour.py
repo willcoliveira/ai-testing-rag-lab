@@ -7,23 +7,30 @@ datasheet reports and this file checks against the documents, with no threshold.
 
 `raglab check-dataset` holds the mix and split rules too (rule 9). This file reads the committed
 lines itself, so it is a second reading of the file the user signs off, not a copy of the rule.
+Golden set v1.1 is frozen since S4b, which holds v2 in tests/retrieval/test_golden_v2.py; S2's
+measure and the file's reading live in tests/golden_support.py, shared by both.
 """
 
 import json
-import re
 from collections import Counter
-from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
-from functools import cache
 from typing import Any
 
 import pytest
 
 from tests.conftest import ROOT
-from tests.corpus_text import answer_key, documents, norm
+from tests.corpus_text import answer_key, norm
+from tests.golden_support import (
+    V1,
+    corpus,
+    golden_lines,
+    longest_run,
+    slot,
+    texts,
+    words,
+)
 
 pytestmark = pytest.mark.retrieval
-DATASET = ROOT / "datasets" / "golden.v1.jsonl"
+DATASET = V1
 DATASHEET = ROOT / "datasets" / "DATASHEET.md"
 PROBES = ROOT / "datasets" / "probes.s3.jsonl"
 # the build project's mix (the S4 plan); a paraphrase and a misspelling share one slot
@@ -40,25 +47,14 @@ S4_REQUIREMENTS = (
     "R-01", "R-02", "R-03", "R-04", "R-05", "R-06", "R-07",
     "R-10", "R-11", "R-12", "R-14", "R-18", "R-23",
 )  # fmt: skip
-WORD = re.compile(r"[a-z0-9]+")  # S2's words: runs of letters and digits, so "on-call" is two
 
 
-@cache
 def lines() -> tuple[dict[str, Any], ...]:
-    text = DATASET.read_text(encoding="utf-8")
-    return tuple(json.loads(line) for line in text.splitlines() if line.strip())
+    return golden_lines(DATASET)
 
 
 def cases() -> list[dict[str, Any]]:
     return [line for line in lines() if line["kind"] == "behaviour"]
-
-
-def slot(mix: str) -> str:
-    return "paraphrased or misspelled" if mix in ("paraphrase", "misspelling") else mix
-
-
-def words(text: str) -> list[str]:
-    return WORD.findall(text.lower())
 
 
 def test_the_set_has_40_behaviour_cases_in_the_build_projects_mix():
@@ -134,45 +130,6 @@ def test_every_requirement_s4_covers_has_a_case():
 
 
 # ---------------------------------------------------------------- S2's measure
-
-
-@dataclass(frozen=True)
-class Texts:
-    """Texts as one word sequence, each text ended by None, with each word's positions."""
-
-    words: tuple[str | None, ...]
-    at: dict[str, tuple[int, ...]]
-
-
-def texts(items: Iterable[list[str]]) -> Texts:
-    sequence: list[str | None] = []
-    for item in items:
-        sequence += [*item, None]
-    at: dict[str, list[int]] = {}
-    for position, word in enumerate(sequence):
-        if word is not None:
-            at.setdefault(word, []).append(position)
-    return Texts(tuple(sequence), {w: tuple(p) for w, p in at.items()})
-
-
-def longest_run(question: Sequence[str], within: Texts) -> int:
-    """The most consecutive words of the question that one text holds in the same order."""
-    best = 0
-    for i, word in enumerate(question):
-        for position in within.at.get(word, ()):
-            n = 0
-            while i + n < len(question) and within.words[position + n] == question[i + n]:
-                n += 1
-            best = max(best, n)
-    return best
-
-
-@cache
-def corpus() -> Texts:
-    """The tenant and external documents (the register's 18), not the attack files."""
-    docs = [d for d in documents().values() if not d.path.startswith("corpus/attacks/")]
-    assert len(docs) == 18
-    return texts(words(d.body) for d in docs)
 
 
 def measure() -> dict[str, int]:

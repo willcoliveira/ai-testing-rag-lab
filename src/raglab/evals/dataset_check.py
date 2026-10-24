@@ -1,9 +1,10 @@
-"""`raglab check-dataset` (S4): the golden file held to its contract before any run.
+"""`raglab check-dataset` (S4, per version since S4b): a golden file held to its contract before
+any run.
 
 It reads the golden file, corpus/answer-key.yaml, corpus/register.yaml and
 corpus/inventory.snapshot.json (no model and no embedder) and reports every problem, each naming
 its case (or the file) and its rule. Rules 1, 2 and 8 hold for every line, rules 3 to 7 for the
-behaviour cases, and rules 9 and 10 for the file:
+behaviour cases, and rules 9 and 10 for the file, each by the file's own version:
 
 1. **parse**: a line is not a question; an id repeats, or a question repeats for the same tenant
    (the same words asked as two tenants are two cases, as S3's P-01 and P-02 are); a kind, split,
@@ -31,15 +32,25 @@ behaviour cases, and rules 9 and 10 for the file:
    other tenant (any letter case): a run record carries the questions, and publish refuses a
    record with such a string. The plan names rule 8 for the behaviour cases; it holds for the
    retrieval questions too, which runs carry the same way.
-9. **mix**: the behaviour cases are not 15/8/8/4/5 (single-chunk, multi-chunk, unanswerable,
-   version-conflict, paraphrased or misspelled); a mix kind or a label has no test case; an S3
-   probe (P-01 to P-03) is missing or not in dev.
-10. **version**: the datasheet's latest version line does not carry the file's sha256.
+9. **mix**, by the file's version (`CONTRACTS`): the behaviour cases are not in the version's mix
+   by slot (single-chunk, multi-chunk, unanswerable, version-conflict, paraphrased or
+   misspelled), 15/8/8/4/5 for v1.1 and 45/24/24/12/15 for v2; a mix slot or a label has no test
+   case; an S3 probe (P-01 to P-03) is missing or not in dev. v2 adds the S4b plan's floors: at
+   least 55 answer, 24 abstain, 12 flag-conflict and 14 refuse-and-help cases, 8 must-not-block
+   cases (a feature of kind must-not-block, as rule 6 reads it), 3 abstain cases with may_quote
+   and 28 tenant B cases; a test case for each tenant; and a tenant B test case under every label
+   tenant B has. A version with no contract here is a problem: a new version brings its rules.
+10. **version**: the datasheet's latest version line for the file does not carry its sha256.
+
+**The version a file is held to** is that of the latest row (the highest version) of the
+datasheet's Maintenance table for the file's name: the table's File column names each row's file
+(datasheet v2, S4b). A table with no File column names no file, so it versions none.
 
 A section may sit in several groups of one question (a FAQ entry that restates two rules); the
 loader refuses it twice as a label of its own, twice in one group, or as both (raglab.evals.golden).
 
-`raglab eval` and `raglab gate` run this first and stop on any problem (`raglab.__main__`).
+`raglab eval` and `raglab gate` run this first on their config's file and stop on any problem
+(`raglab.__main__`); `raglab check-dataset` checks every golden file, `datasets/golden.v*.jsonl`.
 """
 
 import hashlib
@@ -51,12 +62,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
-from raglab.core.types import LABELS
+from raglab.core.types import LABELS, REQUEST_TENANTS
 from raglab.evals import golden
 from raglab.ingest import answer_key, register
 
 SNAPSHOT = "corpus/inventory.snapshot.json"
 DATASHEET = "DATASHEET.md"  # next to the golden file
+MAINTENANCE = "## Maintenance"  # the datasheet's section whose first table lists the versions
 RULES = {
     1: "parse",
     2: "labels and features",
@@ -69,20 +81,60 @@ RULES = {
     9: "mix",
     10: "version",
 }
-# the build project's mix, by slot: paraphrased and misspelled cases share one
-MIX_SLOTS = {
-    "single-chunk": 15,
-    "multi-chunk": 8,
-    "unanswerable": 8,
-    "version-conflict": 4,
-    "paraphrased or misspelled": 5,
-}
 S3_PROBES = ("P-01", "P-02", "P-03")
 CONFLICTS = frozenset({"version", "external"})
 GOVERNING_SIDES = frozenset({"new", "company"})
 CONFLICT_SIDES = frozenset({"old", "external"})
-# a version line of the datasheet: a list item or a table row that starts with a version
-VERSION_LINE = re.compile(r"^\s*(?:[-*]\s+|\|\s*)(?:\*\*)?v(\d+(?:\.\d+)*)(?:\*\*)?(?![\w.])")
+MUST_NOT_BLOCK = "must-not-block"  # the feature kind rule 6 holds to answer (F-54 to F-56)
+TENANT_B = "tenant-b"
+# the first cell of a version row of the Maintenance table: a version, bold or not
+VERSION_CELL = re.compile(r"^(?:\*\*)?v(\d+(?:\.\d+)*)(?:\*\*)?$")
+
+
+@dataclass(frozen=True)
+class Contract:
+    """Rule 9 for one version of the golden set: the S4 plan's for v1.1, the S4b plan's for v2.
+    Every version also has a test case for every mix slot and every label, and the S3 probes in
+    dev."""
+
+    mix: dict[str, int]  # behaviour cases per mix slot, exactly; paraphrase and misspelling share
+    at_least: dict[str, int]  # behaviour cases per expected label, at least
+    must_not_block: int  # cases with a feature of kind must-not-block, at least
+    may_quote: int  # abstain cases with may_quote, at least
+    tenant_b: int  # cases asked as tenant B, at least
+    tenants_tested: bool  # a test case for each tenant, and a tenant B one under each of its labels
+
+
+CONTRACTS: dict[str, Contract] = {
+    "v1.1": Contract(
+        mix={
+            "single-chunk": 15,
+            "multi-chunk": 8,
+            "unanswerable": 8,
+            "version-conflict": 4,
+            "paraphrased or misspelled": 5,
+        },
+        at_least={},
+        must_not_block=0,
+        may_quote=0,
+        tenant_b=0,
+        tenants_tested=False,
+    ),
+    "v2": Contract(
+        mix={
+            "single-chunk": 45,
+            "multi-chunk": 24,
+            "unanswerable": 24,
+            "version-conflict": 12,
+            "paraphrased or misspelled": 15,
+        },
+        at_least={"answer": 55, "abstain": 24, "flag-conflict": 12, "refuse-and-help": 14},
+        must_not_block=8,
+        may_quote=3,
+        tenant_b=28,
+        tenants_tested=True,
+    ),
+}
 
 
 class CheckError(ValueError):
@@ -106,6 +158,7 @@ class Report:
     retrieval: int
     behaviour: int
     problems: tuple[Problem, ...]
+    version: str | None = None  # the version the file was held to, from its Maintenance row
 
     @property
     def passed(self) -> bool:
@@ -114,12 +167,82 @@ class Report:
     def lines(self) -> list[str]:
         """What `raglab check-dataset` prints: every problem, then one verdict."""
         verdict = (
-            f"check-dataset: {self.dataset} passes ({self.retrieval} retrieval questions, "
-            f"{self.behaviour} behaviour cases, sha256 {self.sha256[:12]})"
+            f"check-dataset: {self.dataset} passes as {self.version} ({self.retrieval} "
+            f"retrieval questions, {self.behaviour} behaviour cases, sha256 {self.sha256[:12]})"
             if self.passed
             else f"check-dataset: {self.dataset} fails {len(self.problems)} check(s)"
         )
         return [*(str(p) for p in self.problems), verdict]
+
+
+@dataclass(frozen=True)
+class VersionRow:
+    """A version row of the datasheet's Maintenance table."""
+
+    version: str  # "v2"
+    file: str  # its File cell, the backticks taken off; empty in a table with no File column
+    sha256: str  # its last cell, the backticks taken off
+
+    @property
+    def number(self) -> tuple[int, ...]:
+        return tuple(int(part) for part in self.version[1:].split("."))
+
+
+def _cells(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def maintenance_rows(text: str) -> list[VersionRow]:
+    """The version rows of the datasheet's Maintenance table: the first table of the section
+    headed "## Maintenance", up to the next "## " heading. A row is a version row when its first
+    cell is a version (`v1.1`, bold or not); its File cell names its golden file (empty when the
+    header has no File column), and its last cell holds the file's sha256 (backticked)."""
+    marker = f"\n{MAINTENANCE}\n"
+    if marker not in f"\n{text}":
+        return []
+    section = f"\n{text}".split(marker, 1)[1].split("\n## ", 1)[0]
+    table: list[list[str]] = []
+    for line in section.splitlines():
+        if line.lstrip().startswith("|"):
+            table.append(_cells(line))
+        elif table:
+            break  # the first table only
+    if not table:
+        return []
+    header = [cell.lower() for cell in table[0]]
+    file_at = header.index("file") if "file" in header else None
+    rows: list[VersionRow] = []
+    for cells in table[1:]:
+        match = VERSION_CELL.match(cells[0])
+        if match is None:
+            continue
+        has_file = file_at is not None and file_at < len(cells)
+        file = cells[file_at].strip("`").strip() if has_file and file_at is not None else ""
+        rows.append(VersionRow(f"v{match.group(1)}", file, cells[-1].strip("`").strip()))
+    return rows
+
+
+def latest_row(dataset: Path) -> VersionRow | str:
+    """The latest (highest) version row of the Maintenance table of the datasheet next to the
+    golden file that is that file's, or the reason there is none (a rule 10 problem)."""
+    path = dataset.parent / DATASHEET
+    if not path.is_file():
+        return f"no datasheet at {path.name} next to the golden file"
+    rows = maintenance_rows(path.read_text(encoding="utf-8"))
+    if not rows:
+        return (
+            f"{path.name} has no version line in its Maintenance table "
+            f"('| v2 | <date> | <stage> | `{dataset.name}` | <what changed> | `<sha256>` |')"
+        )
+    mine = [row for row in rows if row.file == dataset.name]
+    if not mine:
+        if not any(row.file for row in rows):
+            return (
+                f"{path.name}'s Maintenance table has no File column, so no version line names "
+                f"{dataset.name}"
+            )
+        return f"no version line of {path.name}'s Maintenance table names {dataset.name}"
+    return max(mine, key=lambda row: row.number)
 
 
 def slot(mix: str) -> str:
@@ -389,8 +512,19 @@ def check(root: Path, dataset: Path) -> Report:
         else:
             checker.behaviour(q, b)
             behaviour.append((q, b))
-    mix(checker, dataset.name, behaviour)
-    version(checker, dataset, sha)
+    row = latest_row(dataset)
+    version = row.version if isinstance(row, VersionRow) else None
+    if version is not None:
+        mix(checker, dataset.name, behaviour, version)
+    if isinstance(row, str):  # rule 10, after rule 9 as before
+        checker.add(dataset.name, 10, f"{row}, so the file has no version and rule 9 no contract")
+    elif row.sha256 != sha:
+        checker.add(
+            dataset.name,
+            10,
+            f"the latest version line of {DATASHEET} for {dataset.name} ({row.version}) does not "
+            f"carry the file's sha256 {sha}",
+        )
     try:
         shown = dataset.resolve().relative_to(root.resolve()).as_posix()
     except ValueError:
@@ -401,63 +535,70 @@ def check(root: Path, dataset: Path) -> Report:
         retrieval=len(retrieval),
         behaviour=len(behaviour),
         problems=tuple(checker.problems),
+        version=version,
     )
 
 
 def mix(
-    checker: _Checker, name: str, cases: Sequence[tuple[golden.Question, golden.Behaviour]]
+    checker: _Checker,
+    name: str,
+    cases: Sequence[tuple[golden.Question, golden.Behaviour]],
+    version: str,
 ) -> None:
-    """Rule 9: the build project's mix, a test case for every mix kind and label, and the S3
+    """Rule 9, by the file's version (CONTRACTS): its mix by slot and floors, a test case for
+    every mix slot and label (and, from v2, each tenant and each label tenant B has), and the S3
     probes in dev."""
+    contract = CONTRACTS.get(version)
+    if contract is None:
+        known = ", ".join(CONTRACTS)
+        checker.add(name, 9, f"{version} has no contract in check-dataset (it knows {known})")
+        return
     counts = Counter(slot(b.mix) for _, b in cases)
-    for kind, wanted in MIX_SLOTS.items():
+    for kind, wanted in contract.mix.items():
         if counts[kind] != wanted:
             checker.add(name, 9, f"{counts[kind]} {kind} case(s), the mix asks for {wanted}")
-    tested_kinds = {slot(b.mix) for q, b in cases if q.split == "test"}
-    for kind in MIX_SLOTS:
+    labels = Counter(b.expected for _, b in cases)
+    features = checker.inputs.features
+    floors = [
+        *((f"{label} case(s)", labels[label], n) for label, n in contract.at_least.items()),
+        (
+            "must-not-block case(s)",
+            sum(
+                any(f in features and features[f].kind == MUST_NOT_BLOCK for f in b.feature_ids)
+                for _, b in cases
+            ),
+            contract.must_not_block,
+        ),
+        (
+            "abstain case(s) with may_quote",
+            sum(b.expected == "abstain" and b.may_quote is not None for _, b in cases),
+            contract.may_quote,
+        ),
+        (f"{TENANT_B} case(s)", sum(q.tenant == TENANT_B for q, _ in cases), contract.tenant_b),
+    ]
+    for what, found, least in floors:
+        if found < least:
+            checker.add(name, 9, f"{found} {what}, {version} asks for at least {least}")
+    tested = [(q, b) for q, b in cases if q.split == "test"]
+    tested_kinds = {slot(b.mix) for _, b in tested}
+    for kind in contract.mix:
         if kind not in tested_kinds:
             checker.add(name, 9, f"no {kind} case is in the test split")
-    tested_labels = {b.expected for q, b in cases if q.split == "test"}
+    tested_labels = {b.expected for _, b in tested}
     for label in LABELS:
         if label not in tested_labels:
             checker.add(name, 9, f"no {label} case is in the test split")
+    if contract.tenants_tested:
+        for tenant in sorted(REQUEST_TENANTS - {q.tenant for q, _ in tested}):
+            checker.add(name, 9, f"no {tenant} case is in the test split")
+        own = {b.expected for q, b in cases if q.tenant == TENANT_B}
+        own_tested = {b.expected for q, b in tested if q.tenant == TENANT_B}
+        for label in LABELS:
+            if label in own and label not in own_tested:
+                checker.add(name, 9, f"no {TENANT_B} {label} case is in the test split")
     by_id = {q.case_id: q for q, _ in cases}
     for probe in S3_PROBES:
         if probe not in by_id:
             checker.add(name, 9, f"the S3 probe {probe} is not a behaviour case of the set")
         elif by_id[probe].split != "dev":
             checker.add(probe, 9, "an S3 probe stays in dev (S3 has run it)")
-
-
-def latest_version(text: str) -> tuple[str, str] | None:
-    """(version, line) of the datasheet's latest version line: the highest version a list item or
-    table row starts with."""
-    found: list[tuple[tuple[int, ...], str, str]] = []
-    for line in text.splitlines():
-        match = VERSION_LINE.match(line)
-        if match:
-            number = match.group(1)
-            found.append((tuple(int(p) for p in number.split(".")), f"v{number}", line))
-    if not found:
-        return None
-    _, label, line = max(found, key=lambda item: item[0])
-    return label, line
-
-
-def version(checker: _Checker, dataset: Path, sha: str) -> None:
-    """Rule 10: the datasheet next to the golden file records this file's sha256 on its latest
-    version line."""
-    path = dataset.parent / DATASHEET
-    if not path.is_file():
-        checker.add(dataset.name, 10, f"no datasheet at {path.name} next to the golden file")
-        return
-    latest = latest_version(path.read_text(encoding="utf-8"))
-    if latest is None:
-        checker.add(dataset.name, 10, f"{path.name} has no version line ('| v1.1 | ...')")
-    elif sha not in latest[1]:
-        checker.add(
-            dataset.name,
-            10,
-            f"the latest version line of {path.name} ({latest[0]}) does not carry the file's "
-            f"sha256 {sha}",
-        )

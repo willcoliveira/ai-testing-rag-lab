@@ -1,10 +1,10 @@
 """S4 (AC6, AC9; the plan's "Where it runs": "the fake suite over the dev cases, whose record must
 validate"). The generation suite through the CLI, as `raglab eval` runs it, on the real golden
-file (golden set v1.1: the retrieval questions and the behaviour cases), the real pack and the
-real local embedder, with FakeChat (config/fake.toml, one trial). check-dataset runs first, the
-record validates (the CLI exits 1 otherwise), and it holds every dev case with its behaviour
-results and report section. With the echo model these numbers measure the plumbing, never Q-05,
-so none is asserted beyond the shape."""
+file config/fake.toml names (golden set v1.1, and v2 from S4b's freeze F: the retrieval questions
+and the behaviour cases), the real pack and the real local embedder, with FakeChat (one trial).
+check-dataset runs first, the record validates (the CLI exits 1 otherwise), and it holds every
+dev case with its behaviour results and report section. With the echo model these numbers
+measure the plumbing, never Q-05, so none is asserted beyond the shape."""
 
 import json
 from pathlib import Path
@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from raglab.__main__ import main
+from raglab.evals import config as eval_config
 from raglab.evals import golden, record
 from tests.conftest import ROOT
 from tests.retrieval_support import read_run
@@ -21,6 +22,7 @@ pytestmark = [pytest.mark.e2e_fake]
 
 def test_the_fake_suite_over_the_real_dev_cases_writes_a_valid_record(tmp_path: Path, capsys):
     source = (ROOT / "config" / "fake.toml").read_text(encoding="utf-8")
+    dataset = eval_config.load_generation(ROOT / "config" / "fake.toml", ROOT).dataset
     config = tmp_path / "fake.toml"
     config.write_text(source.replace("trials = 3", "trials = 1"), encoding="utf-8")
     out = tmp_path / "runs"
@@ -28,11 +30,11 @@ def test_the_fake_suite_over_the_real_dev_cases_writes_a_valid_record(tmp_path: 
     code = main([*command, "--root", str(ROOT)])
     captured = capsys.readouterr()
     assert code == 0, captured.err
-    assert "check-dataset: datasets/golden.v1.jsonl passes" in captured.err
+    assert f"check-dataset: {dataset} passes" in captured.err
     [run_dir] = list(out.iterdir())
     assert record.validate(run_dir, ROOT) == []
     manifest, cases = read_run(run_dir)
-    every = golden.load(ROOT / "datasets" / "golden.v1.jsonl")
+    every = golden.load(ROOT / dataset)
     dev = {q.case_id for q in every if q.split == "dev"}
     behaviour_dev = {q.case_id for q in every if q.split == "dev" and q.kind == "behaviour"}
     assert {str(c["case_id"]) for c in cases} == dev

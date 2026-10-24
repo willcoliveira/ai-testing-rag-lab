@@ -16,7 +16,7 @@ name = "generation-local-ollama-nightly"
 suite = "generation"
 
 [dataset]
-path = "datasets/golden.v1.jsonl"
+path = "datasets/golden.v2.jsonl"
 split = "all"
 
 [chunker]

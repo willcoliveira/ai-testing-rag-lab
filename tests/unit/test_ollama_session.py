@@ -407,7 +407,7 @@ def test_a_config_without_an_ollama_table_has_no_session():
 
 
 MANIFEST_RUN = """
-import json, sys
+import json, re, sys
 from pathlib import Path
 sys.path.insert(0, {root!r})
 from raglab.adapters.fake import FakeChat, HashingEmbedder
@@ -422,7 +422,7 @@ from tests.retrieval_support import GIT, PACK
 repo = Path({root!r})
 root = generation_root(Path({tmp!r}))
 text = (repo / "config" / "local-ollama.toml").read_text(encoding="utf-8")
-text = text.replace("datasets/golden.v1.jsonl", "golden.jsonl")
+text = re.sub(r"datasets/golden\\.v\\d+\\.jsonl", "golden.jsonl", text)  # v1.1, or v2 from S4b's F
 text = text.replace("datasets/probes.s3.jsonl", "probes.jsonl")
 path = root / "config" / "local.toml"
 path.parent.mkdir(exist_ok=True)

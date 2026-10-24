@@ -4,7 +4,7 @@ name = "retrieval-hybrid"
 suite = "retrieval"
 
 [dataset]
-path = "datasets/golden.v1.jsonl"
+path = "datasets/golden.v2.jsonl"
 split = "dev"
 
 [chunker]
