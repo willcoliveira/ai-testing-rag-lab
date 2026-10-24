@@ -5,6 +5,10 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- Three Pillow 12.3.0 advisories published on 2026-10-21 join `make audit`'s skips ahead of
+  pip-audit's database, which does not list them yet, so `main` stays green when they reach it:
+  image data decoded as P;2L or P;4L, `Image.quantize()` with an empty palette, and the TIFF
+  encoder. raglab uses none of the three. The same decision and review date apply.
 - S9, observability and performance, brought forward from v0.3 to ship in v0.2 (plan
   `docs/plans/2026-10-23-s9-observability-perf.md`, ledger beside it; docs/OBSERVABILITY.md):
   gen_ai spans for /ask behind a Tracer port, leaving through an allowlist with content off by
