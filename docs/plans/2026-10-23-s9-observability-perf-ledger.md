@@ -416,3 +416,78 @@ and the runs after its "Mac free":
 | **S9-J4 (info)**, nothing recomputed T from the table | `test_t_follows_from_the_ten_runs_by_the_rule` reads THRESHOLDS.md's ten rows and recomputes T against the script and the cell | `b5dd123` |
 | **S9-J5 (info)**, "opaque object" by convention | Kept as designed: rule 7 fences the imports of `opentelemetry`, and the provider is typed `object` in `raglab.api`. Now tested where it matters for every run that is not `raglab serve`: `test_the_pipeline_and_the_names_load_no_opentelemetry` imports the pipeline, the names and the traced embedder in a fresh interpreter and finds no `opentelemetry` module loaded | `b5dd123` |
 | **S9-J6 (info)**, three observations | (a) The stop-skipped break's 102 of 110 traces: the local file completes only on the collector's graceful flush, which is why the smoke stops the collector before step 5 reads its files; no change. (b) v0.163.0 publishes 4 `.sha256` assets against 204 for v0.162.0, which supports the v0.162.0 pin; recorded. (c) The endpoint check accepted the name `localhost` unresolved: it now takes a loopback address only (`127.0.0.1`, any 127/8 address or `[::1]`, bracketed back into the URL), and the test refuses `http://localhost:4318` | `4ef1aa4` |
+
+### Fix round 1's runs (2026-10-24, after the orchestrator's "Mac free" at 13:10 WEST)
+
+`make ollama-status` first ("pid": null, "port_open": false, "loaded": null, no process), and
+before each smoke. Every break below was made on a committed file with
+`PYTHONDONTWRITEBYTECODE=1` and restored with `git checkout`; `git status --short` was empty after
+each.
+
+**S9-J2, red then green.** With `src/raglab/obs/otel.py` as it was at the test's commit `43cf728`
+(the fix reverted), `tests/obs/test_trace_context.py`: "3 failed". The flags-00 request exported
+no span ("assert set() == {'POST /ask', ...}"); with flags 01, `POST /ask`'s parent was the
+client's context ("SpanContext(trace_id=0x4bf92f3577b34da6a3ce929d0e0e4736,
+span_id=0x00f067aa0ba902b7, trace_flags=0x01, trace_state=['{key=vendor,
+value=zebra-tracestate-5150}', ...], is_remote=True)"); and `redact()` kept the trace state
+("assert 1 == 0"). Restored, at the head: "3 passed".
+
+**Which part holds** (each part broken alone, then restored):
+
+| Part broken alone | `tests/obs/test_trace_context.py` |
+|---|---|
+| The no-op propagator not set (`propagate.set_global_textmap(...)` replaced by `pass`) | "2 failed, 1 passed": both requests' cases. So FastAPI 0.144.0 extracts a request's context through the global text-map propagator, and the no-op propagator is what stops it; the fallback (stripping the three headers before FastAPI's telemetry reads them) was not needed |
+| The default sampler (`sampler=ALWAYS_ON` removed) | "3 passed": with no remote parent extracted, no flags reach the sampler. `ALWAYS_ON` stays as a second line, should a propagator ever be set elsewhere |
+| `redact()` keeping the contexts as they are | "1 failed, 2 passed" (the `redact()` test): the exporter's own line, which the end-to-end cases cannot see while the propagator holds |
+
+**End to end under uvicorn and the real collector** (a scratch probe, not committed: the cached
+`otelcol` with `deploy/otel/collector.yaml` on `127.0.0.1:4392`, `raglab serve --config
+config/perf.toml` on `127.0.0.1:8792` with `PERF_TEST_MODE=1 RAGLAB_ENV=ci` and the endpoint): two
+`/ask` requests with `traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00`, then
+`-01`, each with `tracestate: vendor=zebra-tracestate-5150,other=x` and `baggage:
+user=zebra-baggage-7342`, both answered 200. The collector's file held two traces of five spans
+each, with ids of raglab's own, each rooted at `POST /ask` (no parent span id) with an empty
+`traceState` on every span; the client's trace id, its span id and both markers appear nowhere in
+the file. The server stopped gracefully ("Application shutdown complete"), the collector exited 0,
+both ports closed, no process left.
+
+**S9-J4 and S9-J5, their breaks.** T moved to 30 ms in both `perf/smoke.js` and THRESHOLDS.md's
+cell at once (which the cell-agreement test alone accepts): "1 failed, 13 passed",
+`test_t_follows_from_the_ten_runs_by_the_rule`. `import opentelemetry.trace` added to
+`src/raglab/obs/traced.py` (inside `raglab.obs`, so `make architecture` still says "0 architecture
+violations"): `test_the_pipeline_and_the_names_load_no_opentelemetry` failed, listing the
+`opentelemetry` modules the pipeline then loaded. Both restored, both pass.
+
+**The touched tests**, `tests/obs`, `tests/api`, `tests/unit/test_perf_smoke.py`,
+`test_architecture.py`, `test_collector_config.py`, `test_workflow_rules.py` and the docs tests:
+"528 passed".
+
+**`make -k check`.** The first run, at `a8b8f54`, failed `deps` as well: vulture found the no-op
+propagator's interface arguments unused ("src/raglab/obs/otel.py:210: unused variable 'carrier'
+(100% confidence)", and three more). Their names are the interface's (callers pass them by
+keyword), so they stay, and `4229108` marks them with `del`. The second run, at `4229108`:
+`/usr/bin/time -p make -k check` 209.43 s real (199.30 s user), the tests 169.81 s; every target
+green but `audit`, on the same eight pre-existing lines (filelock 4.0.12 three times, pillow 12.3.0
+twice, pypdf 6.19.0 three times), none of an S9 package:
+
+    268 files already formatted                                   format
+    All checks passed!                                            lint
+    0 errors, 0 warnings, 0 informations                          types
+    Success! No dependency issues found.                          deps (deptry; vulture silent)
+    Found 8 known vulnerabilities, ignored 43 in 3 packages       audit (pre-existing)
+    (bandit and semgrep silent)                                   sast
+    No findings to report. Good job!                              workflows
+    no leaks found, no leaks found                                secrets
+    0 hits across 389 files (42 rules)                            privacy
+    0 architecture violations in src/raglab                       architecture
+    check-dataset: datasets/golden.v1.jsonl passes (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)
+    ========== 1538 passed, 2 deselected, 1 warning in 169.81s (0:02:49) ===========
+    retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261019T180502Z-retrieval-dense-dev-97011a7) minus one question (1/22), 0.636
+    api-smoke: passed
+
+Six tests more than after OB10 (1532): the three trace-context tests, the refused `localhost`
+endpoint, and the S9-J4 and S9-J5 tests.
+
+**`make perf-smoke`**, at `a8b8f54`: passed, 16.53 s, "✓ 'med<40' med=5.27ms"; at `4229108`,
+after the vulture fix: passed, 16.44 s, "✓ 'med<40' med=5.19ms" (the Mac's medians; T comes from
+GitHub's runner).
