@@ -178,3 +178,24 @@ No generation, retrieval or judged run was made, and no live session was started
 ## Part S7b
 
 (After S6 and S7a merge.)
+
+### `make -k check` at STOP 1 (`a5d6e18`, macOS arm64, `/usr/bin/time -p`)
+
+Every target passes but `audit`, whose failure is pre-existing on `main` (advisories published on
+2026-10-23; fixed in a separate pull request; `AUDIT_SKIP` untouched):
+
+| Target | Result |
+|---|---|
+| format, lint, types | 274 files already formatted; ruff "All checks passed!"; pyright 0 errors |
+| deps | deptry "No dependency issues found"; vulture silent |
+| audit | **red, pre-existing:** "Found 8 known vulnerabilities, ignored 43 in 3 packages": filelock 4.0.12, three advisories (fixed in 4.2.1); pillow 12.3.0, two (13.0.0); pypdf 6.19.0, three (6.21.2), as pip-audit names them by their CVE ids |
+| sast, workflows | bandit and semgrep silent; zizmor "No findings to report" |
+| secrets, privacy | gitleaks "no leaks found" (directory and history); "0 hits across 402 files (42 rules)" |
+| architecture, check-dataset, model | 0 violations; golden.v1.jsonl passes; the embedder already in the cache |
+| test | 1627 passed, 2 deselected in 172.21 s |
+| gate | recall@5 0.682 (n 22) passes against the baseline 0.682 minus one question, 0.636 |
+| api-smoke | passed |
+
+`real 215.27`, `user 199.55`, `sys 14.98`. The first run at STOP 1 (`0d9fbc0`) had `deps` red too
+(vulture: the egress guard's unused `__exit__` arguments), fixed in `b2c60b1`; it took 210.41 s with
+1613 tests. pr-fast's check-job time before and after this pull request is [CI].
