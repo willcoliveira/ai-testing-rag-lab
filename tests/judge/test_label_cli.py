@@ -58,12 +58,15 @@ def test_each_item_is_the_judge_item_the_judged_run_built(tmp_path):
         assert s.judge_item.criterion == s.item.criterion
 
 
-def test_the_screen_shows_the_judges_inputs_and_rules_and_none_of_its_fields(tmp_path):
+def test_the_screen_shows_the_judges_inputs_and_rules_and_none_of_its_fields(tmp_path, capsys):
     """The blindness test: the criterion's rules and every input the judge saw are shown; no
-    judge reason, quote or verdict line is."""
+    judge reason, quote or verdict line is, whether said through the session or printed."""
     root, folder, _, _ = sampled_root(tmp_path)
     items = shown(root, folder)
-    code, screen = session(root, folder, answers_for(items))
+    capsys.readouterr()
+    code, said = session(root, folder, answers_for(items))
+    printed = capsys.readouterr()
+    screen = "\n".join([said, printed.out, printed.err])
     assert code == 0
     for s in items:
         assert f"Criterion: {s.item.criterion}\nPass when " in screen
