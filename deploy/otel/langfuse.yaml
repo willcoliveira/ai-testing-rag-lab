@@ -1,0 +1,43 @@
+# S9 (docs/OBSERVABILITY.md): the optional route to Langfuse, merged over collector.yaml. D2 chose
+# "Collector in CI only, no account": nothing sends to Langfuse. The pipeline is built and
+# validated, and `make perf-smoke` runs it with a file standing in for Langfuse
+# (langfuse-stand-in.yaml); a session that sends to Langfuse merges this file only when its keys are
+# set, from .env, never in CI.
+#
+# First, before anything leaves, the attributes processor deletes every content key raglab defines
+# (raglab.obs.names: the D4 opt-in's question and answer, and the spec's Opt-In content attributes
+# raglab never sets), so content never leaves even from a session where the opt-in is on;
+# tests/unit/test_collector_config.py holds this list to raglab's. Then OTLP over HTTP to
+# Langfuse's endpoint (".../api/public/otel"; Langfuse takes no gRPC) with Basic auth built from the
+# keys in the environment ("Langfuse uses Basic Auth to authenticate requests"). Core otelcol has
+# no basicauth extension, so the header is the base64 of "public key:secret key", given whole.
+processors:
+  attributes/content:
+    actions:
+      - key: raglab.content.question
+        action: delete
+      - key: raglab.content.answer
+        action: delete
+      - key: gen_ai.input.messages
+        action: delete
+      - key: gen_ai.output.messages
+        action: delete
+      - key: gen_ai.system_instructions
+        action: delete
+      - key: gen_ai.retrieval.query.text
+        action: delete
+      - key: gen_ai.retrieval.documents
+        action: delete
+
+exporters:
+  otlp_http/langfuse:
+    endpoint: ${env:LANGFUSE_OTEL_ENDPOINT}
+    headers:
+      Authorization: Basic ${env:LANGFUSE_BASIC_AUTH}
+
+service:
+  pipelines:
+    traces/langfuse:
+      receivers: [otlp]
+      processors: [attributes/content, batch]
+      exporters: [otlp_http/langfuse]

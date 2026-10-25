@@ -102,6 +102,47 @@ layer) on S4's consistency baseline, on golden set v1.1, `20261019T172035Z-gener
 power source was not recorded). Both are the maintainer's Mac; a hosted provider's are measured
 after the sign-up.
 
+## Performance (S9)
+
+The k6 smoke (`make perf-smoke`, pr-fast's `perf` job; docs/OBSERVABILITY.md): one virtual user
+sends 10 warm-up and then 100 gated `/ask` requests to `raglab serve --config config/perf.toml`, the
+perf stub (the fake echo model, provenance fake), over HTTP on loopback, on GitHub's
+`ubuntu-24.04` runner. It is the HTTP path on the stub on GitHub's runner: **not Q-01**, which is
+in-process, the real model, on the maintainer's Mac.
+
+| Metric | Gate | Threshold | Reason |
+|---|---|---|---|
+| k6 smoke: /ask median (`ask_duration`, the 100 gated requests) | pr-fast `perf` job, blocking | median < 40 ms: T, set on 2026-10-24 by the rule below from the ten runs below (the largest median 15.38 ms; 2 × 15.38 = 30.76 ms, rounded up to the next 10 ms) | GitHub's hosted runners are shared machines whose speed varies (one pr-fast test step took 346 s on one run and 451 s on another on 2026-10-23), so a smoke must not go red on a slow machine; the regressions a smoke exists for cost far more than double (a model or an index loaded per request, a blocking call, a loop that grows with the corpus). **The rule, written before any run** (the S9 plan): the job lands with the median threshold off; ten report-only runs of the job at one commit, all kept, none dropped and none run again for a better number, each run's median and p95 copied from its log with its run id; T = 2 × the largest of the ten medians, rounded up to the next 10 ms; T changes only in a reviewed pull request with ten new runs under the same rule (a change of k6, of the runner image, of the stub, or a guard that adds latency to `/ask`). `tests/unit/test_perf_smoke.py` holds perf/smoke.js's value equal to this cell |
+| k6 smoke: every reply 200 with status ok; failed requests | pr-fast `perf` job, blocking | checks rate 1; http_req_failed rate 0 | A smoke that sends 110 requests to a stub has no reason to see one fail; any failure is a bug, not noise |
+| k6 smoke: /ask p90, p95, minimum, maximum | reported (the job's log and step summary) | none | The tail on a shared runner is noisier than the median |
+
+**The ten report-only runs** (provenance: the fake model, the perf stub; GitHub's `ubuntu-24.04`
+runner): the perf job of pr-fast run 40074154534 at commit `12f8e70`, attempts 1 to 10 on
+2026-10-24, every one kept and every one passed (checks rate 1, no failed request). Each value is
+copied from its job's `perf-smoke: /ask median ...` line:
+
+| Run 40074154534, attempt | Median | p95 |
+|---|---|---|
+| 1 | 15.13 ms | 17.52 ms |
+| 2 | 14.27 ms | 16.75 ms |
+| 3 | 14.50 ms | 16.71 ms |
+| 4 | 14.34 ms | 16.70 ms |
+| 5 | 8.01 ms | 9.39 ms |
+| 6 | 15.38 ms | 17.69 ms |
+| 7 | 14.73 ms | 17.12 ms |
+| 8 | 13.85 ms | 16.50 ms |
+| 9 | 14.42 ms | 16.87 ms |
+| 10 | 12.24 ms | 13.73 ms |
+
+The largest median is attempt 6's, 15.38 ms; T = 2 × 15.38 ms = 30.76 ms, rounded up to the next
+10 ms: **40 ms**. The medians span 8.01 to 15.38 ms, a factor of 1.9 between the fastest and the
+slowest runner, which is why the margin is 2× the slowest and not a tighter rule.
+
+Lab practice: a smoke, not a load test. One user on a shared CI runner and a stub for the model
+catch a regression that doubles the API's time, not one of 10%. Production load-tests a staging
+copy of the real deployment on capacity of its own, with the model in the path, against agreed
+latency objectives, and sets margins from many more runs.
+
 The test split is never used to set a threshold or to choose a configuration; it runs in
 nightly, release and the capstone only.
 

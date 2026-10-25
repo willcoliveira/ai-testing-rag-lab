@@ -14,6 +14,9 @@
 6. DeepEval is imported nowhere in the package, `raglab.adapters` included (S5, D4: "Own judge;
    DeepEval fenced"): it lives in tools/deepeval-check, a project with its own lock, which the
    main environment never installs.
+7. OpenTelemetry (the API, the SDK and the exporters, all under `opentelemetry`) is imported only
+   inside `raglab.obs` (S9): the pipeline writes to the Tracer port of `raglab.core`, and the web
+   layer gets the provider as an opaque object.
 
 A run-time import is found by the call, not by tracking what importlib is bound to (S0 judge round
 3: `importlib = __import__('importlib')`, `il, x = importlib, 1` or `sys.modules['importlib']`
@@ -74,6 +77,9 @@ HTTP_CLIENTS = frozenset({"httpx", "aiohttp", "urllib3"})
 WEB = frozenset({"fastapi", "starlette", "uvicorn"})
 # fenced libraries: imported nowhere in the package, adapters included (rule 6, S5)
 FENCED = frozenset({"deepeval"})
+# OpenTelemetry: only in raglab.obs (rule 7, S9)
+TELEMETRY = frozenset({"opentelemetry"})
+TELEMETRY_LAYER = "obs"
 
 
 @dataclass(frozen=True)
@@ -383,6 +389,15 @@ def check(package_dir: Path) -> list[Violation]:
                         line,
                         f"{top} is fenced in tools/deepeval-check and imported nowhere in "
                         f"{root_name}, adapters included",
+                    )
+                )
+            if layer != TELEMETRY_LAYER and top in TELEMETRY:
+                violations.append(
+                    Violation(
+                        file,
+                        line,
+                        f"OpenTelemetry ({module}) is imported only in {root_name}."
+                        f"{TELEMETRY_LAYER}; elsewhere use the Tracer port of {root_name}.core",
                     )
                 )
         violations.extend(_test_only_violations(file, tree, parts, root_name))

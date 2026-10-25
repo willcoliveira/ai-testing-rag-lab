@@ -356,16 +356,17 @@ flowchart TB
   end
   subgraph P2[P2 Evaluation rigour, v0.2]
     S5[S5 Local judged metrics, token measurement, provider decision] --> S4b[S4b Golden set v2, ~120] --> S6[S6 Judge calibration] --> S7[S7 Attack, guardrails, red team] --> S8[S8 Gates, causes, suite audit]
+    S9[S9 Observability, perf]
   end
   subgraph P3[P3 Production practices, v0.3]
-    S9[S9 Observability, perf] --> S3h[S3h Host evaluation spike] --> S10[S10 Real demo, path to prod] --> S11[S11 Teaching playground, system audit, capstone]
+    S3h[S3h Host evaluation spike] --> S10[S10 Real demo, path to prod] --> S11[S11 Teaching playground, system audit, capstone]
   end
   subgraph EXT[Extensions]
     S12[S12 Handbook corpus]
     B[Track B Playwright for Python]
   end
   S4 --> S5
-  S8 --> S9
+  S8 --> S3h
   S11 --> S12
   S3 -.-> B
 ```
@@ -451,7 +452,26 @@ on 2026-10-22 and 2026-10-23 and not adopted, the user's answer verbatim "Not ad
 published (Recommended)": answer-v1 stays the current prompt and the consistency baseline, and
 answer-v2's runs stay published as a measured result (`docs/plans/2026-10-21-answer-v2-ledger.md`).
 
-**v0.2 (S5, S4b, S6–S8).** Judged, calibrated, attacked, gated.
+Decision (2026-10-23): S9 is brought forward from v0.3, built beside P2, and ships in v0.2. Asked
+"S9, observability and performance. Approve with all five recommended answers? D1: merge when
+ready and ship in v0.2, bringing this v0.3 stage forward. D2: the OpenTelemetry collector runs in
+CI only, with no account. D3: k6 runs in its own parallel pr-fast job, with the median gated at 2×
+the slowest of ten runs (you then add `perf` to the required checks). D4: message content in
+traces is opt-in, for local debugging only. D5: approve and start. Your time is about 1.5–2 h,
+with no Ollama sessions.", the user answered, verbatim: "All five as recommended (Recommended)".
+For D1 that is "Merge when ready, ship in v0.2": S9 merges once its criteria are met, beside
+v0.2's stages, and v0.2.0's notes list it as brought forward from v0.3. In the phase map, S9's
+node sits in P2's box beside its chain, and `S8 --> S9` gives way to `S8 --> S3h`, so P3 starts
+with S3h and its host spike still waits for S8; S9's row is in v0.2's table, and the v0.2 and v0.3
+headings and phase rows name it (the last two moves made in S9's fix round 1, the criteria judge's
+S9-J1). For D2 it is "Collector in CI only, no account": the collector runs
+in pr-fast's perf job and in `make perf-smoke`, writing to a file; the Langfuse pipeline is built
+and validated and stays off, so the open variable "Langfuse cloud as an optional sink" is answered
+for S9 (no account), and S10 chooses the sink with the host. The S9 plan
+(`docs/plans/2026-10-23-s9-observability-perf.md`) quotes the question and all five answers.
+
+**v0.2 (S5, S4b, S6–S8, and S9 brought forward).** Judged, calibrated, attacked, gated; traced,
+with a perf smoke.
 
 | # | Stage | Build project / how-to step | Key acceptance criteria |
 |---|---|---|---|
@@ -460,6 +480,7 @@ answer-v2's runs stay published as a measured result (`docs/plans/2026-10-21-ans
 | S6 | Judge calibration (30 labels) | 6 / step 10 | bar written before looking; blind `label` CLI after the rubric settles; labels never reused as judge examples; kappa, confusion table, TPR and TNR; second labeller on 10–15 items, or an explicit single-labeller caveat; how-to 05 record template; threshold and reason in THRESHOLDS.md |
 | S7 | Attack, guardrails, red team | 7 / step 9 | THREAT-MODEL.md (OWASP LLM Top 10 2026 mapping); promptfoo red-team run with findings turned into cases; planted instruction (including "nothing is sent out"), two tenants, poisoned duplicate: each fails without the defence and passes with it; must-block and must-not-block suites per filter, both error rates and latency; Guardrails AI extra (see below) |
 | S8 | Gates, failure causes, suite audit | 8 / step 11 | suite audit (how-to 09 B) in `docs/audits/`; GATES.md with how-to 08 columns; THRESHOLDS.md gives a reason for every gated and every reported metric; every failure tagged with a cause (ingestion, retrieval, generation, abstention); embedder-swap branch shows what moved; upgrade record (how-to 10); flake policy |
+| S9 | Observability and perf (brought forward from v0.3: built beside P2, ships in v0.2; decision of 2026-10-23) | — | gen_ai spans; message content off by default, redaction proven by a test; optional Langfuse via a collector; API refuses `PERF_TEST_MODE` in prod; [CI] k6 smoke against the stub, gating the median and reporting p95 |
 
 Decision (2026-10-23): S4b's judged baseline on golden set v2 moves to S6. Asked "S4b D2: the
 judged baseline on v2 is one long local judge session, about 2 h 15 min (estimate). That is over
@@ -473,11 +494,10 @@ gap (Recommended)": v2 is written over the existing corpus, and R-22 waits for S
 which plants it in a corpus pull request of its own or records it as not covered. The S4b plan
 (`docs/plans/2026-10-23-s4b-golden-set-v2.md`) quotes both questions.
 
-**v0.3 (S9, S3h, S10, S11).** Production practices and the public demo.
+**v0.3 (S3h, S10, S11).** Production practices and the public demo.
 
 | # | Stage | Build project / how-to step | Key acceptance criteria |
 |---|---|---|---|
-| S9 | Observability and perf | — | gen_ai spans; message content off by default, redaction proven by a test; optional Langfuse via a collector; API refuses `PERF_TEST_MODE` in prod; [CI] k6 smoke against the stub, gating the median and reporting p95 |
 | S3h | Host evaluation spike (moved from P1; starts P3, before S10) | — | the same fake-model container deployed to 2–3 hosts (candidates: Render free, Fly.io, Cloud Run). Compared on: cold start, memory fit with the ONNX embedder, cost at scale-to-zero, secrets, logs, deploy from Actions with OIDC or a token, and rate-limit header handling. Outcome: `docs/decisions/ADR-001-host.md`, the chosen host kept, the others torn down. Sign-ups happen here, with your go |
 | S10 | Real-model demo and path to prod on AWS | — | demo controls (below) implemented and tested; `path-to-prod-aws.md` (Bedrock inference profiles, Terraform, Bedrock Guardrails or Guardrails AI behind the same port, ECS/EKS, OTel to Langfuse or Datadog, Secrets Manager, approval-gated prod, PII redaction at the collector, prod-sample online evals, what stays the same and why); [CI] deploy behind required reviewers |
 | S11 | Teaching playground and capstone | — | Pages renders only `runs/published`; each run shows SHA, config, provider, fake or live, and intervals; a step-by-step teaching flow; [CI] schema and sha256 checks; system audit (how-to 09 A) and adversarial re-test before going public; trivy image scan; one-page capstone on the test slice with the five-row demo table, a "not covered" list (how-to 11) and SYSTEM-CARD.md; SBOM at release |
@@ -501,8 +521,8 @@ labelled as lab in the README.
 | Phase | Releases | Nature | You can stop here with |
 |---|---|---|---|
 | **P1 Lab core** | v0.1 (S0–S4) | Experimental. Fake and local models; numbers are real but local. | A tested RAG starter: corpus, ingestion, retrieval metrics, abstention, golden set, CI and a container ready to deploy. This closes the roadmap row in its minimum form. |
-| **P2 Evaluation rigour** | v0.2 (S5, S4b, S6–S8) | Experimental system, production-grade evaluation. | Judged runs with intervals (local, plus hosted if ADR-002 picks a provider), a calibrated judge, a red team, gates with reasons, and a suite audit. This is the interview-grade evidence. |
-| **P3 Production practices** | v0.3 (S9, S3h, S10, S11) | Production-shaped on a cheap host. | Tracing with redaction, perf gate, the host spike, demo controls, real-model demo, system audit, teaching playground, capstone. |
+| **P2 Evaluation rigour** | v0.2 (S5, S4b, S6–S8, and S9 brought forward) | Experimental system, production-grade evaluation. | Judged runs with intervals (local, plus hosted if ADR-002 picks a provider), a calibrated judge, a red team, gates with reasons, and a suite audit. This is the interview-grade evidence. With S9: tracing with redaction and a perf gate. |
+| **P3 Production practices** | v0.3 (S3h, S10, S11) | Production-shaped on a cheap host. | The host spike, demo controls, real-model demo, system audit, teaching playground, capstone. |
 | **P4 Path to prod** | doc only, inside S10 | Not built. | `path-to-prod-aws.md`: what would change and why. |
 
 How each practice matures, with lab (L), production-shaped (P) and documented only (D):
@@ -514,7 +534,7 @@ How each practice matures, with lab (L), production-shaped (P) and documented on
 | Gates | P: pr-fast blocks | P: eval-on-change, nightly, release | P: weekly, deploy approval | same, plus a canary with a rollback rule |
 | Guardrails | L: input limits, tenant filter, citation validator | P: layered + Guardrails AI, suites both ways | P: on in the demo | Bedrock Guardrails or Guardrails server behind the same port |
 | Security | P: secrets, SAST, deps, workflow hardening | P: threat model, red team, suite audit | P: ZAP, trivy, SBOM, system audit, adversarial re-test | WAF, IAM least privilege, Secrets Manager, pen test |
-| Observability | L: logs | L: run records | P: OTel gen_ai, redaction, optional Langfuse | collector routing to Langfuse or Datadog, PII redaction at the collector |
+| Observability | L: logs | L: run records; P: OTel gen_ai, redaction, a collector with an optional Langfuse route (S9, brought forward) | P: the sink chosen with the host (S10) | collector routing to Langfuse or Datadog, PII redaction at the collector |
 | Deploy | L: the fake-model container, run locally | — | P: the host chosen in S3h; real model, rate and budget limits, kill switch | ECS or EKS, Terraform, staging and prod environments, approval gates |
 | Data | L: planted corpus | P: test split, datasheet | P: handbook corpus (S12) | ingestion pipeline, retention and deletion policy |
 
@@ -879,7 +899,7 @@ measured in S3. A 1–2 GB machine price is UNCONFIRMED.
 | Question language: English only, or also Portuguese questions over the English corpus (a cross-lingual test) | S1a |
 | Local models for Ollama that fit 48 GB: one generator plus a judge from another family, and their measured speed | S3 / S5 |
 | About 1–2 hours of blind labelling, and whether a second labeller is available | S6 |
-| Langfuse cloud as an optional sink; Bedrock now or later | S9 / S10 |
+| Langfuse cloud as an optional sink (answered for S9 on 2026-10-23: no account, the collector in CI only; S10 chooses the sink); Bedrock now or later | S9 / S10 |
 | Handbook commit to pin | S12 |
 
 ## Risks

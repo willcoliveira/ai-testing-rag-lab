@@ -35,8 +35,8 @@ intervals at [generation] level), and:
 
 ```toml
 [generator]
-provider = "fake"               # fake (FakeChat, provenance fake) or openai-compat
-model = "fake-echo"
+provider = "fake"               # fake (FakeChat, provenance fake) or openai-compat; S9's
+model = "fake-echo"             # perf-stub (the echo under that name) only for `raglab serve`
 # openai-compat also needs base_url (loopback only in S3), digest (64 hex, from the server's
 # /api/tags after the pull), temperature, max_tokens and timeout_s; top_p and reasoning_effort
 # are optional
@@ -187,6 +187,10 @@ TABLES = {
     "judged": ({"judge", "judging"}, {"ollama"}),
 }
 OPENAI_COMPAT_KEYS = frozenset({"base_url", "digest", "temperature", "max_tokens", "timeout_s"})
+# S9: the perf stub, FakeChat's echo under this provider name (provenance fake). Only `raglab
+# serve` reads a config that names it, and serves it only with PERF_TEST_MODE=1
+# (raglab.api.environment); every other command refuses it.
+PERF_STUB = "perf-stub"
 
 
 class ConfigError(ValueError):
@@ -491,14 +495,24 @@ def _positive(value: object, where: str, name: str) -> float:
 
 
 def _generator(
-    table: dict[str, object], where: str, require_digest: bool, part: str = "generator"
+    table: dict[str, object],
+    where: str,
+    require_digest: bool,
+    part: str = "generator",
+    perf_stub: bool = False,
 ) -> GeneratorConfig:
-    """A chat model's table: [generator] (S3) or [judge] (S5), named by part."""
+    """A chat model's table: [generator] (S3) or [judge] (S5), named by part. perf_stub: whether
+    this command may read the perf stub (S9: `raglab serve` only)."""
     provider, model = str(table["provider"]), str(table["model"])
     given = set(table) - {"provider", "model"}
-    if provider == "fake":
+    if provider == PERF_STUB and not perf_stub:
+        raise ConfigError(
+            f"{where}: {part} provider {PERF_STUB} is for `raglab serve` with PERF_TEST_MODE=1 "
+            "only (S9); no run, question or session uses it"
+        )
+    if provider in ("fake", PERF_STUB):
         if given:
-            raise ConfigError(f"{where}: the fake {part} takes provider and model only")
+            raise ConfigError(f"{where}: the {provider} {part} takes provider and model only")
         return GeneratorConfig(provider, model)
     if provider != "openai-compat":
         raise ConfigError(f"{where}: {part} provider {provider!r} is not fake or openai-compat")
@@ -580,15 +594,20 @@ def _ollama(
     )
 
 
-def load_generation(path: Path, root: Path, require_digest: bool = True) -> GenerationConfig:
+def load_generation(
+    path: Path, root: Path, require_digest: bool = True, *, perf_stub: bool = False
+) -> GenerationConfig:
     """A generation config. require_digest=False reads a config whose model digest is not pinned
-    yet (only the local server's lifecycle commands do, to start the server the pull needs)."""
+    yet (only the local server's lifecycle commands do, to start the server the pull needs).
+    perf_stub=True also reads a perf-stub config (S9: only `raglab serve` passes it)."""
     where = str(path)
     raw, data, suite = _read(path)
     if suite != "generation":
         raise ConfigError(f"{where}: suite {suite!r}: this command reads generation configs only")
     shared = _shared(path, root, raw, data, suite)
-    generator = _generator(_table(data, "generator", where), where, require_digest)
+    generator = _generator(
+        _table(data, "generator", where), where, require_digest, perf_stub=perf_stub
+    )
     table = _table(data, "generation", where)
     trials = cast(int, table["trials"])
     level = float(cast(float, table["level"]))

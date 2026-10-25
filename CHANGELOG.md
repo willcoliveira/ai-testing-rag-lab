@@ -5,6 +5,13 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- S9, observability and performance, brought forward from v0.3 to ship in v0.2 (plan
+  `docs/plans/2026-10-23-s9-observability-perf.md`, ledger beside it; docs/OBSERVABILITY.md):
+  gen_ai spans for /ask behind a Tracer port, leaving through an allowlist with content off by
+  default and nothing a guard removed; `PERF_TEST_MODE` and the content opt-in refused outside
+  `RAGLAB_ENV` ci or local; `make perf-smoke` and pr-fast's `perf` job, the k6 smoke against the
+  perf stub with the collector and its Langfuse pipeline checked; the median gated at 40 ms, set
+  from ten runs on GitHub's runner.
 - S4b, golden set v2 (plan `docs/plans/2026-10-23-s4b-golden-set-v2.md`, ledger beside it):
   `datasets/golden.v2.jsonl`, golden set v1.1's 74 lines and 80 new behaviour cases (120 in the mix
   45/24/24/12/15, 33 asked as tenant B, every requirement with a planted feature traced), the

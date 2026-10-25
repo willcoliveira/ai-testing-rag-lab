@@ -52,10 +52,12 @@ def chat(
     client: httpx.Client | None = None,
 ) -> tuple[ChatModel, Json, str]:
     """(chat model, what the run record says about it, provenance). fake builds FakeChat
-    (provenance fake); openai-compat builds the local OpenAI-compatible adapter, which refuses to
-    start unless the server has the tag with the pinned digest (provenance local)."""
-    if provider == "fake":
-        model_ = fake.FakeChat(name=model)
+    (provenance fake); perf-stub (S9) builds the same echo under that provider name, provenance
+    fake, which only `raglab serve` reads and only with PERF_TEST_MODE=1; openai-compat builds the
+    local OpenAI-compatible adapter, which refuses to start unless the server has the tag with the
+    pinned digest (provenance local)."""
+    if provider in ("fake", "perf-stub"):
+        model_ = fake.FakeChat(name=model, provider=provider)
         return model_, model_.describe(), "fake"
     if provider != "openai-compat":
         raise AdapterError(f"chat provider {provider!r}: only fake and openai-compat exist (S3)")

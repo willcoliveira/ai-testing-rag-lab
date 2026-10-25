@@ -4,6 +4,9 @@ model the factory builds, and the default guards. `raglab ask`, `raglab serve` a
 `raglab eval --suite generation` all build it here, so they answer the same way.
 
 The provenance is fake when either the embedder or the chat model is fake, else local.
+
+S9: given a tracer (only `raglab serve` gives one), the pipeline writes its spans to it and the
+query embedding gets its span (raglab.obs.traced.TracedEmbedder); without one nothing is traced.
 """
 
 from collections.abc import Sequence
@@ -12,12 +15,13 @@ from pathlib import Path
 
 import raglab.evals.retrieval as retrieval
 from raglab.adapters import factory
-from raglab.core.ports import ChatModel, Embedder, Guardrail
+from raglab.core.ports import ChatModel, Embedder, Guardrail, Tracer
 from raglab.core.types import Chunk
 from raglab.evals.config import GenerationConfig, GeneratorConfig
 from raglab.generate.pipeline import Pipeline
 from raglab.guard import default_guards
 from raglab.ingest import pipeline as ingest
+from raglab.obs.traced import TracedEmbedder
 
 type Json = dict[str, object]
 
@@ -59,6 +63,7 @@ def assemble(
     chat: tuple[ChatModel, Json, str] | None = None,
     inventory: ingest.Inventory | None = None,
     guards: Sequence[Guardrail] | None = None,
+    tracer: Tracer | None = None,
 ) -> Assembled:
     """The pipeline of a config. The embedder, chat model and inventory are built from the
     config unless given (the tests give small ones)."""
@@ -71,12 +76,15 @@ def assemble(
         spec.provider, spec.model, spec.revision
     )
     model, chat_description, chat_provenance = chat or chat_from_config(config.generator)
+    if tracer is not None:
+        embed = TracedEmbedder(embed, tracer, spec.provider)
     retriever = retrieval.build_retriever(config.retriever, embed, list(inventory.chunks))
     pipeline = Pipeline(
         retriever,
         model,
         default_guards() if guards is None else guards,
         config.retriever.k,
+        tracer=tracer,
     )
     provenance = "fake" if "fake" in (embed_provenance, chat_provenance) else "local"
     return Assembled(pipeline, inventory, embed_description, chat_description, provenance)

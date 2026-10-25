@@ -1,0 +1,14 @@
+# S9 OB7: the Langfuse pipeline's check, merged over collector.yaml and langfuse.yaml by
+# `make perf-smoke`. A file stands in for Langfuse: the pipeline keeps its processors (the content
+# keys deleted first) and writes to this file instead of sending. scripts/perf_smoke.py sends a
+# fixture span that carries every content key, then checks that the local file has the keys and
+# this file has none. The exporter to Langfuse stays defined but no pipeline uses it, and its
+# endpoint is a loopback placeholder: nothing is sent anywhere.
+exporters:
+  file/langfuse-stand-in:
+    path: ${env:RAGLAB_OTELCOL_LANGFUSE_FILE}
+
+service:
+  pipelines:
+    traces/langfuse:
+      exporters: [file/langfuse-stand-in]
