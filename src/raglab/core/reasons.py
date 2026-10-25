@@ -1,7 +1,9 @@
 """The fixed reason key of a guard's decision (S9): the key the API answers with
-(raglab.api.app.REASONS) and the one a trace records. Never a guard's own text, which can carry
-what the guard stopped (a refused character, another tenant's chunk id): that goes to the server
-log only. Standard library only.
+(raglab.api.app.REASONS), the one a trace records and the one the server log records. Never a
+guard's own text, which can carry what the guard stopped (a refused character, another tenant's
+chunk id, a credential the secrets and personal-details guard caught): no response, trace or log
+line holds it (S7's merge with S9, which reverses S9's "that goes to the server log only"); a run
+record keeps it in its guard events. Standard library only.
 
 A refusal at input is keyed by the guard that refused it: "tenant" for the tenant guard and for the
 pipeline's own fail-closed check, "injection" for the input injection detector (S7), and otherwise

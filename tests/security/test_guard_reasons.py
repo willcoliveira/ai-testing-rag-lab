@@ -99,3 +99,26 @@ def test_a_page_left_out_is_logged_as_its_guard_and_the_answer_goes_on(caplog):
     assert (response.status_code, response.json()["status"]) == (200, "ok")
     assert caplog.messages == ["ask dropped: guard register at retrieved"]
     assert all(c["chunk_id"] != PAGE.chunk_id for c in response.json()["citations"])
+
+
+@pytest.mark.parametrize(
+    ("body", "line"),
+    [
+        (
+            {"tenant": "tenant-a", "question": "password\u0000length"},
+            "ask input: guard input-limits at input",
+        ),
+        ({"tenant": "tenant-c", "question": "How long?"}, "ask tenant: guard tenant at input"),
+    ],
+    ids=["input-limits", "tenant"],
+)
+def test_s9s_guards_are_logged_by_key_too_never_by_their_text(caplog, body, line):
+    """S7's merge with S9 reverses one statement of S9's: a guard's own text no longer goes to
+    the server log (it can hold what the guard stopped). S9's own guards are logged as guard,
+    stage and key, like S7's."""
+    client, _ = api()
+    with caplog.at_level(logging.INFO, logger="raglab.api"):
+        response = client.post("/ask", json=body, headers=DEMO)
+    assert response.json()["status"] == "refused"
+    assert caplog.messages == [line]
+    assert not any(t in " ".join(caplog.messages) for t in ("U+0000", "tenant-c", "got"))
