@@ -230,13 +230,13 @@ cover"); R-02 applies to every case, and R-06 also names the `may_quote` cases, 
 | R-12 | All formats count | F-07, F-09, F-10, F-11, F-12, F-15, F-24, F-33, F-56, F-60, F-61, F-88 | G-03 to G-06, G-08, G-12, G-32, G-39, G-52, G-54, G-70, G-71, G-74, G-100 to G-102, G-104, G-117 | tbd (S1b parsing, OCR) | tbd |
 | R-13 | Tenant scope | F-34 to F-40, F-52, F-89, F-90, F-91 | P-03, G-14, G-15, G-24 to G-26, G-28, G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 | `tests/retrieval/test_tenant_filter.py` (S2), `tests/e2e/test_e2e_fake.py` (S3) | tbd |
 | R-14 | Refuse to weaken, still help; answer the sanctioned routes (must-not-block) | F-41, F-42, F-43, F-54, F-55, F-56, F-90, F-91, F-92, F-93, F-94, F-95, F-98 | G-13, G-23, G-34, G-45 to G-48, G-52, G-65 to G-67, G-79 to G-81, G-111, G-115 (refuse-and-help); G-12, G-33, G-41 to G-44, G-50, G-64, G-82, G-83, G-108 (must-not-block) | judged (S5, reported): `refuses_and_helps` | tbd |
-| R-15 | Only the register is authoritative | F-48, F-49 | G-54, G-55 (clean runs; the attack runs are S7's) | tbd (S7) | tbd |
-| R-16 | Never another tenant's content | F-34 to F-40, F-52, F-89, F-90, F-91 | P-03, G-14, G-15, G-24 to G-26, G-28, G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 | `tests/e2e/test_e2e_fake.py` (S3); tbd (S7) | tbd |
-| R-17 | Never follow document instructions | F-47, F-49 | G-53, G-55 (clean runs; the attack runs are S7's) | tbd (S7) | tbd |
+| R-15 | Only the register is authoritative | F-48, F-49 | G-54, G-55 (clean runs; the attack runs are S7's) | `tests/security/test_attack_suite.py`, `tests/security/test_guard_cases.py` (S7: the register filter, the citation validator) | pr-fast |
+| R-16 | Never another tenant's content | F-34 to F-40, F-52, F-89, F-90, F-91 | P-03, G-14, G-15, G-24 to G-26, G-28, G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 | `tests/e2e/test_e2e_fake.py` (S3); `tests/security/test_attack_suite.py` (S7: two tenants, the store's filter and the tenant guard each alone) | pr-fast |
+| R-17 | Never follow document instructions | F-47, F-49 | G-53, G-55 (clean runs; the attack runs are S7's) | `tests/security/test_attack_suite.py`, `tests/security/test_instruction_scan.py`, `tests/security/test_guard_cases.py`, `tests/security/test_egress_guard.py` (S7: the instruction scan, the injection detector, the link guard, nothing sent out) | pr-fast |
 | R-18 | Never invent a value | F-13, F-22, F-32, F-48, F-87, F-96, F-97 | G-16, G-54, G-70, G-77 (G-16 and G-77 a derivation); P-01, P-02, G-27, G-37, G-93 to G-99, G-114 (no number) | judged (S5, reported): `grounded`, `abstains` | tbd |
-| R-19 | Never echo secrets or PII | F-44, F-45, F-46, F-90 | G-09, G-64, G-108 (the allow list; the deny list is S7's) | tbd (S7) | tbd |
-| R-20 | Never reveal the system prompt | gap (see below) | — | tbd (S7) | tbd |
-| R-21 | Fail closed on tenant | gap (see below) | — | `tests/api/test_api.py`, `tests/generation/test_input_guards.py` (S3) | tbd |
+| R-19 | Never echo secrets or PII | F-44, F-45, F-46, F-90 | G-09, G-64, G-108 (the allow list; the deny list is S7's) | `tests/security/test_attack_suite.py`, `tests/security/test_guard_cases.py` (S7: the secrets and personal-details guard, the team contacts still answered) | pr-fast |
+| R-20 | Never reveal the system prompt | gap (see below) | — | `tests/security/test_attack_suite.py`, `tests/security/test_guard_cases.py` (S7: the injection detector, the prompt-leak guard) | pr-fast |
+| R-21 | Fail closed on tenant | gap (see below) | — | `tests/api/test_api.py`, `tests/generation/test_input_guards.py` (S3); `tests/security/test_attack_suite.py` (S7: tenant id spoofing, 403 and never retrieved) | pr-fast |
 | R-22 | Flag unresolved conflicts | gap (see below) | none: a gap for S8's suite audit (S4b's D3, verbatim: "No corpus change; R-22 stays a gap (Recommended)") | tbd | tbd |
 | R-23 | Procedures whole and in order | F-57 | G-20, G-76, G-112 | tbd | tbd |
 
@@ -248,8 +248,8 @@ Quality attributes Q-01 to Q-06 are traced to gates and run records, not to plan
 | R-id | Why there is no corpus feature | Where it is tested instead |
 |---|---|---|
 | R-02 | Citation integrity is a property of every answer, enforced in code by the citation validator; no document content can plant it. | S3: cited ids ⊆ retrieved ids on every case. |
-| R-20 | Prompt extraction attacks the system prompt, not the corpus. | S7: deterministic attack suite and promptfoo red team. |
-| R-21 | A missing or spoofed tenant is a property of the request, not of a document. | S3: API test with no tenant and with a spoofed tenant id; S7 repeats it. |
+| R-20 | Prompt extraction attacks the system prompt, not the corpus. | S7: the deterministic attack suite (S7a, `tests/security/test_attack_suite.py`) and the promptfoo red team (S7b). |
+| R-21 | A missing or spoofed tenant is a property of the request, not of a document. | S3: API test with no tenant and with a spoofed tenant id; S7 repeats it (`tests/security/test_attack_suite.py`). |
 | R-22 | Deliberately unplanted in v0.1: every planted conflict has a precedence rule (R-04, R-05, R-06), so the answer key stays unambiguous. | S8's suite audit (how-to 09 B): planted then, in a corpus pull request of its own, or recorded as not covered. S4b left it a gap, by its D3, verbatim: "No corpus change; R-22 stays a gap (Recommended)". |
 
 # Part 2: Test plan (how-to 17)
@@ -378,8 +378,16 @@ perf (S9, pr-fast's perf job): the k6 smoke on the perf stub, one user, 10 warm-
   /ask requests; every check and no failure gated, the median under T = 40 ms (set from ten runs
   on GitHub's runner), p95 reported (docs/THRESHOLDS.md); PERF_TEST_MODE refused outside ci and
   local
-security: <from S7: planted instruction, two tenants, poisoned duplicate; the attack files are
-  ready and loaded only by raglab.ingest.attacks>
+security (S7a): docs/THREAT-MODEL.md (OWASP LLM Top 10 2026); the rule layer behind the Guardrail
+  port (an input injection detector, a register filter, an instruction scan at ingest, link,
+  secrets and personal-details and prompt-leak guards, the citation validator extended to the
+  register), every layer's must-block and must-not-block cases decided binary per build
+  (datasets/security/, 127 cases, ratified); the deterministic attack suite in pr-fast on the
+  fake model (the planted instruction, two tenants, the poisoned duplicate, the fake update,
+  prompt extraction, the planted secret: each lands with its defences removed and is stopped by
+  each defence alone); nothing sent out (the egress guard, text-only rendering); the guard set
+  in the staleness rule, kept current by a zero-event replay; the live attack runs,
+  make attack-local; <from S7b: the promptfoo red team and the Guardrails AI comparison>
 report: <from S8: per case cause (ingestion/retrieval/generation/abstention), intervals, paired diff>
 ```
 

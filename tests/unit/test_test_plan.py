@@ -111,6 +111,9 @@ S4B_NOTES = {
     "R-17": "clean runs; the attack runs are S7's",
     "R-19": "the allow list; the deny list is S7's",
 }
+# S7a's cells: the Test and Gate cells of these rows name S7's security tests and pr-fast (the S7
+# plan, AG11)
+S7_CELLS = ("R-15", "R-16", "R-17", "R-19", "R-20", "R-21")
 # R-22 stays a gap for S8's suite audit, the cell quoting the maintainer's D3 answer (call C3)
 R22_CELL = (
     "none: a gap for S8's suite audit (S4b's D3, verbatim: "
@@ -398,3 +401,54 @@ def test_the_test_column_names_the_judged_criteria_for_the_requirements_they_cov
     for rid, cell in cells.items():
         if rid not in covers:
             assert "judged (S5" not in cell, f"{rid} names a criterion that names no {rid}"
+
+
+# ---------------------------------------------------------------- S7: the security cells (AG11)
+
+
+def row_cells(text: str | None = None) -> dict[str, list[str]]:
+    """Each traceability row's cells, by R-id: requirement, features, golden case, test, gate."""
+    body = (text or (ROOT / "docs" / "TEST-PLAN.md").read_text(encoding="utf-8")).split(
+        "## 8. Traceability", 1
+    )[1]
+    table = body.split("### Gaps", 1)[0]
+    return {
+        m.group(1): [c.strip() for c in m.group(0).strip().strip("|").split("|")][1:]
+        for m in re.finditer(r"^\| (R-\d{2}) \|.*$", table, flags=re.M)
+    }
+
+
+def s7_problems(text: str | None = None) -> list[str]:
+    """Each of S7's cells that does not name an S7 security test and pr-fast."""
+    cells = row_cells(text)
+    out: list[str] = []
+    for rid in S7_CELLS:
+        test, gate = cells[rid][3], cells[rid][4]
+        if "tbd (S7)" in test:
+            out.append(f"{rid}: its Test cell still says tbd (S7)")
+        named = re.findall(r"`(tests/security/[\w/]+\.py)`", test)
+        if not named:
+            out.append(f"{rid}: its Test cell names no S7 security test")
+        out += [f"{rid}: {path} does not exist" for path in named if not (ROOT / path).is_file()]
+        if gate != "pr-fast":
+            out.append(f"{rid}: its Gate cell is {gate!r}, not pr-fast")
+    return out
+
+
+def test_s7s_cells_name_their_security_tests_and_pr_fast():
+    assert s7_problems() == []
+    template = part2().split("## 10. The plan, filled in", 1)[1]
+    security = template.split("\nsecurity", 1)[1].split("\nreport", 1)[0]
+    assert "<from S7:" not in security, "section 10's security line has S7a's placeholder left"
+    assert "THREAT-MODEL" in security
+
+
+def test_a_cell_set_back_to_tbd_s7_is_named():
+    text = (ROOT / "docs" / "TEST-PLAN.md").read_text(encoding="utf-8")
+    line = next(x for x in text.splitlines() if x.startswith("| R-20 | Never reveal the system "))
+    broken = text.replace(line, line.rsplit("|", 3)[0] + "| tbd (S7) | tbd |", 1)
+    assert s7_problems(broken) == [
+        "R-20: its Test cell still says tbd (S7)",
+        "R-20: its Test cell names no S7 security test",
+        "R-20: its Gate cell is 'tbd', not pr-fast",
+    ]
