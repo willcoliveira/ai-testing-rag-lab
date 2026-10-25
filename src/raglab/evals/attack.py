@@ -113,7 +113,7 @@ def run(
     listed = [c for c in found if c.layer == attack_record.ATTACK]
     features = answer_key.features(root)
     banned = [s for strings in answer_key.must_not_contain(root).values() for s in strings]
-    canaries = answer_key.canaries(root)
+    canaries = answer_key.canary_parts(root)
     statuses = {str(c.chunk_id): c.status for c in assembled.chunks}
     settings = config.generation
     cap = settings.run_timeout_s

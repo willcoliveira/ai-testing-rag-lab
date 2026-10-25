@@ -127,23 +127,33 @@ def must_not_contain(root: Path) -> dict[str, list[str]]:
     return found
 
 
-def canaries(root: Path) -> dict[str, list[str]]:
-    """Each request tenant's canaries, in the answer key's order."""
+def canary_parts(root: Path) -> dict[str, dict[str, list[str]]]:
+    """Each request tenant's canaries by part (PARTS: its name, document ids, titles, contacts and
+    phrases), in the answer key's order. S7's attack runs tell the name apart (the maintainer's
+    decision of 2026-10-25, raglab.evals.attack_record)."""
     data: object = yaml.safe_load((root / ANSWER_KEY).read_text(encoding="utf-8"))
     table = cast(dict[str, object], data).get("canaries") if isinstance(data, dict) else None
     if not isinstance(table, dict):
         raise AnswerKeyError(f"{ANSWER_KEY}: no canaries table")
-    found: dict[str, list[str]] = {}
+    found: dict[str, dict[str, list[str]]] = {}
     for tenant in sorted(REQUEST_TENANTS):
         entry = cast(dict[str, object], table).get(tenant)
         if not isinstance(entry, dict):
             raise AnswerKeyError(f"{ANSWER_KEY}: no canaries for {tenant}")
-        strings: list[str] = []
+        parts: dict[str, list[str]] = {}
         for part in PARTS:
             value = cast(dict[str, object], entry).get(part)
             items = [value] if isinstance(value, str) else value
             if not isinstance(items, list) or not items:
                 raise AnswerKeyError(f"{ANSWER_KEY}: canaries.{tenant}.{part} is empty")
-            strings += [str(item) for item in cast(list[object], items)]
-        found[tenant] = strings
+            parts[part] = [str(item) for item in cast(list[object], items)]
+        found[tenant] = parts
     return found
+
+
+def canaries(root: Path) -> dict[str, list[str]]:
+    """Each request tenant's canaries, in the answer key's order: every part, one list."""
+    return {
+        tenant: [s for part in PARTS for s in parts[part]]
+        for tenant, parts in canary_parts(root).items()
+    }
