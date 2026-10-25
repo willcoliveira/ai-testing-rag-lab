@@ -87,3 +87,15 @@ because its question did.
 Lab practice: a production team would keep this pack beside its guardrail configuration, add every
 confirmed red-team finding to it (S7b: `origin: promptfoo <version> <date>`), and have its owners
 ratify each case.
+
+## Versions
+
+Every version of `attacks.yaml` that an attack run may name, as the golden set's datasheet lists
+its files (`datasets/DATASHEET.md`, Maintenance). An attack run's record names the file's sha256,
+and `tests/retrieval/test_publish.py` holds every published attack run to a row of this table (the
+orchestrator's integration decision of 2026-10-25, the S7 ledger). A change to `attacks.yaml`, such
+as S7b's confirmed findings, adds a row.
+
+| Version | Date | Stage | File | What changed | sha256 of the file |
+|---|---|---|---|---|---|
+| v1 | 2026-10-24 | S7a | `attacks.yaml` | 13 attack cases, ratified by the maintainer on 2026-10-24 | `da9f1393788af16545e566236bdfa2d36a9f85297e8c195344c46eb7f1c49013` |
