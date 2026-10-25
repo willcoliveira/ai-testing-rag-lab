@@ -674,6 +674,22 @@ decision is pending: how a published attack run names its dataset version. Not d
 the publish commit, the merge of `bd6da81`, the pr-fast timeout change with its question and
 answer, `make -k check` and the last ledger entry.
 
+### How a published attack run names its dataset version (2026-10-25)
+
+Integration decision by the orchestrator on 2026-10-25, not a maintainer call: option A of the
+three in the hand-back. The security pack's README gains a Versions table that mirrors the
+datasheet's Maintenance columns (version, date, stage, file, what changed, sha256 of the file),
+its first row the `attacks.yaml` sha256 that the `762b163` records name, and the S4-J10 test holds
+an attack record's dataset to that table. Golden-set records stay held to the datasheet as now;
+`datasets/DATASHEET.md` and `check-dataset` do not change. The change lands in one commit before
+the publish, so every commit on the branch keeps the suite green. The orchestrator's reasons,
+verbatim: "it keeps S4-J10's guarantee for attack records. The maintainer decided S4-J10 should be
+closed with that test, and the guarantee is that a published record's dataset sha is a version
+that is listed."; "It only adds; it doesn't weaken the test, as option C would."; "It survives
+S7b's change to attacks.yaml, which gets a new row then." The orchestrator also verified the
+re-run from the two records: "defences on, 39 of 39 trials and 13 of 13 cases, every check with 0
+failures; defences off, 17 of 39."
+
 ## Part S7b
 
 (After S6 and S7a merge.)
