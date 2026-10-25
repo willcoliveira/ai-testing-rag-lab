@@ -402,3 +402,73 @@ def test_the_main_environment_never_installs_deepeval():
     assert 'name = "deepeval"' not in (ROOT / "uv.lock").read_text(encoding="utf-8")
     plugins = {ep.name for ep in importlib.metadata.entry_points(group="pytest11")}
     assert "deepeval" not in plugins
+
+
+# Rule 7 (S9): OpenTelemetry is imported only in raglab.obs; the pipeline writes to the Tracer port
+# of raglab.core and the web layer gets the provider as an opaque object
+@pytest.mark.parametrize(
+    "path",
+    ["generate/pipeline.py", "core/ports.py", "api/app.py", "adapters/factory.py", "evals/x.py"],
+)
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from opentelemetry import trace\n",
+        "import opentelemetry.sdk.trace\n",
+        "from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter\n",
+        "import importlib\nm = importlib.import_module('opentelemetry.trace')\n",
+    ],
+)
+def test_opentelemetry_is_imported_only_in_obs(tmp_path, path, source):
+    package = make_package(tmp_path, {path: source})
+    found = [f for f in messages(package) if "OpenTelemetry" in f]
+    assert len(found) == 1, messages(package)
+    assert path in found[0]
+    assert "raglab.obs" in found[0]
+
+
+def test_the_pipeline_and_the_names_load_no_opentelemetry():
+    """S9-J5: rule 7 fences the imports of opentelemetry; raglab.generate imports raglab.obs's
+    names and traced embedder, which import none, so the pipeline (and every run that is not
+    `raglab serve` with an endpoint) never loads the SDK. Checked in a fresh interpreter."""
+    import subprocess
+    import sys
+
+    code = (
+        "import sys, raglab.core.ports, raglab.obs.names, raglab.obs.traced, "
+        "raglab.generate.pipeline; "
+        "print(sorted(m for m in sys.modules if m.split('.')[0] == 'opentelemetry'))"
+    )
+    done = subprocess.run(
+        [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=True
+    )
+    assert done.stdout.strip() == "[]", done.stdout
+
+
+def test_opentelemetry_in_obs_passes(tmp_path):
+    package = make_package(
+        tmp_path,
+        {
+            "obs/__init__.py": "",
+            "obs/otel.py": "from opentelemetry import trace\nimport opentelemetry.sdk.trace\n",
+        },
+    )
+    assert messages(package) == []
+
+
+def test_a_planted_opentelemetry_import_in_a_copy_of_the_real_tree_fails(tmp_path):
+    """OB2's break, on a copy: an opentelemetry import in raglab.generate, then in raglab.core,
+    each reported with its file."""
+    import shutil
+
+    package = tmp_path / "raglab"
+    shutil.copytree(ROOT / "src" / "raglab", package)
+    assert messages(package) == []
+    for rel in ("generate/pipeline.py", "core/ports.py"):
+        with (package / rel).open("a", encoding="utf-8") as source:
+            source.write("\nfrom opentelemetry import trace  # planted\n")
+    found = [f for f in messages(package) if "OpenTelemetry" in f]
+    assert [f.split(":")[0].split("raglab/")[-1] for f in found] == [
+        "core/ports.py",
+        "generate/pipeline.py",
+    ]

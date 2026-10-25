@@ -379,3 +379,36 @@ def test_dependabot_watches_the_deepeval_tool_project_and_keeps_deepeval_bumps_a
     assert tool["schedule"]["interval"] == "monthly"
     assert tool["groups"]["python-minor-patch"]["exclude-patterns"] == ["deepeval"]
     assert (ROOT / "tools" / "deepeval-check" / "uv.lock").is_file()
+
+
+def test_pr_fast_runs_the_k6_smoke_in_a_job_of_its_own():
+    """S9 OB9 (D3: a job of its own, the median gated once T is set): the perf job
+    runs beside check (no needs), under the same rules, with its own timeout; the model restored by
+    revision and fetched with its hashes checked, and pinned Tesseract, both before the smoke; then
+    `make perf-smoke` offline. k6 and the collector come from their release archives, their sha256
+    checked by scripts/perf_smoke.py (tests/unit/test_perf_smoke.py), never from an action."""
+    wf = load(WORKFLOW_DIR / "pr-fast.yml")
+    job, check = wf["jobs"]["perf"], wf["jobs"]["check"]
+    assert job["name"] == "perf"
+    assert job["runs-on"] == "ubuntu-24.04"
+    assert 0 < job["timeout-minutes"] <= 15
+    assert "needs" not in job
+    assert "if" not in job  # on every pull request and on main, as check
+    steps = job["steps"]
+    names = [step.get("name") for step in steps]
+    used = [step["uses"].split("@")[0] for step in steps if "uses" in step]
+    assert used == ["actions/checkout", "actions/setup-python", "actions/cache"]
+    smoke = names.index("k6 smoke against the perf stub (offline, loopback only)")
+    assert steps[smoke]["run"] == "make perf-smoke"
+    assert steps[smoke]["env"] == {"HF_HUB_OFFLINE": "1"}
+    assert smoke == len(steps) - 1
+    by_name = {step.get("name"): step for step in check["steps"]}
+    for shared in (
+        "Install uv (hash-pinned)",
+        "Install the project",
+        "Restore the embedding model (cached by revision)",
+        "Embedding model (download on a miss, hashes checked)",
+        "Install Tesseract (pinned)",
+    ):
+        assert names.index(shared) < smoke, shared
+        assert steps[names.index(shared)] == by_name[shared], shared

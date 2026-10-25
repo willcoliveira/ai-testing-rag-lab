@@ -2,9 +2,10 @@
 raglab.ingest and raglab.chunk (ingestion), raglab.adapters (embedders and chat models),
 raglab.index (stores), raglab.retrieve (retrievers) and raglab.guard (guardrails)."""
 
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from raglab.core.types import (
     Answer,
@@ -162,3 +163,55 @@ class Guardrail(Protocol):
     def check_output(self, answer: Answer, retrieved: Sequence[ScoredChunk]) -> GuardEvent | None:
         """retrieved: the chunks the prompt was built from, after every drop step."""
         ...
+
+
+# ---------------------------------------------------------------- tracing (S9)
+
+SpanKind = Literal["internal", "client"]
+type AttributeValue = str | int | float | bool | tuple[str, ...]
+
+
+class Span(Protocol):
+    """One span of a trace as raglab writes it (S9). Which keys may leave the process is decided
+    where the spans are exported (raglab.obs: an allowlist of reviewed keys), not here."""
+
+    def set(self, key: str, value: AttributeValue) -> None: ...
+
+    def fail(self, error_type: str) -> None:
+        """Marks the span as failed with one of a fixed set of error types (error.type); never an
+        exception's message or stack."""
+        ...
+
+
+class Tracer(Protocol):
+    """Spans around a request's steps (S9; docs/OBSERVABILITY.md). The pipeline takes one as it
+    takes a chat model; NoopTracer is the default everywhere, and only `raglab serve` builds a
+    real one (raglab.obs). capture_content says whether the opt-in to record the question and the
+    answer of an ok answer is on (D4: honoured only where RAGLAB_ENV is ci or local)."""
+
+    @property
+    def capture_content(self) -> bool: ...
+
+    def span(self, name: str, kind: SpanKind = "internal") -> AbstractContextManager[Span]: ...
+
+
+class NoopSpan:
+    """A span that records nothing."""
+
+    def set(self, key: str, value: AttributeValue) -> None:
+        return None
+
+    def fail(self, error_type: str) -> None:
+        return None
+
+
+class NoopTracer:
+    """The tracer that records nothing and captures no content: the default of every pipeline."""
+
+    @property
+    def capture_content(self) -> bool:
+        return False
+
+    @contextmanager
+    def span(self, name: str, kind: SpanKind = "internal") -> Generator[Span]:
+        yield NoopSpan()

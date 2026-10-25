@@ -9,6 +9,9 @@ adds its pages outside the register (raglab.ingest.attacks) as `extra`, scanned 
 same way. `chunks` are the chunks the retriever searches.
 
 The provenance is fake when either the embedder or the chat model is fake, else local.
+
+S9: given a tracer (only `raglab serve` gives one), the pipeline writes its spans to it and the
+query embedding gets its span (raglab.obs.traced.TracedEmbedder); without one nothing is traced.
 """
 
 from collections.abc import Sequence
@@ -17,13 +20,14 @@ from pathlib import Path
 
 import raglab.evals.retrieval as retrieval
 from raglab.adapters import factory
-from raglab.core.ports import ChatModel, Embedder, Guardrail
+from raglab.core.ports import ChatModel, Embedder, Guardrail, Tracer
 from raglab.core.types import Chunk
 from raglab.evals.config import GenerationConfig, GeneratorConfig
 from raglab.generate.pipeline import Pipeline
 from raglab.guard import default_guards
 from raglab.ingest import pipeline as ingest
 from raglab.ingest import scan
+from raglab.obs.traced import TracedEmbedder
 
 type Json = dict[str, object]
 
@@ -73,6 +77,7 @@ def assemble(
     guards: Sequence[Guardrail] | None = None,
     extra: Sequence[Chunk] = (),
     scan_index: bool = True,
+    tracer: Tracer | None = None,
 ) -> Assembled:
     """The pipeline of a config. The embedder, chat model and inventory are built from the
     config unless given (the tests give small ones); extra chunks (an attack run's pages outside
@@ -87,6 +92,8 @@ def assemble(
         spec.provider, spec.model, spec.revision
     )
     model, chat_description, chat_provenance = chat or chat_from_config(config.generator)
+    if tracer is not None:
+        embed = TracedEmbedder(embed, tracer, spec.provider)
     everything = [*inventory.chunks, *extra]
     scanned = scan.scan(everything) if scan_index else None
     indexed = list(scanned.kept) if scanned is not None else everything
@@ -96,6 +103,7 @@ def assemble(
         model,
         default_guards(root, inventory.chunks) if guards is None else guards,
         config.retriever.k,
+        tracer=tracer,
     )
     provenance = "fake" if "fake" in (embed_provenance, chat_provenance) else "local"
     return Assembled(

@@ -1,11 +1,14 @@
 # Onboarding
 
 This guide covers what you can run today, what you can break on purpose to learn what each test
-guards, and where each concept already lives. It is current as of S5 (2026-10-21): the judge, its
-criteria and canaries (signed off), the judged record, the position test, the cost formula and the
-fenced DeepEval tool are built; the judged baseline and the position test are published; ADR-002
-records the user's choice, local only for now; and a session runs on AC power only (the S5
-ledger). Every stage that adds a
+guards, and where each concept already lives. It is current as of S4b (2026-10-24): golden set v2
+(`datasets/golden.v2.jsonl`, 120 behaviour cases over both tenants) is signed off, checked per
+version beside the frozen v1.1, and the retrieval and consistency baselines are republished on it.
+Before it, S5 built the judge, its criteria and canaries (signed off), the judged record, the
+position test, the cost formula and the fenced DeepEval tool; the judged baseline (on v1.1, until
+S6) and the position test are published; ADR-002 records the user's choice, local only for now;
+and a session runs on AC power only (the S5 ledger). S9, brought forward, adds tracing with
+redaction, the perf mode and the k6 smoke (docs/OBSERVABILITY.md). Every stage that adds a
 command or a concept updates it, and
 `tests/unit/test_onboarding.py` checks that every path, `make` target and `raglab` command named
 here exists, and that the stage this line names is not still in progress once the phase map marks
@@ -36,25 +39,28 @@ CI.
 
 | Command | What it shows | What you should see |
 |---|---|---|
-| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 ... passes`. Since S4 the retrieval baseline is the dense dev run on golden set v1.1 (recall@5 0.682) |
-| `make check-dataset` (or `uv run raglab check-dataset`) | The golden file against its ten rules before any run: labels, features, the answer, abstain, conflict and refusal shapes, planted strings, the mix, the datasheet's sha256 line | One `check-dataset: datasets/golden.v1.jsonl passes (...)` line; a broken case is named with its rule, and every `raglab eval` and `raglab gate` stops on it |
+| `make check` | Every offline gate: format, lint, types, dependency and security scans, privacy, architecture, the dataset check, tests, the retrieval gate | All tests pass, then `recall@5 ... passes`. Since S4b the retrieval baseline is the dense dev run on golden set v2 (recall@5 0.682, the same 22 dev questions and the same top 5 as on v1.1) |
+| `make check-dataset` (or `uv run raglab check-dataset`) | Every golden file against its ten rules before any run, each by the version its datasheet row gives it: labels, features, the answer, abstain, conflict and refusal shapes, planted strings, the version's mix, the datasheet's sha256 line | Two lines, one per golden file: `check-dataset: datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, ...)` and `check-dataset: datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, ...)`; a broken case is named with its rule, and every `raglab eval` and `raglab gate` stops on it |
 | `uv run raglab ingest` | The pack parsed and chunked into `runs/tmp/inventory.json` | 228 chunks from 21 documents |
 | `uv run raglab ingest --chunk-size 600 --compare corpus/inventory.snapshot.json` | A chunking change as a reviewable diff | 249 chunks, with the changed ids listed |
 | `uv run python scripts/chunk_experiment.py --chunk-size 600` | Which planted features a smaller chunk breaks | 0 split at 1,200 and 1 split at 600 (F-16) |
 | `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml` | One retrieval run, written as a run record | A folder in `runs/tmp/` with `manifest.json`, `cases.jsonl` and `report.md`; recall@5 0.682 |
 | The same with `config/retrieval-hybrid.toml`, then `uv run raglab compare <dense run> <hybrid run>` | A paired comparison with bootstrap intervals and the questions that flipped | Every interval contains 0; only hybrid finds R-Q10 and R-Q33; only dense finds R-Q02 |
 | `make gate` | The no-regression gate that pr-fast runs | The pass line above |
+| `make eval-retrieval` | S4b: the three retrieval configurations (dense, hybrid, dense-600) on the dev split, one after another, with the embedder only: the runs a dataset change republishes | Three run folders in `runs/tmp/`, each after its config's `check-dataset ... passes` line |
 | `make playground` | The published runs in a browser | http://127.0.0.1:8000/ listing the published runs with per-question hits |
 | `uv run raglab ask --config config/fake.toml --tenant tenant-a "How long must a password be?"` | One answer from the fake model, as JSON | Status `ok`, label `answer`, the retrieved chunks' text, and their ids in `cited_ids` |
 | `uv run raglab ask --config config/fake.toml --tenant shared "x"` | The tenant guard failing closed | Status `refused`, no answer, exit 1 |
 | `uv run raglab serve --config config/fake.toml` | The API and the page | http://127.0.0.1:8000/ asks as tenant A or B with the demo token |
 | `make api-smoke` | The API smoke test that pr-fast runs | Five `ok` lines (the last: the server stopped gracefully on SIGTERM, exit -15), then `api-smoke: passed` |
+| `make perf-smoke` | S9: the k6 smoke that pr-fast's perf job runs: the collector and `raglab serve --config config/perf.toml` (the perf stub) on loopback, k6 2.3.0 and the collector fetched once with their sha256 checked, the trace files checked, then the postcheck (docs/OBSERVABILITY.md) | `ok` lines for each step, `/ask`'s median and p95, then `perf-smoke: passed` |
+| `PERF_TEST_MODE=1 RAGLAB_ENV=prod uv run raglab serve --config config/perf.toml` | S9: the perf mode refused in prod | One line, `serve failed: PERF_TEST_MODE=1 is honoured only where RAGLAB_ENV is ci or local, not 'prod': the server does not start`, exit 1, before the port binds |
 | `uv run raglab eval --suite generation --config config/fake.toml` | A generation run record with the fake model: every dev retrieval question and behaviour case, 3 trials each | The checks, and for the behaviour cases the decision-label rate, the confusion and abstention tables and behaviour pass^3; with the echo model these measure the plumbing (it answers whenever a chunk is retrieved), never Q-05 |
 | `uv run raglab compare <run A> <run B>` on two generation runs | The paired difference of behaviour pass^3 and of the decision-label rate, by case id, and the flipped cases | Refused unless the dataset, split and trials match |
 | `uv run raglab eval --suite retrieval --config config/retrieval-dense.toml --split test` | The test split held out | Refused: test and all run only with `--gate nightly` or `--gate release` |
 | `make ollama-status` | Whether a local model server is up, and the memory available | No pid, port closed, no ollama process |
 | `make eval-local` | The live run on Ollama (needs Ollama and the pinned model; docs/LOCAL-MODEL.md) | The live contract test, the run record, then `postcheck passed` |
-| `make gate-local` | The consistency gate (Q-05) on Ollama: a dev run, then `raglab gate` against the published local baseline | One `consistency gate (Q-05): ...` line; it refuses to judge until docs/THRESHOLDS.md sets the margin from runs |
+| `make gate-local` | The consistency gate (Q-05) on Ollama: a dev run, then `raglab gate` against the published local baseline | One `consistency gate (Q-05): ...` line; it refuses to judge until docs/THRESHOLDS.md sets the margin from runs. Since S4b, on golden set v2: the baseline 0.418 (33 of 79) minus one case, so a run passes at 0.405 or above; with S2's plant (dense returning ranks 2 to 6) it fails at 0.266 (S4b ledger) |
 | `make nightly-local` | The local nightly on Ollama: every split, `--gate nightly` | The live contract test, then a run record of split all |
 | `make container`, then `make zap` | The fake-model container and its ZAP baseline scan (Docker) | No FAIL and no WARN; three Informational alerts, each ignored with its reason in `deploy/zap/rules.tsv` |
 | `make corpus` | Rebuilds the PDF, HTML and scanned PNG from the Markdown sources | No change in `git status` |
@@ -96,6 +102,9 @@ break. Restore each file with `git checkout -- <file>`, and never commit a break
 | Point `CURRENT` in `src/raglab/generate/prompts/__init__.py` at `answer_v2` (measured, not adopted) | `uv run pytest tests/retrieval/test_publish.py` | The consistency baseline is reported stale: it names answer-v1's prompt fingerprint, not the current prompt's |
 | Commit with a message like `updated stuff` | `git commit` | The commit-msg hook refuses it: not a Conventional Commit |
 | Change the chunker's default budget | `uv run pytest tests/ingestion/test_inventory_snapshot.py` | The snapshot test fails and prints the chunk diff; `make inventory-snapshot` regenerates it on purpose |
+| Record the guard event's own text as `raglab.guard.reason` in `src/raglab/generate/pipeline.py` | `uv run pytest tests/obs/test_guard_traces.py` | 6 failures: the refused question's marker and the event's text are in the trace |
+| Drop `raglab.content.answer` from the delete list in `deploy/otel/langfuse.yaml` | `make perf-smoke` | `the Langfuse pipeline let content keys through: ['raglab.content.answer']`, and `perf-smoke: failed` |
+| Sleep 80 ms (2 × T) before the pipeline in `ask_locked` in `src/raglab/api/app.py` | `make perf-smoke` | k6's `✗ 'med<40'`, then `k6 exited with 99 (99: a threshold was crossed)` and `perf-smoke: failed` |
 
 ## Concepts already built
 
@@ -143,6 +152,8 @@ around them.
 | Evaluation | The position test: the answering chunk first, in the middle and last of a long context | `src/raglab/evals/position.py`, `config/position-local.toml` | `tests/generation/test_position_contexts.py` |
 | Evaluation | Every call's tokens by role, and a cost formula over a dated price table | `src/raglab/evals/cost.py`, `config/prices.toml` | `tests/unit/test_cost.py` |
 | Engineering | A heavy evaluation library fenced in a project and a lock of its own | `tools/deepeval-check/`, `scripts/check_architecture.py` | `tests/unit/test_architecture.py`, `make deepeval-test` |
+| Engineering | Traces with gen_ai spans behind a port, leaving through an allowlist: content off by default, nothing a guard removed kept | `src/raglab/obs/`, `src/raglab/core/ports.py`, `docs/OBSERVABILITY.md` | `tests/obs/test_spans.py`, `tests/obs/test_redaction.py`, `tests/obs/test_guard_traces.py` |
+| Engineering | A perf mode that prod refuses, and a k6 smoke whose threshold is set from measured runs | `src/raglab/api/environment.py`, `perf/smoke.js`, `scripts/perf_smoke.py`, `deploy/otel/` | `tests/api/test_perf_mode.py`, `tests/unit/test_perf_smoke.py`, `tests/unit/test_collector_config.py` |
 
 Also worth a look: the progress diagram is itself tested (`tests/unit/test_diagram.py`), and the
 playground reads only published runs (`tests/unit/test_playground.py`).
@@ -159,6 +170,5 @@ Judged quality started in S5: the local judge has judged the dev slice under the
 | A judge calibrated against human labels (kappa) | S6 |
 | Prompt injection, poisoned documents, red team, Guardrails AI (the attack documents are in the corpus but kept out of the default ingest) | S7 |
 | Every failure tagged with its cause, a suite audit and GATES.md | S8 |
-| Tracing with redaction and a perf gate | S9 |
 | Browser and accessibility tests of the UI and the playground | Track B |
 | The teaching playground on Pages | S11, at go-public |

@@ -154,7 +154,7 @@ metrics get no target in advance"); the gates then fail on regression.
 
 | Id | Attribute | Measure | Where it is set |
 |---|---|---|---|
-| Q-01 | Latency | p50 and p95 end-to-end answer time, per provider | S5 baseline, reported: docs/THRESHOLDS.md, Latency |
+| Q-01 | Latency | p50 and p95 end-to-end answer time, per provider | S5 baseline, reported: docs/THRESHOLDS.md, Latency. S9's k6 smoke times the API's HTTP path on the perf stub in CI (its median gated, p95 reported: docs/THRESHOLDS.md, Performance); that is a regression smoke, not Q-01's number |
 | Q-02 | Cost | estimated cost per answer, with the price table date | S5, reported: `raglab cost` over a judged record and `config/prices.toml`; docs/THRESHOLDS.md, Cost |
 | Q-03 | Availability and honest failure | the demo is up within its budget; a provider failure returns `unavailable` and an exhausted budget returns `budget exhausted`, never a guessed answer | S3 (contract), S10 (demo) |
 | Q-04 | Accessibility | the web UI meets WCAG 2.2 AA on the checks the lab runs (keyboard, contrast, labels) | S3 UI, audit before v0.3 |
@@ -208,35 +208,37 @@ metrics get no target in advance"); the gates then fail on regression.
 
 Planted features are defined in `corpus/SPEC.md` section 8 (the register). Golden case, test and
 gate columns are filled in by later stages (S4 and S4b for cases, S1b to S7 for tests, the gate
-map for gates). S4 filled the Golden case cells it covers with the behaviour cases of
-`datasets/golden.v1.jsonl`: a case covers the requirements its features name in the answer key
-(`datasets/DATASHEET.md`, "Requirements the behaviour cases cover"); R-02 applies to every case.
+map for gates). S4 filled the Golden case cells it covered with the behaviour cases of golden set
+v1.1 (`datasets/golden.v1.jsonl`); S4b derives them again from golden set v2
+(`datasets/golden.v2.jsonl`, which holds v1.1's cases unchanged): a case covers the requirements
+its features name in the answer key (`datasets/DATASHEET.md`, "Requirements the behaviour cases
+cover"); R-02 applies to every case, and R-06 also names the `may_quote` cases, by design.
 
 | R-id | Requirement (short) | Planted features | Golden case | Test | Gate |
 |---|---|---|---|---|---|
-| R-01 | Answer with citations | F-01, F-02, F-03, F-29, F-46, F-53, F-86 | G-01, G-02, G-07, G-09, G-13, G-17, G-19, G-21 to G-23, G-29 to G-31, G-34, G-35 | judged (S5, reported): `cites_support`, `correct` | tbd |
+| R-01 | Answer with citations | F-01, F-02, F-03, F-29, F-46, F-53, F-86 | G-01, G-02, G-07, G-09, G-13, G-17, G-19, G-21 to G-23, G-29 to G-31, G-34, G-35, G-41, G-45, G-46, G-48, G-53, G-68, G-69, G-79, G-80, G-100, G-101, G-103, G-105, G-106, G-109 to G-111, G-115, G-117 | judged (S5, reported): `cites_support`, `correct` | tbd |
 | R-02 | Citation integrity | gap (see below) | every case (`model_citations_retrieved`) | `tests/generation/test_citation_validator.py` (S3) | tbd |
-| R-03 | Abstain when silent | F-32, F-40, F-87 | P-01 to P-03, G-24 to G-28, G-37 | judged (S5, reported): `abstains` | tbd |
-| R-04 | Newer version over older | F-04, F-05, F-06, F-07, F-58 | G-29 to G-32 | judged (S5, reported): `grounded`, `correct` | tbd |
-| R-05 | Approved exception over rule | F-16, F-17, F-51 | G-11, G-18, G-19 | judged (S5, reported): `correct` | tbd |
-| R-06 | Company over external, flag the difference | F-08, F-13, F-14 | G-22; by design, G-26 (the attributed external quote, D-03) | judged (S5, reported): `grounded` | tbd |
-| R-07 | Rule plus its exception | F-15 | G-05 | tbd (S1b boundary test); judged (S5, reported): `correct` | tbd |
-| R-08 | Follow cross-references | F-18, F-19 | tbd (S4b) | tbd | tbd |
-| R-09 | Use the pack's definitions | F-11, F-20, F-21 | tbd (S4b) | tbd | tbd |
-| R-10 | Multi-hop | F-22, F-23 | G-16, G-17 | judged (S5, reported): `grounded`, `correct` | tbd |
-| R-11 | Exact numbers and units | F-01, F-02, F-10, F-12, F-19, F-24 to F-31, F-50, F-51, F-60 to F-85 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36 | judged (S5, reported): `correct` | tbd |
-| R-12 | All formats count | F-07, F-09, F-10, F-11, F-12, F-15, F-24, F-33, F-56, F-60, F-61 | G-03 to G-06, G-08, G-12, G-32 | tbd (S1b parsing, OCR) | tbd |
-| R-13 | Tenant scope | F-34 to F-40, F-52 | tbd (S4b) | `tests/retrieval/test_tenant_filter.py` (S2), `tests/e2e/test_e2e_fake.py` (S3) | tbd |
-| R-14 | Refuse to weaken, still help; answer the sanctioned routes (must-not-block) | F-41, F-42, F-43, F-54, F-55, F-56 | G-13, G-23, G-34 (refuse-and-help); G-12, G-33 (must-not-block) | judged (S5, reported): `refuses_and_helps` | tbd |
-| R-15 | Only the register is authoritative | F-48, F-49 | tbd (S4b) | tbd (S7) | tbd |
-| R-16 | Never another tenant's content | F-34 to F-40, F-52 | tbd (S4b) | `tests/e2e/test_e2e_fake.py` (S3); tbd (S7) | tbd |
-| R-17 | Never follow document instructions | F-47, F-49 | tbd (S4b) | tbd (S7) | tbd |
-| R-18 | Never invent a value | F-13, F-22, F-32, F-48, F-87 | G-16 (a derivation); P-01, P-02, G-27, G-37 (no number) | judged (S5, reported): `grounded`, `abstains` | tbd |
-| R-19 | Never echo secrets or PII | F-44, F-45, F-46 | tbd (S4b) | tbd (S7) | tbd |
+| R-03 | Abstain when silent | F-32, F-40, F-87, F-96, F-97 | P-01 to P-03, G-24 to G-28, G-37, G-84 to G-99, G-114, G-116 | judged (S5, reported): `abstains` | tbd |
+| R-04 | Newer version over older | F-04, F-05, F-06, F-07, F-58, F-88 | G-29 to G-32, G-100 to G-107, G-109, G-117 | judged (S5, reported): `grounded`, `correct` | tbd |
+| R-05 | Approved exception over rule | F-16, F-17, F-51 | G-11, G-18, G-19, G-78 | judged (S5, reported): `correct` | tbd |
+| R-06 | Company over external, flag the difference | F-08, F-13, F-14, F-96 | G-22, G-68 to G-71, G-110; by design, G-26, G-84, G-85, G-93 (the attributed external quotes, D-03; G-93's F-96 names R-06 as well) | judged (S5, reported): `grounded` | tbd |
+| R-07 | Rule plus its exception | F-15 | G-05, G-39 | tbd (S1b boundary test); judged (S5, reported): `correct` | tbd |
+| R-08 | Follow cross-references | F-18, F-19 | G-72, G-73 | tbd | tbd |
+| R-09 | Use the pack's definitions | F-11, F-20, F-21 | G-38, G-74, G-75 | tbd | tbd |
+| R-10 | Multi-hop | F-22, F-23 | G-16, G-17, G-77 | judged (S5, reported): `grounded`, `correct` | tbd |
+| R-11 | Exact numbers and units | F-01, F-02, F-10, F-12, F-19, F-24 to F-31, F-50, F-51, F-60 to F-85 | G-01, G-03, G-04, G-06, G-07, G-10, G-11, G-35, G-36, G-40, G-49, G-51, G-73, G-77 | judged (S5, reported): `correct` | tbd |
+| R-12 | All formats count | F-07, F-09, F-10, F-11, F-12, F-15, F-24, F-33, F-56, F-60, F-61, F-88 | G-03 to G-06, G-08, G-12, G-32, G-39, G-52, G-54, G-70, G-71, G-74, G-100 to G-102, G-104, G-117 | tbd (S1b parsing, OCR) | tbd |
+| R-13 | Tenant scope | F-34 to F-40, F-52, F-89, F-90, F-91 | P-03, G-14, G-15, G-24 to G-26, G-28, G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 | `tests/retrieval/test_tenant_filter.py` (S2), `tests/e2e/test_e2e_fake.py` (S3) | tbd |
+| R-14 | Refuse to weaken, still help; answer the sanctioned routes (must-not-block) | F-41, F-42, F-43, F-54, F-55, F-56, F-90, F-91, F-92, F-93, F-94, F-95, F-98 | G-13, G-23, G-34, G-45 to G-48, G-52, G-65 to G-67, G-79 to G-81, G-111, G-115 (refuse-and-help); G-12, G-33, G-41 to G-44, G-50, G-64, G-82, G-83, G-108 (must-not-block) | judged (S5, reported): `refuses_and_helps` | tbd |
+| R-15 | Only the register is authoritative | F-48, F-49 | G-54, G-55 (clean runs; the attack runs are S7's) | tbd (S7) | tbd |
+| R-16 | Never another tenant's content | F-34 to F-40, F-52, F-89, F-90, F-91 | P-03, G-14, G-15, G-24 to G-26, G-28, G-56 to G-67, G-81, G-84 to G-92, G-108, G-113, G-116 | `tests/e2e/test_e2e_fake.py` (S3); tbd (S7) | tbd |
+| R-17 | Never follow document instructions | F-47, F-49 | G-53, G-55 (clean runs; the attack runs are S7's) | tbd (S7) | tbd |
+| R-18 | Never invent a value | F-13, F-22, F-32, F-48, F-87, F-96, F-97 | G-16, G-54, G-70, G-77 (G-16 and G-77 a derivation); P-01, P-02, G-27, G-37, G-93 to G-99, G-114 (no number) | judged (S5, reported): `grounded`, `abstains` | tbd |
+| R-19 | Never echo secrets or PII | F-44, F-45, F-46, F-90 | G-09, G-64, G-108 (the allow list; the deny list is S7's) | tbd (S7) | tbd |
 | R-20 | Never reveal the system prompt | gap (see below) | — | tbd (S7) | tbd |
 | R-21 | Fail closed on tenant | gap (see below) | — | `tests/api/test_api.py`, `tests/generation/test_input_guards.py` (S3) | tbd |
-| R-22 | Flag unresolved conflicts | gap (see below) | tbd (S4b) | tbd | tbd |
-| R-23 | Procedures whole and in order | F-57 | G-20 | tbd | tbd |
+| R-22 | Flag unresolved conflicts | gap (see below) | none: a gap for S8's suite audit (S4b's D3, verbatim: "No corpus change; R-22 stays a gap (Recommended)") | tbd | tbd |
+| R-23 | Procedures whole and in order | F-57 | G-20, G-76, G-112 | tbd | tbd |
 
 Quality attributes Q-01 to Q-06 are traced to gates and run records, not to planted features
 (section 5).
@@ -248,7 +250,7 @@ Quality attributes Q-01 to Q-06 are traced to gates and run records, not to plan
 | R-02 | Citation integrity is a property of every answer, enforced in code by the citation validator; no document content can plant it. | S3: cited ids ⊆ retrieved ids on every case. |
 | R-20 | Prompt extraction attacks the system prompt, not the corpus. | S7: deterministic attack suite and promptfoo red team. |
 | R-21 | A missing or spoofed tenant is a property of the request, not of a document. | S3: API test with no tenant and with a spoofed tenant id; S7 repeats it. |
-| R-22 | Deliberately unplanted in v0.1: every planted conflict has a precedence rule (R-04, R-05, R-06), so the answer key stays unambiguous. | Candidate for S4b: add one unresolved conflict between two current documents, with the reviewer's agreement. |
+| R-22 | Deliberately unplanted in v0.1: every planted conflict has a precedence rule (R-04, R-05, R-06), so the answer key stays unambiguous. | S8's suite audit (how-to 09 B): planted then, in a corpus pull request of its own, or recorded as not covered. S4b left it a gap, by its D3, verbatim: "No corpus change; R-22 stays a gap (Recommended)". |
 
 # Part 2: Test plan (how-to 17)
 
@@ -347,12 +349,15 @@ generation (every commit with the fake model; live on demand, make eval-local): 
   decision label and a conflict field in a parsed JSON answer,
   the citation validator, input limits and the tenant guard; run record v1 for generation runs
   (citation integrity, citation hit, abstention probes, pass^3, no judge)
-golden set v1 (S4, datasheet v1.1): 34 retrieval questions and 40 behaviour cases, the 15/8/8/4/5
-  mix of the main plan (single-chunk, multi-chunk, unanswerable, version-conflict, paraphrased or
-  misspelled), each with its expected decision label (25 answer, 9 abstain, 3 flag-conflict,
-  3 refuse-and-help); 27 dev and 13 test cases, the test split run only nightly or at a release;
-  S3's probes P-01 to P-03 among them; label groups for restated rules; make check-dataset stops a
-  malformed file before any run (datasets/DATASHEET.md)
+golden set v2 (S4b, datasheet v2; datasets/golden.v2.jsonl): 34 retrieval questions and 120
+  behaviour cases, golden set v1.1's 40 (S4, frozen in datasets/golden.v1.jsonl) and 80 new ones,
+  in the main plan's mix tripled, 45/24/24/12/15 (single-chunk, multi-chunk, unanswerable,
+  version-conflict, paraphrased or misspelled), each with its expected decision label (64 answer,
+  27 abstain, 13 flag-conflict, 16 refuse-and-help); 87 asked as tenant A and 33 as tenant B;
+  79 dev and 41 test cases, the new ones split by a seeded script, the test split run only nightly
+  or at a release; S3's probes P-01 to P-03 among them; every requirement with a planted feature
+  traced to a case (section 8); label groups for restated rules; make check-dataset holds each file
+  to its version's rules before any run (datasets/DATASHEET.md)
 judges (S5, reported until S6): judge-v2 on the local Ministral 3 14B
   (ministral-3:14b-instruct-2512-q4_K_M, tag and digest pinned, another family than the
   generator), one binary verdict per criterion of docs/CRITERIA.md (grounded, cites_support,
@@ -365,6 +370,14 @@ abstention (no judge, S4): the structured label on every abstain case, scored by
   four-way table of label and stated value; the metric canary (S5): P-01's invented five
   attempts, which grounded and abstains must fail (datasets/canaries.judge.jsonl, C-01 and
   C-02) before the judge grades anything
+observability (S9, raglab serve only): one trace per /ask (FastAPI's request span, the
+  pipeline, retrieval, embeddings, chat; the GenAI conventions at 9ffc7e0) through an allowlist
+  of keys; content off by default (the opt-in only where RAGLAB_ENV is ci or local); nothing a
+  guard removed is kept; tests/obs (docs/OBSERVABILITY.md)
+perf (S9, pr-fast's perf job): the k6 smoke on the perf stub, one user, 10 warm-up and 100 gated
+  /ask requests; every check and no failure gated, the median under T = 40 ms (set from ten runs
+  on GitHub's runner), p95 reported (docs/THRESHOLDS.md); PERF_TEST_MODE refused outside ci and
+  local
 security: <from S7: planted instruction, two tenants, poisoned duplicate; the attack files are
   ready and loaded only by raglab.ingest.attacks>
 report: <from S8: per case cause (ingestion/retrieval/generation/abstention), intervals, paired diff>

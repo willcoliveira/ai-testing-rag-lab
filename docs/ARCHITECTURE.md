@@ -107,21 +107,22 @@ flowchart TB
   end
   subgraph P2[P2 Evaluation rigour, v0.2]
     S5[S5 Local judged metrics, token measurement, provider decision] --> S4b[S4b Golden set v2, ~120] --> S6[S6 Judge calibration] --> S7[S7 Attack, guardrails, red team] --> S8[S8 Gates, causes, suite audit]
+    S9[S9 Observability, perf]
   end
   subgraph P3[P3 Production practices, v0.3]
-    S9[S9 Observability, perf] --> S3h[S3h Host evaluation spike] --> S10[S10 Real demo, path to prod] --> S11[S11 Teaching playground, system audit, capstone]
+    S3h[S3h Host evaluation spike] --> S10[S10 Real demo, path to prod] --> S11[S11 Teaching playground, system audit, capstone]
   end
   subgraph EXT[Extensions]
     S12[S12 Handbook corpus]
     B[Track B Playwright for Python]
   end
   S4 --> S5
-  S8 --> S9
+  S8 --> S3h
   S11 --> S12
   S3 -.-> B
   classDef todo fill:#f3f4f6,stroke:#6b7280
   classDef wip fill:#fef3c7,stroke:#92400e
   classDef done fill:#dcfce7,stroke:#166534
-  class S0,S1a,S1b,S2,S3,S4,S5 done
-  class S3h,S4b,S6,S7,S8,S9,S10,S11,S12,B todo
+  class S0,S1a,S1b,S2,S3,S4,S5,S4b,S9 done
+  class S3h,S6,S7,S8,S10,S11,S12,B todo
 ```

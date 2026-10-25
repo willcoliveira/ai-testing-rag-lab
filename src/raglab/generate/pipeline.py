@@ -17,13 +17,23 @@ Each step but the drop steps can end the request, and none of them guesses an an
 The Outcome keeps what a run record and the API need: the answer, the retrieved chunks (those the
 prompt was built from), the event that ended the request, the drop events, the error text of an
 unavailable or invalid reply, the tokens and the latency.
+
+S9: the pipeline writes spans to its tracer (the no-op tracer unless `raglab serve` gives it one;
+docs/OBSERVABILITY.md): raglab's pipeline span, and inside it the retrieval span and the chat span
+(`chat <model>`, open through the parse, so an invalid reply is its error). What the pipeline span
+keeps follows the guards: a guard's decision as its name, stage and the API's fixed reason key
+(raglab.core.reasons), never the event's text; the tenant only once the input guards have passed;
+the retrieved and cited ids only once the retrieved-chunk guards have passed; and, with the
+content opt-in, the question and the answer of an ok answer only. Nothing of a refused or withheld
+request, and no exception's message, is ever set on a span.
 """
 
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from raglab.core.ports import ChatModel, Guardrail, Retriever
+from raglab.core.ports import ChatModel, Guardrail, NoopTracer, Retriever, Span, Tracer
+from raglab.core.reasons import reason_key
 from raglab.core.types import (
     Answer,
     ChatMessage,
@@ -35,6 +45,7 @@ from raglab.core.types import (
     Status,
 )
 from raglab.generate.prompts import CURRENT as prompt
+from raglab.obs import names, traced
 
 PROMPT_VERSION = prompt.VERSION
 
@@ -65,6 +76,8 @@ class Pipeline:
         chat: ChatModel,
         guards: Sequence[Guardrail],
         k: int,
+        *,
+        tracer: Tracer | None = None,
     ) -> None:
         if k < 1:
             raise ValueError(f"k must be at least 1, not {k}")
@@ -72,6 +85,7 @@ class Pipeline:
         self.chat = chat
         self.guards = list(guards)
         self.k = k
+        self.tracer: Tracer = NoopTracer() if tracer is None else tracer
 
     def ask(
         self,
@@ -79,6 +93,52 @@ class Pipeline:
         tenant: str | None,
         caller_tenants: frozenset[str] | None = None,
         seed: int = 0,
+    ) -> Outcome:
+        with self.tracer.span(names.PIPELINE_SPAN) as span:
+            outcome = self._ask(question, tenant, caller_tenants, seed)
+            self._record(span, outcome, question, tenant)
+            return outcome
+
+    def _record(self, span: Span, outcome: Outcome, question: str, tenant: str | None) -> None:
+        """What the pipeline span keeps of an outcome, after every guard has decided."""
+        status = outcome.answer.status
+        span.set(names.PROMPT_VERSION, PROMPT_VERSION)
+        span.set(names.STATUS, status.value)
+        span.set(names.LABEL, outcome.answer.label)
+        for event in outcome.events:
+            span.set(names.GUARD, event.guard)
+            span.set(names.GUARD_STAGE, event.stage)
+            span.set(names.GUARD_REASON, reason_key(event))
+        if status is Status.REFUSED or tenant is None:
+            return
+        span.set(names.TENANT, tenant)
+        if any(event.stage == "retrieved" for event in outcome.events):
+            return
+        span.set(names.RETRIEVED_IDS, tuple(r.chunk.chunk_id for r in outcome.retrieved))
+        span.set(names.CITED_IDS, outcome.answer.cited_ids)
+        if status is Status.UNAVAILABLE:
+            span.fail("timeout" if outcome.timed_out else "unavailable")
+        elif status is Status.INVALID_OUTPUT:
+            span.fail("invalid_output")
+        elif status is Status.OK and self.tracer.capture_content:
+            span.set(names.QUESTION, question)
+            span.set(names.ANSWER, outcome.answer.text)
+
+    def _retrieve(self, question: str, tenant: str) -> tuple[ScoredChunk, ...]:
+        with self.tracer.span(f"{names.RETRIEVAL} {names.DATA_SOURCE}", "client") as span:
+            span.set(names.OPERATION, names.RETRIEVAL)
+            span.set(names.DATA_SOURCE_ID, names.DATA_SOURCE)
+            span.set(names.RETRIEVAL_TOP_K, self.k)
+            retrieved = tuple(self.retriever.retrieve(question, tenant, self.k))
+            span.set(names.RETRIEVED_COUNT, len(retrieved))
+            return retrieved
+
+    def _ask(
+        self,
+        question: str,
+        tenant: str | None,
+        caller_tenants: frozenset[str] | None,
+        seed: int,
     ) -> Outcome:
         started = time.perf_counter()
 
@@ -113,7 +173,7 @@ class Pipeline:
                 Answer.withheld(Status.REFUSED),
                 event=GuardEvent("pipeline", "input", "the request names no tenant"),
             )
-        retrieved = tuple(self.retriever.retrieve(question, tenant, self.k))
+        retrieved = self._retrieve(question, tenant)
         for guard in self.guards:
             if event := guard.check_retrieved(tenant, retrieved):
                 return done(Answer.withheld(Status.BLOCKED), retrieved, event)
@@ -127,22 +187,35 @@ class Pipeline:
             prompt.ANSWER_SCHEMA,
             seed,
         )
-        try:
-            reply = self.chat.complete(request)
-        except ChatUnavailable as error:
-            return done(
-                Answer.withheld(Status.UNAVAILABLE),
-                retrieved,
-                error=str(error),
-                timed_out=isinstance(error, ChatTimeout),
-            )
-        tokens = (reply.prompt_tokens, reply.completion_tokens)
-        try:
-            answer = prompt.parse(reply.text)
-        except prompt.InvalidOutput as error:
-            return done(
-                Answer.withheld(Status.INVALID_OUTPUT), retrieved, None, str(error), *tokens
-            )
+        with self.tracer.span(f"{names.CHAT} {self.chat.model}", "client") as span:
+            for key, value in traced.chat_attributes(
+                self.chat.model, self.chat.describe(), seed, PROMPT_VERSION
+            ):
+                span.set(key, value)
+            try:
+                reply = self.chat.complete(request)
+            except ChatUnavailable as error:
+                timed_out = isinstance(error, ChatTimeout)
+                span.fail("timeout" if timed_out else "unavailable")
+                return done(
+                    Answer.withheld(Status.UNAVAILABLE),
+                    retrieved,
+                    error=str(error),
+                    timed_out=timed_out,
+                )
+            tokens = (reply.prompt_tokens, reply.completion_tokens)
+            for key, count in zip(
+                (names.USAGE_INPUT_TOKENS, names.USAGE_OUTPUT_TOKENS), tokens, strict=True
+            ):
+                if count is not None:  # as the server reported it; unreported stays unset
+                    span.set(key, count)
+            try:
+                answer = prompt.parse(reply.text)
+            except prompt.InvalidOutput as error:
+                span.fail("invalid_output")
+                return done(
+                    Answer.withheld(Status.INVALID_OUTPUT), retrieved, None, str(error), *tokens
+                )
         for guard in self.guards:
             if event := guard.check_output(answer, retrieved):
                 return done(Answer.withheld(Status.BLOCKED), retrieved, event, None, *tokens)

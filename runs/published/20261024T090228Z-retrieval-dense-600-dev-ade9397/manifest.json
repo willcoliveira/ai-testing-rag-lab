@@ -1,0 +1,97 @@
+{
+  "schema_version": "run-record.v1",
+  "run_id": "20261024T090228Z-retrieval-dense-600-dev-ade9397",
+  "created_at": "2026-10-24T09:02:28Z",
+  "suite": "retrieval",
+  "gate": "manual",
+  "split": "dev",
+  "trials": 1,
+  "seed": 20261006,
+  "provenance": "local",
+  "partial": false,
+  "git_sha": "ade9397e8828bf875fe4925817041b0da16ff7e2",
+  "git_dirty": false,
+  "config": {
+    "name": "retrieval-dense-600",
+    "path": "config/retrieval-dense-600.toml",
+    "file_sha256": "c32e1de44f87e10e6090ab2372ed189c0480a5a96993590179052968978a62f9",
+    "sha256": "9f97be63212247dd9af6da45a1cf1a3460546e18f38dd0d6daa1cbfdd64e6cb4"
+  },
+  "chunker": {
+    "chunk_size": 600,
+    "overlap": 1,
+    "sha256": "8a44eb7609d04ba51e138c7d4bf38e6740c603fb10f3ae7b31dc0b3603e74661"
+  },
+  "embedder": {
+    "provider": "fastembed",
+    "model": "BAAI/bge-small-en-v1.5",
+    "source": "Qdrant/bge-small-en-v1.5-onnx-Q",
+    "revision": "aa8f8b060edb00e03bfdd08813a2949946c8ba55",
+    "dimension": 384,
+    "onnx_sha256": "51f1bd0addd6e859e42c2c8021a5e5461385bb676a649f4b269aa445449f2431",
+    "fastembed": "0.9.0",
+    "onnxruntime": "1.30.0",
+    "sha256": "eae9278a753b7a374f3e79c08d3911092215b909d3e6eedc3c2dcbdd9026e95e"
+  },
+  "retriever": {
+    "kind": "dense",
+    "k": 5,
+    "sha256": "eee2d16a482337ea39c507718790e61a43897e6f356f06742188082b427c8bfb"
+  },
+  "dataset": {
+    "path": "datasets/golden.v2.jsonl",
+    "sha256": "3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e",
+    "questions": 22
+  },
+  "corpus": {
+    "documents": 18,
+    "chunks": 249,
+    "sha256": "6b80593860259f7444c61c285ac6535cf5469d38d965677bbab93d68150b552e"
+  },
+  "tools": {
+    "python": "3.13.12",
+    "raglab": "0.1.0",
+    "numpy": "2.5.4",
+    "rank-bm25": "0.2.2",
+    "pypdf": "6.19.0",
+    "pyyaml": "6.0.3",
+    "pytesseract": "0.3.13",
+    "tesseract": "5.5.3"
+  },
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20261006,
+    "level": 0.95,
+    "method": "percentile"
+  },
+  "results": {
+    "metrics": {
+      "hit@5": {
+        "value": 0.818182,
+        "ci_low": 0.636364,
+        "ci_high": 0.954545,
+        "n": 22
+      },
+      "mrr@5": {
+        "value": 0.64697,
+        "ci_low": 0.465151,
+        "ci_high": 0.804545,
+        "n": 22
+      },
+      "recall@5": {
+        "value": 0.659091,
+        "ci_low": 0.492424,
+        "ci_high": 0.810606,
+        "n": 22
+      }
+    }
+  },
+  "totals": {
+    "cases": 22,
+    "duration_s": 9.416
+  },
+  "files": {
+    "cases.jsonl": "131b637b3f0cae7857e7ef1c40c43ad0ad74d8bc7703987396a92c337a740992",
+    "report.md": "7e9ed95477aa6ba7e649bcc12c5b812f27b9c682cea1cc16f75879c9485c53ea"
+  }
+}

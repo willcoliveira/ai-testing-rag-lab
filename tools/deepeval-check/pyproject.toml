@@ -17,6 +17,11 @@ dependencies = [
 [tool.uv.sources]
 raglab = { path = "../..", editable = true }
 
+# S9: the main project's cooldown constraint, repeated here because a path dependency's
+# [tool.uv] settings do not apply to this lock (see the main pyproject.toml); drop after 2026-10-29
+[tool.uv]
+constraint-dependencies = ["googleapis-common-protos==1.75.5"]
+
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14"]
 build-backend = "uv_build"

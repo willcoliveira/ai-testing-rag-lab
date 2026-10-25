@@ -17,7 +17,7 @@ name = "generation-local-ollama-release"
 suite = "generation"
 
 [dataset]
-path = "datasets/golden.v1.jsonl"
+path = "datasets/golden.v2.jsonl"
 split = "test"
 
 [chunker]

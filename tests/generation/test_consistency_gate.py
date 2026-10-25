@@ -8,6 +8,7 @@ and it prints one line. Scripted runs (manifests) for the rule, and real records
 
 import copy
 import json
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -145,6 +146,22 @@ def test_the_margin_is_read_from_the_consistency_row():
     margin = gate.consistency_margin(committed)
     assert margin is not None
     assert margin >= 1
+
+
+def test_the_one_consistency_row_names_the_published_baseline():
+    """S4b (GV11): THRESHOLDS.md has one consistency row, replaced in place when a new baseline
+    is published, and it names that baseline (index.json's generation/generation-local-ollama/dev)
+    first: an old row left above the new one would give the gate its margin."""
+
+    committed = (ROOT / gate.THRESHOLDS).read_text(encoding="utf-8")
+    rows = [line for line in committed.splitlines() if line.startswith(gate.CONSISTENCY_ROW)]
+    assert len(rows) == 1, f"{len(rows)} consistency rows"
+    baseline = publish.baseline_run(ROOT, "generation/generation-local-ollama/dev")
+    assert baseline is not None
+    reason = rows[0].strip().strip("|").split("|")[3]
+    ids = re.findall(r"`(\d{8}T\d{6}Z-generation-local-ollama-dev-[0-9a-f]{7})`", reason)
+    assert ids, "the row names its runs"
+    assert ids[0] == baseline.name, f"the row's first run is {ids[0]}, not {baseline.name}"
 
 
 # ---------------------------------------------------------------- the CLI, on real records

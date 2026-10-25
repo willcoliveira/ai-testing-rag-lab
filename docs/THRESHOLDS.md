@@ -27,14 +27,17 @@ first local run (S3 ledger) are S4's and S5's starting point.
 
 | Metric | Gate | Threshold | Reason |
 |---|---|---|---|
-| behaviour pass^3, `config/local-ollama.toml`, dev split (Q-05) | the consistency gate, `make gate-local` (`raglab gate`): by hand and **local** until keys exist; a pull request that changes the prompt, the generation code, the chunker, the embedder or the model quotes its line | margin: 1 case(s): at least the baseline's behaviour pass^3 minus one case (1/27 on the 27 dev behaviour cases) | **Measured** (S4 ledger, 2026-10-19, after the golden set's sign-off, at the frozen commit 97011a7): the baseline `20261019T172035Z-generation-local-ollama-dev-97011a7` has behaviour pass^3 0.519 (14 of 27); the repeats `20261019T172524Z-generation-local-ollama-dev-97011a7`, `20261019T173030Z-generation-local-ollama-dev-97011a7`, `20261019T173524Z-generation-local-ollama-dev-97011a7` and `20261019T174018Z-generation-local-ollama-dev-97011a7` have 0.519 (14 of 27) each, the same 14 cases. The largest drop is 0 cases, so the margin is the rule's floor, one case: a run with 13 of 27 passes and one with 12 fails (the gate compares case counts since S4's fix round 1; before it, a run at 13 of 27 failed on the six-place rounding of the rates, the criteria judge's S4-J1). Four repeats that never moved are thin evidence of the spread: the same seed gave the same answer text in only 6 of 147 (case, trial) pairs across the five runs, while the labels and citations that pass^3 reads held. The rule (S4 plan, "How the threshold is set"): after the golden set's sign-off, with the code frozen, five gate-local runs at the config's settings, seed included; the first complete run is published as the baseline, whatever its value (never the best of five), the other four as repeats; the margin is the largest drop of behaviour pass^3 below the baseline among the four repeats, in cases, and at least one case. The gate reads it from this cell as `margin: M case(s)` and refuses to judge until the cell holds one; the run ids and the reason come with the number. A baseline made with another dataset, config, prompt fingerprint, model digest or number of trials is stale and fails the gate until a new one is published in a reviewed pull request; a new Ollama version is not stale, it is a change the gate exists to see. A fake run is refused: the fake model's trials are identical, so its pass^3 measures the plumbing. |
+| behaviour pass^3, `config/local-ollama.toml`, dev split (Q-05) | the consistency gate, `make gate-local` (`raglab gate`): by hand and **local** until keys exist; a pull request that changes the prompt, the generation code, the chunker, the embedder or the model quotes its line | margin: 1 case(s): at least the baseline's behaviour pass^3 minus one case (1/79 on golden set v2's 79 dev behaviour cases) | **Measured** (S4b ledger, 2026-10-24, after golden set v2's sign-off, at the frozen commit ade9397): the baseline `20261024T090351Z-generation-local-ollama-dev-ade9397` has behaviour pass^3 0.418 (33 of 79); the repeats `20261024T091315Z-generation-local-ollama-dev-ade9397` 0.430 (34 of 79), and `20261024T092237Z-generation-local-ollama-dev-ade9397`, `20261024T093208Z-generation-local-ollama-dev-ade9397` and `20261024T114208Z-generation-local-ollama-dev-ade9397` 0.418 (33 of 79) each. The largest drop below the baseline is 0 cases, so the margin is the rule's floor, one case: a run with 32 of 79 passes and one with 31 fails (the gate compares case counts). The counts held, but not the cases: each repeat's passing set differs from run 1's by one to three cases (31 cases pass in all five runs), and the same seed gave the same answer text in only 13 of 303 (case, trial) pairs, so a one-case margin on 79 cases is thin evidence of the spread. **History:** S4's baseline on golden set v1.1, `20261019T172035Z-generation-local-ollama-dev-97011a7` (0.519, 14 of 27, margin one case), and its four repeats stay published; their numbers do not compare with v2's (S4 ledger: the same 14 cases passed in all five runs, and the same answer text came back in only 6 of 147 pairs). The rule (S4 plan, "How the threshold is set"): after the golden set's sign-off, with the code frozen, five gate-local runs at the config's settings, seed included; the first complete run is published as the baseline, whatever its value (never the best of five), the other four as repeats; the margin is the largest drop of behaviour pass^3 below the baseline among the four repeats, in cases, and at least one case. The gate reads it from this cell as `margin: M case(s)` and refuses to judge until the cell holds one; the run ids and the reason come with the number. A baseline made with another dataset, config, prompt fingerprint, model digest or number of trials is stale and fails the gate until a new one is published in a reviewed pull request; a new Ollama version is not stale, it is a change the gate exists to see. A fake run is refused: the fake model's trials are identical, so its pass^3 measures the plumbing. |
 | label agreement (the cases whose trials all gave the same label, right or wrong) | reported | none | A model that always abstains agrees perfectly, so agreement is not gated on its own; agreement minus behaviour pass^3 counts the cases that agree and still fail, and the rest waver |
 | decision-label rate (overall and per expected label), the confusion table, abstention on the abstain cases and over-abstention on the others, the label failures split by whether the labelled sections were retrieved | reported | none | Read without a judge (TEST-PLAN R6); targets come from the first real runs (main plan), and S5's judge reads the text |
 
 Lab practice: a production system runs this gate in CI against a managed model endpoint, on a
 schedule and on every change to the prompt, the generation code or the model (the main plan's
 nightly and eval-on-change), and sets the margin from many more repeats on that runner. Here it
-runs on the Mac by hand until keys exist, and its margin comes from four repeats.
+runs on the Mac by hand until keys exist, and its margin comes from four repeats. The S4b runs
+were made on golden set v2 at the frozen commit ade9397, four in a row and the fifth about two
+hours later, after the developer agent stopped on a usage limit, with the same commit, model and
+config (S4b ledger).
 
 ## Judged (S5)
 
@@ -44,6 +47,11 @@ again on 2026-10-21 (`correct` reworded: judge-v2); the numbers are the judged b
 baseline's answers judged by the local judge under judge-v2. The first judged record,
 `runs/published/20261020T195341Z-judge-local-dev-25ccc0d/` (judge-v1), stays published as the
 evidence for the second sign-off; its numbers are not the baseline's.
+
+**Golden set v2 (S4b).** The judged baseline stays `5aa0ec5`, on golden set v1.1's dev split,
+until S6 judges v2's consistency baseline as its first live step: the user's answer to S4b's D2,
+verbatim, "In S6, as its first live step (Recommended)". S4b changes none of the judge's files.
+The judged numbers above are v1.1's and do not compare with a run on v2.
 
 | Metric | Gate | Threshold | Reason |
 |---|---|---|---|
@@ -88,11 +96,52 @@ estimate per option, at the assumed runs a month:
 
 **Q-01, the local latency baseline (reported):** the pipeline's answer time per case-trial (the
 input guards, retrieval, the generator call and the output checks, in-process, without the API
-layer) on the consistency baseline `20261019T172035Z-generation-local-ollama-dev-97011a7`: p50
+layer) on S4's consistency baseline, on golden set v1.1, `20261019T172035Z-generation-local-ollama-dev-97011a7`: p50
 1510.180 ms, p95 2743.227 ms (n 147). The local judge's time per call on the judged baseline: p50
 5522.768 ms, p95 10373.613 ms (n 592), on AC power (the session's power line; the S4 baseline's
 power source was not recorded). Both are the maintainer's Mac; a hosted provider's are measured
 after the sign-up.
+
+## Performance (S9)
+
+The k6 smoke (`make perf-smoke`, pr-fast's `perf` job; docs/OBSERVABILITY.md): one virtual user
+sends 10 warm-up and then 100 gated `/ask` requests to `raglab serve --config config/perf.toml`, the
+perf stub (the fake echo model, provenance fake), over HTTP on loopback, on GitHub's
+`ubuntu-24.04` runner. It is the HTTP path on the stub on GitHub's runner: **not Q-01**, which is
+in-process, the real model, on the maintainer's Mac.
+
+| Metric | Gate | Threshold | Reason |
+|---|---|---|---|
+| k6 smoke: /ask median (`ask_duration`, the 100 gated requests) | pr-fast `perf` job, blocking | median < 40 ms: T, set on 2026-10-24 by the rule below from the ten runs below (the largest median 15.38 ms; 2 × 15.38 = 30.76 ms, rounded up to the next 10 ms) | GitHub's hosted runners are shared machines whose speed varies (one pr-fast test step took 346 s on one run and 451 s on another on 2026-10-23), so a smoke must not go red on a slow machine; the regressions a smoke exists for cost far more than double (a model or an index loaded per request, a blocking call, a loop that grows with the corpus). **The rule, written before any run** (the S9 plan): the job lands with the median threshold off; ten report-only runs of the job at one commit, all kept, none dropped and none run again for a better number, each run's median and p95 copied from its log with its run id; T = 2 × the largest of the ten medians, rounded up to the next 10 ms; T changes only in a reviewed pull request with ten new runs under the same rule (a change of k6, of the runner image, of the stub, or a guard that adds latency to `/ask`). `tests/unit/test_perf_smoke.py` holds perf/smoke.js's value equal to this cell |
+| k6 smoke: every reply 200 with status ok; failed requests | pr-fast `perf` job, blocking | checks rate 1; http_req_failed rate 0 | A smoke that sends 110 requests to a stub has no reason to see one fail; any failure is a bug, not noise |
+| k6 smoke: /ask p90, p95, minimum, maximum | reported (the job's log and step summary) | none | The tail on a shared runner is noisier than the median |
+
+**The ten report-only runs** (provenance: the fake model, the perf stub; GitHub's `ubuntu-24.04`
+runner): the perf job of pr-fast run 40074154534 at commit `12f8e70`, attempts 1 to 10 on
+2026-10-24, every one kept and every one passed (checks rate 1, no failed request). Each value is
+copied from its job's `perf-smoke: /ask median ...` line:
+
+| Run 40074154534, attempt | Median | p95 |
+|---|---|---|
+| 1 | 15.13 ms | 17.52 ms |
+| 2 | 14.27 ms | 16.75 ms |
+| 3 | 14.50 ms | 16.71 ms |
+| 4 | 14.34 ms | 16.70 ms |
+| 5 | 8.01 ms | 9.39 ms |
+| 6 | 15.38 ms | 17.69 ms |
+| 7 | 14.73 ms | 17.12 ms |
+| 8 | 13.85 ms | 16.50 ms |
+| 9 | 14.42 ms | 16.87 ms |
+| 10 | 12.24 ms | 13.73 ms |
+
+The largest median is attempt 6's, 15.38 ms; T = 2 × 15.38 ms = 30.76 ms, rounded up to the next
+10 ms: **40 ms**. The medians span 8.01 to 15.38 ms, a factor of 1.9 between the fastest and the
+slowest runner, which is why the margin is 2× the slowest and not a tighter rule.
+
+Lab practice: a smoke, not a load test. One user on a shared CI runner and a stub for the model
+catch a regression that doubles the API's time, not one of 10%. Production load-tests a staging
+copy of the real deployment on capacity of its own, with the model in the path, against agreed
+latency objectives, and sets margins from many more runs.
 
 The test split is never used to set a threshold or to choose a configuration; it runs in
 nightly, release and the capstone only.
