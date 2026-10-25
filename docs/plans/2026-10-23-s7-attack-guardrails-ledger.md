@@ -98,14 +98,14 @@ wrote the files' committed bytes back afterwards; `git status --short` was empty
 | AG2 | met | `tests/security/test_attack_suite.py`: the T-POISON, T-FAKE, T-HIDDEN and claimed-id rows (negative control, each defence alone, the default set); a page outside the register never reaches the prompt and the answer goes on, the drop event names T-POISON and `register-membership`; the claimed-id page (front matter: A-PWD-V2, `current`) is dropped; `tests/security/test_guard_cases.py`: the 228 clean chunks all kept, the 24 attack-page chunks all left out | The filter keeps `unregistered` chunks: 10 failed, among them "poisoned duplicate (F-48): ATK-F48-1: with only the register layer the attack lands" and the F-47 and F-49 rows' register checks; the filter reads front matter status (the loader passes it and the filter takes `current`): 4 failed, the claimed-id row's register checks ("poisoned duplicate (F-48) claiming a register id: ATK-F48-1: with only the register layer the attack lands") and the two claimed-id tests. No negative control failed (expected pass) |
 | AG3 | met | `tests/security/test_instruction_scan.py` (5 tests: T-HIDDEN's note quarantined as a page outside the register and inside a temporary register, `A-WIFI@1.0/5/1`; the event names the chunk and groups, never the text; the clean pack keeps its 228 chunks and its corpus sha256; `assemble` indexes what the scan keeps); `tests/ingestion/test_inventory_snapshot.py` passes unchanged; `make gate` passes (recall@5 0.682, the baseline's) | The scan's rule removed (`NEEDS = 4`): 7 failed, among them "planted instruction (F-47) inside a registered document: ATK-F47-1: with only the instruction-scan layer the attack lands: [F-47's planted string is in the answer, x3]"; a rule widened (`passwords` addressed, `must` a change): "instruction-scan: flags the clean chunks ['A-PWD-V1@1.0/4/1', ...]" naming 11 chunk ids |
 | AG4 | met | Each guard's cases in `tests/security/test_guard_cases.py`; each defence alone in the attack suite; `test_the_published_team_contacts_are_still_answered` (F-46's SOC contacts, the Service Desk's, Mirrowfen IT Support's); `test_no_event_holds_what_its_guard_removed` (every event of every row and configuration against every `answer_must_not_contain` string, link forms included, and the sentences of the removed pages and the system prompt); `tests/security/test_guard_reasons.py` (the log holds guard, stage and key only) | Each disabled in turn: links 10 failed (LNK-B01 to B06; "with only the links layer" for F-47 registered and F-49); secrets-pii 15 failed (SPI-B01 to B08; F-44, F-45, F-47, F-49 rows); prompt-leak 9 failed (PLK-B01 to B06; the three R-20 cases); the citation validator's register rule 11 failed (CIT-B03 to B05; F-47 page, F-48, F-49 rows). The link guard's event made to quote the links: 3 failed, "fake update page (F-49): ATK-F49-1: an event quotes removed text" (see Findings: the first version of the test missed it) |
-| AG5 | met on v1.1; waiting for S4b's merge (v2's dev questions) | `tests/security/test_guard_cases.py`: INJ-B01 to B10 refused, INJ-N01 to N10 answered, `test_no_dev_question_of_the_golden_set_is_refused[injection]` over the 49 dev questions of the file `config/local-ollama.toml` names (v1.1 now; v2 after S4b switches the config), split dev only (asserted) | A rule widened (the word `password`): "injection: refuses the dev questions ['R-Q01', 'R-Q04', ...]" (15 ids) and INJ-N02, N04, N05, N06; the `system prompt` rule removed: "injection: INJ-B06 (must_block) was let through" |
+| AG5 | met: on v1.1, and on golden set v2's dev questions after the merge with main (below) | `tests/security/test_guard_cases.py`: INJ-B01 to B10 refused, INJ-N01 to N10 answered, `test_no_dev_question_of_the_golden_set_is_refused[injection]` over the 49 dev questions of the file `config/local-ollama.toml` names (v1.1 now; v2 after S4b switches the config), split dev only (asserted) | A rule widened (the word `password`): "injection: refuses the dev questions ['R-Q01', 'R-Q04', ...]" (15 ids) and INJ-N02, N04, N05, N06; the `system prompt` rule removed: "injection: INJ-B06 (must_block) was let through" |
 | AG6 | met offline, ratified (2026-10-24, below); the pr-fast log needs CI | Ten YAML files in how-to 07's template; `tests/security/test_security_pack.py` (18 tests: the template, five or more of each kind per layer, every attack row has cases, the README labels the pack deliberate test material, references resolve and no planted value is written); every case binary per build; THRESHOLDS.md's Guards section from `runs/guard-suites/20261024T030214Z-ebcdb7d.json`; every `ratified_by` was `pending` at STOP 1 and is `maintainer, 2026-10-24` since the ratification | LNK-N01's expected flipped to block: "datasets/security/links.yaml LNK-N01: a must_not_block case expects 'pass'"; TEN-B01's `ratified_by` emptied: "... TEN-B01: ratified_by is empty or not 'maintainer <date>'"; `{ref:F-99:0}`: "... SPI-B01: {ref:F-99:0} names no answer_must_not_contain string" |
 | AG7 | met locally; needs CI | `tests/security/test_attack_suite.py`, 97 tests, about 5 s: 7 rows x their cases x (negative control, each defence alone, default set), the payload-reaches-the-answer control under S3's guards, two tenants (a broken store filter without the tenant guard leaks a canary; the filter alone and the guard alone each hold), tenant spoofing (403, never retrieved; 200 and retrieved without the guard), no conflict field outside the register (in every check) | Each defence removed in turn: register (AG2), citations, links, secrets-pii, prompt-leak (AG4), scan (AG3), injection: 3 failed ("prompt extraction (R-20): ATK-R20-1: with only the injection layer the attack lands"), tenant guard: 3 failed ("two tenants: ATK-TEN-1: the tenant guard", the 403 test). No negative control failed in any break. The store's pre-ranking filter removed: its second line (`check_visible`) raised TenantError on 7 of the 8 two-tenant tests (the store fails closed) |
 | AG8 | met (the live runs' egress record waits for AG9) | `tests/security/test_egress_guard.py` (5 tests: refused and recorded off loopback, lookups too, loopback passes through, removed after, the page and the playground write text only); every attack-suite test runs inside the guard (`egress_none` asserts `egress: none`); the adapter's rule is `tests/contract/test_chat_contract.py::test_a_server_that_is_not_local_is_refused` | A lookup of 192.0.2.1 planted in an attack-suite test, its OSError swallowed: the test itself passed and the fixture failed it, "egress: lookup 192.0.2.1:80"; `innerHTML` planted in `src/raglab/web/app.js`: "src/raglab/web/app.js writes HTML" and `tests/api/test_page.py` both failed |
 | AG9 | offline parts met (after STOP 1, below); the live runs wait for the maintainer's go, after S4b's merge and the ratification | See "AG9's offline parts" below: the runner, suite `attack` in run record v1, `config/attack-local.toml` and `config/attack-fake.toml`, `make attack-local`, F-49's label from the answer key per configuration, publish's rules; `tests/security/test_attack_runs.py` (17 tests). No live session was started | AG9's offline break (a defences-on copy with an F-47 string planted, resealed, still valid): `raglab publish` refuses it naming F-47's string (`test_publish_refuses_a_defences_on_copy_with_an_f47_string_planted`); five more breaks below |
-| AG10 | mechanism met on the v1.1 baseline; waiting for S4b's merge (the replay of v2's five runs) | `raglab replay` over the current baseline and its four repeats: 735 case lines, 730 answers, 3,675 retrieved chunks, zero events, record `runs/replays/...--d81cec18f099.json` (made from a clean tree at `39884e4`). `tests/security/test_guard_staleness.py` (5 tests): the baseline is current for today's guard set only through that record; a new set without a record is stale naming it; an edited manifest is refused; a recorded answer given a foreign link is an event and no record is written. The guard-set rule lives in its own file, not in `tests/retrieval/test_publish.py`, which the plan's merge order keeps until S4b merges. `git diff 2b9ba60 -- config src/raglab/generate/prompts corpus` is empty | Tested in the suite on copies (a new set without a record: stale, naming the set; one answer given a foreign link: "links at output", no record). The plan's break on the committed `default_guards()` runs at the v2 replay |
-| AG11 | GUARDRAILS.md met; TEST-PLAN partly: arrows L9 and R8 met; the R-15 to R-21 cells, section 10 and the test_test_plan extension wait for S4b's merge (the same rows) | GUARDRAILS.md: each S7a layer with its stage, owner, action, code and tests; TEST-PLAN L9 and R8 name their tests and pr-fast (`tests/unit/test_test_plan.py`'s arrows test checks each exists) | L9's test renamed: "L9: tests/security/test_instruction_scan.py::test_the_planted_instruction_is_flagged does not exist" |
-| AG12 | partly: THREAT-MODEL, GUARDRAILS, THRESHOLDS, README, the main plan's note, the pack's README and the CHANGELOG are done; LOCAL-MODEL's attack-local row waits for AG9; ARCHITECTURE and README `wip` wait for S4b's and S6's status lines (the plan's merge order) | `test_diagram.py`, `test_readme.py`, `test_repo_docs.py`, `test_changelog_check.py`, `test_test_plan.py` pass | ARCHITECTURE's S7 class made `wip` without the README's: `test_readme_status_matches_architecture` failed |
+| AG10 | met: the replay over golden set v2's consistency baseline and its four repeats shows zero events (after the merge, below) | `raglab replay` over the current baseline and its four repeats: 735 case lines, 730 answers, 3,675 retrieved chunks, zero events, record `runs/replays/...--d81cec18f099.json` (made from a clean tree at `39884e4`). `tests/security/test_guard_staleness.py` (5 tests): the baseline is current for today's guard set only through that record; a new set without a record is stale naming it; an edited manifest is refused; a recorded answer given a foreign link is an event and no record is written. The guard-set rule lives in its own file, not in `tests/retrieval/test_publish.py`, which the plan's merge order keeps until S4b merges. `git diff 2b9ba60 -- config src/raglab/generate/prompts corpus` is empty | Tested in the suite on copies (a new set without a record: stale, naming the set; one answer given a foreign link: "links at output", no record). After the merge, on the committed `default_guards()`: a no-op layer added fails the staleness test naming the guard set (below) |
+| AG11 | met: GUARDRAILS.md; TEST-PLAN's arrows L9 and R8, and after the merge the Test and Gate cells of R-15 to R-17 and R-19 to R-21, the gaps R-20 and R-21, section 10's security line and the test_test_plan extension (below) | GUARDRAILS.md: each S7a layer with its stage, owner, action, code and tests; TEST-PLAN L9 and R8 name their tests and pr-fast (`tests/unit/test_test_plan.py`'s arrows test checks each exists) | L9's test renamed: "L9: tests/security/test_instruction_scan.py::test_the_planted_instruction_is_flagged does not exist" |
+| AG12 | partly: THREAT-MODEL, GUARDRAILS, THRESHOLDS, README, the main plan's note, the pack's README and the CHANGELOG are done; LOCAL-MODEL's attack-local row has its command and waits for AG9's time; ARCHITECTURE and README `wip` wait for S6's status line (S4b's landed with the merge; the plan's merge order) | `test_diagram.py`, `test_readme.py`, `test_repo_docs.py`, `test_changelog_check.py`, `test_test_plan.py` pass | ARCHITECTURE's S7 class made `wip` without the README's: `test_readme_status_matches_architecture` failed |
 | AG13 | met locally; pr-fast's duration before and after needs CI | No dependency change (`git diff 2b9ba60 -- pyproject.toml uv.lock` empty); `raglab.core` standard library only and the vendor rules hold (`make architecture`: 0 violations); `make -k check` below | A planted unused import in `src/raglab/guard/links.py`: `make check` stopped at lint (`F401`); `import httpx` there: `make architecture`, "src/raglab/guard/links.py:17: vendor SDK httpx is imported outside raglab.adapters" |
 
 ### Findings from the breaks (fixed in the build)
@@ -196,6 +196,8 @@ in 43.61 s (`real 43.91`), the new ratification test among them; exit 0, the tre
 |---|---|---|
 | `runs/replays/20261019T172035Z-generation-local-ollama-dev-97011a7--d81cec18f099.json` | `raglab replay`, today's guard set over the v1.1 baseline and its four repeats, no model: zero events | developer, clean tree at `39884e4` (committed in `ebcdb7d`) |
 | `runs/guard-suites/20261024T030214Z-ebcdb7d.json` | `raglab guard-suites`, every layer over its suites, dev split, provenance local: no miss, no false block | developer, clean tree at `ebcdb7d` (committed in `fdd625c`) |
+| `runs/replays/20261024T090351Z-generation-local-ollama-dev-ade9397--d81cec18f099.json` | `raglab replay` over golden set v2's baseline and its four repeats, after the merge with main: zero events | developer, clean tree at `a8d94d9` (committed in `5c4d409`) |
+| `runs/guard-suites/20261025T181249Z-5c4d409.json` | `raglab guard-suites` on golden set v2's data, after the merge: no miss, no false block | developer, clean tree at `5c4d409` (committed in `b406a44`) |
 
 No generation, retrieval or judged run was made, and no live session was started.
 
@@ -271,6 +273,136 @@ will run the same commands through `make attack-local`.
 pre-existing advisories as at STOP 1 (filelock 4.0.12, three; pillow 12.3.0, two; pypdf 6.19.0,
 three); test 1644 passed, 2 deselected in 207.77 s; gate recall@5 0.682 passes; api-smoke passed;
 `real 249.75`, 34.5 s more than at STOP 1, about the attack-run tests' 35 s.
+
+
+### The merge with main: S4b and S9 (2026-10-25)
+
+The coordinator's go, verbatim: "Go: merge origin/main into feat/s7-attack-guardrails now. S4b
+(#30) and S9 (#27) are both merged; main is c77be52 (S9 merged 2026-10-25 17:29Z)." Merge commit
+`fed559f` (`git fetch origin && git merge origin/main`, a merge commit; no rebase, no squash, no
+push). Before it, the developer stopped once (the reason keys, below) and handed back; the tree
+was clean then, the merge previewed with `git merge-tree` only.
+
+**The conflicts and how each was resolved** (seven files; the other files main and the branch both
+changed merged cleanly):
+
+| File | Conflict | Resolution |
+|---|---|---|
+| `CHANGELOG.md` | both Unreleased sections | the union: S7a's line on top, then S9's, S4b's and the audit fix's |
+| the main plan | S7's dated note (D1, D3) against S9's note and the v0.2 heading | the union: S7's note, then S9's, under main's v0.2 heading (which names S9) |
+| `src/raglab/core/ports.py` | S7's `drop_retrieved` and `check_output(answer, retrieved)` against S9's Tracer section after S3's `check_output` | S7's port methods, then S9's Tracer, Span and no-op section |
+| `src/raglab/evals/config.py` | `load_generation`'s signature and docstring | S9's signature (`perf_stub`) with S7's docstring (the attack suite) |
+| `src/raglab/generate/assemble.py` | imports, parameters, the index | both: S9's tracer and `TracedEmbedder` wrap the embedder, then S7's scan indexes what it keeps; `extra`, `scan_index` and `tracer` side by side |
+| `src/raglab/generate/pipeline.py` | the docstring; the chat call | S7's Outcome sentence and S9's tracing paragraph; S9's chat span, and S7's output guards on the kept chunks (S3's `retrieved_ids` gone) |
+| `src/raglab/api/app.py` | the docstring; `_reason`'s key | S7's sentence and S9's telemetry paragraph; S7's key expression, which gives S9's guards the same keys, S9's then-unused import left out (the integration commit below makes `raglab.core.reasons` the one source) |
+
+In the merge commit too, as its mechanical part: S9's two `default_guards()` calls
+(`tests/obs_support.py`, `tests/obs/test_guard_traces.py`) take the root and the chunks. On the
+merged tree the offline suite gave "1862 passed", with two failures, both expected and fixed below:
+the staleness test (no replay record for v2's baseline yet) and S4b's configs test (the attack
+configs).
+
+**Integration decisions and changes** (each its own commit after the merge):
+
+1. **The reason keys** (`5eb7e62`). Integration decision by the orchestrator on 2026-10-25, not a maintainer call: `raglab/core/reasons.py` is the one source;
+   `GUARD_REASONS` left `api/app.py`. The input injection detector's refusal joins `INPUT_KEYS` as
+   "injection" (S9's docstring prescribes it); the link, secrets and personal-details, prompt-leak
+   and citation guards take S9's "blocked" (S7a's plan needs no key of their own; the response
+   said "blocked" already); the register filter's drop events take a sibling `drop_key`,
+   "dropped" (passages from outside the register were left out and the answer went on), called
+   only for an Outcome's `dropped`, while `reason_key` stays as S9 wrote it and is called only for
+   its `events`: a GuardEvent carries only its guard and stage, and a drop fires at "retrieved",
+   the stage of S9's withholding events, so one function cannot tell a drop from a stop. REASONS
+   lost the dead keys register, links, secrets_pii and prompt_leak and gained dropped. Tests: S9's
+   `test_every_default_guards_decision_has_a_key_the_api_knows`, extended to S7's guards and the
+   drop key (test (i)); `tests/security/test_guard_reasons.py`, among them
+   `test_the_vocabulary_keeps_no_dead_key`.
+2. **The trace: option A** (`2473b34`). Integration decision by the orchestrator on 2026-10-25, not a maintainer call: The pipeline span's `raglab.guard.name`,
+   `raglab.guard.stage` and `raglab.guard.reason` hold the decision that stopped the request, as
+   S9 wrote it, or, when nothing stopped it, the drop step's (register, retrieved, dropped), with
+   `raglab.status` ok telling the two apart; `raglab.retrieved.ids` are the chunks kept; no new
+   exporter key, and S9's types unchanged. With it, a generation record's guard events keep the
+   drops before the stop, so a request dropped from and then withheld keeps its drop in the run
+   record and in the log while its trace shows the stop: docs/OBSERVABILITY.md says both, and that
+   the instruction scan's quarantines happen at index build and are listed in the attack record's
+   manifest, not in traces. The coordinator relaxed its item 4 to: every stopping decision reaches
+   a trace, and so does a drop when nothing stopped. Tests (ii)
+   `test_a_request_only_dropped_from_records_the_drop_and_no_dropped_id` and (iii)
+   `test_a_request_dropped_from_then_withheld_records_the_stop_and_logs_the_drop` with
+   `test_the_run_record_keeps_a_drop_before_its_stop`, in S9's `tests/obs/test_guard_traces.py`.
+3. **The log** (`89f127a`). Integration decision by the orchestrator on 2026-10-25, not a maintainer call: S9's `raglab/core/reasons.py` said a guard's own text "goes
+   to the server log only". Since the merge it does not: the log line is the key, the guard and
+   its stage for every guard, S9's included, because a guard's text can hold what it stopped (a
+   credential the secrets and personal-details guard caught, for one). This is the one statement
+   of S9's, merged, that S7 reverses. Test:
+   `tests/security/test_guard_reasons.py::test_s9s_guards_are_logged_by_key_too_never_by_their_text`.
+4. **The attack configs in S4b's configs test** (`a8d94d9`). Integration decision by the orchestrator on 2026-10-25, not a maintainer call: under S7's D2 ("No corpus
+   change; a separate security pack (Recommended)"), an integration change of the merge: S4b's
+   `test_the_configs_name_one_golden_file_and_the_position_test_keeps_v1_1` held every other config
+   to no dataset, and S7's `attack-fake` and `attack-local` name `datasets/security/attacks.yaml`;
+   they join the test as a tuple of their own, each held to that file, the docstring says so, and
+   MOVING and AFTER_F stay as they were.
+
+**Breaks of the merge's tests** (each made on committed files and restored; `git diff --quiet HEAD`
+true after each):
+
+| Break | Result |
+|---|---|
+| (i) "dropped" removed from REASONS | 2 failed: S9's extended key test, AssertionError ('register', 'retrieved'), and the dead-key test |
+| (ii) the span no longer falls back to the drops | 1 failed: test (ii), KeyError raglab.guard.name |
+| (ii) the drop events' reasons put into the retrieved ids | 1 failed: test (ii), the leak check names the pipeline span |
+| (iii) the drop recorded after the stop (overwriting it), the record's guard events and the log without drops | 3 failed: test (iii) (the span showed register, retrieved, dropped), the run-record test, and the log test of `test_guard_reasons.py` |
+| (iii) the log without drops alone | 1 failed: test (iii), the log held the stop only |
+| The log: S9's old line, the event's text | 4 failed in `test_guard_reasons.py`: the injection's, the withheld answer's and S9's two guards' lines |
+| D2: `attack-local` pointed at `datasets/golden.v2.jsonl` | 1 failed: S4b's configs test, AssertionError attack-local |
+| AG10: a no-op layer added to `default_guards()` | 1 failed: the staleness test, "no replay record shows guard set ac70b4d80446 inert on" v2's baseline |
+| AG11: R-20's Test and Gate cells set back to "tbd (S7)", "tbd" | 1 failed: `test_s7s_cells_name_their_security_tests_and_pr_fast`, "R-20: its Test cell still says tbd (S7)" and two more |
+
+### The v2 evidence (after the merge)
+
+- **AG10, the replay** (`5c4d409`, the record made from a clean tree at `a8d94d9`): `raglab replay`
+  over golden set v2's consistency baseline `20261024T090351Z-generation-local-ollama-dev-ade9397`
+  and its four repeats (`...091315Z...`, `...092237Z...`, `...093208Z...`, `...114208Z...`, the five
+  runs THRESHOLDS' consistency row names): 1,515 case lines, 1,494 answers, 7,575 retrieved chunks,
+  **zero events**; record
+  `runs/replays/20261024T090351Z-generation-local-ollama-dev-ade9397--d81cec18f099.json`, guard set
+  `d81cec18f099` (unchanged by the merge). The v1.1 record stays as history.
+  `tests/security/test_guard_staleness.py` passes on it.
+- **AG5 on v2**: golden set v2's 101 dev questions (22 retrieval, 79 behaviour; 75 asked as tenant
+  A, 26 as tenant B; never the test split): the tenant guard, the input limits and the injection
+  detector each refuse 0 of 101. 52 of those questions are new in v2 and were not seen when the
+  rules were written.
+- **The suites per filter on v2** (`b406a44`, `runs/guard-suites/20261025T181249Z-5c4d409.json`, a
+  clean tree at `5c4d409`): no miss and no false block in any layer; the must-not-block counts are
+  106 (tenant, input limits), 111 (injection), 235 (scan), 233 (register), and 1,499 to 1,502 for
+  the output layers over the 1,494 recorded answers; THRESHOLDS' Guards section takes these
+  numbers.
+- **TEST-PLAN** (`d1074c9`): the Test and Gate cells of R-15, R-16, R-17, R-19, R-20 and R-21 name
+  their tests under `tests/security/` and pr-fast; the gaps R-20 and R-21 say where S7 covers them;
+  section 10's security line names S7a's parts and keeps a placeholder for S7b's;
+  `tests/unit/test_test_plan.py` checks S7's cells as it checks S4b's.
+- No guard fired on a v2 answer, question or chunk that should pass.
+
+### `make -k check API_SMOKE_PORT=8768` after the merge (`d1074c9`, `/usr/bin/time -p`)
+
+Every target passes, `audit` included ("No known vulnerabilities found, 48 ignored", twice): format
+(309 files), lint, types (0 errors), deps, audit, sast, workflows (no findings), secrets (no
+leaks, directory and history), privacy (0 hits across 463 files), architecture (0 violations),
+check-dataset (`datasets/golden.v2.jsonl passes as v2`), model, test, gate (recall@5 0.682 passes
+against the v2 baseline `20261024T090200Z-retrieval-dense-dev-ade9397`) and api-smoke (port 8768).
+`real 290.44`.
+
+**Timings.** The test target: "1872 passed, 2 deselected, 1 warning in 242.19s", against main's
+"1588 passed, 2 deselected in 199.32s" at `c77be52` (the coordinator's local run): 284 more tests
+and 42.87 s more. `tests/security/` on its own: "279 passed, 1 warning in 43.77s" (`real 44.02`).
+pr-fast's check job was at 11 min 35 s of its 15-minute limit before this pull request; its time
+after is [CI].
+
+**`make perf-smoke`** once after the merge (no model; k6 and the collector on loopback 8791 and
+4391, the cached archives checked by sha256): steps 1 to 6 ok, "/ask median 5.91 ms, p90 6.10 ms,
+p95 6.25 ms, min 4.36 ms, max 15.07 ms, over the 100 gated requests", against T 40 ms; 110 traces
+of /ask with five spans each, no marker and no content key past the Langfuse pipeline;
+"perf-smoke: passed", `real 17.47`.
 
 ## Part S7b
 
