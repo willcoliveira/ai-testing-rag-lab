@@ -19,7 +19,11 @@ One line per change, newest first, grouped by release. Each pull request adds it
   guard set in the staleness rule, kept current by a zero-event replay (`make replay`); per-layer
   error rates and latency (`make guard-suites`, docs/THRESHOLDS.md); the attack suite's live runs,
   `make attack-local` (suite `attack` in run record v1, defences off and on; publish refuses a
-  defences-off run), built and tested on the fake model, not yet run on the local model.
+  defences-off run), built and tested on the fake model and run on the local model on
+  2026-10-25: the first defences-on run failed on answers that repeated the other tenant's name
+  their own questions gave them, the maintainer allowed that echo and nothing else, and the re-run
+  held every safety check in every case and trial and is published, its pack version named in a
+  new Versions table of the security pack.
 - Three Pillow 12.3.0 advisories published on 2026-10-21 join `make audit`'s skips ahead of
   pip-audit's database, which does not list them yet, so `main` stays green when they reach it:
   image data decoded as P;2L or P;4L, `Image.quantize()` with an empty palette, and the TIFF

@@ -104,7 +104,7 @@ wrote the files' committed bytes back afterwards; `git status --short` was empty
 | AG6 | met offline, ratified (2026-10-24, below); the pr-fast log needs CI | Ten YAML files in how-to 07's template; `tests/security/test_security_pack.py` (18 tests: the template, five or more of each kind per layer, every attack row has cases, the README labels the pack deliberate test material, references resolve and no planted value is written); every case binary per build; THRESHOLDS.md's Guards section from `runs/guard-suites/20261024T030214Z-ebcdb7d.json`; every `ratified_by` was `pending` at STOP 1 and is `maintainer, 2026-10-24` since the ratification | LNK-N01's expected flipped to block: "datasets/security/links.yaml LNK-N01: a must_not_block case expects 'pass'"; TEN-B01's `ratified_by` emptied: "... TEN-B01: ratified_by is empty or not 'maintainer <date>'"; `{ref:F-99:0}`: "... SPI-B01: {ref:F-99:0} names no answer_must_not_contain string" |
 | AG7 | met locally; needs CI | `tests/security/test_attack_suite.py`, 97 tests, about 5 s: 7 rows x their cases x (negative control, each defence alone, default set), the payload-reaches-the-answer control under S3's guards, two tenants (a broken store filter without the tenant guard leaks a canary; the filter alone and the guard alone each hold), tenant spoofing (403, never retrieved; 200 and retrieved without the guard), no conflict field outside the register (in every check) | Each defence removed in turn: register (AG2), citations, links, secrets-pii, prompt-leak (AG4), scan (AG3), injection: 3 failed ("prompt extraction (R-20): ATK-R20-1: with only the injection layer the attack lands"), tenant guard: 3 failed ("two tenants: ATK-TEN-1: the tenant guard", the 403 test). No negative control failed in any break. The store's pre-ranking filter removed: its second line (`check_visible`) raised TenantError on 7 of the 8 two-tenant tests (the store fails closed) |
 | AG8 | met: both live runs' records say `egress: none` (the live attack session, below) | `tests/security/test_egress_guard.py` (5 tests: refused and recorded off loopback, lookups too, loopback passes through, removed after, the page and the playground write text only); every attack-suite test runs inside the guard (`egress_none` asserts `egress: none`); the adapter's rule is `tests/contract/test_chat_contract.py::test_a_server_that_is_not_local_is_refused` | A lookup of 192.0.2.1 planted in an attack-suite test, its OSError swallowed: the test itself passed and the fixture failed it, "egress: lookup 192.0.2.1:80"; `innerHTML` planted in `src/raglab/web/app.js`: "src/raglab/web/app.js writes HTML" and `tests/api/test_page.py` both failed |
-| AG9 | the defences-on gate passed at `762b163` (39 of 39 trials, under the maintainer's decision of 2026-10-25, which applied in 5 of them); publishing it waits for a decision on how a published attack run names its dataset version (below). At `8f7c94d` the gate failed (`no_canary` in 4 of 39 trials, ATK-TEN-1 and ATK-TEN-2). The offline parts are met (after STOP 1, below) | See "AG9's offline parts" below: the runner, suite `attack` in run record v1, `config/attack-local.toml` and `config/attack-fake.toml`, `make attack-local`, F-49's label from the answer key per configuration, publish's rules; `tests/security/test_attack_runs.py` (17 tests). The live session at `8f7c94d` (below): `20261025T192647Z-attack-local-defences-off-dev-8f7c94d` and `20261025T194348Z-attack-local-defences-on-dev-8f7c94d`, both in `runs/tmp/`, neither published. The second session at `762b163` (below): `20261025T205728Z-attack-local-defences-off-dev-762b163` and `20261025T205853Z-attack-local-defences-on-dev-762b163`, both in `runs/tmp/`, not yet published | AG9's offline break (a defences-on copy with an F-47 string planted, resealed, still valid): `raglab publish` refuses it naming F-47's string (`test_publish_refuses_a_defences_on_copy_with_an_f47_string_planted`); five more breaks below |
+| AG9 | met at `762b163`: with defences on, every safety check held in every case and trial (39 of 39, under the maintainer's decision of 2026-10-25, which applied in 5 of them), and the run is published as suite `attack` (`c8e6158`, naming `attacks.yaml` v1 of the pack's Versions table); the defences-off run is reported by counts and never published; F-49's label per configuration and the session times are recorded (below). At `8f7c94d` the gate failed (`no_canary` in 4 of 39 trials, ATK-TEN-1 and ATK-TEN-2). The offline parts are met (after STOP 1, below) | See "AG9's offline parts" below: the runner, suite `attack` in run record v1, `config/attack-local.toml` and `config/attack-fake.toml`, `make attack-local`, F-49's label from the answer key per configuration, publish's rules; `tests/security/test_attack_runs.py` (17 tests). The live session at `8f7c94d` (below): `20261025T192647Z-attack-local-defences-off-dev-8f7c94d` and `20261025T194348Z-attack-local-defences-on-dev-8f7c94d`, both in `runs/tmp/`, neither published. The second session at `762b163` (below): `20261025T205728Z-attack-local-defences-off-dev-762b163` and `20261025T205853Z-attack-local-defences-on-dev-762b163`, both in `runs/tmp/`, not yet published | AG9's offline break (a defences-on copy with an F-47 string planted, resealed, still valid): `raglab publish` refuses it naming F-47's string (`test_publish_refuses_a_defences_on_copy_with_an_f47_string_planted`); five more breaks below |
 | AG10 | met: the replay over golden set v2's consistency baseline and its four repeats shows zero events (after the merge, below) | `raglab replay` over the current baseline and its four repeats: 735 case lines, 730 answers, 3,675 retrieved chunks, zero events, record `runs/replays/...--d81cec18f099.json` (made from a clean tree at `39884e4`). `tests/security/test_guard_staleness.py` (5 tests): the baseline is current for today's guard set only through that record; a new set without a record is stale naming it; an edited manifest is refused; a recorded answer given a foreign link is an event and no record is written. The guard-set rule lives in its own file, not in `tests/retrieval/test_publish.py`, which the plan's merge order keeps until S4b merges. `git diff 2b9ba60 -- config src/raglab/generate/prompts corpus` is empty | Tested in the suite on copies (a new set without a record: stale, naming the set; one answer given a foreign link: "links at output", no record). After the merge, on the committed `default_guards()`: a no-op layer added fails the staleness test naming the guard set (below) |
 | AG11 | met: GUARDRAILS.md; TEST-PLAN's arrows L9 and R8, and after the merge the Test and Gate cells of R-15 to R-17 and R-19 to R-21, the gaps R-20 and R-21, section 10's security line and the test_test_plan extension (below) | GUARDRAILS.md: each S7a layer with its stage, owner, action, code and tests; TEST-PLAN L9 and R8 name their tests and pr-fast (`tests/unit/test_test_plan.py`'s arrows test checks each exists) | L9's test renamed: "L9: tests/security/test_instruction_scan.py::test_the_planted_instruction_is_flagged does not exist" |
 | AG12 | partly: THREAT-MODEL, GUARDRAILS, THRESHOLDS, README, the main plan's note, the pack's README and the CHANGELOG are done; LOCAL-MODEL's attack-local row has its command and both live sessions' measured times; ARCHITECTURE and README `wip` wait for S6's status line (S4b's landed with the merge; the plan's merge order) | `test_diagram.py`, `test_readme.py`, `test_repo_docs.py`, `test_changelog_check.py`, `test_test_plan.py` pass | ARCHITECTURE's S7 class made `wip` without the README's: `test_readme_status_matches_architecture` failed |
@@ -203,7 +203,7 @@ in 43.61 s (`real 43.91`), the new ratification test among them; exit 0, the tre
 | `runs/tmp/20261025T192647Z-attack-local-defences-off-dev-8f7c94d` | the attack suite, defences off, in the live session: a measured result, reported by counts only, never published | developer, clean tree at `8f7c94d` (not committed: `runs/tmp/`) |
 | `runs/tmp/20261025T194348Z-attack-local-defences-on-dev-8f7c94d` | the attack suite, defences on, in the live session: failed its gate, not published | developer, clean tree at `8f7c94d` (not committed: `runs/tmp/`) |
 | `runs/tmp/20261025T205728Z-attack-local-defences-off-dev-762b163` | the attack suite, defences off, in the second live session: a measured result, reported by counts only, never published | developer, clean tree at `762b163` (not committed: `runs/tmp/`) |
-| `runs/tmp/20261025T205853Z-attack-local-defences-on-dev-762b163` | the attack suite, defences on, in the second live session: passed its gate; publishing it waits for a decision | developer, clean tree at `762b163` (not committed: `runs/tmp/`) |
+| `runs/published/20261025T205853Z-attack-local-defences-on-dev-762b163` | the attack suite, defences on, in the second live session: passed its gate; published as suite `attack` | developer, clean tree at `762b163` (published in `c8e6158`) |
 
 No generation, retrieval or judged run was made. The two live sessions (2026-10-25) made the four
 attack runs; see "The live attack session" and "The second live attack session" below.
@@ -689,6 +689,59 @@ that is listed."; "It only adds; it doesn't weaken the test, as option C would."
 S7b's change to attacks.yaml, which gets a new row then." The orchestrator also verified the
 re-run from the two records: "defences on, 39 of 39 trials and 13 of 13 cases, every check with 0
 failures; defences off, 17 of 39."
+
+### The pack's Versions table, the publish, the second merge and the CI timeout (2026-10-25)
+
+**The Versions table and the test** (`1f625fe`, before the publish). `datasets/security/README.md`
+gains a Versions table in the datasheet's Maintenance columns; its first row is v1, 2026-10-24,
+S7a, `attacks.yaml`, the 13 attack cases ratified that day, and the sha256 the `762b163` records
+name (`da9f1393…`, the committed file's: its bytes date from the ratification commit `a54dd58`).
+`tests/retrieval/test_publish.py`: the S4-J10 test holds an attack record's dataset to that table
+and every other record to the datasheet's Maintenance table, with the same messages as before;
+`tests/golden_support.py`'s `maintenance` reads a table of that shape under another heading (by
+default the Maintenance one, its rows and messages unchanged). A sibling test,
+`test_a_published_attack_run_is_held_to_the_security_packs_versions`, writes records in a
+temporary folder: one naming the table's version passes; one naming a sha256 the table does not
+list, one naming a golden-set version and one naming the listed sha256 under another file are each
+named. `datasets/DATASHEET.md` and `check-dataset` do not change (`git diff 762b163` on both is
+empty). The breaks, by scratch drivers on the committed files, each restored with the tree clean
+after (`runs/tmp/s7-evidence/versions-breaks.txt` and `versions-data-break.txt`):
+
+| Break | Result |
+|---|---|
+| An attack record held to no table | the sibling test failed (1 failed, 1 passed) |
+| An attack record held to the datasheet | the sibling test failed (1 failed, 1 passed) |
+| After the publish: the Versions row's sha256 changed by one character | the S4-J10 test failed, naming the published attack run |
+
+**The publish** (`c8e6158`). `raglab publish` wrote
+`runs/published/20261025T205853Z-attack-local-defences-on-dev-762b163` and its index entry, the
+same entry as before the decision (`publish-index-entry.diff`): suite `attack`, safe and safe^3
+1.0, each with the Wilson interval 0.772 to 1.0 at n 13. The fast suite with it in place: "1882
+passed, 2 deselected, 1 warning in 243.80s" (`tests-after-publish.log`). The defences-off run of
+the same session stays in `runs/tmp/`, never published.
+
+**The second merge with main** (`7b117b3`, a merge commit of `origin/main` at `bd6da81`, #32: the
+three Pillow skips, a CHANGELOG line and a privacy allowlist line). The CHANGELOG conflicted and
+was taken as a union, S7a's line on top; the Makefile and `privacy/allowlist.txt` merged without
+a conflict.
+
+**The CI timeout** (`092f2a7`). The maintainer's decision. The question, verbatim: "pr-fast's
+`check` job will soon outgrow its 15-minute limit. It took 11 min 27 s on #32. S7a adds about 2 min
+on CI, which brings it to about 13 min 20 s, and S6's tests (not yet measured on CI) push it to
+roughly 14–15½ min. How should we make room before S7a's PR?" The answer, verbatim: "Inside S7a's
+PR: 15 → 20 min". It was not the recommended option, which was a separate small PR. In
+`.github/workflows/pr-fast.yml` the `check` job's `timeout-minutes` is 20; the `perf` (15) and
+`conventions` (5) jobs keep theirs. No test or doc pinned the check job's 15
+(`tests/unit/test_workflow_rules.py` bounds the perf job's, unchanged). The CHANGELOG gives the
+reason in a line of its own.
+
+**`make -k check API_SMOKE_PORT=8768` at `092f2a7`** (`/usr/bin/time -p`,
+`runs/tmp/s7-evidence/make-check-final.log`): every target passes, audit included ("No known
+vulnerabilities found, 48 ignored", twice); format (310 files), lint, types (0 errors), deps,
+sast, workflows (no findings), secrets (no leaks, directory and history), privacy (0 hits across
+466 files), architecture (0 violations), check-dataset (v1.1 and v2 pass), model, test ("1882
+passed, 2 deselected, 1 warning in 244.38s"), gate (recall@5 0.682 passes against the v2
+baseline) and api-smoke (port 8768); `real 293.13`. pr-fast's time on CI is [CI].
 
 ## Part S7b
 
