@@ -21,8 +21,10 @@ built.
 An event names the rule and the layer, never the text a guard removed or withheld (how-to 07 step
 8): a document or chunk id, a rule group, a count. The API answers a refused request with its
 guard's fixed reason and a withheld answer with "blocked", and logs each decision as the guard's
-name, its stage and its key in `REASONS` (`src/raglab/api/app.py`, `GUARD_REASONS`), never a
-guard's own text.
+name, its stage and its key in `REASONS`, never a guard's own text. The keys come from
+`src/raglab/core/reasons.py`, the one source the API, the log and the trace read: "injection" for
+the injection detector's refusal, "blocked" for every withholding guard, and "dropped" for the
+register filter's drop step, after which the answer goes on.
 
 ## The layers (S3)
 
