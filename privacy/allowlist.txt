@@ -9,3 +9,6 @@ test@example.com
 dev@example.com
 # Docker Desktop's public name for the host, from inside a container (deploy/zap/scan.sh).
 host.docker.internal
+# A public GitHub advisory id that `make audit` skips (the Makefile's AUDIT_SKIP): its first
+# group is four digits, so it has a ticket id's shape.
+GHSA-4558-3h8r-v8xp

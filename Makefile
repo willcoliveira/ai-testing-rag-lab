@@ -11,22 +11,26 @@ RANGE ?= --all
 # Advisories `make audit` skips (decision of 2026-10-21, verbatim: "Dependency PR, Pillow exception
 # (Recommended)"). Review by 2026-11-21: tests/unit/test_audit_exceptions.py fails after that date,
 # so the exception is looked at again, not kept by default.
-# Pillow 12.3.0 has thirty-eight advisories fixed only in Pillow 13, and fastembed 0.9.0, the
+# Pillow 12.3.0 has forty-one advisories fixed only in Pillow 13, and fastembed 0.9.0, the
 # newest, still requires pillow<13; the corpus build also pins pillow==12.3.0, since the scanned
 # page is drawn with the font Pillow bundles and tests/unit/test_corpus_build.py checks that a
 # rebuild gives the same pixels. Each advisory needs a file an attacker made (a PDF appended to, a
 # GIF, APNG, PNG, BMP, MSP, XBM, SPIDER or FlashPix image, a JPEG or JPEG 2000, a PPM or PGM, a
-# TIFF, an EPS or its file name, an IPTC or MIC image, a tar file, a broken font), an image saved
-# as TIFF, JPEG or PDF, an image exported to Arrow with PILLOW_ALIGNMENT above 1, or a failed
-# allocation; one affects Windows builds only. raglab decodes no image it did not make, saves only
-# PNG and exports none to Arrow: OCR hands the
+# TIFF, an EPS or its file name, an IPTC or MIC image, a tar file, a broken font, image data
+# decoded as P;2L or P;4L), an image saved as TIFF, JPEG or PDF, an image exported to Arrow with
+# PILLOW_ALIGNMENT above 1, an image quantized with an empty palette, or a failed allocation; one
+# affects Windows builds only. raglab decodes no image it did not make, saves only PNG, quantizes
+# none and exports none to Arrow: OCR hands the
 # committed PNG's path to Tesseract (pytesseract opens no image for a path), the corpus build
 # re-reads only the PNG it rendered, fastembed loads a text model, and the API takes no files.
 # The advisories are named by their GitHub ids, which pip-audit matches as aliases. pip-audit
 # reported eight on 2026-10-21; GitHub's database has a ninth (GHSA-8g5g-8vmr-9782, JPEG), skipped
 # ahead of pip-audit's database; seven more were published the same evening, twenty on 2026-10-22
-# and two on 2026-10-23, of the same kinds. The DeepEval tool's audit line skips the same: its own
-# lock resolves the same pillow 12.3.0 through raglab.
+# and two on 2026-10-23, of the same kinds. Three more, published on 2026-10-21
+# (GHSA-4558-3h8r-v8xp, GHSA-rfgq-q3w2-pmv2, GHSA-xvh5-g6gv-559v), are in GitHub's database and not
+# yet in the one pip-audit reads, so they are skipped ahead of it too, as the ninth was. The
+# DeepEval tool's audit line skips the same: its own lock resolves the same pillow 12.3.0 through
+# raglab.
 # pypdf 6.19.0 (decision of 2026-10-21, verbatim: "Keep 6.19.0, skip its 4 advisories
 # (Recommended)"): advisories fixed in 6.20.0, 6.20.1, 6.21.0, 6.21.1 and 6.21.2, each an infinite
 # loop, a memory or runtime blow-up or image parsers reached from a PDF an attacker made; a fifth
@@ -48,6 +52,7 @@ AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8
 	GHSA-g7cr-3p24-7wf7 GHSA-g842-9rc4-69pw GHSA-gg2r-wvfm-q9rx GHSA-jg86-v3jv-hrpm \
 	GHSA-mrfp-p49p-3hf2 GHSA-p8hx-v2p6-rp84 GHSA-v9pv-5gc8-w2m6 GHSA-xgh8-jp6q-p5x8 \
 	GHSA-5x8w-8jj5-q52h GHSA-654x-cwwv-5j9c \
+	GHSA-4558-3h8r-v8xp GHSA-rfgq-q3w2-pmv2 GHSA-xvh5-g6gv-559v \
 	GHSA-39mj-jf6j-2qj3 GHSA-5hx5-vpf9-5wcv GHSA-7mh2-4gg2-979f GHSA-9mx8-4j7g-633p \
 	GHSA-qfv9-64jg-mh7p \
 	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57 \
