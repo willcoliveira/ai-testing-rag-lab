@@ -5,6 +5,9 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- pr-fast's `check` job gets 20 minutes instead of 15 (the maintainer's decision of 2026-10-25,
+  in S7a's pull request): S7a's tests add about 2 minutes on CI, which leaves the job about 13 min
+  20 s of 15, and S6's come next. The `perf` and `conventions` jobs keep their limits.
 - S7a, attack and guardrails (plan `docs/plans/2026-10-23-s7-attack-guardrails.md`, ledger beside
   it; S7b, the promptfoo red team and Guardrails AI, follows S6): the rule layer behind the
   `Guardrail` port (an input injection detector, a register filter that leaves pages outside the
