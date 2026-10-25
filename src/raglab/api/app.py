@@ -23,11 +23,13 @@ that handler sets them itself (judge S3-S1). The OpenAPI pages are off (they loa
 CDN). One request runs at a time (a lock; lab scale).
 
 A response's `reason` is one of REASONS, a fixed vocabulary: never the adapter's, the parser's or
-a guard's own text (judge S3-S3). Each guard has a key in REASONS (GUARD_REASONS); a refused
-request answers with its guard's reason, and a withheld answer with "blocked" whichever output
-guard withheld it. The server log (logger `raglab.api`) records a guard's decision as the guard's
-name, its stage and that key, never the guard's own text (S7; the drop steps' events too); the
-adapter's or the parser's error text goes to the log, and, in a run, to the record's error field.
+a guard's own text (judge S3-S3). The key of a guard's decision comes from raglab.core.reasons,
+the rule the trace uses too (S9): a refused request answers with its guard's input key, and a
+withheld answer with "blocked" whichever guard withheld it; a drop step's decision (S7, the
+register filter) is keyed "dropped" and the answer goes on. The server log (logger `raglab.api`)
+records a guard's decision as the guard's name, its stage and that key, never the guard's own text
+(S7; the drop steps' events too); the adapter's or the parser's error text goes to the log, and, in
+a run, to the record's error field.
 
 S9: FastAPI's own telemetry is set explicitly (docs/OBSERVABILITY.md). With a tracer provider
 (`raglab serve` with an OTLP endpoint) its request span for POST /ask is the root of the trace and
@@ -54,6 +56,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from raglab.api import environment
+from raglab.core.reasons import drop_key, reason_key
 from raglab.core.types import ScoredChunk, Status
 from raglab.generate.pipeline import Outcome, Pipeline
 
@@ -87,27 +90,11 @@ REASONS = {
     "tenant": "the request names no tenant the caller may use",
     "input": "the question is empty, over 500 characters, or holds control characters",
     "injection": "the question reads as an instruction to the assistant or asks for its prompt",
-    "register": "passages from outside the register were left out",
-    "links": "a link that appears in no register document",
-    "secrets_pii": "a credential or a personal contact detail",
-    "prompt_leak": "text of the system prompt",
     "blocked": "a guard withheld the answer",
+    "dropped": "passages from outside the register were left out and the answer went on",
     "unavailable": "the model is unavailable",
     "invalid_output": "the model's reply did not fit the answer schema",
     "error": "internal error",
-}
-# each guard's key in REASONS (S7): the API's refusal for an input guard, and what the log and a
-# trace record for any guard's decision ("pipeline" is the pipeline's own tenant refusal)
-GUARD_REASONS = {
-    "pipeline": "tenant",
-    "tenant": "tenant",
-    "input-limits": "input",
-    "injection": "injection",
-    "register": "register",
-    "citations": "blocked",
-    "links": "links",
-    "secrets-pii": "secrets_pii",
-    "prompt-leak": "prompt_leak",
 }
 STATUS_REASONS = {
     Status.BLOCKED: "blocked",
@@ -195,27 +182,23 @@ def _citation(result: ScoredChunk) -> dict[str, object]:
     }
 
 
-def guard_reason(guard: str) -> str:
-    """A guard's key in REASONS; a guard without one is "blocked" (fails closed to the
-    vocabulary)."""
-    return GUARD_REASONS.get(guard, "blocked")
-
-
 def _reason(outcome: Outcome) -> str | None:
     """The fixed reason for a refused or withheld answer (None for an answer). Every guard event
     is logged as its guard, stage and key, never its text; an adapter's or a parser's error is
     logged as it came."""
     for event in outcome.dropped:
-        LOG.info("ask %s: guard %s at %s", guard_reason(event.guard), event.guard, event.stage)
+        LOG.info("ask %s: guard %s at %s", drop_key(event), event.guard, event.stage)
     refused = outcome.refused_by()
     key = (
-        guard_reason(refused) if refused is not None else STATUS_REASONS.get(outcome.answer.status)
+        reason_key(outcome.events[0])
+        if refused is not None
+        else STATUS_REASONS.get(outcome.answer.status)
     )
     if key is None:
         return None
     if outcome.events:
         event = outcome.events[0]
-        LOG.info("ask %s: guard %s at %s", guard_reason(event.guard), event.guard, event.stage)
+        LOG.info("ask %s: guard %s at %s", reason_key(event), event.guard, event.stage)
     else:
         LOG.info("ask %s: %s", key, outcome.error)
     return REASONS[key]
@@ -353,7 +336,7 @@ def create_app(
         )
         refused = outcome.refused_by()
         if refused is not None:
-            code = 403 if guard_reason(refused) == "tenant" else 400
+            code = 403 if reason_key(outcome.events[0]) == "tenant" else 400
             return JSONResponse(_payload(outcome, info.prompt_version), status_code=code)
         code = CODES[outcome.answer.status]
         return JSONResponse(_payload(outcome, info.prompt_version), status_code=code)

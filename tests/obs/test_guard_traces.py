@@ -6,13 +6,14 @@ chunk returned for tenant A) records no retrieved id and no tenant-B canary. Eac
 recorded as the guard's name, its stage and the API's fixed reason key, never the event's own text.
 The scripted retriever and FakeChat of the existing guard tests stand in for the real ones."""
 
+import dataclasses
 import json
 
 import pytest
 
 from raglab.adapters.fake import FakeChat
 from raglab.api.app import REASONS
-from raglab.core.reasons import reason_key
+from raglab.core.reasons import drop_key, reason_key
 from raglab.core.types import GuardEvent, ScoredChunk
 from raglab.guard import default_guards
 from raglab.ingest import answer_key
@@ -121,12 +122,30 @@ def test_a_request_blocked_after_retrieval_records_no_id_and_no_canary():
 
 
 def test_every_default_guards_decision_has_a_key_the_api_knows():
-    """S7 adds its guards here: a guard whose decision has no key in REASONS fails this test."""
-    for guard in default_guards(ROOT, PACK):
+    """S7 adds its guards here: a guard whose decision has no key in REASONS fails this test. The
+    input injection detector refuses with a key of its own; a drop step (the register filter)
+    leaves chunks out and the answer goes on, keyed by drop_key."""
+    guards = default_guards(ROOT, PACK)
+    assert {g.name for g in guards} >= {
+        "injection",
+        "register",
+        "citations",
+        "links",
+        "secrets-pii",
+        "prompt-leak",
+    }
+    for guard in guards:
         for stage in ("input", "retrieved", "output"):
             key = reason_key(GuardEvent(guard.name, stage, "any text"))
             assert key in REASONS, (guard.name, stage, key)
     assert reason_key(GuardEvent("pipeline", "input", "x")) == "tenant"
+    assert reason_key(GuardEvent("injection", "input", "x")) == "injection"
+    for guard in guards:  # every drop step's events take the drop key
+        page = ScoredChunk(dataclasses.replace(PACK[0], status="unregistered"), 1.0)
+        _, dropped = guard.drop_retrieved("tenant-a", (page,))
+        for event in dropped:
+            assert drop_key(event) in REASONS, (guard.name, event.stage)
+            assert drop_key(event) == "dropped"
 
 
 def test_the_decision_key_never_carries_the_events_text():

@@ -1,6 +1,7 @@
-"""Every guard has a fixed reason key, and no guard's own text reaches a response or the log (S7;
-the tracing rule S9 builds on: a guard decision is recorded as the guard's name, its stage and its
-key in the API's REASONS). Events never carry what a guard removed (how-to 07 step 8)."""
+"""Every guard has a fixed reason key, from raglab.core.reasons, the one source the API, the log
+and the trace read (S9's rule, with S7's input key "injection" and the drop step's "dropped"); the
+vocabulary keeps no dead key; and no guard's own text reaches a response or the log. Events never
+carry what a guard removed (how-to 07 step 8)."""
 
 import dataclasses
 import json
@@ -10,8 +11,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from raglab.adapters.fake import FakeChat
-from raglab.api.app import GUARD_REASONS, REASONS, VersionInfo, create_app
-from raglab.core.types import Chunk
+from raglab.api.app import REASONS, STATUS_REASONS, VersionInfo, create_app
+from raglab.core import reasons
+from raglab.core.types import Chunk, GuardEvent
 from raglab.generate.pipeline import PROMPT_VERSION, Pipeline
 from raglab.guard import default_guards, s3_guards
 from raglab.retrieve.bm25 import BM25Retriever
@@ -37,7 +39,23 @@ def api(
 
 def test_every_guard_has_a_fixed_reason_key():
     for guard in [*default_guards(ROOT, PACK), *s3_guards()]:
-        assert GUARD_REASONS[guard.name] in REASONS, guard.name
+        for stage in ("input", "retrieved", "output"):
+            assert reasons.reason_key(GuardEvent(guard.name, stage, "x")) in REASONS, guard.name
+    assert reasons.reason_key(GuardEvent("injection", "input", "x")) == "injection"
+    assert reasons.drop_key(GuardEvent("register", "retrieved", "x")) == "dropped"
+
+
+def test_the_vocabulary_keeps_no_dead_key():
+    """Every key of REASONS is one the API, the log or a trace can give: the API's own refusals,
+    a status's, an input guard's, the withholding key and the drop key."""
+    own = {"unauthorized", "too_large", "bad_body", "error"}
+    used = (
+        own
+        | set(STATUS_REASONS.values())
+        | set(reasons.INPUT_KEYS.values())
+        | {reasons.DEFAULT_INPUT_KEY, reasons.WITHHELD_KEY, reasons.DROPPED_KEY}
+    )
+    assert set(REASONS) == used
 
 
 def test_an_injection_is_400_with_its_reason_and_the_log_holds_no_question(caplog):
@@ -69,7 +87,7 @@ def test_a_withheld_answer_says_blocked_and_the_log_names_the_guard_only(caplog)
         response = client.post("/ask", json=body, headers=DEMO)
     assert response.status_code == 200
     assert (response.json()["status"], response.json()["reason"]) == ("blocked", REASONS["blocked"])
-    assert caplog.messages == ["ask secrets_pii: guard secrets-pii at output"]
+    assert caplog.messages == ["ask blocked: guard secrets-pii at output"]
     assert "example.com" not in " ".join(caplog.messages) + json.dumps(response.json())
 
 
@@ -79,5 +97,5 @@ def test_a_page_left_out_is_logged_as_its_guard_and_the_answer_goes_on(caplog):
     with caplog.at_level(logging.INFO, logger="raglab.api"):
         response = client.post("/ask", json=body, headers=DEMO)
     assert (response.status_code, response.json()["status"]) == (200, "ok")
-    assert caplog.messages == ["ask register: guard register at retrieved"]
+    assert caplog.messages == ["ask dropped: guard register at retrieved"]
     assert all(c["chunk_id"] != PAGE.chunk_id for c in response.json()["citations"])
