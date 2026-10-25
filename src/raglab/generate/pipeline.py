@@ -26,6 +26,12 @@ keeps follows the guards: a guard's decision as its name, stage and the API's fi
 the retrieved and cited ids only once the retrieved-chunk guards have passed; and, with the
 content opt-in, the question and the answer of an ok answer only. Nothing of a refused or withheld
 request, and no exception's message, is ever set on a span.
+
+S7 (with S9's attributes as they are): the decision the span keeps is the one that stopped the
+request; when nothing stopped it, a drop step's (the register filter: its name, "retrieved" and
+"dropped"), and the status, ok, tells the two apart. The retrieved ids are the chunks kept, so a
+chunk a drop step left out never reaches a span. A request dropped from and then withheld shows
+only the stop in its trace; the drop stays in the run record and the server log.
 """
 
 import time
@@ -33,7 +39,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from raglab.core.ports import ChatModel, Guardrail, NoopTracer, Retriever, Span, Tracer
-from raglab.core.reasons import reason_key
+from raglab.core.reasons import drop_key, reason_key
 from raglab.core.types import (
     Answer,
     ChatMessage,
@@ -105,10 +111,13 @@ class Pipeline:
         span.set(names.PROMPT_VERSION, PROMPT_VERSION)
         span.set(names.STATUS, status.value)
         span.set(names.LABEL, outcome.answer.label)
-        for event in outcome.events:
+        decisions = [(e, reason_key(e)) for e in outcome.events] or [
+            (e, drop_key(e)) for e in outcome.dropped
+        ]
+        for event, key in decisions:  # the stop, or else the drops (status ok tells them apart)
             span.set(names.GUARD, event.guard)
             span.set(names.GUARD_STAGE, event.stage)
-            span.set(names.GUARD_REASON, reason_key(event))
+            span.set(names.GUARD_REASON, key)
         if status is Status.REFUSED or tenant is None:
             return
         span.set(names.TENANT, tenant)

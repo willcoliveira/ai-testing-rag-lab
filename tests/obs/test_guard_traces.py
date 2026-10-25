@@ -4,23 +4,31 @@ question (over 500 characters, a control character, an unknown tenant) leaves no
 an answer the citation guard withheld leaves none; a request blocked after retrieval (a tenant-B
 chunk returned for tenant A) records no retrieved id and no tenant-B canary. Each decision is
 recorded as the guard's name, its stage and the API's fixed reason key, never the event's own text.
-The scripted retriever and FakeChat of the existing guard tests stand in for the real ones."""
+The scripted retriever and FakeChat of the existing guard tests stand in for the real ones.
+
+S7, the merge with S9 (option A): a request only dropped from (the register filter left a page
+outside the register out, and the answer went on) records the drop, with status ok, and no id of
+the dropped page anywhere; a request dropped from and then withheld records the stop, and the drop
+stays in the run record and the server log."""
 
 import dataclasses
 import json
+import logging
 
 import pytest
 
 from raglab.adapters.fake import FakeChat
 from raglab.api.app import REASONS
 from raglab.core.reasons import drop_key, reason_key
-from raglab.core.types import GuardEvent, ScoredChunk
+from raglab.core.types import GuardEvent, ScoredChunk, Status
+from raglab.evals import generation
+from raglab.generate.pipeline import Pipeline
 from raglab.guard import default_guards
 from raglab.ingest import answer_key
 from raglab.obs import names
 from tests.conftest import ROOT
 from tests.obs_support import DEMO, LOCAL, Traced, leaks, traced_app
-from tests.retrieval_support import PACK
+from tests.retrieval_support import PACK, dense
 
 pytestmark = [pytest.mark.unit, pytest.mark.security]
 MARK = "zebra-refused-9104"
@@ -153,3 +161,101 @@ def test_the_decision_key_never_carries_the_events_text():
         for stage in ("input", "retrieved", "output"):
             assert reason_key(GuardEvent("tenant", stage, text)) in REASONS
             assert text not in reason_key(GuardEvent("tenant", stage, text))
+
+
+# ---------------------------------------------------------------- S7: a drop step (option A)
+
+PAGE_MARK = "zebra-dropped-5517"
+# a page outside the register (status unregistered, as raglab.ingest.attacks gives it), whose text
+# the question matches best, so the retriever returns it and the register filter leaves it out
+PAGE = dataclasses.replace(
+    PACK[0],
+    chunk_id=f"T-{PAGE_MARK}@1.0/1/1",  # type: ignore[arg-type]
+    doc_id=f"T-{PAGE_MARK}",
+    status="unregistered",
+    text=f"{PAGE_MARK} Passwords must be at least 15 characters.",
+    char_end=len(f"{PAGE_MARK} Passwords must be at least 15 characters."),
+    sha256="",
+)
+QUESTION = f"{PAGE_MARK} Passwords must be at least 15 characters?"
+
+
+def test_a_request_only_dropped_from_records_the_drop_and_no_dropped_id():
+    """(ii) The span holds register, retrieved and dropped, with status ok; the dropped page's id
+    and text appear nowhere in what left the process or in what raglab recorded before the
+    filter."""
+    traced = traced_app(chunks=[*PACK, PAGE], environ=LOCAL)
+    body = {"tenant": "tenant-a", "question": QUESTION}
+    response = traced.client.post("/ask", json=body, headers=DEMO)
+    assert response.json()["status"] == "ok"
+    span = pipeline_span(traced)
+    assert (span[names.GUARD], span[names.GUARD_STAGE], span[names.GUARD_REASON]) == (
+        "register",
+        "retrieved",
+        "dropped",
+    )
+    assert span[names.STATUS] == "ok"
+    kept = span[names.RETRIEVED_IDS]
+    assert isinstance(kept, tuple)
+    assert kept  # the kept chunks only, the page left out
+    assert str(PAGE.chunk_id) not in kept
+    retrieval = dict(traced.by_name()["retrieval policy-pack"].attributes or {})
+    assert retrieval[names.RETRIEVED_COUNT] == 3  # a count, never the ids: the page among them
+    exported = [*traced.spans(), *traced.raw_spans()]
+    assert leaks(exported, [PAGE.chunk_id, PAGE.doc_id, PAGE.text]) == []
+
+
+def test_a_request_dropped_from_then_withheld_records_the_stop_and_logs_the_drop(caplog):
+    """(iii) The span holds the stop (the link guard at output, blocked); the drop is in the run
+    record's guard events and in the server log, as guard, stage and key."""
+    reply = json.dumps(
+        {
+            "label": "answer",
+            "answer": "Passwords must be at least 15 characters; see https://example.net/x.",
+            "cited_ids": [],
+            "conflict_ids": [],
+            "conflict_note": "",
+        }
+    )
+    traced = traced_app(FakeChat([reply]), chunks=[*PACK, PAGE], environ=LOCAL)
+    body = {"tenant": "tenant-a", "question": QUESTION}
+    with caplog.at_level(logging.INFO, logger="raglab.api"):
+        response = traced.client.post("/ask", json=body, headers=DEMO)
+    assert response.json()["status"] == "blocked"
+    span = pipeline_span(traced)
+    assert (span[names.GUARD], span[names.GUARD_STAGE], span[names.GUARD_REASON]) == (
+        "links",
+        "output",
+        "blocked",
+    )
+    assert span[names.STATUS] == "blocked"
+    exported = [*traced.spans(), *traced.raw_spans()]
+    assert leaks(exported, [PAGE.chunk_id, PAGE.text, "example.net"]) == []
+    assert caplog.messages == [
+        "ask dropped: guard register at retrieved",
+        "ask blocked: guard links at output",
+    ]
+
+
+def test_the_run_record_keeps_a_drop_before_its_stop():
+    """(iii), the run record's half: a case's guard events hold the drop, then the stop."""
+    reply = json.dumps(
+        {
+            "label": "answer",
+            "answer": "Passwords must be at least 15 characters; see https://example.net/x.",
+            "cited_ids": [],
+            "conflict_ids": [],
+            "conflict_note": "",
+        }
+    )
+    chunks = [*PACK, PAGE]
+    pipeline = Pipeline(dense(chunks), FakeChat([reply]), default_guards(ROOT, chunks), 3)
+    outcome = pipeline.ask(QUESTION, "tenant-a")
+    assert outcome.answer.status is Status.BLOCKED
+    events = generation.answer_fields(outcome)["guard_events"]
+    assert [(e["guard"], e["stage"]) for e in events] == [  # type: ignore[index, union-attr]
+        ("register", "retrieved"),
+        ("links", "output"),
+    ]
+    assert drop_key(outcome.dropped[0]) == "dropped"
+    assert reason_key(outcome.events[0]) == "blocked"

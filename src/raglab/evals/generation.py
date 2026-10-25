@@ -88,8 +88,9 @@ def answer_fields(outcome: Outcome) -> Json:
         "conflict": None
         if conflict is None
         else {"chunk_ids": list(conflict.chunk_ids), "note": conflict.note},
-        "guard_events": [
-            {"guard": e.guard, "stage": e.stage, "reason": e.reason} for e in outcome.events
+        "guard_events": [  # S7: a drop step's events first (they come first), then the stop
+            {"guard": e.guard, "stage": e.stage, "reason": e.reason}
+            for e in (*outcome.dropped, *outcome.events)
         ],
         "error": outcome.error,
         "prompt_tokens": outcome.prompt_tokens,

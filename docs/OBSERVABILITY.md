@@ -55,6 +55,15 @@ never 0, never estimated.
   the API's fixed reason key (`raglab.core.reasons`), never the event's own text, which can carry
   the refused character or another tenant's chunk id; ids and the tenant appear only once the
   guards that check them have passed (`tests/obs/test_guard_traces.py`).
+- **Which decision the guard attributes hold** (S7, merged with S9): `raglab.guard.name`,
+  `raglab.guard.stage` and `raglab.guard.reason` hold the decision that stopped the request, or,
+  when nothing stopped it, a drop step's decision: the register filter's, as `register`,
+  `retrieved` and `dropped`, with `raglab.status` ok, which tells the two apart. The retrieved ids
+  are the chunks kept, so a page the register filter left out never appears in a trace. The
+  caveat: a request that is dropped from and then withheld shows only the stop in its trace; the
+  drop stays in the run record's guard events and in the server log (guard, stage and key).
+- **The instruction scan.** Its quarantines happen when the index is built, not in a request, so
+  no trace holds them; they are listed in the attack record's manifest (`attack.quarantined`).
 - **FastAPI's request details.** Its request span also records the Host header (as
   `server.address` and `server.port`), the path, the query, the scheme and the protocol version,
   and an escaped exception's class. Only the method, the route and the status code leave. Health
