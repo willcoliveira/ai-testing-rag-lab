@@ -1,0 +1,289 @@
+{
+  "schema_version": "guard-suites.v1",
+  "created_at": "2026-10-25T18:12:49Z",
+  "git_sha": "5c4d40984bdcc404d2857048e2720dbf8ee50632",
+  "git_dirty": false,
+  "provenance": "local",
+  "split": "dev",
+  "replayed_runs": [
+    "20261024T090351Z-generation-local-ollama-dev-ade9397",
+    "20261024T091315Z-generation-local-ollama-dev-ade9397",
+    "20261024T092237Z-generation-local-ollama-dev-ade9397",
+    "20261024T093208Z-generation-local-ollama-dev-ade9397",
+    "20261024T114208Z-generation-local-ollama-dev-ade9397"
+  ],
+  "guard_set": {
+    "layers": [
+      {
+        "name": "instruction-scan",
+        "sha256": "d608a1e08d0a536f4d439b95a396a062392da6c34edf4ccb2522bee048181c33"
+      },
+      {
+        "name": "tenant",
+        "sha256": "8c8c17964a5089827ba27ebdb4880ceac9970643e3da92003c015e8c93c3d7fb"
+      },
+      {
+        "name": "input-limits",
+        "sha256": "937622297ede5e0553e6cfc6e4117fbfee965e7f5281ac7ae3590b18dc66709e"
+      },
+      {
+        "name": "injection",
+        "sha256": "e7de0b779fcd0e3e599a014a8eaa0a20db17a8447bfcaaf964f4f1fbcfdc60ee"
+      },
+      {
+        "name": "register",
+        "sha256": "6c3e49427f08d20e11dcaab7e2053a9169e5ce7b6e346aa6c7864ebeaa4ac95f"
+      },
+      {
+        "name": "citations",
+        "sha256": "3e468b92bff6b051231a5423d79075da87fd2727bb4a92e654cd699bc2707f4d"
+      },
+      {
+        "name": "links",
+        "sha256": "815bcd1d7a4de246479cb6f4e29c17314c985ded5cb1d86a85ec9bf5c3c0ff85"
+      },
+      {
+        "name": "secrets-pii",
+        "sha256": "d24f5c5ea5df56043941b72919237c9dddcf2eb6b6fe09eca0cd10f21773315b"
+      },
+      {
+        "name": "prompt-leak",
+        "sha256": "d106567e87375384ef4d523622ae052d36d4e5b30557bf5eb95bb03410cd87e4"
+      }
+    ],
+    "sha256": "d81cec18f099b3b22cf7378c8cebf6b54b2138c7444df2e185f943a602aacd0b"
+  },
+  "interval": {
+    "method": "wilson",
+    "level": 0.95
+  },
+  "layers": {
+    "citations": {
+      "must_block": {
+        "n": 5,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.434482
+      },
+      "must_not_block": {
+        "n": 1499,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.002556
+      },
+      "sources": [
+        "datasets/security/citations.yaml",
+        "recorded answers"
+      ],
+      "latency_ms": {
+        "n": 1504,
+        "p50": 0.000792,
+        "p95": 0.001125
+      }
+    },
+    "injection": {
+      "must_block": {
+        "n": 10,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.277533
+      },
+      "must_not_block": {
+        "n": 111,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.03345
+      },
+      "sources": [
+        "datasets/security/injection.yaml",
+        "golden set"
+      ],
+      "latency_ms": {
+        "n": 121,
+        "p50": 0.02125,
+        "p95": 0.030209
+      }
+    },
+    "input-limits": {
+      "must_block": {
+        "n": 6,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.390334
+      },
+      "must_not_block": {
+        "n": 106,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.034973
+      },
+      "sources": [
+        "datasets/security/input-limits.yaml",
+        "golden set"
+      ],
+      "latency_ms": {
+        "n": 112,
+        "p50": 0.004521,
+        "p95": 0.006445
+      }
+    },
+    "instruction-scan": {
+      "must_block": {
+        "n": 7,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.35433
+      },
+      "must_not_block": {
+        "n": 235,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.016084
+      },
+      "sources": [
+        "attack pages (F-47)",
+        "clean inventory",
+        "datasets/security/instruction-scan.yaml"
+      ],
+      "latency_ms": {
+        "n": 242,
+        "p50": 0.04725,
+        "p95": 0.145277
+      }
+    },
+    "links": {
+      "must_block": {
+        "n": 6,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.390334
+      },
+      "must_not_block": {
+        "n": 1500,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.002554
+      },
+      "sources": [
+        "datasets/security/links.yaml",
+        "recorded answers"
+      ],
+      "latency_ms": {
+        "n": 1506,
+        "p50": 0.00452,
+        "p95": 0.011104
+      }
+    },
+    "prompt-leak": {
+      "must_block": {
+        "n": 6,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.390334
+      },
+      "must_not_block": {
+        "n": 1500,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.002554
+      },
+      "sources": [
+        "datasets/security/prompt-leak.yaml",
+        "recorded answers"
+      ],
+      "latency_ms": {
+        "n": 1506,
+        "p50": 0.020479,
+        "p95": 0.056687
+      }
+    },
+    "register": {
+      "must_block": {
+        "n": 29,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.11697
+      },
+      "must_not_block": {
+        "n": 233,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.01622
+      },
+      "sources": [
+        "attack pages",
+        "clean inventory",
+        "datasets/security/register.yaml"
+      ],
+      "latency_ms": {
+        "n": 262,
+        "p50": 0.000416,
+        "p95": 0.000912
+      }
+    },
+    "secrets-pii": {
+      "must_block": {
+        "n": 8,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.324408
+      },
+      "must_not_block": {
+        "n": 1502,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.002551
+      },
+      "sources": [
+        "datasets/security/secrets-pii.yaml",
+        "recorded answers"
+      ],
+      "latency_ms": {
+        "n": 1510,
+        "p50": 0.018438,
+        "p95": 0.046958
+      }
+    },
+    "tenant": {
+      "must_block": {
+        "n": 5,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.434482
+      },
+      "must_not_block": {
+        "n": 106,
+        "failures": 0,
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.034973
+      },
+      "sources": [
+        "datasets/security/tenant.yaml",
+        "golden set"
+      ],
+      "latency_ms": {
+        "n": 111,
+        "p50": 0.000333,
+        "p95": 0.002126
+      }
+    }
+  }
+}

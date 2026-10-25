@@ -161,26 +161,28 @@ and "every must-block and must-not-block case passes" at 100% from the start, so
 gated: the 95% Wilson interval says how far "0 of n" is from proof (0 of 5 still allows a miss rate
 up to 0.434), and the latency is what each layer adds to a request.
 
-From `runs/guard-suites/20261024T030214Z-ebcdb7d.json` (`make guard-suites` on the maintainer's
-Mac, provenance local, the dev split, from a clean tree at `ebcdb7d`; the latency is the layer's
-own check, in-process, over all of its cases):
+From `runs/guard-suites/20261025T181249Z-5c4d409.json` (`make guard-suites` on the maintainer's
+Mac, provenance local, the dev split of golden set v2, from a clean tree at `5c4d409`; the latency
+is the layer's own check, in-process, over all of its cases):
 
 | Layer | Must-block: misses / n (95% Wilson) | Must-not-block: false blocks / n (95% Wilson) | Added latency p50 / p95 (ms) | Cases |
 |---|---|---|---|---|
-| Tenant guard | 0 / 5 (0.000 to 0.434) | 0 / 54 (0.000 to 0.066) | 0.000375 / 0.006933 | the pack; the golden set's 49 dev questions |
-| Input limits | 0 / 6 (0.000 to 0.390) | 0 / 54 (0.000 to 0.066) | 0.004520 / 0.007640 | the pack; the 49 dev questions |
-| Input injection detector | 0 / 10 (0.000 to 0.278) | 0 / 59 (0.000 to 0.061) | 0.018167 / 0.028217 | the pack; the 49 dev questions |
-| Instruction scan | 0 / 7 (0.000 to 0.354) | 0 / 235 (0.000 to 0.016) | 0.049959 / 0.146539 | the pack; F-47's chunk; the 228 clean chunks |
-| Register filter | 0 / 29 (0.000 to 0.117) | 0 / 233 (0.000 to 0.016) | 0.000417 / 0.000792 | the pack; the 24 attack-page chunks; the 228 clean chunks |
-| Citation validator | 0 / 5 (0.000 to 0.434) | 0 / 735 (0.000 to 0.005) | 0.000791 / 0.001084 | the pack; 730 recorded answers |
-| Link guard | 0 / 6 (0.000 to 0.390) | 0 / 736 (0.000 to 0.005) | 0.003959 / 0.010500 | the pack; 730 recorded answers |
-| Secrets and personal-details guard | 0 / 8 (0.000 to 0.324) | 0 / 738 (0.000 to 0.005) | 0.015833 / 0.045906 | the pack; 730 recorded answers |
-| Prompt-leak guard | 0 / 6 (0.000 to 0.390) | 0 / 736 (0.000 to 0.005) | 0.017562 / 0.051196 | the pack; 730 recorded answers |
+| Tenant guard | 0 / 5 (0.000 to 0.434) | 0 / 106 (0.000 to 0.035) | 0.000333 / 0.002126 | the pack; golden set v2's 101 dev questions |
+| Input limits | 0 / 6 (0.000 to 0.390) | 0 / 106 (0.000 to 0.035) | 0.004521 / 0.006445 | the pack; the 101 dev questions |
+| Input injection detector | 0 / 10 (0.000 to 0.278) | 0 / 111 (0.000 to 0.033) | 0.021250 / 0.030209 | the pack; the 101 dev questions |
+| Instruction scan | 0 / 7 (0.000 to 0.354) | 0 / 235 (0.000 to 0.016) | 0.047250 / 0.145277 | the pack; F-47's chunk; the 228 clean chunks |
+| Register filter | 0 / 29 (0.000 to 0.117) | 0 / 233 (0.000 to 0.016) | 0.000416 / 0.000912 | the pack; the 24 attack-page chunks; the 228 clean chunks |
+| Citation validator | 0 / 5 (0.000 to 0.434) | 0 / 1499 (0.000 to 0.003) | 0.000792 / 0.001125 | the pack; 1,494 recorded answers |
+| Link guard | 0 / 6 (0.000 to 0.390) | 0 / 1500 (0.000 to 0.003) | 0.004520 / 0.011104 | the pack; 1,494 recorded answers |
+| Secrets and personal-details guard | 0 / 8 (0.000 to 0.324) | 0 / 1502 (0.000 to 0.003) | 0.018438 / 0.046958 | the pack; 1,494 recorded answers |
+| Prompt-leak guard | 0 / 6 (0.000 to 0.390) | 0 / 1500 (0.000 to 0.003) | 0.020479 / 0.056687 | the pack; 1,494 recorded answers |
 
-The recorded answers are the 730 answered case-trials (status ok) of the consistency baseline
-`20261019T172035Z-generation-local-ollama-dev-97011a7` and its four repeats (golden set v1.1);
-S4b's v2 runs replace them once S4b merges. The test split's questions are checked only at
-nightly and release (`raglab guard-suites --split test --gate nightly`).
+The recorded answers are the 1,494 answered case-trials (status ok) of golden set v2's
+consistency baseline `20261024T090351Z-generation-local-ollama-dev-ade9397` and its four repeats
+(S4b). The first run, on golden set v1.1's baseline and repeats before S4b merged, stays in
+`runs/guard-suites/20261024T030214Z-ebcdb7d.json`: no miss and no false block there either. The
+test split's questions are checked only at nightly and release (`raglab guard-suites --split test
+--gate nightly`).
 
 Lab practice: a production system would also measure each layer on live traffic samples, where
 the false-block rate on real questions is the number that matters, and would set its classifier
