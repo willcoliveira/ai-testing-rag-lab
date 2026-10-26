@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 from datetime import UTC, datetime
+from hashlib import sha256
 from typing import Any
 
 import pytest
@@ -320,6 +321,23 @@ def test_a_published_attack_run_is_held_to_the_security_packs_versions(tmp_path)
         f"d-elsewhere: dataset datasets/security/other.yaml is {first.version} by its sha256, "
         f"whose row names {first.file}",
     ]
+
+
+def test_the_packs_latest_version_of_attacks_yaml_is_the_committed_file():
+    """S7a-J2, the criteria judge's finding: the latest row of the security pack's Versions table
+    for attacks.yaml holds the committed file's sha256, as `check-dataset` holds a golden file to
+    its latest row of the datasheet, so a change to the pack does not land without its row."""
+    rows = [
+        row
+        for row in maintenance(PACK.read_text(encoding="utf-8"), "Versions")
+        if row.file == "attacks.yaml"
+    ]
+    assert rows, "the Versions table has no row for attacks.yaml"
+    committed = sha256((ROOT / "datasets" / "security" / "attacks.yaml").read_bytes()).hexdigest()
+    assert rows[-1].sha256 == committed, (
+        f"attacks.yaml is {committed}, but the Versions table's latest row for it holds "
+        f"{rows[-1].sha256} ({rows[-1].version}): add a row for the new version"
+    )
 
 
 def test_a_published_run_whose_file_is_not_its_versions_is_named(tmp_path):
