@@ -1,9 +1,9 @@
 """docs/THREAT-MODEL.md (S7, AG1): one row per OWASP Top 10 for LLM Applications 2026 entry,
 LLM01:2026 to LLM10:2026 in order, each naming tests pytest collects (the file exists and defines
-the function) or saying "not applicable, because"; a row with no layer (`—`) says "not
-applicable, because" even when it names a test (the criteria judge's S7a-J7); LLM09:2026 named as
-the build project's LLM08:2025; the lethal-trifecta check and the not-covered list. Each break
-runs on a copy of the file's text."""
+the function) or saying "not applicable, because"; a row with no layer (a Layer cell with no letter
+in it: `—`, a look-alike or nothing) says "not applicable, because" even when it names a test (the
+criteria judge's S7a-J7 and S7a-J9); LLM09:2026 named as the build project's LLM08:2025; the
+lethal-trifecta check and the not-covered list. Each break runs on a copy of the file's text."""
 
 import ast
 import re
@@ -17,7 +17,12 @@ pytestmark = pytest.mark.security
 DOC = ROOT / "docs" / "THREAT-MODEL.md"
 TEST = re.compile(r"`(tests/[\w/]+\.py)::(test_\w+)`")
 IDS = [f"LLM{n:02d}:2026" for n in range(1, 11)]
-NO_LAYER = "—"
+
+
+def no_layer(cell: str) -> bool:
+    """A Layer cell with no letter in it: the em dash the document uses, a look-alike such as an
+    en dash, or an empty cell (S7a-J9)."""
+    return not any(char.isalpha() for char in cell)
 
 
 @cache
@@ -50,7 +55,7 @@ def problems(text: str) -> list[str]:
         reason = covered.startswith("not applicable, because")
         if not tests and not reason:
             out.append(f"{entry}: names no test and gives no reason")
-        if layer == NO_LAYER and not reason:
+        if no_layer(layer) and not reason:
             out.append(f'{entry}: has no layer but does not say "not applicable, because"')
         for path, name in tests:
             if not (ROOT / path).is_file() or name not in defined(path):
@@ -84,13 +89,24 @@ def test_a_row_naming_a_test_that_does_not_exist_fails_naming_the_row():
     ]
 
 
-def test_a_row_without_a_layer_must_give_its_reason_even_when_it_names_a_test():
-    """S7a-J7: LLM03's row has no layer and names a test inside its reason; its reason reworded
-    fails, naming the row."""
+EM_DASH, EN_DASH = chr(0x2014), chr(0x2013)  # the document's mark and a look-alike
+
+
+@pytest.mark.parametrize(
+    "layer", [EM_DASH, EN_DASH, ""], ids=["the em dash", "an en dash look-alike", "empty"]
+)
+def test_a_row_without_a_layer_must_give_its_reason_even_when_it_names_a_test(layer):
+    """S7a-J7 and S7a-J9: LLM03's row has no layer and names a test inside its reason. With its
+    reason reworded it fails, naming the row, whether its Layer cell is the em dash, a look-alike
+    with no letter in it, or empty."""
     text = DOC.read_text(encoding="utf-8")
     [row] = [line for line in text.splitlines() if line.startswith("| LLM03:2026 |")]
     assert TEST.findall(row), "LLM03's row names a test"
-    broken = text.replace(row, row.replace("not applicable, because", "does not apply, as", 1))
+    cells = row.strip().strip("|").split("|")
+    assert no_layer(cells[-1]), "LLM03's row has no layer"
+    cells[3] = cells[3].replace("not applicable, because", "does not apply, as", 1)
+    cells[-1] = f" {layer} "
+    broken = text.replace(row, "|" + "|".join(cells) + "|")
     assert problems(broken) == [
         'LLM03:2026: has no layer but does not say "not applicable, because"'
     ]
