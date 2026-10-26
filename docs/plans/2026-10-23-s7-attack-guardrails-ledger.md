@@ -107,7 +107,7 @@ wrote the files' committed bytes back afterwards; `git status --short` was empty
 | AG9 | met at `762b163`: with defences on, every safety check held in every case and trial (39 of 39, under the maintainer's decision of 2026-10-25, which applied in 5 of them), and the run is published as suite `attack` (`c8e6158`, naming `attacks.yaml` v1 of the pack's Versions table); the defences-off run is reported by counts and never published; F-49's label per configuration and the session times are recorded (below). At `8f7c94d` the gate failed (`no_canary` in 4 of 39 trials, ATK-TEN-1 and ATK-TEN-2). The offline parts are met (after STOP 1, below) | See "AG9's offline parts" below: the runner, suite `attack` in run record v1, `config/attack-local.toml` and `config/attack-fake.toml`, `make attack-local`, F-49's label from the answer key per configuration, publish's rules; `tests/security/test_attack_runs.py` (17 tests). The live session at `8f7c94d` (below): `20261025T192647Z-attack-local-defences-off-dev-8f7c94d` and `20261025T194348Z-attack-local-defences-on-dev-8f7c94d`, both in `runs/tmp/`, neither published. The second session at `762b163` (below): `20261025T205728Z-attack-local-defences-off-dev-762b163` and `20261025T205853Z-attack-local-defences-on-dev-762b163`, both in `runs/tmp/`, not yet published | AG9's offline break (a defences-on copy with an F-47 string planted, resealed, still valid): `raglab publish` refuses it naming F-47's string (`test_publish_refuses_a_defences_on_copy_with_an_f47_string_planted`); five more breaks below |
 | AG10 | met: the replay over golden set v2's consistency baseline and its four repeats shows zero events (after the merge, below) | `raglab replay` over the current baseline and its four repeats: 735 case lines, 730 answers, 3,675 retrieved chunks, zero events, record `runs/replays/...--d81cec18f099.json` (made from a clean tree at `39884e4`). `tests/security/test_guard_staleness.py` (5 tests): the baseline is current for today's guard set only through that record; a new set without a record is stale naming it; an edited manifest is refused; a recorded answer given a foreign link is an event and no record is written. The guard-set rule lives in its own file, not in `tests/retrieval/test_publish.py`, which the plan's merge order keeps until S4b merges. `git diff 2b9ba60 -- config src/raglab/generate/prompts corpus` is empty | Tested in the suite on copies (a new set without a record: stale, naming the set; one answer given a foreign link: "links at output", no record). After the merge, on the committed `default_guards()`: a no-op layer added fails the staleness test naming the guard set (below) |
 | AG11 | met: GUARDRAILS.md; TEST-PLAN's arrows L9 and R8, and after the merge the Test and Gate cells of R-15 to R-17 and R-19 to R-21, the gaps R-20 and R-21, section 10's security line and the test_test_plan extension (below) | GUARDRAILS.md: each S7a layer with its stage, owner, action, code and tests; TEST-PLAN L9 and R8 name their tests and pr-fast (`tests/unit/test_test_plan.py`'s arrows test checks each exists) | L9's test renamed: "L9: tests/security/test_instruction_scan.py::test_the_planted_instruction_is_flagged does not exist" |
-| AG12 | partly: THREAT-MODEL, GUARDRAILS, THRESHOLDS, README, the main plan's note, the pack's README and the CHANGELOG are done; LOCAL-MODEL's attack-local row has its command and both live sessions' measured times; ARCHITECTURE and README `wip` wait for S6's status line (S4b's landed with the merge; the plan's merge order) | `test_diagram.py`, `test_readme.py`, `test_repo_docs.py`, `test_changelog_check.py`, `test_test_plan.py` pass | ARCHITECTURE's S7 class made `wip` without the README's: `test_readme_status_matches_architecture` failed |
+| AG12 | done after fix round 1: THREAT-MODEL, GUARDRAILS, THRESHOLDS, README, the main plan's note, the pack's README and the CHANGELOG are done; LOCAL-MODEL's attack-local row has its command and both live sessions' measured times; S7 is `wip` in ARCHITECTURE and the README (`b145962`, the judge's S7a-J3; round 0 found it not met, below), and S6's pull request adds its own line later | `test_diagram.py`, `test_readme.py`, `test_repo_docs.py`, `test_changelog_check.py`, `test_test_plan.py` pass | ARCHITECTURE's S7 class made `wip` without the README's: `test_readme_status_matches_architecture` failed |
 | AG13 | met locally; pr-fast's duration before and after needs CI | No dependency change (`git diff 2b9ba60 -- pyproject.toml uv.lock` empty); `raglab.core` standard library only and the vendor rules hold (`make architecture`: 0 violations); `make -k check` below | A planted unused import in `src/raglab/guard/links.py`: `make check` stopped at lint (`F401`); `import httpx` there: `make architecture`, "src/raglab/guard/links.py:17: vendor SDK httpx is imported outside raglab.adapters" |
 
 ### Findings from the breaks (fixed in the build)
@@ -742,6 +742,62 @@ sast, workflows (no findings), secrets (no leaks, directory and history), privac
 466 files), architecture (0 violations), check-dataset (v1.1 and v2 pass), model, test ("1882
 passed, 2 deselected, 1 warning in 244.38s"), gate (recall@5 0.682 passes against the v2
 baseline) and api-smoke (port 8768); `real 293.13`. pr-fast's time on CI is [CI].
+
+### Criteria judge, round 0 (2026-10-26, at `dad7ee6`)
+
+The judge (Fable 5.1, its own worktree, detached at `dad7ee6`, offline) handed its report back as
+text; the orchestrator saved it verbatim, since the judge's own Write was refused (a copy is in
+`runs/tmp/s7-evidence/judge-round0/`, with the judge's evidence files).
+
+- **Verdicts:** 10 met (AG1 to AG6, AG8 to AG11); 2 met locally and needing CI (AG7, the pr-fast
+  log; AG13, pr-fast's durations before and after); 1 not met (AG12: S7 was `todo` in
+  `docs/ARCHITECTURE.md` and the README, where the criterion asks for `wip`).
+- **Findings:** high 0, medium 0; low 3: S7a-J2 (the Versions table was not held to the committed
+  `attacks.yaml`), S7a-J3 (AG12's `wip`), S7a-J4 (the plan's dated note said less than the
+  ledger); info 4: S7a-J1 (`raglab publish` does not refuse an unlisted `dataset.sha256`; the
+  S4-J10 test catches it afterwards), S7a-J5 (the docstring did not say the name exception reaches
+  the conflict note, or that its question test is a substring test), S7a-J6 (fullwidth and
+  homoglyph forms escape the record's substring checks, under either rule), S7a-J7
+  (`test_threat_model.py` required "not applicable, because" only of a row that names no test).
+- **Numbers:** about 60 figures checked in 27 rows, 0 mismatches.
+- **Breaks:** 51 executed, 49 red and 2 not red, both explained: A1c (LLM03's reason reworded,
+  green because its row names a test: J7) and A6f (`attacks.yaml` changed with no new Versions
+  row, green: J2). Each was restored, and the tree was clean at `dad7ee6`.
+- **Its checks:** `make -k check` passed on port 8769 (real 293.82, 1882 passed in 244.55 s) and
+  `make perf-smoke` passed. No live session was needed: the published record and the same
+  session's defences-off record were reproduced offline, every number recomputed, the old rule
+  recounted to 5 and 4.
+
+**The judge's refused commands, disclosed.**
+- The worktree guard refused four of the judge's compound commands. In three cases the judge ran
+  the plainer forms the refusals themselves pointed to.
+- Once, before the orchestrator's "don't route around" rule reached it, the judge ran the refused
+  `make -k check` command from a wrapper script (`run-check.sh`).
+- The Write tool refused the judge's report file, and the judge did not write it another way.
+- The report also lists transient "no verdict" classifier failures, not refusals, which
+  succeeded on retry.
+
+### Fix round 1 (2026-10-26)
+
+Round 1 of at most two. Each fix is its own commit; each fix a test reads was broken once by a
+scratch driver on the committed files and restored, the tree clean after
+(`runs/tmp/s7-evidence/round1-break-J3.txt`, `-J2.txt`, `-J7.txt`; the driver is
+`live-scripts/round1_breaks.py`).
+
+| Finding | Fix | Commit | Break | Result |
+|---|---|---|---|---|
+| J3 (low) | S7 in the `wip` class of the phase map in `docs/ARCHITECTURE.md` and the README | `b145962` | the README's map keeps S7 `todo` | `test_readme_status_matches_architecture` failed (1 failed, 3 passed) |
+| J2 (low) | `test_the_packs_latest_version_of_attacks_yaml_is_the_committed_file`: the latest Versions row for `attacks.yaml` holds the committed file's sha256 | `e4469e3` | a trailing comment appended to `attacks.yaml`, with no new row | the new test failed (1 failed, 88 passed over the publish, pack and config tests) |
+| J4 (low) | the plan's dated note gains a sentence each: the first session's gate failed `no_canary` in 4 of 39 trials and its records stay unpublished, kept in the ledger and the evidence; all 127 cases ratified without marks; the ATK-TEN-1 trial 3 finding left for S7b and S8 | `63bcff1` | none: text that no test reads | — |
+| J5 (info) | the `attack_record.py` docstring: the exception holds for the answer and its conflict note, and its question test is a casefolded substring test | `1bc090c` | none: a docstring; no behaviour changes | — |
+| J6 (info) | THREAT-MODEL's not-covered list: the record's checks match plain substrings, so fullwidth or homoglyph forms escape them, under either rule; no normalisation in this pull request | `c47d6e6` | none: text that no test reads | — |
+| J7 (info) | `test_threat_model.py`: a row whose Layer cell is `—` says "not applicable, because" whether or not it names a test, with a copy-based test of it | `85fbb11` | LLM03's reason reworded in the document | 3 failed (the rows test and the two copy-based tests that expect no other problem); the same reword was green before the fix (the judge's A1c) |
+
+**S7a-J1, a note for S8 (no code change).** `raglab publish` does not refuse a record whose
+`dataset.sha256` is no listed version; the S4-J10 test catches it afterwards. That matches the
+guarantee the maintainer chose for S4-J10 ("Close it in this PR": the test, not publish). The
+judge's smallest fix, if S8 wants it: refuse an unlisted `dataset.sha256` in `publish`
+(`src/raglab/evals/publish.py`, beside its attack-run rules, lines 239 to 249 at `dad7ee6`).
 
 ## Part S7b
 
