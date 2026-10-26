@@ -204,10 +204,10 @@ measuring would be guessing.
   - attacks and guardrails tested;
   - gates with reasons;
   - a suite audit;
-  - the provider and cost decision made from measured tokens.
+  - the provider and cost decision made from measured tokens;
+  - tracing and a perf gate (S9, brought forward from P3 on 2026-10-23).
 - **After P3 (v0.3):**
   - a host chosen by the S3h spike;
-  - tracing and a perf gate;
   - a public demo with cost controls;
   - the teaching playground;
   - a system audit;
@@ -418,6 +418,55 @@ docs/ ARCHITECTURE.md TEST-PLAN.md GATES.md THRESHOLDS.md COMPATIBILITY.md CRITE
 - The shared contract tests run on every adapter; live adapters run them only when keys are set.
 - Model ids are dated snapshots, never aliases.
 
+## Progress and next steps (updated 2026-10-26)
+
+**Done.**
+
+| Stage | Pull request | Merged |
+|---|---|---|
+| S0, skeleton and hygiene | #1 | 2026-10-06 |
+| S1a, requirements and corpus | #3 | 2026-10-06 |
+| S1b, ingestion and chunking | #4 | 2026-10-06 |
+| S2, retrieval, run record v1, playground | #5 | 2026-10-06 |
+| S3, generation, local live run, API, container | #7 | 2026-10-18 |
+| S4, golden set v1.1 and the consistency gate | #11 | 2026-10-20 |
+| v0.1.0, released and tagged `v0.1.0` | #13 | 2026-10-20 |
+| S5, judged metrics on local models (its hosted half deferred by D6) | #18 | 2026-10-21 |
+| answer-v2, measured on dev and not adopted | #25 | 2026-10-23 |
+| S4b, golden set v2 | #30 | 2026-10-24 |
+| S9, observability and perf (brought forward to v0.2) | #27 | 2026-10-25 |
+| S7a, the threat model, the rule-layer guards and the attack suite | #33 | 2026-10-26 |
+
+Beside them: the Pages playground (#23), and the dependency and audit pull requests (#16, #17, #22,
+#29, #32).
+
+**In progress: S6, judge calibration.**
+- Done: the judged baseline on golden set v2 ran locally on 2026-10-24, with 1,400 judge calls and canaries 19 of 19. The 30-item sample is drawn.
+- Next: the maintainer's 30 blind labels and their seal. At least 24 hours later, the 12-item re-label. Then the agreement numbers, the disagreements, the criteria judge, and the pull request, which first merges `main` (S9, #32, S7a).
+
+**Next, in order.**
+1. **S6's pull request.**
+2. **S7b,** after S6: the promptfoo red team, Guardrails AI, and the faithfulness-judge provenance experiment (AG14 to AG20). It needs S6's calibrated judge, and its plan estimates about 1.5 to 3.25 h of Mac time.
+3. **S8,** once S6 and S7 are merged: gates, failure causes and the suite audit. Its plan is not written yet. It takes over the follow-ups below.
+4. **The v0.2.0 release:** the test slice run once, notes naming S9 as brought forward, and the tag by hand.
+5. **P3:** S3h (the host spike, with its sign-ups), then S10 and S11. The extensions, S12 and Track B, are not blocking.
+
+**Follow-ups waiting for S8.**
+- **R-22,** the requirement with no planted feature.
+- **S4b-J4:** the gate reads only the first consistency row.
+- **S7a-J1:** `raglab publish` does not refuse an unlisted dataset version; a test catches it afterwards.
+- **ATK-TEN-1 trial 3:** an answer stated the asking tenant's rule as the other tenant's, with a value no document holds. No attack check measures fabrication about another tenant.
+- **S7a-J11:** a threat-model row whose Layer cell is written "n/a" passes its rows test.
+
+**Open for the maintainer.**
+- **When to run answer-v3:** a prompt fix for abstention and refusal, measured on v2's dev split. On v2, answer-v1's decision label matches 0.093 to 0.167 of the abstain cases and none of the refuse-and-help cases.
+- **The sign-ups S5's D6 deferred,** needed before S10's real-model demo.
+
+**Maintenance dates.**
+- **2026-10-28:** one dependency pull request. It takes ruff 0.17.1, fastapi 0.146.0 and starlette 1.9.0, plus pypdf 6.21.2 after its extraction test, and re-locks the DeepEval tool. It replaces Dependabot's #26 and #31.
+- **After 2026-10-29:** the googleapis-common-protos constraint comes off.
+- **2026-11-21:** the review date of `make audit`'s skips.
+
 ## Stages and release slices
 
 Each stage is one PR, run as planner, then developer, then an independent judge on a different
@@ -451,6 +500,14 @@ answer-v2, the prompt fix S4 left as a follow-up, comes between them as a pull r
 on 2026-10-22 and 2026-10-23 and not adopted, the user's answer verbatim "Not adopted, runs stay
 published (Recommended)": answer-v1 stays the current prompt and the consistency baseline, and
 answer-v2's runs stay published as a measured result (`docs/plans/2026-10-21-answer-v2-ledger.md`).
+
+Decision (2026-10-21): S5's hosted half is deferred. Asked "D6: what should S5 sign up for
+(ADR-002's options above)?", the user answered in their own words, verbatim: "let's use a local
+model for now and then we need to identify all the signups and everything that I need to do". S5
+merged with its judged metrics on local models. `docs/decisions/ADR-002-providers.md` keeps the
+measured tokens and the cost per option, and the hosted adapters and their criteria (S5's AC16 to
+AC21) are deferred, not cancelled, until the sign-ups are chosen
+(`docs/plans/2026-10-20-s5-judged-metrics-ledger.md`).
 
 Decision (2026-10-23): S7 is built as two pull requests under its one node. Asked to approve the S7
 plan with its five recommended answers, the user answered, verbatim: "All five as recommended
@@ -502,6 +559,10 @@ feature. Change the corpus for it?", the user answered, verbatim: "No corpus cha
 gap (Recommended)": v2 is written over the existing corpus, and R-22 waits for S8's suite audit,
 which plants it in a corpus pull request of its own or records it as not covered. The S4b plan
 (`docs/plans/2026-10-23-s4b-golden-set-v2.md`) quotes both questions.
+
+Decision (2026-10-25): pr-fast's required checks and the `check` job's time limit.
+- Once S9 merged, `perf` joined `check` and `conventions` as a required check on `main`. Asked whether to add it, the user answered, verbatim: "Add it for me (Recommended)".
+- The `check` job's limit went from 15 to 20 minutes, in S7a's pull request, because S7a's tests add about 2 minutes on CI and S6's come next. The user's answer, verbatim: "Inside S7a's PR: 15 → 20 min". S7a's own run then took 16 min 59 s, of which 3 min 7 s was a slow package mirror. The question and the answer are in `docs/plans/2026-10-23-s7-attack-guardrails-ledger.md`, and the run in pull request #33.
 
 **v0.3 (S3h, S10, S11).** Production practices and the public demo.
 
@@ -902,12 +963,12 @@ measured in S3. A 1–2 GB machine price is UNCONFIRMED.
 | Repo name | S0 |
 | Local ONNX embedder choice; Qdrant local or cloud free tier | S2 |
 | Host, chosen by the S3h spike (Render, Fly.io, Cloud Run) | S3h (start of P3) |
-| Hosted providers and models, chosen from measured tokens (ADR-002); nightly cadence | S5 |
+| Hosted providers and models, chosen from measured tokens (ADR-002); nightly cadence (S5's D6, 2026-10-21: local models for now; the hosted adapters wait for the sign-ups) | S5, then before S10 |
 | Budget scenario A, B or C, and monthly spend caps: nightly, manual, demo | S5 / S10 |
 | Your review time: requirements and answer key (S1a, about 2–4 h), golden set v1 and v2 (S4 and S4b, about 2–3 h each) | S1a / S4 / S4b |
 | Question language: English only, or also Portuguese questions over the English corpus (a cross-lingual test) | S1a |
 | Local models for Ollama that fit 48 GB: one generator plus a judge from another family, and their measured speed | S3 / S5 |
-| About 1–2 hours of blind labelling, and whether a second labeller is available | S6 |
+| About 1–2 hours of blind labelling, and whether a second labeller is available (answered for S6 on 2026-10-23, its D3: "One labeller, plus a blind re-label of 12 (Recommended)") | S6 |
 | Langfuse cloud as an optional sink (answered for S9 on 2026-10-23: no account, the collector in CI only; S10 chooses the sink); Bedrock now or later | S9 / S10 |
 | Handbook commit to pin | S12 |
 
