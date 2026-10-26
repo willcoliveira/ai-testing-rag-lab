@@ -1,6 +1,6 @@
 """Command line entry point: ingest, fetch-model, check-dataset, eval, compare, judge, canaries,
 publish, gate, ask, serve and ollama (the local model server's session: up, down, status,
-session)."""
+session); replay and guard-suites (S7)."""
 
 import argparse
 import json
@@ -14,13 +14,27 @@ from raglab import __version__
 from raglab.adapters import factory, fastembed_embed
 from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSettings
 from raglab.core.types import TenantError
+from raglab.evals import (
+    attack,
+    dataset_check,
+    generation,
+    golden,
+    guard_suites,
+    judged,
+    publish,
+    record,
+    replay,
+    retrieval,
+)
 from raglab.evals import compare as compare_runs
 from raglab.evals import config as eval_config
-from raglab.evals import dataset_check, generation, golden, judged, publish, record, retrieval
 from raglab.evals import gate as retrieval_gate
 from raglab.generate import assemble
-from raglab.ingest import inventory, pipeline
+from raglab.generate.prompts import CURRENT as current_prompt
+from raglab.guard import default_guards
+from raglab.ingest import attacks, inventory, pipeline
 from raglab.judge import canaries
+from raglab.runtime.egress import EgressGuard
 
 INVENTORY = "runs/tmp/inventory.json"
 RUNS = "runs/tmp"
@@ -29,6 +43,7 @@ GOLDEN_DIR = "datasets"
 GOLDEN = "golden.v*.jsonl"
 GATES = ["manual", "pr-fast", "eval-on-change", "nightly", "weekly", "release"]
 EVAL_ERRORS = (
+    attack.AttackError,
     eval_config.ConfigError,
     dataset_check.CheckError,
     factory.AdapterError,
@@ -137,6 +152,18 @@ def _evaluate(args: argparse.Namespace) -> tuple[record.Json, list[record.Json]]
     suite: str = getattr(args, "suite", "retrieval")
     if eval_config.suite_of(args.config) != suite:
         raise eval_config.ConfigError(f"{args.config} is not a {suite} config")
+    defences: str | None = getattr(args, "defences", None)
+    if (suite == "attack") != (defences is not None):
+        raise eval_config.ConfigError("--defences on|off is for the attack suite, and it needs it")
+    if suite == "attack":  # S7: the attack suite, inside the loopback-only egress guard
+        attack_config = eval_config.load_generation(args.config, root)
+        if getattr(args, "split", None) is not None:
+            raise eval_config.ConfigError("an attack run uses its config's split")
+        _held_out(attack_config.split, args.gate)
+        configuration = f"defences-{defences}"
+        with EgressGuard() as egress:
+            built = attack.assemble_for(attack_config, root, configuration)
+            return attack.run(attack_config, root, built, configuration, egress, gate=args.gate)
     if suite == "generation":
         gen = eval_config.load_generation(args.config, root)
         split_: str | None = getattr(args, "split", None)
@@ -174,6 +201,9 @@ def evaluate(args: argparse.Namespace) -> int:
     print(f"run record: {run_dir}")
     if manifest["git_dirty"]:
         print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
+    if manifest["suite"] == "attack" and (reasons := attack.unsafe(manifest)):
+        print("attack run fails its gate: " + "; ".join(reasons), file=sys.stderr)
+        return 1
     return 0
 
 
@@ -260,6 +290,13 @@ def gate(args: argparse.Namespace) -> int:
         print(f"gate failed: {error}", file=sys.stderr)
         return 1
     args.suite = suite
+    if suite not in ("retrieval", "generation"):
+        print(
+            f"gate: {args.config} is a {suite} config; the gates read retrieval and generation "
+            "configs",
+            file=sys.stderr,
+        )
+        return 2
     if args.gate is None:  # pr-fast runs the retrieval gate; the consistency gate runs by hand
         args.gate = "manual" if suite == "generation" else "pr-fast"
     if suite == "generation":
@@ -425,6 +462,92 @@ def cost_estimate(args: argparse.Namespace) -> int:
     return 0
 
 
+GUARD_ERRORS = (
+    attack.AttackError,
+    replay.ReplayError,
+    guard_suites.SuiteError,
+    eval_config.ConfigError,
+    golden.DatasetError,
+    pipeline.IngestError,
+    OSError,
+    ValueError,
+)
+
+
+def replay_run(args: argparse.Namespace) -> int:
+    """`raglab replay` (S7, D3): today's default guards over the published records of the
+    consistency baseline and its repeats, no model. Zero events writes the replay record under
+    runs/replays/; any event is printed and no record is written (exit 1)."""
+    root: Path = args.root
+    try:
+        clean = pipeline.ingest(root)
+        guards = default_guards(root, clean.chunks)
+        runs = replay.baseline_runs(root, args.key)
+        result = replay.replay(runs, guards, clean.chunks)
+    except GUARD_ERRORS as error:
+        print(f"replay failed: {error}", file=sys.stderr)
+        return 1
+    print(f"replayed {len(runs)} run(s) of {args.key}: " + ", ".join(r.name for r in runs))
+    for what, count in sorted(result.checked.items()):
+        print(f"  {what}: {count}")
+    if result.events:
+        for found in result.events:
+            print(f"EVENT {found.line()}", file=sys.stderr)
+        print(
+            f"replay: {len(result.events)} event(s), no record written: the stage pauses for "
+            "the maintainer (D3)",
+            file=sys.stderr,
+        )
+        return 1
+    path = replay.write(root, replay.record_json(result, guards, retrieval.git_state(root)))
+    print(f"replay: zero events; record written: {path}")
+    return 0
+
+
+def guard_suites_run(args: argparse.Namespace) -> int:
+    """`raglab guard-suites` (S7, AG6): every layer over its must-block and must-not-block
+    cases, each decision binary; per layer the miss rate, the false-block rate (n, 95% Wilson)
+    and the added latency (p50, p95), written under runs/guard-suites/. Exit 1 naming each wrong
+    decision's case and layer."""
+    root: Path = args.root
+    try:
+        _held_out(args.split, args.gate)
+        local = eval_config.load_generation(
+            root / "config" / "local-ollama.toml", root, require_digest=False
+        )
+        items = golden.load(root / local.dataset)
+        questions = [
+            *golden.select(items, "retrieval", args.split),
+            *golden.select(items, "behaviour", args.split),
+        ]
+        clean = pipeline.ingest(root)
+        guards = default_guards(root, clean.chunks)
+        by_name = {g.name: g for g in guards}
+        runs = replay.baseline_runs(root)
+        suites = guard_suites.handwritten(root, by_name, current_prompt.SYSTEM)
+        more = guard_suites.derived(
+            root,
+            by_name,
+            questions,
+            clean.chunks,
+            attacks.attack_chunks(root),
+            guard_suites.recorded_answers(runs, clean.chunks),
+        )
+        for layer, found in more.items():
+            suites.setdefault(layer, []).extend(found)
+        layers, wrong = guard_suites.run(suites)
+        data = guard_suites.record_json(layers, guards, retrieval.git_state(root), args.split, runs)
+    except GUARD_ERRORS as error:
+        print(f"guard-suites failed: {error}", file=sys.stderr)
+        return 1
+    print(guard_suites.render(layers))
+    path = guard_suites.write(root, data, args.out)
+    print(f"record: {path}")
+    for line in wrong:
+        print(f"WRONG {line}", file=sys.stderr)
+    return 1 if wrong else 0
+
+
 def ask(args: argparse.Namespace) -> int:
     """One question through the pipeline; the outcome as JSON. Exit 0 when the status is ok."""
     root: Path = args.root
@@ -576,7 +699,14 @@ def main(argv: list[str] | None = None) -> int:
     ):
         sub = commands.add_parser(name, help=text)
         if name == "eval":
-            sub.add_argument("--suite", choices=["retrieval", "generation"], required=True)
+            sub.add_argument(
+                "--suite", choices=["retrieval", "generation", "attack"], required=True
+            )
+            sub.add_argument(
+                "--defences",
+                choices=["on", "off"],
+                help="attack suite only: S7a's guards and the scan, or S3's guards (S7)",
+            )
             sub.add_argument(
                 "--split",
                 choices=eval_config.SPLITS,
@@ -643,6 +773,18 @@ def main(argv: list[str] | None = None) -> int:
     serve_.add_argument("--host", default="127.0.0.1", help="interface (default 127.0.0.1)")
     serve_.add_argument("--port", type=int, default=8000, help="port (default 8000)")
     serve_.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    replayed = commands.add_parser(
+        "replay", help="today's guards over the consistency baseline's records, no model (S7)"
+    )
+    replayed.add_argument("--key", default=replay.KEY, help=f"(default {replay.KEY})")
+    replayed.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    suites = commands.add_parser(
+        "guard-suites", help="every guard layer over its must-block and must-not-block cases (S7)"
+    )
+    suites.add_argument("--split", choices=eval_config.SPLITS, default="dev")
+    suites.add_argument("--gate", choices=GATES, default="manual")
+    suites.add_argument("--out", default=guard_suites.OUT, help=f"(default {guard_suites.OUT})")
+    suites.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     local = commands.add_parser("ollama", help="the local model server, for one session only")
     local.add_argument("action", choices=["up", "down", "status", "session"])
     local.add_argument("--config", type=Path, required=True, help="a config with an [ollama] table")
@@ -666,6 +808,8 @@ def main(argv: list[str] | None = None) -> int:
         "ask": ask,
         "serve": serve,
         "ollama": ollama,
+        "replay": replay_run,
+        "guard-suites": guard_suites_run,
     }
     if args.command in handlers:
         return handlers[args.command](args)

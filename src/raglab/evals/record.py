@@ -41,6 +41,7 @@ from typing import cast
 from raglab.chunk.sections import ChunkSettings
 from raglab.core.types import visible_tenants
 from raglab.evals import (
+    attack_record,
     behaviour,
     generation_record,
     golden,
@@ -49,7 +50,7 @@ from raglab.evals import (
     position_record,
 )
 from raglab.evals.schema import Validator
-from raglab.ingest import answer_key, pipeline, register
+from raglab.ingest import answer_key, attacks, pipeline, register
 
 SCHEMA_VERSION = "run-record.v1"
 SCHEMA_PATH = "schemas/run-record.v1.json"
@@ -276,6 +277,11 @@ def doc_tenants(root: Path) -> dict[str, str]:
     return {entry.doc_id: entry.tenant for entry in register.read(root)}
 
 
+def attack_tenants(root: Path) -> dict[str, str]:
+    """Each attack page's tenant, from its own front matter (S7: an attack run indexes them)."""
+    return {d.meta.doc_id: d.meta.tenant for d in attacks.attack_documents(root)}
+
+
 def tenant_problems(case: Json, tenants: Mapping[str, str]) -> list[str]:
     """A retrieved or labelled chunk whose document is not in the register, or belongs to a
     tenant the case's tenant may not see. A chunk id is `<doc id>@<version>/<section>/<n>`."""
@@ -338,10 +344,14 @@ def validate(run_dir: Path, root: Path) -> list[str]:
         problems.extend(generation_problems(manifest, cases, k, root))
     elif manifest["suite"] == judged_record.JUDGED:  # S5
         problems.extend(judged_record.judged_problems(manifest, cases, run_dir, root))
+    elif manifest["suite"] == attack_record.ATTACK:  # S7
+        problems.extend(attack_record.problems(manifest, cases, root))
     else:
         problems.extend(retrieval_problems(manifest, cases, k))
     try:
         tenants = doc_tenants(root)
+        if manifest["suite"] == attack_record.ATTACK:  # S7: its pages outside the register too
+            tenants = {**attack_tenants(root), **tenants}
     except (OSError, ValueError) as error:  # the register fails closed: no check, no valid run
         problems.append(f"the register cannot be read, so the tenants are unchecked ({error})")
     else:
@@ -429,6 +439,8 @@ def render(manifest: Json, cases: Sequence[Json]) -> str:
         return generation_record.render_report(manifest, cases)
     if manifest["suite"] == judged_record.JUDGED:
         return judged_record.render_report(manifest, cases)
+    if manifest["suite"] == attack_record.ATTACK:
+        return attack_record.render_report(manifest, cases)
     return render_report(manifest, cases)
 
 
@@ -442,6 +454,10 @@ def expected_results(manifest: Json, cases: Sequence[Json]) -> Json:
         level = cast(float, as_json(manifest["intervals"])["level"])
         canary_rows = [as_json(r) for r in as_list(as_json(manifest["canaries"])["results"])]
         return judged_record.results(cases, cast(int, manifest["trials"]), level, canary_rows)
+    if manifest["suite"] == attack_record.ATTACK:
+        level = cast(float, as_json(manifest["intervals"])["level"])
+        configuration = str(as_json(manifest["attack"])["configuration"])
+        return attack_record.results(cases, cast(int, manifest["trials"]), level, configuration)
     k = cast(int, as_json(manifest["retriever"])["k"])
     return results_from_cases(cases, k, as_json(manifest["bootstrap"]))
 
@@ -452,7 +468,11 @@ def retrieval_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[st
     problems: list[str] = []
     if "bootstrap" not in manifest:
         problems.append("a retrieval run has bootstrap intervals: missing 'bootstrap'")
-    extra = [f for f in (*GENERATION_MANIFEST, "probes", "ollama", "position") if f in manifest]
+    extra = [
+        f
+        for f in (*GENERATION_MANIFEST, "guard_set", "probes", "ollama", "position")
+        if f in manifest
+    ]
     if extra or "generation" in as_json(manifest["results"]):
         problems.append(
             f"a retrieval run has no generation fields: {extra or ['results.generation']}"

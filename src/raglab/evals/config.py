@@ -113,7 +113,8 @@ def held_out_problem(split: str, gate: str) -> str | None:
     return None
 
 
-SUITES = ("retrieval", "generation", "judged")
+# S7: attack, the attack suite (raglab.evals.attack), read like a generation config
+SUITES = ("retrieval", "generation", "judged", "attack")
 # the keys of a chat model's table: [generator] (S3) and [judge] (S5)
 MODEL_KEYS: dict[str, type | tuple[type, ...]] = {
     "provider": str,
@@ -185,6 +186,10 @@ TABLES = {
         {"api", "ollama", "position"},
     ),
     "judged": ({"judge", "judging"}, {"ollama"}),
+    "attack": (
+        {"dataset", "chunker", "embedder", "retriever", "generator", "generation"},
+        {"api", "ollama"},
+    ),
 }
 OPENAI_COMPAT_KEYS = frozenset({"base_url", "digest", "temperature", "max_tokens", "timeout_s"})
 # S9: the perf stub, FakeChat's echo under this provider name (provenance fake). Only `raglab
@@ -288,7 +293,8 @@ def _read(path: Path) -> tuple[bytes, dict[str, object], str]:
         raise ConfigError(f"{where}: name {name!r} must be lower case letters, digits and dashes")
     if suite not in SUITES:
         raise ConfigError(
-            f"{where}: suite {suite!r}: only retrieval, generation and judged exist (S5)"
+            f"{where}: suite {suite!r}: only retrieval, generation, judged (S5) and attack (S7) "
+            "exist"
         )
     required, optional = TABLES[suite]
     tables = set(data) - set(SECTIONS[""])
@@ -597,12 +603,13 @@ def _ollama(
 def load_generation(
     path: Path, root: Path, require_digest: bool = True, *, perf_stub: bool = False
 ) -> GenerationConfig:
-    """A generation config. require_digest=False reads a config whose model digest is not pinned
+    """A generation config, or an attack config (S7: the same tables; its dataset is the security
+    pack's attack cases). require_digest=False reads a config whose model digest is not pinned
     yet (only the local server's lifecycle commands do, to start the server the pull needs).
     perf_stub=True also reads a perf-stub config (S9: only `raglab serve` passes it)."""
     where = str(path)
     raw, data, suite = _read(path)
-    if suite != "generation":
+    if suite not in ("generation", "attack"):
         raise ConfigError(f"{where}: suite {suite!r}: this command reads generation configs only")
     shared = _shared(path, root, raw, data, suite)
     generator = _generator(

@@ -1,0 +1,56 @@
+# The attack suite on the local model through Ollama (S7, AG9): the security pack's attack cases
+# (datasets/security/attacks.yaml), asked with the corpus's three attack pages indexed in tenant A
+# as pages outside the register, three trials each, in two configurations (`--defences off`: S3's
+# guard set and no instruction scan, a measured result never published; `--defences on`: S7a's
+# guard set and the scan, every safety check of every case and trial must hold). Run it with
+# `make attack-local`, one generator session: the live contract test, then both configurations.
+#
+# The pipeline is the consistency gate's (config/local-ollama.toml): the same chunker, embedder,
+# retriever, model (tag and digest), sampling and seed, so an attack answer is what a user's
+# question gets. A new file: no existing config changes (the S7 plan).
+# Read by raglab.evals.config.load_generation (strict: an unknown or missing key stops the run).
+name = "attack-local"
+suite = "attack"
+
+[dataset]
+path = "datasets/security/attacks.yaml"
+split = "dev"
+
+[chunker]
+chunk_size = 1200
+overlap = 1
+
+[embedder]
+provider = "fastembed"
+model = "BAAI/bge-small-en-v1.5"
+revision = "aa8f8b060edb00e03bfdd08813a2949946c8ba55"
+
+[retriever]
+kind = "dense"
+k = 5
+
+[generator]
+provider = "openai-compat"
+model = "nemotron-3.5-lightning:30b-a3b-mlx"
+digest = "d1e17d7dabacb401dec6440b4ec987ea053b9568b01f89fb3d54f8b2e71397be"
+base_url = "http://127.0.0.1:11434"
+temperature = 1.0
+top_p = 0.95
+max_tokens = 1024
+timeout_s = 120
+reasoning_effort = "none"
+response_format = "none"
+
+[generation]
+trials = 3
+seed = 20261018
+level = 0.95
+run_timeout_s = 1800
+
+[ollama]
+host = "127.0.0.1:11434"
+keep_alive = "2m"
+max_loaded_models = 1
+num_parallel = 1
+context_length = 8192
+memory_margin_gb = 4

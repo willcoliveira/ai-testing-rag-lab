@@ -24,6 +24,7 @@ from raglab.index.memory import InMemoryStore
 from raglab.obs import otel
 from raglab.obs.traced import TracedEmbedder
 from raglab.retrieve.dense import DenseRetriever, index_chunks
+from tests.conftest import ROOT
 from tests.generation_support import TOKENS
 from tests.retrieval_support import PACK
 
@@ -89,7 +90,7 @@ def traced_app(
     pipeline = Pipeline(
         retriever or traced_retriever(tracer, chunks),
         model,
-        default_guards() if guards is None else guards,
+        default_guards(ROOT, chunks) if guards is None else guards,
         3,
         tracer=tracer,
     )

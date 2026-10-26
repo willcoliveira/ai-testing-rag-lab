@@ -87,7 +87,7 @@ def test_without_the_validator_an_unretrieved_citation_would_get_through():
     outcome = pipeline.ask("How many characters must passwords have?", "tenant-a")
     assert outcome.answer.status is Status.OK
     assert outcome.answer.cited_ids == (UNRETRIEVED,)
-    assert CitationValidator().check_output(outcome.answer, frozenset()) is not None
+    assert CitationValidator().check_output(outcome.answer, ()) is not None
 
 
 def test_the_record_counts_the_models_unretrieved_citations(tmp_path):

@@ -6,11 +6,13 @@ import json
 import re
 import shutil
 from datetime import UTC, datetime
+from hashlib import sha256
 from typing import Any
 
 import pytest
 
 from raglab.evals import gate, publish, record, retrieval
+from raglab.evals.dataset_check import VersionRow
 from tests.conftest import ROOT
 from tests.golden_support import maintenance
 from tests.retrieval_support import fake_run, lab_root, local_run, read_run, reseal
@@ -233,6 +235,8 @@ def test_the_committed_consistency_baseline_is_current():
 # ---------------------------------------------------------------- S4-J10 (fix round 2)
 
 DATASHEET = ROOT / "datasets" / "DATASHEET.md"
+PACK = ROOT / "datasets" / "security" / "README.md"  # S7: the security pack's Versions table
+ATTACK_SUITE = "attack"
 
 
 def listed_dataset_versions(datasheet: Any) -> dict[str, str]:
@@ -243,20 +247,26 @@ def listed_dataset_versions(datasheet: Any) -> dict[str, str]:
     return {row.sha256: row.version for row in rows}
 
 
-def unlisted_dataset_problems(published: Any, datasheet: Any) -> list[str]:
-    """Each published run whose manifest's dataset.sha256 is no version the datasheet lists, or
-    whose dataset path is not the file its version's row names (S4b: the File column)."""
-    rows = {row.sha256: row for row in maintenance(datasheet.read_text(encoding="utf-8"))}
+def unlisted_dataset_problems(published: Any, datasheet: Any, pack: Any = PACK) -> list[str]:
+    """Each published run whose manifest's dataset.sha256 is no version its table lists, or
+    whose dataset path is not the file its version's row names (S4b: the File column). A run on
+    the golden set is held to the datasheet's Maintenance table; an attack run (S7), whose dataset
+    is the security pack's attacks.yaml, to the pack's Versions table (the orchestrator's
+    integration decision of 2026-10-25, the S7 ledger)."""
+    golden = {row.sha256: row for row in maintenance(datasheet.read_text(encoding="utf-8"))}
+    attacks = {row.sha256: row for row in maintenance(pack.read_text(encoding="utf-8"), "Versions")}
     problems: list[str] = []
     for path in sorted(published.glob(f"*/{record.MANIFEST}")):
-        dataset = json.loads(path.read_text(encoding="utf-8"))["dataset"]
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        dataset = manifest["dataset"]
         sha, name = dataset["sha256"], dataset["path"].rsplit("/", 1)[-1]
+        if manifest.get("suite") == ATTACK_SUITE:
+            rows, table = attacks, "the security pack's Versions table"
+        else:
+            rows, table = golden, "the datasheet's Maintenance table"
         row = rows.get(sha)
         if row is None:
-            problems.append(
-                f"{path.parent.name}: dataset.sha256 {sha} is no version the datasheet's "
-                "Maintenance table lists"
-            )
+            problems.append(f"{path.parent.name}: dataset.sha256 {sha} is no version {table} lists")
         elif row.file != name:
             problems.append(
                 f"{path.parent.name}: dataset {dataset['path']} is {row.version} by its sha256, "
@@ -273,12 +283,65 @@ def test_every_published_run_names_a_dataset_version_the_datasheet_lists():
     the datasheet's Maintenance table lists, read from the table: v1 (the S2 and S3 runs) and
     v1.1 (S4's and later runs on golden.v1.jsonl), and from S4b's runs v2 (golden.v2.jsonl), each
     in the file its row names. The index entries hold no dataset sha256, so the manifests are
-    what is read."""
+    what is read. An attack run (S7) names a version of the security pack's Versions table
+    instead (datasets/security/README.md), as the pack's record check has the same limit."""
     listed = listed_dataset_versions(DATASHEET)
     assert {"v1", "v1.1"} <= set(listed.values())
     index = publish.read_index(ROOT / publish.PUBLISHED)
     assert not any("dataset" in record.as_json(run) for run in record.as_list(index["runs"]))
     assert unlisted_dataset_problems(ROOT / publish.PUBLISHED, DATASHEET) == []
+
+
+def test_a_published_attack_run_is_held_to_the_security_packs_versions(tmp_path):
+    """S7, the orchestrator's integration decision of 2026-10-25 (the S7 ledger): an attack
+    record's dataset is held to the security pack's Versions table, never to the datasheet.
+    Records in a temporary folder: one naming the table's first version of attacks.yaml passes;
+    one naming a sha256 the table does not list, one naming a golden-set version and one naming
+    the listed sha256 under another file are each named."""
+    first = maintenance(PACK.read_text(encoding="utf-8"), "Versions")[0]
+    golden = maintenance(DATASHEET.read_text(encoding="utf-8"))[-1]
+    published = tmp_path / "runs" / "published"
+
+    def attack_run(run_id: str, sha: str, path: str = "datasets/security/attacks.yaml") -> None:
+        target = published / run_id / record.MANIFEST
+        target.parent.mkdir(parents=True)
+        manifest = {"suite": ATTACK_SUITE, "dataset": {"path": path, "sha256": sha}}
+        target.write_text(json.dumps(manifest), encoding="utf-8")
+
+    assert first.file == "attacks.yaml"
+    attack_run("a-listed", first.sha256)
+    assert unlisted_dataset_problems(published, DATASHEET) == []
+    unknown = "0" * 64
+    attack_run("b-unlisted", unknown)
+    attack_run("c-golden", golden.sha256, f"datasets/{golden.file}")
+    attack_run("d-elsewhere", first.sha256, "datasets/security/other.yaml")
+    table = "is no version the security pack's Versions table lists"
+    assert unlisted_dataset_problems(published, DATASHEET) == [
+        f"b-unlisted: dataset.sha256 {unknown} {table}",
+        f"c-golden: dataset.sha256 {golden.sha256} {table}",
+        f"d-elsewhere: dataset datasets/security/other.yaml is {first.version} by its sha256, "
+        f"whose row names {first.file}",
+    ]
+
+
+def test_the_packs_latest_version_of_attacks_yaml_is_the_committed_file():
+    """S7a-J2, the criteria judge's finding: the latest row of the security pack's Versions table
+    for attacks.yaml holds the committed file's sha256, as `check-dataset` holds a golden file to
+    its latest row of the datasheet, so a change to the pack does not land without its row. The
+    latest row is the highest version, wherever it stands in the table, as check-dataset's
+    `latest_row` takes it (S7a-J8), with its version numbering (`VersionRow.number`)."""
+    rows = [
+        row
+        for row in maintenance(PACK.read_text(encoding="utf-8"), "Versions")
+        if row.file == "attacks.yaml"
+    ]
+    assert rows, "the Versions table has no row for attacks.yaml"
+    latest = max(rows, key=lambda row: VersionRow(row.version, row.file, row.sha256).number)
+    committed = sha256((ROOT / "datasets" / "security" / "attacks.yaml").read_bytes()).hexdigest()
+    assert latest.sha256 == committed, (
+        f"attacks.yaml is {committed}, but the Versions table's latest row for it holds "
+        f"{latest.sha256} ({latest.version}): add a row for the new version"
+    )
 
 
 def test_a_published_run_whose_file_is_not_its_versions_is_named(tmp_path):

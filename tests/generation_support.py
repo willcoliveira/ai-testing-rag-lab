@@ -70,7 +70,9 @@ def small_pipeline(
     chat: ChatModel | None = None, guards: Sequence[Guardrail] | None = None, k: int = 3
 ) -> tuple[Pipeline, SpyRetriever]:
     spy = SpyRetriever(dense(PACK))
-    pipeline = Pipeline(spy, chat or FakeChat(), default_guards() if guards is None else guards, k)
+    pipeline = Pipeline(
+        spy, chat or FakeChat(), default_guards(ROOT, PACK) if guards is None else guards, k
+    )
     return pipeline, spy
 
 
@@ -428,7 +430,7 @@ def behaviour_run(
             timeout_s=5,
             client=stub_client(stub_ollama(handler)),
         )
-        pipeline = Pipeline(retriever, model, default_guards(), 2)
+        pipeline = Pipeline(retriever, model, default_guards(ROOT, PACK), 2)
         built = Assembled(pipeline, inventory, description, chat_description, provenance)
     else:
         chat = FakeChat(script)
@@ -439,7 +441,7 @@ def behaviour_run(
             "revision": hashing.revision,
             "dimension": hashing.dimension,
         }
-        pipeline = Pipeline(retriever, chat, default_guards(), 2)
+        pipeline = Pipeline(retriever, chat, default_guards(ROOT, PACK), 2)
         built = Assembled(pipeline, inventory, description, chat.describe(), "fake")
     manifest, rows = generation.run(config, root, built, gate=gate, git=GIT, clock=lambda: when)
     return root, record.write(root / "runs" / "tmp", manifest, rows)

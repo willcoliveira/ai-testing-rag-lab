@@ -5,6 +5,25 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- pr-fast's `check` job gets 20 minutes instead of 15 (the maintainer's decision of 2026-10-25,
+  in S7a's pull request): S7a's tests add about 2 minutes on CI, which leaves the job about 13 min
+  20 s of 15, and S6's come next. The `perf` and `conventions` jobs keep their limits.
+- S7a, attack and guardrails (plan `docs/plans/2026-10-23-s7-attack-guardrails.md`, ledger beside
+  it; S7b, the promptfoo red team and Guardrails AI, follows S6): the rule layer behind the
+  `Guardrail` port (an input injection detector, a register filter that leaves pages outside the
+  register out of the prompt, an instruction scan before indexing, link, secrets and
+  personal-details and prompt-leak guards, the citation validator extended to the register), each
+  with a fixed reason key; `docs/THREAT-MODEL.md` (OWASP LLM Top 10 2026); the security pack
+  `datasets/security/` (deliberate test material, planted values by reference); the deterministic
+  attack suite in pr-fast, each attack landing without its defences and stopped by each alone; the
+  guard set in the staleness rule, kept current by a zero-event replay (`make replay`); per-layer
+  error rates and latency (`make guard-suites`, docs/THRESHOLDS.md); the attack suite's live runs,
+  `make attack-local` (suite `attack` in run record v1, defences off and on; publish refuses a
+  defences-off run), built and tested on the fake model and run on the local model on
+  2026-10-25: the first defences-on run failed on answers that repeated the other tenant's name
+  their own questions gave them, the maintainer allowed that echo and nothing else, and the re-run
+  held every safety check in every case and trial and is published, its pack version named in a
+  new Versions table of the security pack.
 - Three Pillow 12.3.0 advisories published on 2026-10-21 join `make audit`'s skips ahead of
   pip-audit's database, which does not list them yet, so `main` stays green when they reach it:
   image data decoded as P;2L or P;4L, `Image.quantize()` with an empty palette, and the TIFF

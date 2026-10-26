@@ -53,6 +53,9 @@ class Feature:
     silence: Silence | None
     must_not_contain: tuple[str, ...]
     reference_answer: str | None = None  # S5: what the judge is shown for a contact feature
+    # S7: the decision label of an attack run in which the feature's page reaches the model (F-49:
+    # refuse-and-help); None when the clean label holds in attack runs too
+    expected_in_attack_runs: str | None = None
 
 
 def _strings(value: object) -> tuple[str, ...]:
@@ -89,6 +92,7 @@ def features(root: Path) -> dict[str, Feature]:
             silence = Silence(str(proof.get("scope")), _strings(proof.get("phrases")))
         conflict = entry.get("conflict")
         reference = entry.get("reference_answer")
+        attack_label = entry.get("expected_in_attack_runs")
         feature = Feature(
             id=str(entry.get("id")),
             kind=str(entry.get("kind")),
@@ -99,6 +103,7 @@ def features(root: Path) -> dict[str, Feature]:
             silence=silence,
             must_not_contain=_strings(entry.get("answer_must_not_contain")),
             reference_answer=reference if isinstance(reference, str) else None,
+            expected_in_attack_runs=None if attack_label is None else str(attack_label),
         )
         found[feature.id] = feature
     return found
@@ -122,23 +127,33 @@ def must_not_contain(root: Path) -> dict[str, list[str]]:
     return found
 
 
-def canaries(root: Path) -> dict[str, list[str]]:
-    """Each request tenant's canaries, in the answer key's order."""
+def canary_parts(root: Path) -> dict[str, dict[str, list[str]]]:
+    """Each request tenant's canaries by part (PARTS: its name, document ids, titles, contacts and
+    phrases), in the answer key's order. S7's attack runs tell the name apart (the maintainer's
+    decision of 2026-10-25, raglab.evals.attack_record)."""
     data: object = yaml.safe_load((root / ANSWER_KEY).read_text(encoding="utf-8"))
     table = cast(dict[str, object], data).get("canaries") if isinstance(data, dict) else None
     if not isinstance(table, dict):
         raise AnswerKeyError(f"{ANSWER_KEY}: no canaries table")
-    found: dict[str, list[str]] = {}
+    found: dict[str, dict[str, list[str]]] = {}
     for tenant in sorted(REQUEST_TENANTS):
         entry = cast(dict[str, object], table).get(tenant)
         if not isinstance(entry, dict):
             raise AnswerKeyError(f"{ANSWER_KEY}: no canaries for {tenant}")
-        strings: list[str] = []
+        parts: dict[str, list[str]] = {}
         for part in PARTS:
             value = cast(dict[str, object], entry).get(part)
             items = [value] if isinstance(value, str) else value
             if not isinstance(items, list) or not items:
                 raise AnswerKeyError(f"{ANSWER_KEY}: canaries.{tenant}.{part} is empty")
-            strings += [str(item) for item in cast(list[object], items)]
-        found[tenant] = strings
+            parts[part] = [str(item) for item in cast(list[object], items)]
+        found[tenant] = parts
     return found
+
+
+def canaries(root: Path) -> dict[str, list[str]]:
+    """Each request tenant's canaries, in the answer key's order: every part, one list."""
+    return {
+        tenant: [s for part in PARTS for s in parts[part]]
+        for tenant, parts in canary_parts(root).items()
+    }

@@ -2,6 +2,37 @@
   "schema_version": "published-index.v1",
   "runs": [
     {
+      "run_id": "20261025T205853Z-attack-local-defences-on-dev-762b163",
+      "path": "20261025T205853Z-attack-local-defences-on-dev-762b163/",
+      "created_at": "2026-10-25T20:58:53Z",
+      "suite": "attack",
+      "split": "dev",
+      "config": "attack-local",
+      "provenance": "local",
+      "git_sha": "762b16338ae7ed48e6c4b50fbcc1d2aaba602abc",
+      "embedder": "BAAI/bge-small-en-v1.5@aa8f8b0",
+      "retriever": "dense",
+      "k": 5,
+      "chunk_size": 1200,
+      "n": 39,
+      "metrics": {
+        "safe": {
+          "value": 1.0,
+          "ci_low": 0.771905,
+          "ci_high": 1.0,
+          "n": 13
+        },
+        "safe^3": {
+          "value": 1.0,
+          "ci_low": 0.771905,
+          "ci_high": 1.0,
+          "n": 13
+        }
+      },
+      "generator": "nemotron-3.5-lightning:30b-a3b-mlx@d1e17d7dabac",
+      "prompt": "answer-v1"
+    },
+    {
       "run_id": "20261024T114208Z-generation-local-ollama-dev-ade9397",
       "path": "20261024T114208Z-generation-local-ollama-dev-ade9397/",
       "created_at": "2026-10-24T11:42:08Z",

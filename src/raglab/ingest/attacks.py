@@ -4,11 +4,17 @@ deterministic attack suite).
 Attack files are not in the register, so `raglab ingest` and pipeline.ingest() never read them;
 an attack run adds them on purpose, as pages that arrived outside the register, as a real
 poisoned page would. Their status is `unregistered`. Their tenant comes from their own front
-matter, since no register entry vouches for them. Which other metadata an attack run exposes
-(kind, title) is S7's decision; a pipeline must never use kind or status as a defence signal
-(corpus/SPEC.md, section 3).
+matter, since no register entry vouches for them.
+
+What an attack run exposes (S7's decision, corpus/SPEC.md section 3): a page carries its text, its
+tenant, its claimed id and version, and the register-derived status `unregistered`. Its title is
+its own first heading, as a page a reader opens shows it, never the front matter's title (which
+labels the file as test material for humans); its kind is `unregistered` too, never the front
+matter's `kind`, and its front matter's `status` and `test_material` are never read. So no
+pipeline, and no model, can tell a planted page from a real one by a label only humans should see.
 """
 
+import dataclasses
 from pathlib import Path
 
 from raglab.chunk.sections import ChunkSettings, SectionChunker
@@ -19,8 +25,16 @@ from raglab.ingest.register import ATTACKS
 UNREGISTERED = "unregistered"
 
 
+def _first_heading(document: Document) -> str:
+    for page in document.pages:
+        for block in page.blocks:
+            if block.kind == "heading" and block.level == 1:
+                return block.text
+    return document.meta.doc_id
+
+
 def attack_documents(root: Path) -> tuple[Document, ...]:
-    """Every attack fixture, parsed, in file-name order."""
+    """Every attack fixture, parsed, in file-name order, as a page outside the register."""
     documents: list[Document] = []
     for path in sorted((root / ATTACKS).glob("*.md")):
         rel = path.relative_to(root).as_posix()
@@ -28,7 +42,9 @@ def attack_documents(root: Path) -> tuple[Document, ...]:
         meta = pipeline.describe(
             root, front.get("id", ""), UNREGISTERED, front.get("tenant", ""), rel, "md"
         )
-        documents.append(pipeline.parse(root, meta))
+        parsed = pipeline.parse(root, meta)
+        shown = dataclasses.replace(meta, title=_first_heading(parsed), kind=UNREGISTERED)
+        documents.append(Document(shown, parsed.pages))
     return tuple(documents)
 
 

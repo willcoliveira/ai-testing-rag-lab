@@ -98,16 +98,18 @@ class Row:
     sha256: str
 
 
-def maintenance(text: str) -> list[Row]:
-    """The version rows of the datasheet's Maintenance table: the first table of the section,
-    which has a File column, a row being one whose first cell is a version and whose last cell
-    is a backticked sha256."""
-    section = text.split("\n## Maintenance\n", 1)[1].split("\n## ", 1)[0]
+def maintenance(text: str, heading: str = "Maintenance") -> list[Row]:
+    """The version rows of the datasheet's Maintenance table, or (S7) of a table of the same shape
+    under another heading, such as the security pack's Versions table: the first table of the
+    section, which has a File column, a row being one whose first cell is a version and whose last
+    cell is a backticked sha256."""
+    section = text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
     table = re.search(r"^\|.*?(?=\n[^|]|\Z)", section.strip("\n"), flags=re.M | re.S)
-    assert table, "the Maintenance section has a table"
+    assert table, f"the {heading} section has a table"
     header, *lines = table.group(0).splitlines()
     names = [c.strip().lower() for c in header.strip().strip("|").split("|")]
-    assert "file" in names, "the Maintenance table has a File column (datasheet v2)"
+    note = " (datasheet v2)" if heading == "Maintenance" else ""
+    assert "file" in names, f"the {heading} table has a File column{note}"
     file_at = names.index("file")
     rows: list[Row] = []
     for line in lines:

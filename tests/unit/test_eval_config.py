@@ -28,6 +28,11 @@ MOVING = (
 # configs added after F name golden set v2 (S9's config/perf.toml; the maintainer's go, verbatim:
 # "Point it at v2 (Recommended)")
 AFTER_F = ("perf",)
+# S7's attack configs name the security pack's attack cases, never a golden file (S7's D2: "No
+# corpus change; a separate security pack (Recommended)"; an integration change of S7's merge with
+# main, by the orchestrator)
+ATTACK = ("attack-fake", "attack-local")
+ATTACK_CASES = "datasets/security/attacks.yaml"
 
 
 def dataset_of(name: str) -> str:
@@ -58,15 +63,18 @@ def test_the_configs_name_one_golden_file_and_the_position_test_keeps_v1_1():
     """S4b: the seven configs that run golden set v2 from the freeze F name one golden file at
     any time (golden.v1.jsonl until F, golden.v2.jsonl from it, all in the one commit); a config
     added after F names golden.v2.jsonl (S9's perf config); the position test's names
-    golden.v1.jsonl; and no other config names a dataset."""
+    golden.v1.jsonl; S7's two attack configs name the security pack's attack cases
+    (datasets/security/attacks.yaml, S7's D2); and no other config names a dataset."""
     with_dataset = {
         p.stem
         for p in (ROOT / "config").glob("*.toml")
         if "dataset" in tomllib.loads(p.read_text(encoding="utf-8"))
     }
-    assert with_dataset == {*MOVING, *AFTER_F, "position-local"}
+    assert with_dataset == {*MOVING, *AFTER_F, *ATTACK, "position-local"}
     for name in AFTER_F:
         assert dataset_of(name) == "datasets/golden.v2.jsonl", name
+    for name in ATTACK:
+        assert dataset_of(name) == ATTACK_CASES, name
     [path] = {dataset_of(name) for name in MOVING}
     assert re.fullmatch(r"datasets/golden\.v(1|2)\.jsonl", path), path
     assert (ROOT / path).is_file()
@@ -117,8 +125,8 @@ def test_the_three_committed_configs():
         (lambda t: t.replace('kind = "dense"', 'kind = "hybrid"'), "needs candidates and rrf_k"),
         (lambda t: t.replace("chunk_size = 1200", "chunk_size = 0"), "chunk size"),
         (lambda t: t.replace('name = "x"', 'name = "X Y"'), "lower case"),
-        # S5 made "judged" a suite; "attack" is S7's, not one yet
-        (lambda t: t.replace('suite = "retrieval"', 'suite = "attack"'), "only retrieval"),
+        # S5 made "judged" a suite and S7 "attack"; any other name is refused
+        (lambda t: t.replace('suite = "retrieval"', 'suite = "red-team"'), "only retrieval"),
         (lambda t: t + "\n[extra]\na = 1\n", "unknown tables or keys"),
         (lambda t: t.replace("level = 0.9", "level = 1.5"), "bootstrap level"),
         (lambda t: "not = [toml", "not TOML"),

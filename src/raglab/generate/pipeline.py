@@ -1,17 +1,22 @@
 """From a question and a tenant to a structured answer:
 
-input guards -> retrieve top k -> retrieved guards -> prompt -> model -> parse -> output guards.
+input guards -> retrieve top k -> retrieved guards -> drop steps -> prompt -> model -> parse ->
+output guards.
 
-Each step can end the request, and none of them guesses an answer:
+Each step but the drop steps can end the request, and none of them guesses an answer:
 - an input guard's event refuses it before retrieval (status refused; the retriever is never
   called);
 - a retrieved guard's event withholds it before the model is called (status blocked);
+- a drop step (S7, the register filter) leaves chunks out of the prompt, with an event per
+  document, and the request goes on from the chunks that remain: the model, the output guards,
+  the answer's citations and the outcome's retrieved chunks are those kept;
 - a model that gives no reply (ChatUnavailable) gives status unavailable;
 - a reply outside the answer schema gives status invalid_output (counted, never repaired);
 - an output guard's event withholds the parsed answer (status blocked; the citation validator).
 
-The Outcome keeps what a run record and the API need: the answer, the retrieved chunks, the guard
-events, the error text of an unavailable or invalid reply, the tokens and the latency.
+The Outcome keeps what a run record and the API need: the answer, the retrieved chunks (those the
+prompt was built from), the event that ended the request, the drop events, the error text of an
+unavailable or invalid reply, the tokens and the latency.
 
 S9: the pipeline writes spans to its tracer (the no-op tracer unless `raglab serve` gives it one;
 docs/OBSERVABILITY.md): raglab's pipeline span, and inside it the retrieval span and the chat span
@@ -21,6 +26,12 @@ keeps follows the guards: a guard's decision as its name, stage and the API's fi
 the retrieved and cited ids only once the retrieved-chunk guards have passed; and, with the
 content opt-in, the question and the answer of an ok answer only. Nothing of a refused or withheld
 request, and no exception's message, is ever set on a span.
+
+S7 (with S9's attributes as they are): the decision the span keeps is the one that stopped the
+request; when nothing stopped it, a drop step's (the register filter: its name, "retrieved" and
+"dropped"), and the status, ok, tells the two apart. The retrieved ids are the chunks kept, so a
+chunk a drop step left out never reaches a span. A request dropped from and then withheld shows
+only the stop in its trace; the drop stays in the run record and the server log.
 """
 
 import time
@@ -28,7 +39,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from raglab.core.ports import ChatModel, Guardrail, NoopTracer, Retriever, Span, Tracer
-from raglab.core.reasons import reason_key
+from raglab.core.reasons import drop_key, reason_key
 from raglab.core.types import (
     Answer,
     ChatMessage,
@@ -55,6 +66,7 @@ class Outcome:
     completion_tokens: int | None = None
     latency_ms: float = 0.0
     timed_out: bool = False
+    dropped: tuple[GuardEvent, ...] = ()  # S7: the drop steps' events; the request went on
 
     def refused_by(self) -> str | None:
         """The guard that refused the request at input, if one did."""
@@ -99,10 +111,13 @@ class Pipeline:
         span.set(names.PROMPT_VERSION, PROMPT_VERSION)
         span.set(names.STATUS, status.value)
         span.set(names.LABEL, outcome.answer.label)
-        for event in outcome.events:
+        decisions = [(e, reason_key(e)) for e in outcome.events] or [
+            (e, drop_key(e)) for e in outcome.dropped
+        ]
+        for event, key in decisions:  # the stop, or else the drops (status ok tells them apart)
             span.set(names.GUARD, event.guard)
             span.set(names.GUARD_STAGE, event.stage)
-            span.set(names.GUARD_REASON, reason_key(event))
+            span.set(names.GUARD_REASON, key)
         if status is Status.REFUSED or tenant is None:
             return
         span.set(names.TENANT, tenant)
@@ -136,6 +151,8 @@ class Pipeline:
     ) -> Outcome:
         started = time.perf_counter()
 
+        dropped: list[GuardEvent] = []
+
         def done(
             answer: Answer,
             retrieved: tuple[ScoredChunk, ...] = (),
@@ -154,6 +171,7 @@ class Pipeline:
                 completion_tokens,
                 round((time.perf_counter() - started) * 1000, 3),
                 timed_out,
+                tuple(dropped),
             )
 
         for guard in self.guards:
@@ -168,6 +186,9 @@ class Pipeline:
         for guard in self.guards:
             if event := guard.check_retrieved(tenant, retrieved):
                 return done(Answer.withheld(Status.BLOCKED), retrieved, event)
+        for guard in self.guards:  # the kept chunks are handed on, explicitly, to every step after
+            retrieved, events = guard.drop_retrieved(tenant, retrieved)
+            dropped.extend(events)
         system, user = prompt.build(question, tenant, retrieved)
         request = ChatRequest(
             (ChatMessage("system", system), ChatMessage("user", user)),
@@ -204,8 +225,7 @@ class Pipeline:
                 return done(
                     Answer.withheld(Status.INVALID_OUTPUT), retrieved, None, str(error), *tokens
                 )
-        retrieved_ids = frozenset(r.chunk.chunk_id for r in retrieved)
         for guard in self.guards:
-            if event := guard.check_output(answer, retrieved_ids):
+            if event := guard.check_output(answer, retrieved):
                 return done(Answer.withheld(Status.BLOCKED), retrieved, event, None, *tokens)
         return done(answer, retrieved, None, None, *tokens)

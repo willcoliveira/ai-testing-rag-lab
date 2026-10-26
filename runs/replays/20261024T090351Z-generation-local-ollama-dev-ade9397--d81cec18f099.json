@@ -1,0 +1,84 @@
+{
+  "schema_version": "guard-replay.v1",
+  "created_at": "2026-10-25T18:11:37Z",
+  "git_sha": "a8d94d965e82b82d1cc03444675305aded45cea4",
+  "git_dirty": false,
+  "provenance": "local",
+  "baseline": "20261024T090351Z-generation-local-ollama-dev-ade9397",
+  "key": "generation/generation-local-ollama/dev",
+  "recorded_guards": [
+    "tenant",
+    "input-limits",
+    "citations"
+  ],
+  "runs": [
+    {
+      "run_id": "20261024T090351Z-generation-local-ollama-dev-ade9397",
+      "manifest_sha256": "d7dd1ea383a471f4396aba3329f6fcd29b5abf82b34ad1a383f6f71fd0ffef9e"
+    },
+    {
+      "run_id": "20261024T091315Z-generation-local-ollama-dev-ade9397",
+      "manifest_sha256": "7de8cb71fdc656534a306019f174d2c634f1da649776b62e5ae363b58fbca6c5"
+    },
+    {
+      "run_id": "20261024T092237Z-generation-local-ollama-dev-ade9397",
+      "manifest_sha256": "a81aba53598ce6d12fe4a6c54e49d65560471445eed4008b86c79bf53d9aa26b"
+    },
+    {
+      "run_id": "20261024T093208Z-generation-local-ollama-dev-ade9397",
+      "manifest_sha256": "c1f96a5bb9a56003a72940b0a381cf6a2d01d79c3530b039ec22c8119ec2b54d"
+    },
+    {
+      "run_id": "20261024T114208Z-generation-local-ollama-dev-ade9397",
+      "manifest_sha256": "3ceb14a686198ed08d8c5e31bb5dcba94d863fc0f001d810018986480133dc0e"
+    }
+  ],
+  "guard_set": {
+    "layers": [
+      {
+        "name": "instruction-scan",
+        "sha256": "d608a1e08d0a536f4d439b95a396a062392da6c34edf4ccb2522bee048181c33"
+      },
+      {
+        "name": "tenant",
+        "sha256": "8c8c17964a5089827ba27ebdb4880ceac9970643e3da92003c015e8c93c3d7fb"
+      },
+      {
+        "name": "input-limits",
+        "sha256": "937622297ede5e0553e6cfc6e4117fbfee965e7f5281ac7ae3590b18dc66709e"
+      },
+      {
+        "name": "injection",
+        "sha256": "e7de0b779fcd0e3e599a014a8eaa0a20db17a8447bfcaaf964f4f1fbcfdc60ee"
+      },
+      {
+        "name": "register",
+        "sha256": "6c3e49427f08d20e11dcaab7e2053a9169e5ce7b6e346aa6c7864ebeaa4ac95f"
+      },
+      {
+        "name": "citations",
+        "sha256": "3e468b92bff6b051231a5423d79075da87fd2727bb4a92e654cd699bc2707f4d"
+      },
+      {
+        "name": "links",
+        "sha256": "815bcd1d7a4de246479cb6f4e29c17314c985ded5cb1d86a85ec9bf5c3c0ff85"
+      },
+      {
+        "name": "secrets-pii",
+        "sha256": "d24f5c5ea5df56043941b72919237c9dddcf2eb6b6fe09eca0cd10f21773315b"
+      },
+      {
+        "name": "prompt-leak",
+        "sha256": "d106567e87375384ef4d523622ae052d36d4e5b30557bf5eb95bb03410cd87e4"
+      }
+    ],
+    "sha256": "d81cec18f099b3b22cf7378c8cebf6b54b2138c7444df2e185f943a602aacd0b"
+  },
+  "checked": {
+    "answers": 1494,
+    "questions": 1515,
+    "retrieved chunks": 7575,
+    "retrieved lists": 1515
+  },
+  "events": []
+}

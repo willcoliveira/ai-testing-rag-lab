@@ -34,6 +34,7 @@ from raglab.evals.oracle import abstention_oracle, policy_values
 from raglab.generate.assemble import Assembled
 from raglab.generate.pipeline import Outcome
 from raglab.generate.prompts import CURRENT as prompt
+from raglab.guard import guard_set
 from raglab.ingest import answer_key
 
 type Json = dict[str, object]
@@ -87,8 +88,9 @@ def answer_fields(outcome: Outcome) -> Json:
         "conflict": None
         if conflict is None
         else {"chunk_ids": list(conflict.chunk_ids), "note": conflict.note},
-        "guard_events": [
-            {"guard": e.guard, "stage": e.stage, "reason": e.reason} for e in outcome.events
+        "guard_events": [  # S7: a drop step's events first (they come first), then the stop
+            {"guard": e.guard, "stage": e.stage, "reason": e.reason}
+            for e in (*outcome.dropped, *outcome.events)
         ],
         "error": outcome.error,
         "prompt_tokens": outcome.prompt_tokens,
@@ -269,6 +271,7 @@ def run(
         "generator": {**generator_json, "sha256": canonical_sha256(generator_json)},
         "prompt": {"version": prompt.VERSION, "sha256": prompt.fingerprint()},
         "guards": [guard.name for guard in assembled.pipeline.guards],
+        "guard_set": guard_set(assembled.pipeline.guards),
         "intervals": {"method": "wilson", "level": settings.level, "unit": "case"},
         "dataset": {
             "path": config.dataset,

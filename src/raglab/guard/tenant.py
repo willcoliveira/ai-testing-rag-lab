@@ -13,7 +13,13 @@ the identity provider's claims and never from the request body.
 
 from collections.abc import Sequence
 
-from raglab.core.types import GuardEvent, ScoredChunk, TenantError, visible_tenants
+from raglab.core.types import (
+    REQUEST_TENANTS,
+    GuardEvent,
+    ScoredChunk,
+    TenantError,
+    visible_tenants,
+)
 from raglab.guard.noop import NoopGuardrail
 
 
@@ -21,6 +27,9 @@ class TenantGuard(NoopGuardrail):
     @property
     def name(self) -> str:
         return "tenant"
+
+    def rules(self) -> object:
+        return {"request_tenants": sorted(REQUEST_TENANTS), "visible": "own and shared"}
 
     def check_input(
         self, question: str, tenant: str | None, caller_tenants: frozenset[str] | None

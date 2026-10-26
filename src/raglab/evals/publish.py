@@ -8,9 +8,11 @@ test or all) under a gate other than nightly or release (S4), when one of its fi
 the answer key says no answer may repeat (the planted secret, personal details and attack
 canaries: `answer_must_not_contain`, R-19; since S4's D3 the plain attack phrases only in attack
 runs), when it is a judged run (S5) whose source run is not published, or that was made under
-another docs/CRITERIA.md or canary set than the tree's (stale), or when the privacy check finds
-anything in its files. The privacy check reads the files at
-their published path (runs/published/<run_id>/), where privacy/allowlist-published.txt applies
+another docs/CRITERIA.md or canary set than the tree's (stale), when it is an attack run (S7) made
+with the defences off (a measured result, reported by counts only) or whose egress guard saw an
+attempt off loopback, or when the privacy check finds anything in its files. The privacy check
+reads the files at their published path (runs/published/<run_id>/), where
+privacy/allowlist-published.txt applies
 (the planted exception ids and, since D3, the team contact addresses); a refused run's copy is
 removed again. An already published run is replaced only by identical files. `--baseline` makes
 the run the baseline of its suite, config and split, which the no-regression gate compares
@@ -234,6 +236,15 @@ def publish(
         raise PublishError(f"{manifest['run_id']}: {held_out}")
     if manifest["suite"] == judged_record.JUDGED and (found := judged_problems(manifest, root)):
         raise PublishError(f"{manifest['run_id']}: " + "; ".join(found))
+    if manifest["suite"] == "attack":  # S7: the defences-on run only, with nothing sent out
+        block = as_json(manifest["attack"])
+        if block["configuration"] != "defences-on":
+            raise PublishError(
+                f"{manifest['run_id']} was made with the defences off: a measured result, "
+                "reported by counts in the ledger and never published"
+            )
+        if block["egress"] != "none":
+            raise PublishError(f"{manifest['run_id']}: its egress guard saw {block['egress']}")
     if found := planted_strings(run_dir, root):
         raise PublishError("the run repeats strings no answer may hold:\n" + "\n".join(found))
     published = root / PUBLISHED

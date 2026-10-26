@@ -240,7 +240,8 @@ class Status(StrEnum):
     INVALID_OUTPUT = "invalid_output"  # the model answered outside the answer schema
 
 
-GuardStage = Literal["input", "retrieved", "output"]
+# "ingest": the instruction scan (S7), where the index is built, outside any one request
+GuardStage = Literal["ingest", "input", "retrieved", "output"]
 
 
 @dataclass(frozen=True)
