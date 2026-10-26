@@ -109,6 +109,9 @@ model can tell a planted page from a real one by a label only humans should see
 - **Non-English attacks, paraphrase and encodings.** The rule layer matches English shapes:
   paraphrase, other languages and encodings (Base64, homoglyphs) pass it. S7b probes encodings
   with promptfoo's local strategies and compares a classifier (Guardrails AI's Detect Jailbreak).
+  The run record's checks match plain substrings too, so a fullwidth or homoglyph form of a
+  canary or a planted string escapes them, under the old rule and the new alike (the criteria
+  judge's S7a-J6; no Unicode normalisation, such as NFKC, before matching).
 - **Llama Prompt Guard 2.** Its model page needs an account and a licence form (D4: "No sign-up;
   Prompt Guard not covered (Recommended)").
 - **garak and the Petri behavioural audit.** Optional in the main plan; not in S7.
