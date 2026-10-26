@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from raglab.evals import gate, publish, record, retrieval
+from raglab.evals.dataset_check import VersionRow
 from tests.conftest import ROOT
 from tests.golden_support import maintenance
 from tests.retrieval_support import fake_run, lab_root, local_run, read_run, reseal
@@ -326,17 +327,20 @@ def test_a_published_attack_run_is_held_to_the_security_packs_versions(tmp_path)
 def test_the_packs_latest_version_of_attacks_yaml_is_the_committed_file():
     """S7a-J2, the criteria judge's finding: the latest row of the security pack's Versions table
     for attacks.yaml holds the committed file's sha256, as `check-dataset` holds a golden file to
-    its latest row of the datasheet, so a change to the pack does not land without its row."""
+    its latest row of the datasheet, so a change to the pack does not land without its row. The
+    latest row is the highest version, wherever it stands in the table, as check-dataset's
+    `latest_row` takes it (S7a-J8), with its version numbering (`VersionRow.number`)."""
     rows = [
         row
         for row in maintenance(PACK.read_text(encoding="utf-8"), "Versions")
         if row.file == "attacks.yaml"
     ]
     assert rows, "the Versions table has no row for attacks.yaml"
+    latest = max(rows, key=lambda row: VersionRow(row.version, row.file, row.sha256).number)
     committed = sha256((ROOT / "datasets" / "security" / "attacks.yaml").read_bytes()).hexdigest()
-    assert rows[-1].sha256 == committed, (
+    assert latest.sha256 == committed, (
         f"attacks.yaml is {committed}, but the Versions table's latest row for it holds "
-        f"{rows[-1].sha256} ({rows[-1].version}): add a row for the new version"
+        f"{latest.sha256} ({latest.version}): add a row for the new version"
     )
 
 
