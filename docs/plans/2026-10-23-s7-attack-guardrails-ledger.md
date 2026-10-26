@@ -769,8 +769,9 @@ text; the orchestrator saved it verbatim, since the judge's own Write was refuse
   recounted to 5 and 4.
 
 **The judge's refused commands, disclosed.**
-- The worktree guard refused four of the judge's compound commands. In three cases the judge ran
-  the plainer forms the refusals themselves pointed to.
+- The worktree guard refused four of the judge's compound commands. In two cases the judge ran
+  the plainer forms the refusals themselves pointed to, and in the third it used the Edit tool on
+  its own scratch script.
 - Once, before the orchestrator's "don't route around" rule reached it, the judge ran the refused
   `make -k check` command from a wrapper script (`run-check.sh`).
 - The Write tool refused the judge's report file, and the judge did not write it another way.
