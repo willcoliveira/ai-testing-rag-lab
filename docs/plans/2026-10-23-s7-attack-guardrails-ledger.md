@@ -800,6 +800,48 @@ guarantee the maintainer chose for S4-J10 ("Close it in this PR": the test, not 
 judge's smallest fix, if S8 wants it: refuse an unlisted `dataset.sha256` in `publish`
 (`src/raglab/evals/publish.py`, beside its attack-run rules, lines 239 to 249 at `dad7ee6`).
 
+### Criteria judge, re-check of fix round 1 (2026-10-26, at `4d33125`)
+
+The judge's report, saved verbatim by the orchestrator (a copy, with the judge's break log and
+driver, is in `runs/tmp/s7-evidence/judge-round1/`).
+
+- **The diff:** `dad7ee6..4d33125` holds exactly the round's seven commits, 8 files, nothing else.
+- **`make -k check API_SMOKE_PORT=8769` at `4d33125`:** exit 0, `real 283.64`, "1884 passed, 2
+  deselected, 1 warning in 241.81s", audit "48 ignored" twice, privacy 0 hits across 466 files,
+  architecture 0 violations, the gate's recall@5 0.682 passes, api-smoke passed.
+- **The two round-0 breaks that stayed green now go red:** A6f on the J2 test, A1c on the J7 rule.
+- **Verdicts:** met 11 (AG1 to AG6, AG8 to AG12); met locally and needing CI 2 (AG7, AG13); not
+  met 0.
+- **The J statuses:** J1 deferred to S8, its note accurate; J2, J3, J4, J5, J6 and J7 closed.
+- **New findings:** S7a-J8 (low): the J2 test took the last `attacks.yaml` row as the latest,
+  where `check-dataset` takes the highest version, so a correct new row written above v1 (the
+  judge's R5) failed it; S7a-J9 (info): the no-layer rule compared the Layer cell to the em dash
+  exactly, so an en dash look-alike (R7) or an empty cell (R8), each with a reworded reason, left
+  the rows test green; S7a-J10 (info): two wordings, the ledger's "in three cases" (one of the
+  three was an Edit) and the plan's "kept in the S7 ledger and the stage's evidence" (the ledger
+  keeps the counts, the evidence the records).
+- **Breaks:** 11 run, every one restored, the tree clean at `4d33125`. R11 (S7 `done` in both
+  files, aligned) stays green: no test holds S7's class to the stage's state, and the judge marks
+  it informational, with no action.
+- No live session.
+- **Its refused command, disclosed:** the worktree guard refused one compound command (a progress
+  line, then `git status` and `git rev-parse`); the judge retried once as the plain
+  `git status --short` and wrote the progress line on its own. It did not try to write a report
+  file.
+
+### Fix round 2 (2026-10-26)
+
+Round 2 of at most two, the last without the maintainer's go. Each fix is its own commit; the
+breaks ran by a scratch driver on the committed files, each restored with the tree clean after
+(`runs/tmp/s7-evidence/round2-breaks-J8.txt` and `-J9.txt`; the driver is
+`live-scripts/round2_breaks.py`).
+
+| Finding | Fix | Commit | Breaks | Result |
+|---|---|---|---|---|
+| J8 (low) | the latest Versions row for `attacks.yaml` is the highest version wherever it stands, by `check-dataset`'s own version numbering (`VersionRow.number`; `latest_row` reads only the datasheet next to a golden file, so it does not fit as it is) | `7b0f635` | R5: the file changed and a correct v2 row inserted above v1, expected green; A6f: the file changed with no new row, expected red | R5 green (43 passed over the publish and pack tests); A6f red (1 failed: `test_the_packs_latest_version_of_attacks_yaml_is_the_committed_file`, 42 passed) |
+| J9 (info) | a Layer cell with no letter in it is no layer; the copy-based test covers the em dash, an en dash look-alike and an empty cell | `04bfb85` | R7: LLM03's Layer cell an en dash look-alike, its reason reworded; R8: the cell emptied, its reason reworded | both red on the rows test itself, `test_every_2026_entry_has_a_row_naming_tests_or_a_reason` (3 failed each, with the two copy-based tests that expect no other problem) |
+| J10 (info) | the ledger: in two cases the judge ran the plainer forms the refusals pointed to, and in the third it used the Edit tool on its own scratch script; the plan's note: the ledger keeps the first session's counts, the stage's evidence its records (`runs/tmp/s7-evidence/records-8f7c94d/`) | `a0cf119` | none: text that no test reads | — |
+
 ## Part S7b
 
 (After S6 and S7a merge.)
