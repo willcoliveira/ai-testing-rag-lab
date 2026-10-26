@@ -5,6 +5,11 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- The main plan records the progress to 2026-10-26 and the next steps: the stages merged with
+  their pull requests, S6 in progress, the order S6, S7b, S8 and v0.2.0, the follow-ups waiting
+  for S8, and the maintenance dates. It also adds the decisions of 2026-10-21 (S5's hosted half
+  deferred) and 2026-10-25 (`perf` required, the `check` job's 20 minutes), and moves "tracing
+  and a perf gate" to P2.
 - pr-fast's `check` job gets 20 minutes instead of 15 (the maintainer's decision of 2026-10-25,
   in S7a's pull request): S7a's tests add about 2 minutes on CI, which leaves the job about 13 min
   20 s of 15, and S6's come next. The `perf` and `conventions` jobs keep their limits.
