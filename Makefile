@@ -32,15 +32,18 @@ RANGE ?= --all
 # DeepEval tool's audit line skips the same: its own lock resolves the same pillow 12.3.0 through
 # raglab.
 # pypdf 6.19.0 (decision of 2026-10-21, verbatim: "Keep 6.19.0, skip its 4 advisories
-# (Recommended)"): advisories fixed in 6.20.0, 6.20.1, 6.21.0, 6.21.1 and 6.21.2, each an infinite
-# loop, a memory or runtime blow-up or image parsers reached from a PDF an attacker made; a fifth
-# was published after the decision, three more on 2026-10-22 and three on 2026-10-23 (fixed only in
-# 6.21.2), of the same kinds. pypdf 6.21.2 (2026-10-21) is not yet tried: it is inside
-# Dependabot's 7-day cooldown until 2026-10-28. raglab parses one PDF, the corpus PDF its own build
-# renders and commits. pypdf 6.20.0 to 6.21.1 also change plain text extraction: a table cell's wrapped "the
-# account" comes out as "theaccount", which fails the corpus build's checks that planted values
-# survive rendering (tests/unit/test_answer_key.py). Same review date; .github/dependabot.yml
-# ignores those versions until then.
+# (Recommended)"): advisories fixed in 6.20.0, 6.20.1, 6.21.0, 6.21.1, 6.21.2, 6.21.3 and 6.21.4,
+# each an infinite loop, a memory or runtime blow-up or image parsers reached from a PDF an
+# attacker made; a fifth was published after the decision, three more on 2026-10-22, three on
+# 2026-10-23 (fixed only in 6.21.2) and seven on 2026-10-30 (fixed only in 6.21.3 and 6.21.4, both
+# inside Dependabot's 7-day cooldown until 2026-11-03 and 2026-11-04), of the same kinds. raglab
+# parses one PDF, the corpus PDF its own build renders and commits. pypdf 6.20.0 to 6.21.2 also
+# change plain text extraction: a table cell's wrapped "the account" comes out as "theaccount",
+# which fails the corpus build's checks that planted values survive rendering
+# (tests/unit/test_answer_key.py); 6.21.2, tried on 2026-10-31 once its cooldown had passed, fails
+# them the same way, while the chunk inventory, which reads the PDF by position
+# (src/raglab/ingest/pdf.py), came out identical. Same review date; .github/dependabot.yml ignores
+# those versions until then.
 AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8g5g-8vmr-9782 \
 	GHSA-c6hw-5grf-ff96 GHSA-p4wg-p73j-c528 GHSA-pchr-8j38-3x4p GHSA-q45j-58j2-45rg \
 	GHSA-vx6w-vv9f-6gvg \
@@ -56,7 +59,9 @@ AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8
 	GHSA-39mj-jf6j-2qj3 GHSA-5hx5-vpf9-5wcv GHSA-7mh2-4gg2-979f GHSA-9mx8-4j7g-633p \
 	GHSA-qfv9-64jg-mh7p \
 	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57 \
-	GHSA-6c7f-9265-g8fw GHSA-gmh7-3g9r-mjh5 GHSA-jr96-gvgh-j3r4
+	GHSA-6c7f-9265-g8fw GHSA-gmh7-3g9r-mjh5 GHSA-jr96-gvgh-j3r4 \
+	GHSA-42gh-23hr-vphw GHSA-4vqv-7265-gm2w GHSA-62m5-6wh8-28x7 GHSA-x3rh-gjgm-fmqc \
+	GHSA-5849-834g-hvw5 GHSA-cggf-277g-3q54 GHSA-mfr5-77xh-9j7h
 
 .PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate eval-retrieval api-smoke perf-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 

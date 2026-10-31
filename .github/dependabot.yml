@@ -18,11 +18,11 @@ updates:
       python-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-    # pypdf 6.20.0 to 6.21.1 change plain text extraction and fail the corpus build's checks; their
+    # pypdf 6.20.0 to 6.21.2 change plain text extraction and fail the corpus build's checks; their
     # advisories are skipped in `make audit` until the review date (the Makefile, AUDIT_SKIP)
     ignore:
       - dependency-name: pypdf
-        versions: ["6.20.0", "6.20.1", "6.21.0", "6.21.1"]
+        versions: ["6.20.0", "6.20.1", "6.21.0", "6.21.1", "6.21.2"]
   # S5: the DeepEval tool project (tools/deepeval-check), with its own lock. A DeepEval bump comes as
   # a PR of its own, kept out of the group, so its checks are re-run before it merges
   # (make deepeval-test, then make deepeval-check in a judge session).
@@ -42,7 +42,7 @@ updates:
         update-types: ["minor", "patch"]
     ignore:
       - dependency-name: pypdf
-        versions: ["6.20.0", "6.20.1", "6.21.0", "6.21.1"]
+        versions: ["6.20.0", "6.20.1", "6.21.0", "6.21.1", "6.21.2"]
   - package-ecosystem: pip
     directory: /.github
     schedule:
