@@ -15,7 +15,7 @@ dependencies = [
     "opentelemetry-api==1.45.1",
     "opentelemetry-exporter-otlp-proto-http==1.45.1",
     "opentelemetry-sdk==1.45.1",
-    "pypdf==6.19.0",
+    "pypdf==6.21.2",
     "pytesseract==0.3.13",
     "pyyaml==6.0.3",
     "rank-bm25==0.2.2",
