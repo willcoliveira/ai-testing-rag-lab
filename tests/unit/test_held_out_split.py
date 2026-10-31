@@ -259,6 +259,58 @@ def reseal_with_alert(run_dir: Path, manifest: dict, cases: list) -> None:
     (run_dir / record.MANIFEST).write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
 
 
+def test_publish_recomputes_a_nightlys_alert_and_refuses_an_edited_or_missing_one(tmp_path):
+    """Choice 8 (the maintainer's answer of 2026-10-31, "Publish recomputes it"): an honest
+    nightly pair publishes (the first with its reference block, the second with its alert against
+    the first); a copy of the second with its alert edited and resealed is refused naming what
+    differs; with the block removed and resealed, refused; a record under another gate carrying
+    a block is refused."""
+    from tests.generation_support import Q_ABS, Q_ANS, Q_FC, behaviour_run, reply
+
+    root, first = behaviour_run(tmp_path, gate="nightly", local=True)
+    manifest, cases = read_run(first)
+    manifest["alert"] = drift.alert_for(root, manifest, cases)
+    reseal_with_alert(first, manifest, cases)
+    assert publish.publish(first, root, privacy=clean).is_dir()
+    later = datetime(2026, 10, 19, 13, 0, 0, tzinfo=UTC)
+    worse = {
+        Q_ANS: reply("abstain", "The documents do not say."),
+        Q_FC: reply("answer", "They expire every 60 days."),
+        Q_ABS: reply("answer", "Three attempts a day.", []),
+    }
+    _, second = behaviour_run(tmp_path, worse, root=root, gate="nightly", local=True, when=later)
+    manifest, cases = read_run(second)
+    assert "alert" not in manifest
+    with pytest.raises(publish.PublishError, match="without its alert block while the previous"):
+        publish.publish(second, root, privacy=clean)
+    honest = drift.alert_for(root, manifest, cases)
+    assert honest["against"] == first.name
+    manifest["alert"] = honest
+    reseal_with_alert(second, manifest, cases)
+    assert publish.alert_problems(manifest, cases, root) == []
+    edited = dict(honest, fired=not honest["fired"], flipped={"gained": [], "lost": ["B-TB"]})
+    manifest["alert"] = edited
+    reseal_with_alert(second, manifest, cases)
+    with pytest.raises(publish.PublishError) as refused:
+        publish.publish(second, root, privacy=clean)
+    message = str(refused.value)
+    assert message.startswith(
+        f"{second.name}: its alert block is not the one recomputed against {first.name}: "
+    )
+    assert "fired, flipped differ" in message
+    assert '"fired": ' in message
+    assert not (root / publish.PUBLISHED / second.name).exists()
+    manifest["alert"] = honest
+    reseal_with_alert(second, manifest, cases)
+    assert publish.publish(second, root, privacy=clean).is_dir()
+    # a dev run under another gate carrying a block is no nightly
+    manual, _ = read_run(first)
+    manual["gate"] = "manual"
+    assert publish.alert_problems(manual, cases, root) == [
+        "a manual record carries no alert block (nightly records do)"
+    ]
+
+
 def test_an_unpaired_previous_nightly_is_noted_and_never_fires(tmp_path):
     from tests.generation_support import behaviour_run
 
@@ -302,10 +354,17 @@ def test_the_cli_writes_the_alert_on_a_nightly_run_and_never_blocks(tmp_path, ca
     assert code == 0, captured.err
     assert len(calls) == 1
     [run_dir] = list(out.iterdir())
-    manifest, _ = read_run(run_dir)
+    manifest, cases = read_run(run_dir)
     assert manifest["alert"] == fired
     assert record.validate(run_dir, ROOT) == []
     assert "drift alert (nightly): FIRED against" in captured.out
+    # the judge's S8-J3: validate is single-record, publish recomputes the block and names it
+    monkeypatch.undo()
+    [problem] = publish.alert_problems(manifest, cases, ROOT)
+    assert problem.startswith(
+        "its alert block is not the one recomputed against no previous nightly (the reference): "
+        "against, diff, fired, flipped, metric, note differ"
+    )
     assert "cases lost: G-01, G-02" in captured.out
     assert "## Drift alert (nightly)" in (run_dir / record.REPORT).read_text(encoding="utf-8")
     # under any other gate no alert is read or written

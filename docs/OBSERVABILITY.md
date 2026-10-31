@@ -103,7 +103,10 @@ A nightly run (`raglab eval --gate nightly`, `make nightly-local`) writes an `al
 manifest and a line in its report: the previous published nightly of its config it was compared
 with, paired by case, behaviour pass^3's B minus A with its paired bootstrap interval, the flipped
 cases, and whether the alert fired (an interval entirely below zero). It never blocks; the terminal
-prints one `drift alert (nightly):` line. The judged alert (`raglab judge --gate nightly`) reads
+prints one `drift alert (nightly):` line. Published alerts are recomputed at publish time:
+`raglab publish` rebuilds the block against the previous published nightly of the config from the
+index and refuses a record whose block differs, or lacks one while a previous nightly is published
+(the maintainer's choice 8 of 2026-10-31); `record.validate` stays single-record. The judged alert (`raglab judge --gate nightly`) reads
 the same comparison on the criteria the calibration record trusts and names S6's recalibration
 trigger when it fires (`docs/THRESHOLDS.md`, "The judged gate and the drift alert"). The alert
 lives in the record, not in a trace: the traces of `raglab serve` are per request and know no

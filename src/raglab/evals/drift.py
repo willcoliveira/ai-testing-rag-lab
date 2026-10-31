@@ -7,7 +7,9 @@ config and split under gate nightly in runs/published/index.json) and writes an 
 its manifest and a line in its report: the run compared with, B minus A with its paired bootstrap
 interval, the flipped cases, and whether the alert fired, which it does when the interval lies
 entirely below zero. It never blocks: the command exits as it would without it. With no published
-nightly of the config yet, the first nightly is the reference and the block says so.
+nightly of the config yet, the first nightly is the reference and the block says so. `raglab
+publish` recomputes the block against the index and refuses a mismatch (raglab.evals.publish,
+the maintainer's choice 8), so a published alert is never a hand-written one.
 
 `raglab judge --gate nightly` writes the judged alert the same way, between consecutive published
 nightly judged records under one judge, on the criteria the calibration record marks trusted

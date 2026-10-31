@@ -35,8 +35,10 @@ value with the right chunk retrieved, whether the chunk's text or the model misl
 the order decides). The counts are a triage, not a diagnosis.
 
 The counts: `results.causes` holds, per cause, the case-trials and the cases (a case takes the
-earliest cause in the order above among its failed trials), plus the passed ones and those with no
-cause; the per-trial counts are the honest ones and the report shows both.
+**earliest cause in the rule order** above among its failed trials, whatever the trial order: the
+maintainer's answer of 2026-10-31 on choice 2, "Keep the rule order (Recommended)"; the plan's
+"the cause of the first of its failed trials in the order above" reads that way), plus the passed
+ones and those with no cause; the per-trial counts are the honest ones and the report shows both.
 """
 
 import hashlib

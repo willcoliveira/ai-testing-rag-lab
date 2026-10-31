@@ -21,7 +21,9 @@ golden set v2 is the reference: no published nightly on v2 exists at S8.
    (an interval entirely below zero). With no previous nightly the block says the run is the
    reference. The command exits as it would without the alert.
 3. **Publish.** `raglab publish runs/tmp/<run>`: the nightly gate may hold the test cases. The
-   next nightly compares with it.
+   next nightly compares with it. Publish recomputes the record's alert block against the previous
+   published nightly from the index and refuses a mismatch, or a record without the block while a
+   previous nightly is published.
 4. **The judged alert**, by hand: `make judge-local RUN=<the nightly run>` under gate nightly
    writes the judged alert on the criteria the calibration record marks trusted, against the
    previous published nightly judged record under one judge; when it fires it names S6's

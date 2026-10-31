@@ -8,7 +8,12 @@ test or all) under a gate other than nightly or release (S4), when one of its fi
 the answer key says no answer may repeat (the planted secret, personal details and attack
 canaries: `answer_must_not_contain`, R-19; since S4's D3 the plain attack phrases only in attack
 runs), when it is a judged run (S5) whose source run is not published, or that was made under
-another docs/CRITERIA.md or canary set than the tree's (stale), when it is an attack run (S7) made
+another docs/CRITERIA.md or canary set than the tree's (stale), when its `dataset.sha256` is no
+version the table beside its dataset file lists (S8: the datasheet's Maintenance table, or the
+security pack's Versions table for an attack run), when a nightly record's `alert` block is not
+the one recomputed against the previous published nightly of its config, or is missing while one
+is published (S8, the maintainer's choice 8: "Publish recomputes it"; `validate` stays
+single-record), when it is an attack run (S7) made
 with the defences off (a measured result, reported by counts only) or whose egress guard saw an
 attempt off loopback, or when the privacy check finds anything in its files. The privacy check
 reads the files at their published path (runs/published/<run_id>/), where
@@ -224,6 +229,50 @@ def dataset_version_problem(manifest: Json, root: Path) -> str | None:
     return None
 
 
+def alert_problems(manifest: Json, cases: list[Json], root: Path) -> list[str]:
+    """S8 (the maintainer's answer of 2026-10-31 on choice 8, verbatim: "Publish recomputes it
+    (Recommended)"): a nightly record's `alert` block is recomputed here against the previous
+    published nightly of its config, found through the index (raglab.evals.drift), and a mismatch
+    is refused naming what differs; a nightly generation record without the block is refused
+    while a previous nightly is published (the first nightly of a config, with no previous, is
+    the reference and publishes as it is); a judged nightly record is held the same way when it
+    carries the block. `record.validate` stays single-record: it checks the block's shape only."""
+    from raglab.evals import drift  # drift reads this module's index
+
+    if "alert" in manifest and manifest["gate"] != drift.GATE:
+        return [f"a {manifest['gate']} record carries no alert block (nightly records do)"]
+    if manifest["gate"] != drift.GATE:
+        return []
+    if manifest["suite"] == "generation":
+        expected = drift.alert_for(root, manifest, cases)
+    elif manifest["suite"] == judged_record.JUDGED and "alert" in manifest:
+        expected = drift.judged_alert_for(root, manifest, cases)
+    else:
+        return (
+            [] if "alert" not in manifest else ["only generation and judged records carry an alert"]
+        )
+    stored = manifest.get("alert")
+    if stored is None:
+        if expected["against"] is None:
+            return []
+        return [
+            f"a nightly record without its alert block while the previous nightly "
+            f"{expected['against']} is published: the block is recomputed at publish"
+        ]
+    stored_block = as_json(stored)
+    if stored_block == expected:
+        return []
+    differs = sorted(
+        k for k in set(stored_block) | set(expected) if stored_block.get(k) != expected.get(k)
+    )
+    recomputed = {k: expected.get(k) for k in differs}
+    against = expected["against"] or "no previous nightly (the reference)"
+    return [
+        f"its alert block is not the one recomputed against {against}: {', '.join(differs)} "
+        f"differ (recomputed {json.dumps(recomputed, sort_keys=True)})"
+    ]
+
+
 def read_index(published: Path) -> Json:
     path = published / INDEX
     if not path.is_file():
@@ -259,7 +308,7 @@ def publish(
 ) -> Path:
     if problems := record.validate(run_dir, root):
         raise PublishError("not a valid run record: " + "; ".join(problems))
-    manifest, _ = record.read(run_dir)
+    manifest, cases = record.read(run_dir)
     if manifest["git_dirty"]:
         raise PublishError(
             f"{manifest['run_id']} was made from a dirty work tree: commit, then run it again"
@@ -276,6 +325,8 @@ def publish(
         raise PublishError(f"{manifest['run_id']}: {held_out}")
     if unlisted := dataset_version_problem(manifest, root):  # S8 (GA14)
         raise PublishError(f"{manifest['run_id']}: {unlisted}")
+    if found := alert_problems(manifest, cases, root):  # S8 (choice 8): the nightly alert
+        raise PublishError(f"{manifest['run_id']}: " + "; ".join(found))
     if manifest["suite"] == judged_record.JUDGED and (found := judged_problems(manifest, root)):
         raise PublishError(f"{manifest['run_id']}: " + "; ".join(found))
     if manifest["suite"] == "attack":  # S7: the defences-on run only, with nothing sent out
