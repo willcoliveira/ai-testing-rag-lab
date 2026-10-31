@@ -124,10 +124,10 @@ model:
 	uv run raglab fetch-model
 
 # S8 (GA10, the embedder swap): the second pinned model (raglab.adapters.fastembed_embed.SWAP,
-# snowflake/snowflake-arctic-embed-xs) into the same cache, by its own target, once, over https,
-# only with the maintainer's go for the download; make model and pr-fast's cache key stay as they
-# are. The command refuses until the model's revision and every file's sha256 are pinned in the
-# adapter, which is done from the fetched bytes after the go.
+# snowflake/snowflake-arctic-embed-xs at the commit pinned with the maintainer's go of 2026-10-31,
+# its five files' sha256s from the fetched bytes) into the same cache, by its own target: a
+# download only for a file missing or wrong, over https, every file checked against its pin;
+# make model and pr-fast's cache key stay as they are. Not part of make check.
 model-swap:
 	uv run raglab fetch-model --model snowflake/snowflake-arctic-embed-xs
 
