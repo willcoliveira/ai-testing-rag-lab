@@ -3,7 +3,9 @@
 # CI (.github/workflows/pr-fast.yml) runs the same targets.
 SEMGREP_VERSION := 1.179.0
 ZIZMOR_VERSION := 1.30.1
-PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
+# S8 (GA12): a quarantined test (marker flaky, docs/GATES.md "Flakes") never runs here or in
+# pr-fast; make test-flaky runs it on its own, and the register names it
+PYTEST_OFFLINE := not live and not judged and not guardrails and not perf and not flaky
 
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
@@ -123,6 +125,11 @@ model:
 
 test:
 	HF_HUB_OFFLINE=1 uv run pytest -m "$(PYTEST_OFFLINE)"
+
+# S8 (GA12): the quarantined tests alone (marker flaky; the register in docs/GATES.md names each
+# with its removal date). Not part of make check or pr-fast. No test is quarantined at S8.
+test-flaky:
+	HF_HUB_OFFLINE=1 uv run pytest -m flaky
 
 # the retrieval no-regression gate (docs/THRESHOLDS.md): a fresh run of the default configuration
 # on the dev split, offline with the cached model, must keep recall@5 within one question of the
@@ -271,7 +278,7 @@ position-local:
 # the consistency baseline's recorded answers), no model; per layer the miss and false-block rates
 # with their Wilson intervals and the added latency, written to runs/guard-suites/. make test
 # already decides every case binary per build (tests/security/); this is the measured record.
-.PHONY: guard-suites replay attack-local causes
+.PHONY: guard-suites replay attack-local causes test-flaky
 guard-suites:
 	HF_HUB_OFFLINE=1 uv run raglab guard-suites
 

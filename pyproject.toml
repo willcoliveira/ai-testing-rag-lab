@@ -84,6 +84,7 @@ markers = [
     "judged: uses an LLM judge; needs a key or a local server",
     "guardrails: Guardrails AI validators with cached local models",
     "perf: load and latency",
+    "flaky: quarantined by the flake policy (docs/GATES.md); out of make check, run by make test-flaky",
 ]
 
 [tool.deptry]
