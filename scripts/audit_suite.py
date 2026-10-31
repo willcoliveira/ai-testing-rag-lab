@@ -6,8 +6,9 @@ cells, the golden set's cases and splits, the judged criteria and how many a cal
 names, the audit skips and their review date, the pytest markers kept out of `make check`, ZAP's
 ignored rules, the published runs by split and gate, the published metric keys and how many carry
 an interval, the comparison files, the derived causes files, the flake register's rows and the
-not-covered list's entries. `make audit-suite` prints the counts and compares them with the
-report's table; a count that drifted fails, naming the section.
+not-covered list's entries; and the numbers the report's prose states (`PROSE`). `make audit-suite`
+prints the counts and compares them with the report's table and prose; a count that drifted fails,
+naming the section.
 
 Usage:
     uv run python scripts/audit_suite.py [--report docs/audits/<date>-suite-audit-v0.2.md]
@@ -146,8 +147,10 @@ def counts() -> dict[str, dict[str, object]]:
     calibrated = calibrated_criteria()
     skips, review = audit_skips()
     runs = published()
-    metric_keys = {k: v for m in runs for k, v in m["results"]["metrics"].items()}
-    with_interval = sum(1 for v in metric_keys.values() if {"ci_low", "ci_high"} <= set(v))
+    # every (run, key) pair, not the last manifest per key (the judge's S8-J6 b)
+    pairs = [(m["run_id"], k, v) for m in runs for k, v in m["results"]["metrics"].items()]
+    metric_keys = {k for _, k, _ in pairs}
+    with_interval = sum(1 for _, _, v in pairs if {"ci_low", "ci_high"} <= set(v))
     held_out = [m for m in runs if m["split"] in ("test", "all")]
     gates_text = GATES.read_text(encoding="utf-8")
     register = gates_text.split("\n### Register\n", 1)[1].split("\n### ", 1)[0]
@@ -202,7 +205,8 @@ def counts() -> dict[str, dict[str, object]]:
         "6. intervals": {
             "published runs": len(runs),
             "published metric keys": len(metric_keys),
-            "published metric keys with an interval": with_interval,
+            "published (run, metric) pairs": len(pairs),
+            "published (run, metric) pairs with an interval": with_interval,
             "comparison files (runs/compare)": len(list(COMPARE.glob("*/compare.json")))
             if COMPARE.is_dir()
             else 0,
@@ -213,6 +217,53 @@ def counts() -> dict[str, dict[str, object]]:
         "flakes": {"register rows": len(register_rows)},
         "not covered": {"entries in the not-covered list": not_covered_list},
     }
+
+
+# the numbers the report's prose states, each read back against a recount (the judge's S8-J6 a):
+# (a regex over the report with one group per number, the section, the count names in group order)
+PROSE = (
+    (r"(\d+) requirements, every one traced", "1. coverage", ("requirements",)),
+    (
+        r"(\d+) advisory ids in the Makefile's `AUDIT_SKIP`",
+        "2. skips",
+        ("audit skips (AUDIT_SKIP)",),
+    ),
+    (
+        r"(\d+) test-split ids \((\d+) retrieval questions, (\d+) behaviour cases\)",
+        "5. contamination",
+        ("test-split ids of golden.v2.jsonl", "retrieval test", "behaviour test"),
+    ),
+    (r"(\d+) published dev runs hold no test case", "5. contamination", ("published dev runs",)),
+    (
+        r"(\d+) published runs carry (\d+) distinct metric keys in (\d+) \(run, key\) pairs, "
+        r"every one",
+        "6. intervals",
+        ("published runs", "published metric keys", "published (run, metric) pairs"),
+    ),
+)
+
+
+def prose_problems(text: str, recounted: dict[str, dict[str, object]]) -> list[str]:
+    """Each number in the report's prose that is not the recount, or a prose claim gone."""
+    out: list[str] = []
+    golden = golden_counts()
+    for pattern, section, names in PROSE:
+        match = re.search(pattern, text)
+        if match is None:
+            out.append(f"{section}: the prose no longer states {pattern!r}")
+            continue
+        for value, name in zip(match.groups(), names, strict=True):
+            expected = recounted[section].get(name)
+            if expected is None:  # the golden split counts, kept as their own numbers
+                expected = {
+                    "retrieval test": golden["retrieval test"],
+                    "behaviour test": golden["behaviour test"],
+                }[name]
+            if str(expected) != value:
+                out.append(
+                    f"{section}: the prose says {value} for {name!r}, recounted {expected!r}"
+                )
+    return out
 
 
 def report_table(text: str) -> dict[str, str]:
@@ -229,8 +280,9 @@ def report_table(text: str) -> dict[str, str]:
 def compare(report: Path) -> list[str]:
     """Each count of the report's table that is not the recount, naming its section."""
     recounted = counts()
-    table = report_table(report.read_text(encoding="utf-8"))
-    out: list[str] = []
+    text = report.read_text(encoding="utf-8")
+    table = report_table(text)
+    out: list[str] = prose_problems(text, recounted)
     for section, items in recounted.items():
         for name, value in items.items():
             if name not in table:

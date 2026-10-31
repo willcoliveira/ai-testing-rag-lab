@@ -67,6 +67,54 @@ def test_an_edited_count_fails_naming_the_section(tmp_path):
     ]
 
 
+def test_a_count_edited_in_the_prose_is_named(tmp_path):
+    """The judge's S8-J6 (a): a number in a section's prose is recounted too."""
+    text = report().read_text(encoding="utf-8")
+    claim = "33 published runs carry 56 distinct metric keys in 336 (run, key) pairs"
+    assert claim in text
+    copy = tmp_path / "audit.md"
+    copy.write_text(
+        text.replace(
+            claim,
+            claim.replace("33 published", "34 published").replace("56 distinct", "57 distinct"),
+            1,
+        ),
+        encoding="utf-8",
+    )
+    assert audit.compare(copy) == [
+        "6. intervals: the prose says 34 for 'published runs', recounted 33",
+        "6. intervals: the prose says 57 for 'published metric keys', recounted 56",
+    ]
+    copy.write_text(text.replace(claim, "the runs carry their keys", 1), encoding="utf-8")
+    [problem] = audit.compare(copy)
+    assert problem.startswith("6. intervals: the prose no longer states ")
+
+
+def test_every_run_metric_pair_is_read_for_its_interval(tmp_path, monkeypatch):
+    """The judge's S8-J6 (b): a metric without its interval in an earlier manifest, not the last
+    one per key, lowers the pairs-with-interval count."""
+    import json
+    import shutil
+
+    published = tmp_path / "runs" / "published"
+    for run_id in (
+        "20261006T172928Z-retrieval-dense-dev-5f1d3a0",
+        "20261024T090200Z-retrieval-dense-dev-ade9397",
+    ):
+        shutil.copytree(ROOT / "runs" / "published" / run_id, published / run_id)
+    monkeypatch.setattr(audit, "PUBLISHED", published)
+    before = audit.counts()["6. intervals"]
+    assert (before["published runs"], before["published (run, metric) pairs"]) == (2, 6)
+    assert before["published (run, metric) pairs with an interval"] == 6
+    earlier = published / "20261006T172928Z-retrieval-dense-dev-5f1d3a0" / "manifest.json"
+    manifest = json.loads(earlier.read_text(encoding="utf-8"))
+    del manifest["results"]["metrics"]["recall@5"]["ci_low"]
+    earlier.write_text(json.dumps(manifest), encoding="utf-8")
+    after = audit.counts()["6. intervals"]
+    assert after["published (run, metric) pairs with an interval"] == 5
+    assert after["published metric keys"] == 3
+
+
 def test_a_removed_section_heading_is_named():
     text = report().read_text(encoding="utf-8")
     without = text.replace("## 5. Test-split contamination\n", "## 5. Contamination\n", 1)
@@ -86,7 +134,9 @@ def test_the_recount_reads_the_files_not_the_report():
     assert counts["5. contamination"]["test-split ids of golden.v2.jsonl"] == 53
     assert counts["2. skips"]["audit skips (AUDIT_SKIP)"] > 5, "the continuation lines are read"
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(counts["2. skips"]["audit skips review date"]))
+    intervals = counts["6. intervals"]
     assert (
-        counts["6. intervals"]["published metric keys with an interval"]
-        == counts["6. intervals"]["published metric keys"]
+        intervals["published (run, metric) pairs with an interval"]
+        == intervals["published (run, metric) pairs"]
     )
+    assert intervals["published (run, metric) pairs"] >= intervals["published metric keys"]

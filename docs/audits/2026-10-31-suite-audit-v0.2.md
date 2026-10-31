@@ -96,6 +96,8 @@ THREAT-MODEL's not-covered list); CRITERIA.md's pass and fail rules are the judg
 
 ```
 $ uv run pytest -q -p no:warnings tests/security/test_security_pack.py tests/unit/test_criteria.py tests/security/test_guard_cases.py
+........................................................................ [ 48%]
+........................................................................ [ 97%]
 ....                                                                     [100%]
 148 passed in 2.25s
 ```
@@ -170,8 +172,9 @@ tests/judge/test_judged_compare.py::test_the_cli_refuses_without_a_record_and_ga
 ============================== 14 passed in 7.12s ==============================
 ```
 
-**What it found.** 33 published runs carry 56 distinct metric keys, every one with `ci_low` and
-`ci_high` (Wilson at n = cases for the rates, a percentile bootstrap for the retrieval metrics);
+**What it found.** 33 published runs carry 56 distinct metric keys in 336 (run, key) pairs, every one
+with `ci_low` and `ci_high` (Wilson at n = cases for the rates, a percentile bootstrap for the
+retrieval metrics; the recount reads every pair, not the last manifest per key: the judge's S8-J6);
 every comparison pairs by case id and refuses another split, dataset, k, trials or judge. The real
 judged comparison answer-v1 against answer-v2 under one judge (`raglab compare 5aa0ec5 c14acb0`,
 quoted in the S8 ledger) has every interval crossing zero but `abstains` (+0.250, [+0.000, +0.583]
@@ -242,8 +245,10 @@ re-test before the demo goes public.
 
 ## Counts
 
-Every value below is recounted by `scripts/audit_suite.py` from the files (`make audit-suite`);
-a value that drifts fails `tests/unit/test_audit_suite.py` naming its section.
+Every value below is recounted by `scripts/audit_suite.py` from the files (`make audit-suite`),
+and so is every number the sections' prose states (the script's `PROSE` patterns: the
+requirements, the audit skips, the test-split ids and their split, the dev runs, the runs, keys and
+pairs); a value that drifts fails `tests/unit/test_audit_suite.py` naming its section.
 
 | Section | Count | Value |
 |---|---|---|
@@ -272,7 +277,8 @@ a value that drifts fails `tests/unit/test_audit_suite.py` naming its section.
 | 5. contamination | published dev runs | 31 |
 | 6. intervals | published runs | 33 |
 | 6. intervals | published metric keys | 56 |
-| 6. intervals | published metric keys with an interval | 56 |
+| 6. intervals | published (run, metric) pairs | 336 |
+| 6. intervals | published (run, metric) pairs with an interval | 336 |
 | 6. intervals | comparison files (runs/compare) | 0 |
 | 6. intervals | derived causes files (runs/causes) | 11 |
 | flakes | register rows | 0 |
