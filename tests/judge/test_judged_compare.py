@@ -244,6 +244,13 @@ def test_a_new_judged_run_names_the_record_that_describes_its_judge(tmp_path):
     assert record.validate(pinned, root) == []
     assert judged_gate.find_record(root, manifest) == (path, data)
     assert manifest["judge_prompt"]["version"] == judge_v2.VERSION
+    # a malformed record never costs the session: the run is written without the pin
+    path.write_text("{}", encoding="utf-8")
+    shutil.rmtree(pinned)
+    unpinned = run_judged(root, source)
+    manifest, _ = read_run(unpinned)
+    assert "calibration_record" not in manifest["judge"]
+    assert record.validate(unpinned, root) == []
 
 
 # ---------------------------------------------------------------- the CLI

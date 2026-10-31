@@ -301,7 +301,12 @@ def run(
     # identity, never edited
     from raglab.evals import judged_gate
 
-    if (found := judged_gate.find_record(root, manifest)) is not None:
+    try:
+        found = judged_gate.find_record(root, manifest)
+    except judged_gate.GateError as error:  # a bad record never costs the session's lines
+        say(f"calibration record: not pinned ({error})")
+        found = None
+    if found is not None:
         path, _ = found
         cast(Json, manifest["judge"])["calibration_record"] = {
             "path": path.relative_to(root).as_posix(),

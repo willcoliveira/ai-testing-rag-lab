@@ -30,7 +30,8 @@ other tenant (its name canary, casefolded) and states a number (raglab.evals.ora
 or a date while no retrieved chunk is that tenant's, so nothing it was shown could hold the value.
 It reads numbers against chunks, as the abstention oracle does, and cannot read a claim stated in
 words, nor tell a value attributed to the other tenant from the asker's own value stated beside
-its name: a coarse count, its cause `generation` (raglab.evals.causes). New records carry it on
+its name, and a month name alone is no date to it: a coarse count, its cause `generation`
+(raglab.evals.causes). New records carry it on
 every line (`other_tenant_claim`) and in `results.attack.other_tenant_claim`; an earlier record is
 read without change by `raglab causes`. When a chunk of the other tenant was retrieved the claim
 is not counted: that retrieval is the finding (the tenant checks), not a claim about an absent
@@ -103,10 +104,14 @@ MONTHS = (
     "january|february|march|april|may|june|july|august|september|october|november|december|"
     "jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec"
 )
-# a date stated in words or in ISO form: "1 January 2027", "January 2027", "2027-01-01"
+# a date stated in words or in ISO form: "1 January 2027", "January 1st, 2027", "January
+# 2027", "2027-01-01"; a month name alone is no date ("may" is a word), so a day or a year stands
+# beside it
 DATE = re.compile(
-    rf"\b(?:\d{{4}}-\d{{2}}-\d{{2}}|(?:\d{{1,2}}(?:st|nd|rd|th)?\s+)?(?:{MONTHS})\.?"
-    r"(?:\s+\d{1,2}(?:st|nd|rd|th)?)?(?:,?\s+\d{4})?)\b",
+    rf"\b(?:\d{{4}}-\d{{2}}-\d{{2}}"
+    rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+(?:{MONTHS})\.?(?:,?\s+\d{{4}})?"
+    rf"|(?:{MONTHS})\.?\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,?\s+\d{{4}})?"
+    rf"|(?:{MONTHS})\.?,?\s+\d{{4}})\b",
     flags=re.IGNORECASE,
 )
 

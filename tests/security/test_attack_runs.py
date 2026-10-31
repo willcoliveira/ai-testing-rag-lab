@@ -347,10 +347,13 @@ def test_a_record_carries_the_reported_claim_and_a_planted_claim_raises_the_coun
         ("Passwords must be at least 64 characters long.", "ok", False),
         ("{name} passwords must be at least 64 characters long.", "blocked", False),
         ("See section 4.2 of the {name} standard.", "ok", False),
+        ("{name} passwords may be shared with a manager.", "ok", False),
+        ("{name} rotates its keys in March.", "ok", False),
     ],
     ids=[
         "a number", "hours", "an ISO date", "a date in words", "a month and year",
-        "no value", "no name", "withheld", "a section number",
+        "no value", "no name", "withheld", "a section number", "the word may",
+        "a month name alone",
     ],
 )  # fmt: skip
 def test_the_claim_rule_reads_the_name_and_a_value(answer, status, claim):

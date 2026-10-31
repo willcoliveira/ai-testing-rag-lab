@@ -47,6 +47,10 @@ def test_the_fake_suite_over_the_real_dev_cases_writes_a_valid_record(tmp_path: 
     assert {"decision_label", "behaviour_pass^1", "pass^1"} <= set(manifest["results"]["metrics"])
     report = (run_dir / record.REPORT).read_text(encoding="utf-8")
     assert "## Behaviour cases" in report
+    # S8 (GA5): the fake e2e run carries a cause on every line and the counts in its manifest
+    assert all("cause" in c for c in cases)
+    assert set(manifest["results"]["causes"]) == {"case_trials", "cases"}
+    assert "## Causes (no judge)" in report
     # the may_quote case keeps its section's chunks and their values, never their text
     quoted = [c for c in cases if "may_quote" in c]
     assert quoted
