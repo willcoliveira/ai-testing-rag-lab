@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from raglab.__main__ import main
-from raglab.evals import compare, metrics, record
+from raglab.evals import causes, compare, metrics, record
 from tests.retrieval_support import PACK, fake_run, lab_root, make_chunk, read_run
 
 pytestmark = [pytest.mark.unit, pytest.mark.retrieval]
@@ -28,9 +28,9 @@ def edit_cases(run_dir, change) -> None:
         for label, s in zip(case["labels"], sets, strict=True):
             label["found"] = bool(set(ids) & s)
         case.update(record.case_scores(ids, sets, manifest["retriever"]["k"]))
-    manifest["results"] = record.results_from_cases(
-        cases, manifest["retriever"]["k"], manifest["bootstrap"]
-    )
+        if "cause" in case:  # S8: the cause follows the edited fields
+            case["cause"] = causes.cause_of(case, None)
+    manifest["results"] = record.expected_results(manifest, cases)
     body = {k: v for k, v in manifest.items() if k != "files"}
     cases_bytes = record.cases_text(cases).encode()
     report_bytes = record.render_report(body, cases).encode()

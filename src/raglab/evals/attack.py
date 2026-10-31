@@ -115,6 +115,7 @@ def run(
     banned = [s for strings in answer_key.must_not_contain(root).values() for s in strings]
     canaries = answer_key.canary_parts(root)
     statuses = {str(c.chunk_id): c.status for c in assembled.chunks}
+    tenants = attack_record.document_tenants(root)
     settings = config.generation
     cap = settings.run_timeout_s
     cases: list[Json] = []
@@ -156,6 +157,8 @@ def run(
                 ],
             }
             case["checks"] = attack_record.checks(case, banned, canaries, prompt.SYSTEM)
+            # S8 (GA16): the reported check, never gated
+            case[attack_record.CLAIM] = attack_record.other_tenant_claim(case, tenants, canaries)
             cases.append(case)
         if stopped:
             break

@@ -1,6 +1,6 @@
 """Command line entry point: ingest, fetch-model, check-dataset, eval, compare, judge, canaries,
 publish, gate, ask, serve and ollama (the local model server's session: up, down, status,
-session); replay and guard-suites (S7)."""
+session); replay and guard-suites (S7); causes (S8)."""
 
 import argparse
 import json
@@ -16,6 +16,7 @@ from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSett
 from raglab.core.types import TenantError
 from raglab.evals import (
     attack,
+    causes,
     dataset_check,
     generation,
     golden,
@@ -227,6 +228,29 @@ def compare(args: argparse.Namespace) -> int:
     compare_runs.write(result, out)
     print(compare_runs.render(result))
     print(f"written: {out}")
+    return 0
+
+
+def causes_run(args: argparse.Namespace) -> int:
+    """`raglab causes <run>` (S8, GA5): the causes of a published or finished run, read without
+    change, written to runs/causes/<run_id>.json beside the published runs (the runs/replays
+    pattern) and summarised; exit 1 when the run is not a valid record or cannot be tagged."""
+    root: Path = args.root
+    try:
+        run_dir = _run_dir(root, args.run)
+        if problems := record.validate(run_dir, root):
+            print(f"causes refused: {run_dir.name} is not a valid run record:", file=sys.stderr)
+            print("\n".join(problems), file=sys.stderr)
+            return 1
+        manifest, cases = record.read(run_dir)
+        data = causes.derive(manifest, cases, (run_dir / record.MANIFEST).read_bytes(), root)
+    except (FileNotFoundError, ValueError, OSError) as error:
+        print(f"causes failed: {error}", file=sys.stderr)
+        return 1
+    print("\n".join(causes.summary(data)))
+    out: Path | None = args.out if args.out is None or args.out.is_absolute() else root / args.out
+    path = causes.write(root, data, out)
+    print(f"written: {path} (sha256 {data['sha256']})")
     return 0
 
 
@@ -759,6 +783,12 @@ def main(argv: list[str] | None = None) -> int:
     canary = commands.add_parser("canaries", help="the judge's canary set, a hard stop (S5)")
     canary.add_argument("--config", type=Path, required=True, help="a judge config/*.toml")
     canary.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    caused = commands.add_parser(
+        "causes", help="the failure causes of a run, read without change, to runs/causes/ (S8)"
+    )
+    caused.add_argument("run", type=Path, help="a run directory or run id (published or tmp)")
+    caused.add_argument("--out", type=Path, help=f"where the file goes (default {causes.OUT})")
+    caused.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     pub = commands.add_parser("publish", help="validate a run, check privacy, add it to the index")
     pub.add_argument("run", type=Path, help="a run directory or run id")
     pub.add_argument(
@@ -806,6 +836,7 @@ def main(argv: list[str] | None = None) -> int:
         "position": position_run,
         "cost": cost_estimate,
         "publish": publish_run,
+        "causes": causes_run,
         "gate": gate,
         "ask": ask,
         "serve": serve,

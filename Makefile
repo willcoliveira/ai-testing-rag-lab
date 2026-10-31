@@ -271,7 +271,7 @@ position-local:
 # the consistency baseline's recorded answers), no model; per layer the miss and false-block rates
 # with their Wilson intervals and the added latency, written to runs/guard-suites/. make test
 # already decides every case binary per build (tests/security/); this is the measured record.
-.PHONY: guard-suites replay attack-local
+.PHONY: guard-suites replay attack-local causes
 guard-suites:
 	HF_HUB_OFFLINE=1 uv run raglab guard-suites
 
@@ -280,6 +280,16 @@ guard-suites:
 # baseline current for the new guard set; any event is printed and nothing is written.
 replay:
 	HF_HUB_OFFLINE=1 uv run raglab replay
+
+# S8 (GA5): the failure causes of a published or finished run, RUN=<its id or directory>, read
+# without change (no model): one cause per failed case-trial by the rule of
+# raglab.evals.causes (ingestion, retrieval, abstention, generation), the counts per case-trial
+# and per case, written to runs/causes/<run_id>.json beside the published runs, sealed with its
+# own sha256; an attack run gets its reported other_tenant_claim count, a judged run its failed
+# verdicts split by context_sufficient.
+causes:
+	@test -n "$(RUN)" || (echo "give the run: make causes RUN=<run id>" >&2; exit 2)
+	HF_HUB_OFFLINE=1 uv run raglab causes $(RUN)
 
 # S7 (AG9): the live attack runs, one generator session (docs/LOCAL-MODEL.md), by hand and only
 # with the maintainer's go: the live contract test, then the attack suite on

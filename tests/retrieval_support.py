@@ -13,8 +13,8 @@ from raglab.adapters.fake import HashingEmbedder
 from raglab.chunk.sections import ChunkSettings
 from raglab.core.ports import Embedder, Retriever
 from raglab.core.types import Chunk, ChunkId
+from raglab.evals import causes, record, retrieval
 from raglab.evals import config as eval_config
-from raglab.evals import record, retrieval
 from raglab.index.memory import InMemoryStore
 from raglab.ingest import inventory as snapshots
 from raglab.ingest.pipeline import Inventory
@@ -293,7 +293,9 @@ def reseal(run_dir: Path, cases: list[Any]) -> None:
         for label, s in zip(case["labels"], sets, strict=True):
             label["found"] = bool(set(ids) & s)
         case.update(record.case_scores(ids, sets, k))
-    manifest["results"] = record.results_from_cases(cases, k, manifest["bootstrap"])
+        if "cause" in case:  # S8: the careful hand edit keeps the cause in step with the fields
+            case["cause"] = causes.cause_of(case, None)
+    manifest["results"] = record.expected_results(manifest, cases)
     body = {key: v for key, v in manifest.items() if key != "files"}
     cases_bytes = record.cases_text(cases).encode()
     report_bytes = record.render_report(body, cases).encode()

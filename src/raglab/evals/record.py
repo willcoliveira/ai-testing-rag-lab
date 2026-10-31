@@ -21,6 +21,9 @@
 - S4: label groups (`any_of`: the primary's ids, every member's chunks together) and the behaviour
   case kind (raglab.evals.behaviour), whose checks are recomputed from its fields and the answer
   key's canaries and answer_must_not_contain strings, read live.
+- S8: the cause of every failed case-trial of a generation or retrieval run (raglab.evals.causes,
+  `cause` on each line and `results.causes`), recomputed while the corpus is the record's, and
+  the counts always; an earlier record without them validates as it did.
 - S4, the fields a behaviour case's checks rest on (the orchestrator's decision; the same class of
   gap as S3-S2, publish trusting a label): when a generation record's dataset sha256 is that of the
   golden file at its dataset path under root, each behaviour case's expected label, mix and
@@ -165,6 +168,10 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
             f"| {name} | {_fmt(item['value'])} | {_fmt(item['ci_low'])} to "
             f"{_fmt(item['ci_high'])} | {item['n']} |"
         )
+    if "causes" in as_json(manifest["results"]):  # S8: a record without them renders as it did
+        from raglab.evals import causes
+
+        lines += causes.report_lines(as_json(as_json(manifest["results"])["causes"]))
     lines += [
         "",
         "## Questions",
@@ -356,6 +363,9 @@ def validate(run_dir: Path, root: Path) -> list[str]:
         problems.append(f"the register cannot be read, so the tenants are unchecked ({error})")
     else:
         problems.extend(problem for case in cases for problem in tenant_problems(case, tenants))
+    from raglab.evals import causes  # S8: causes reads this module, so it is imported here
+
+    problems.extend(causes.problems(manifest, cases, root))
     body = {k2: v for k2, v in manifest.items() if k2 != "files"}
     try:
         expected = expected_results(manifest, cases)
@@ -445,7 +455,17 @@ def render(manifest: Json, cases: Sequence[Json]) -> str:
 
 
 def expected_results(manifest: Json, cases: Sequence[Json]) -> Json:
-    """The results block recomputed from the cases, for the run's suite."""
+    """The results block recomputed from the cases, for the run's suite (S8: with the causes'
+    counts when the lines carry causes)."""
+    from raglab.evals import causes
+
+    results = _suite_results(manifest, cases)
+    if cases and all("cause" in c for c in cases):
+        results["causes"] = causes.counts(cases)
+    return results
+
+
+def _suite_results(manifest: Json, cases: Sequence[Json]) -> Json:
     if manifest["suite"] == "generation":
         level = cast(float, as_json(manifest["intervals"])["level"])
         position = as_json(manifest["position"]) if "position" in manifest else None

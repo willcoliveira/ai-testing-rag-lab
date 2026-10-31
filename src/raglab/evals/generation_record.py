@@ -364,6 +364,10 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
         )
     if "position" in manifest:  # S5
         lines += position_record.report_lines(found, cases)
+    if "causes" in results_:  # S8: a record without them renders as it did
+        from raglab.evals import causes
+
+        lines += causes.report_lines(_obj(results_["causes"]))
     lines += [
         "",
         "## Case-trials",
