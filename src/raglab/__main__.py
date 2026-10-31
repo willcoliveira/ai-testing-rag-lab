@@ -264,9 +264,11 @@ def _consistency(root: Path, run_dir: Path) -> int:
     baseline, _ = record.read(baseline_dir)
     thresholds = root / retrieval_gate.THRESHOLDS
     text = thresholds.read_text(encoding="utf-8") if thresholds.is_file() else ""
-    verdict = retrieval_gate.consistency(
-        baseline, manifest, retrieval_gate.consistency_margin(text)
-    )
+    try:
+        margin = retrieval_gate.consistency_margin(text)
+    except retrieval_gate.ThresholdsError as error:  # S8 (S4b-J4): two rows, no pick
+        return say(f"refused: {error}")
+    verdict = retrieval_gate.consistency(baseline, manifest, margin)
     return say(verdict.message, verdict.passed)
 
 

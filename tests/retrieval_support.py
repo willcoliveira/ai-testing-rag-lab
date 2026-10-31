@@ -1,5 +1,6 @@
 """Small chunks, retrievers and runs for the retrieval tests, built with the fake embedder."""
 
+import hashlib
 import json
 import shutil
 from datetime import UTC, datetime
@@ -196,8 +197,22 @@ def lab_root(tmp_path: Path, questions: list[dict] | None = None) -> Path:
     # S7: the secrets and personal-details guard reads the team contacts of SPEC section 6
     shutil.copyfile(ROOT / "corpus" / "SPEC.md", root / "corpus" / "SPEC.md")
     lines = [json.dumps(q) for q in (QUESTIONS if questions is None else questions)]
-    (root / "golden.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    golden = root / "golden.jsonl"
+    golden.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # S8 (GA14): publish holds a run to a version of the datasheet beside its golden file
+    write_datasheet(golden)
     return root
+
+
+def write_datasheet(golden: Path, version: str = "v1") -> None:
+    """DATASHEET.md beside a golden file, whose Maintenance table lists the file at its current
+    sha256 as the given version (the fixture's one version)."""
+    from tests.dataset_support import maintenance
+
+    sha = hashlib.sha256(golden.read_bytes()).hexdigest()
+    (golden.parent / "DATASHEET.md").write_text(
+        maintenance((version, golden.name, sha)), encoding="utf-8"
+    )
 
 
 def fake_run(

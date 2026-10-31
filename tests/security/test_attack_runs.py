@@ -257,6 +257,27 @@ def test_publish_refuses_a_defences_on_copy_with_an_f47_string_planted(records, 
         publish.publish(run_dir, lab, privacy=clean)
 
 
+def test_publish_refuses_an_attack_run_whose_pack_version_is_unlisted(records, lab, tmp_path):
+    """S8 (GA14): an attack run is held to the security pack's Versions table (its README) by
+    publish itself: with the committed attacks.yaml's row taken out of the lab's copy, the
+    defences-on record is refused naming its hash; with the row back it publishes."""
+    run_dir = copy_of(records["defences-on"], tmp_path)
+    manifest, _ = read_run(run_dir)
+    sha = manifest["dataset"]["sha256"]
+    readme = lab / "datasets" / "security" / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    [row] = [line for line in text.splitlines() if f"`{sha}`" in line]
+    readme.write_text(text.replace(row + "\n", ""), encoding="utf-8")
+    with pytest.raises(
+        publish.PublishError,
+        match=f"dataset.sha256 {sha} is no version the security pack's Versions table",
+    ):
+        publish.publish(run_dir, lab, privacy=clean)
+    assert not (lab / publish.PUBLISHED).exists()
+    readme.write_text(text, encoding="utf-8")
+    assert publish.publish(run_dir, lab, privacy=clean).is_dir()
+
+
 def test_publish_refuses_a_defences_off_run(records, lab):
     assert record.validate(records["defences-off"], ROOT) == []
     with pytest.raises(publish.PublishError, match="defences off"):

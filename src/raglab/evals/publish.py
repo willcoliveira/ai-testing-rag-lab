@@ -27,7 +27,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
-from raglab.evals import judged_record, record
+from raglab.evals import dataset_check, judged_record, record
 from raglab.evals.config import held_out_problem
 from raglab.evals.record import Json, as_json
 from raglab.ingest import answer_key
@@ -184,6 +184,44 @@ def judged_problems(manifest: Json, root: Path) -> list[str]:
     return problems
 
 
+# S8 (GA14, the criteria judge's S7a-J1): the table a run's dataset must be a version of, beside
+# its dataset file: the datasheet's Maintenance table for a golden file, the security pack's
+# Versions table (its README) for an attack run's attacks.yaml
+PACK_README = "README.md"
+PACK_VERSIONS = "## Versions"
+
+
+def dataset_version_problem(manifest: Json, root: Path) -> str | None:
+    """Why the run's dataset is no listed version: its `dataset.sha256` is in no row of the version
+    table beside its file (the datasheet's Maintenance table; the security pack's Versions table
+    for an attack run), or the row it matches names another file. The validator derives a record's
+    labels again only when the record claims the golden file's current sha256, so a record that
+    misstated its dataset would keep them unchecked, as history: publish refuses it here, before
+    `tests/retrieval/test_publish.py` catches it afterwards (S4-J10)."""
+    dataset = as_json(manifest["dataset"])
+    path = root / str(dataset["path"])
+    sha = str(dataset["sha256"])
+    if manifest["suite"] == "attack":
+        table_path, heading = path.parent / PACK_README, PACK_VERSIONS
+        table = f"the security pack's Versions table ({table_path.name})"
+    else:
+        table_path, heading = path.parent / dataset_check.DATASHEET, dataset_check.MAINTENANCE
+        table = f"the datasheet's Maintenance table ({table_path.name})"
+    try:
+        rows = dataset_check.maintenance_rows(table_path.read_text(encoding="utf-8"), heading)
+    except OSError:
+        return f"dataset {dataset['path']}: no {table} beside it lists its versions"
+    found = [row for row in rows if row.sha256 == sha]
+    if not found:
+        return f"dataset.sha256 {sha} is no version {table} lists"
+    if all(row.file != path.name for row in found):
+        versions = ", ".join(f"{row.version} ({row.file})" for row in found)
+        return (
+            f"dataset {dataset['path']} is {versions} by its sha256, whose row names another file"
+        )
+    return None
+
+
 def read_index(published: Path) -> Json:
     path = published / INDEX
     if not path.is_file():
@@ -234,6 +272,8 @@ def publish(
         raise PublishError(f"{manifest['run_id']} is partial")
     if held_out := held_out_problem(str(manifest["split"]), str(manifest["gate"])):
         raise PublishError(f"{manifest['run_id']}: {held_out}")
+    if unlisted := dataset_version_problem(manifest, root):  # S8 (GA14)
+        raise PublishError(f"{manifest['run_id']}: {unlisted}")
     if manifest["suite"] == judged_record.JUDGED and (found := judged_problems(manifest, root)):
         raise PublishError(f"{manifest['run_id']}: " + "; ".join(found))
     if manifest["suite"] == "attack":  # S7: the defences-on run only, with nothing sent out
