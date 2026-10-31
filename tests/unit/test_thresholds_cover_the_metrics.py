@@ -20,7 +20,9 @@ PUBLISHED = ROOT / "runs" / "published"
 GUARD_SUITES = ROOT / "runs" / "guard-suites"
 SMOKE = ROOT / "perf" / "smoke.js"
 GATES = ("pr-fast", "eval-on-change", "nightly", "manual", "release", "weekly")
-GATE_PHRASES = ("hard stop", "enforced in code", "reported")
+# a Gate cell starts with one of these (the judge's S8-J5: a substring test let "someday, once it
+# is not reported" through)
+GATE_STARTS = (*GATES, "reported", "enforced in code", "a hard stop", "hard stop")
 PERF_NAMES = ("ask_duration", "checks", "http_req_failed", "p(90)", "p(95)", "min", "max")
 
 
@@ -68,6 +70,13 @@ def perf_names(path: Path = SMOKE) -> set[str]:
     return {name for name in PERF_NAMES if name in text}
 
 
+def gate_cell_ok(gate: str) -> bool:
+    """The cell starts with a gate name, `reported`, `enforced in code` or `(a) hard stop`, as a
+    whole word (what follows is its qualifier: a target, a job, a parenthesis)."""
+    head = gate.casefold()
+    return any(re.match(rf"{re.escape(start)}(?![\w-])", head) for start in GATE_STARTS)
+
+
 def base_name(key: str) -> str:
     """What a row must name to cover a key: `grounded[answer]` and `grounded_pass^3` are
     `grounded`'s; `position[first]` is `position`'s; a plain key is itself."""
@@ -99,8 +108,7 @@ def problems(
     for metric, gate, _threshold, reason in table:
         if not gate or not reason:
             out.append(f"{metric}: an empty Gate or Reason cell")
-        head = gate.casefold()
-        if not any(head.startswith(g) for g in GATES) and not any(p in head for p in GATE_PHRASES):
+        if not gate_cell_ok(gate):
             out.append(
                 f"{metric}: Gate {gate!r} names no gate, hard stop, enforced-in-code or reported"
             )
@@ -139,11 +147,15 @@ def test_every_metric_has_a_row_with_a_gate_and_a_reason():
 
 def test_every_gate_cell_is_a_gate_a_hard_stop_enforced_in_code_or_reported():
     for metric, gate, _, _ in rows(DOC.read_text(encoding="utf-8")):
-        head = gate.casefold()
-        assert any(head.startswith(g) for g in GATES) or any(p in head for p in GATE_PHRASES), (
-            metric,
-            gate,
-        )
+        assert gate_cell_ok(gate), (metric, gate)
+    assert gate_cell_ok("reported (`raglab compare`)")
+    assert gate_cell_ok("a hard stop on the judge, in every judge session")
+    assert gate_cell_ok("enforced in code, not by a threshold")
+    assert gate_cell_ok("pr-fast `perf` job, blocking")
+    # the judge's S8-J5: the phrase inside a sentence is not a gate
+    assert not gate_cell_ok("someday, once it is not reported")
+    assert not gate_cell_ok("reportedly")
+    assert not gate_cell_ok("the consistency gate, by hand")
 
 
 def test_a_reason_emptied_a_key_renamed_and_a_row_deleted_are_each_named(tmp_path):
