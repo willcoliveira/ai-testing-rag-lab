@@ -5,6 +5,14 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- The dependency pull request planned for 2026-10-28, made on 2026-10-31: fastapi 0.146.0,
+  starlette 1.9.0 and ruff 0.17.1 (the versions Dependabot's #31 proposed), the
+  googleapis-common-protos cooldown constraint dropped from both projects (1.76.0 locked), and the
+  DeepEval tool's lock re-locked. pypdf 6.21.2 was tried and is not taken: the chunk inventory it
+  produces is identical, but the corpus build's plain-text check still reads a wrapped table cell
+  as "theaccount", so 6.19.0 stays, 6.21.2 joins Dependabot's ignore lists, and the seven pypdf
+  advisories published on 2026-10-30 (fixed in 6.21.3 and 6.21.4, both inside the cooldown) join
+  `make audit`'s skips under the same decision and review date, 2026-11-21.
 - The main plan records the progress to 2026-10-26 and the next steps: the stages merged with
   their pull requests, S6 in progress, the order S6, S7b, S8 and v0.2.0, the follow-ups waiting
   for S8, and the maintenance dates. It also adds the decisions of 2026-10-21 (S5's hosted half
