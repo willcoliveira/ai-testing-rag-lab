@@ -253,6 +253,84 @@ def test_a_new_judged_run_names_the_record_that_describes_its_judge(tmp_path):
     assert record.validate(unpinned, root) == []
 
 
+# ---------------------------------------------------------------- the judged drift alert (GA7)
+
+
+def nightly_copy(root: Path, run_id: str, created_at: str) -> Path:
+    """A copy of the v1.1 judged baseline as a published nightly judged run under root (its
+    manifest renamed and dated; the alert reads lines and manifests, never validates)."""
+    target = root / publish.PUBLISHED / run_id
+    shutil.copytree(A_DIR, target)
+    manifest = json.loads((target / record.MANIFEST).read_text(encoding="utf-8"))
+    manifest["run_id"], manifest["created_at"], manifest["gate"] = run_id, created_at, "nightly"
+    (target / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return target
+
+
+def test_the_judged_alert_reads_the_trusted_criteria_and_names_the_recalibration_trigger(tmp_path):
+    """GA7's judged half (the judge's S8-J1): with no calibration record the block says no judged
+    alert is read; with a record trusting nothing, the same; with `grounded` trusted, the first
+    nightly judged run is the reference, an identical second run does not fire, and one with 20
+    grounded verdicts flipped to fail fires on grounded alone, naming S6's recalibration trigger."""
+    from raglab.evals import drift
+
+    root = tmp_path / "root"
+    first = nightly_copy(root, "20261022T000000Z-judge-local-dev-5aa0ec5", "2026-10-22T00:00:00Z")
+    published = root / publish.PUBLISHED
+    publish.write_index(published, publish.build_index(published, {}))
+    manifest, lines = read_run(first)
+    alert: Any = drift.judged_alert_for(root, manifest, lines)
+    assert alert == {
+        "gate": "nightly",
+        "against": None,
+        "fired": False,
+        "note": "no judged alert: no calibration record describes the judge",
+    }
+    nothing_trusted = write_record(root, calibration_record(manifest, grounded="reported only"))
+    alert = drift.judged_alert_for(root, manifest, lines)
+    assert (alert["fired"], alert["criteria"], alert["note"]) == (
+        False,
+        [],
+        "no judged alert: no trusted criterion",
+    )
+    nothing_trusted.write_text(
+        json.dumps(calibration_record(manifest, grounded="trusted", abstains="reported only")),
+        encoding="utf-8",
+    )
+    alert = drift.judged_alert_for(root, manifest, lines)  # the first nightly: the reference
+    assert (alert["against"], alert["fired"], alert["criteria"]) == (None, False, ["grounded"])
+    assert alert["note"] == "the first nightly judged run is the reference"
+    second = nightly_copy(root, "20261023T000000Z-judge-local-dev-5aa0ec5", "2026-10-23T00:00:00Z")
+    manifest, lines = read_run(second)
+    alert = drift.judged_alert_for(root, manifest, lines)
+    assert (alert["against"], alert["fired"], alert["criteria"]) == (
+        first.name,
+        False,
+        ["grounded"],
+    )
+    assert alert["diff"]["grounded"] == 0
+    assert alert["flipped"] == {"gained": [], "lost": []}
+    assert "note" not in alert
+    assert flip(second, "grounded", 20) == 20
+    manifest, lines = read_run(second)
+    alert = drift.judged_alert_for(root, manifest, lines)
+    assert alert["fired"] is True
+    assert alert["against"] == first.name
+    assert alert["criteria"] == ["grounded"]
+    assert alert["diff"]["grounded.ci_high"] < 0
+    assert alert["flipped"]["lost"], "the cases whose share dropped are named"
+    assert alert["note"] == drift.RECALIBRATION
+    assert "recalibrat" in alert["note"]
+    assert "FIRED against" in drift.line(alert)
+    # a drop on a criterion the record does not trust never fires: abstains flipped, grounded not
+    third = nightly_copy(root, "20261024T000000Z-judge-local-dev-5aa0ec5", "2026-10-24T00:00:00Z")
+    assert flip(third, "abstains", None) > 0
+    manifest, lines = read_run(third)
+    alert = drift.judged_alert_for(root, manifest, lines)
+    assert alert["fired"] is False
+    assert "abstains" not in alert["diff"]
+
+
 # ---------------------------------------------------------------- the CLI
 
 
