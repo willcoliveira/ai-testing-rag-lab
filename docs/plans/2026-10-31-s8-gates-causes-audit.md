@@ -4,7 +4,7 @@ name: gates-causes-audit
 nodes: [S8]
 date: 2026-10-31
 branch: feat/s8-gates-causes-audit
-status: draft
+status: approved
 ---
 
 # S8: Gates, failure causes and the suite audit
@@ -657,8 +657,16 @@ The go for this draft (2026-10-31, about 14:35 UTC), verbatim: "yes lets do that
 the orchestrator's "The S8 plan is unwritten and can be drafted on your go." It covers drafting this
 plan only.
 
-Your answers to D1 to D5 are quoted here, with the question, when you give them. Until then:
-`status: draft`.
+**Approved on 2026-10-31 (recorded at 16:24 UTC).** The orchestrator asked, verbatim: "The S8
+plan (gates, failure causes, suite audit) is drafted: 18 criteria GA1 to GA18, your time about 2
+to 2.5 h, no Ollama session under the recommended answers. Approve with all five recommended
+answers? D1: trusted judged criteria gate by the paired interval, locally (only after S6's
+verdicts). D2: the embedder swap is published as a measured result, retrieval only. D3: flake
+policy with no automatic retry, one recorded re-run by hand. D4: R-22 is recorded as not covered,
+with the reason and the cost. D5: approve and start." You answered, verbatim: "All five as
+recommended (Recommended)". So D1 A, D2 A, D3 A, D4 A and D5 "Approve and start" hold, and this
+plan is `status: approved`: the offline build starts on `feat/s8-gates-causes-audit` against
+`main` now, and the parts that need S6, S7b and the dependency pull request wait for their merges.
 
 ## Sources (read 2026-10-31)
 
