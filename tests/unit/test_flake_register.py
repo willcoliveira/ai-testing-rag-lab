@@ -33,14 +33,30 @@ def register_rows(text: str) -> list[dict[str, str]]:
 
 
 def _is_flaky(node: ast.expr) -> bool:
-    """`pytest.mark.flaky` or `pytest.mark.flaky(...)`."""
+    """`pytest.mark.flaky`, `mark.flaky` (after `from pytest import mark`), or either called."""
     target = node.func if isinstance(node, ast.Call) else node
-    return (
-        isinstance(target, ast.Attribute)
-        and target.attr == "flaky"
-        and isinstance(target.value, ast.Attribute)
-        and target.value.attr == "mark"
+    if not isinstance(target, ast.Attribute) or target.attr != "flaky":
+        return False
+    owner = target.value
+    return (isinstance(owner, ast.Attribute) and owner.attr == "mark") or (
+        isinstance(owner, ast.Name) and owner.id == "mark"
     )
+
+
+def _tests(body: list[ast.stmt], prefix: str = "") -> list[tuple[str, ast.FunctionDef, bool]]:
+    """Every test function of a module body, and of each test class in it (the judge's S8-J14),
+    as (dotted name, node, whether its class carries the marker)."""
+    found: list[tuple[str, ast.FunctionDef, bool]] = []
+    for node in body:
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+            found.append((f"{prefix}{node.name}", node, False))
+        elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
+            marked = any(_is_flaky(d) for d in node.decorator_list)
+            found += [
+                (f"{prefix}{node.name}::{name}", fn, marked or via_class)
+                for name, fn, via_class in _tests(node.body, "")
+            ]
+    return found
 
 
 def marked_tests(tests_dir: Path = ROOT / "tests") -> set[str]:
@@ -50,18 +66,15 @@ def marked_tests(tests_dir: Path = ROOT / "tests") -> set[str]:
     for path in sorted(tests_dir.rglob("test_*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         rel = path.relative_to(tests_dir.parent).as_posix()
-        tests = [
-            n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")
-        ]
         module_marked = any(
             isinstance(n, ast.Assign)
             and any(isinstance(t, ast.Name) and t.id == "pytestmark" for t in n.targets)
             and any(_is_flaky(e) for e in ast.walk(n.value) if isinstance(e, ast.expr))
             for n in tree.body
         )
-        for test in tests:
-            if module_marked or any(_is_flaky(d) for d in test.decorator_list):
-                found.add(f"{rel}::{test.name}")
+        for name, test, via_class in _tests(tree.body):
+            if module_marked or via_class or any(_is_flaky(d) for d in test.decorator_list):
+                found.add(f"{rel}::{name}")
     return found
 
 
@@ -164,6 +177,53 @@ def test_a_marked_test_without_a_row_a_past_date_and_a_stale_row_are_each_named(
     lines += ["", "", "def test_steady():", "    pass", ""]
     (planted / "test_example.py").write_text("\n".join(lines), encoding="utf-8")
     assert marked_tests(tmp_path / "tests") == marked
+
+
+def test_the_scan_reads_class_methods_and_the_imported_mark(tmp_path):
+    """The judge's S8-J14: a method of a test class, a class marked as a whole, and `@mark.flaky`
+    after `from pytest import mark` are found; a class not named Test* and a helper are not."""
+    planted = tmp_path / "tests" / "unit"
+    planted.mkdir(parents=True)
+    lines = [
+        "from pytest import mark",
+        "import pytest",
+        "",
+        "",
+        "class TestThings:",
+        "    @mark.flaky",
+        "    def test_in_a_class(self):",
+        "        pass",
+        "",
+        "    def test_steady_in_a_class(self):",
+        "        pass",
+        "",
+        "",
+        "@pytest.mark.flaky(reason='a timing window')",
+        "class TestAllOfThem:",
+        "    def test_one(self):",
+        "        pass",
+        "",
+        "    def helper(self):",
+        "        pass",
+        "",
+        "",
+        "@mark.flaky",
+        "def test_imported_mark():",
+        "    pass",
+        "",
+        "",
+        "class Helper:",
+        "    @mark.flaky",
+        "    def test_not_collected(self):",
+        "        pass",
+        "",
+    ]
+    (planted / "test_forms.py").write_text("\n".join(lines), encoding="utf-8")
+    assert marked_tests(tmp_path / "tests") == {
+        "tests/unit/test_forms.py::TestThings::test_in_a_class",
+        "tests/unit/test_forms.py::TestAllOfThem::test_one",
+        "tests/unit/test_forms.py::test_imported_mark",
+    }
 
 
 def test_flaky_left_in_the_offline_selection_is_named():
