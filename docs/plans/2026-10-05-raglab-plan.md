@@ -440,6 +440,11 @@ docs/ ARCHITECTURE.md TEST-PLAN.md GATES.md THRESHOLDS.md COMPATIBILITY.md CRITE
 Beside them: the Pages playground (#23), and the dependency and audit pull requests (#16, #17, #22,
 #29, #32).
 
+**In progress: S8, gates, failure causes and the suite audit** (plan approved 2026-10-31; the
+offline parts built first against `main` at `ef46a61`; the parts that need S6, S7b and the
+dependency pull request #35 wait for their merges, in that order; the embedder swap's download
+waits for the maintainer's go).
+
 **In progress: S6, judge calibration.**
 - Done: the judged baseline on golden set v2 ran locally on 2026-10-24, with 1,400 judge calls and canaries 19 of 19. The 30-item sample is drawn.
 - Next: the maintainer's 30 blind labels and their seal. At least 24 hours later, the 12-item re-label. Then the agreement numbers, the disagreements, the criteria judge, and the pull request, which first merges `main` (S9, #32, S7a).
@@ -447,7 +452,7 @@ Beside them: the Pages playground (#23), and the dependency and audit pull reque
 **Next, in order.**
 1. **S6's pull request.**
 2. **S7b,** after S6: the promptfoo red team, Guardrails AI, and the faithfulness-judge provenance experiment (AG14 to AG20). It needs S6's calibrated judge, and its plan estimates about 1.5 to 3.25 h of Mac time.
-3. **S8,** once S6 and S7 are merged: gates, failure causes and the suite audit. Its plan is not written yet. It takes over the follow-ups below.
+3. **S8,** once S6 and S7 are merged: gates, failure causes and the suite audit. Its plan was approved on 2026-10-31 and its offline parts are built; it takes over the follow-ups below (S4b-J4, S7a-J1, S7a-J11 and ATK-TEN-1 trial 3 closed; R-22 not covered under D4 A).
 4. **The v0.2.0 release:** the test slice run once, notes naming S9 as brought forward, and the tag by hand.
 5. **P3:** S3h (the host spike, with its sign-ups), then S10 and S11. The extensions, S12 and Track B, are not blocking.
 
@@ -695,6 +700,17 @@ it into the repo:
 - The CI versions of these gates are switched on when keys exist.
 - The gate map in the repo marks each gate `ci` or `local`, so nobody mistakes a local run for an
   automated one.
+
+**Decision (2026-10-31, S8, the maintainer's answer "All five as recommended (Recommended)" to
+the S8 plan's D1 to D5).** The map lives in `docs/GATES.md` with a Mode per row (`ci`, `local`,
+`documented only`) and the lab runbooks beside `runbooks/release.md`. D1: the judged half of
+eval-on-change gates only on a criterion S6's calibration record marks trusted, by the paired
+interval, locally (`raglab gate --judged`); nothing judged gates while no record trusts one. D2:
+the embedder swap is published as a measured result, retrieval only. D3: the flake policy has no
+automatic retry; one recorded re-run by hand, a `flaky` marker and a register (`docs/GATES.md`,
+Flakes). D4: R-22 is recorded as not covered in v0.2, with the reason and the cost
+(`docs/TEST-PLAN.md`, the gaps list). The nightly row's "alerts" is the record's drift alert,
+which never blocks.
 
 ## Run record v1 (consumed by both the gates and the playground)
 

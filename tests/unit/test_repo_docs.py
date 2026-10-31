@@ -33,6 +33,25 @@ def test_go_public_scans_the_whole_history_with_the_real_list():
     )
 
 
+# S8 (GA11): the upgrade record is the lab form of the release gate's "upgrade replay", and the
+# release runbook and the v0.1.0 notes point at it
+def test_the_release_runbook_and_the_notes_name_the_upgrade_record():
+    assert (ROOT / "docs" / "UPGRADES.md").is_file()
+    assert "docs/UPGRADES.md" in text("runbooks/release.md")
+    assert "docs/UPGRADES.md" in text("docs/releases/v0.1.0.md")
+    upgrades = text("docs/UPGRADES.md")
+    for part in (
+        "What moved",
+        "What was replayed",
+        "What was tried and not taken",
+        "What changed in the docs",
+        "The decision",
+    ):
+        assert part in upgrades, part
+    for target in ("make check", "make gate", "make replay", "make guard-suites"):
+        assert target in upgrades, target
+
+
 # AC15: CLAUDE.md carries the rules the plan lists, so a second account follows them too. Judge
 # round 3 (D10): "label lab practice as lab" was missing.
 @pytest.mark.parametrize(
