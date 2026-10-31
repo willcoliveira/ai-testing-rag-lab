@@ -64,7 +64,7 @@ download go (GA10's pins, runs and compares) waits, and each place says so.
 
 | Part | Where |
 |---|---|
-| The gate map (GA1) | `docs/GATES.md`: one row per gate of the main plan's map in how-to 08's seven columns plus Mode (`ci`, `local`, `documented only`); `runbooks/pr-fast.md`, `runbooks/eval.md`, `runbooks/nightly.md` beside `release.md`, in its shape; `tests/unit/test_gates_doc.py` (5 tests) |
+| The gate map (GA1) | `docs/GATES.md`: one row per gate of the main plan's map in how-to 08's seven columns plus Mode (`ci`, `local`, `documented only`); `runbooks/pr-fast.md`, `runbooks/eval.md`, `runbooks/nightly.md` beside `release.md`, in its shape; `tests/unit/test_gates_doc.py` (4 tests) |
 | A reason for every metric (GA2) | `docs/THRESHOLDS.md`: the consistency row names its gate first (`eval-on-change (local): ...`, its margin cell untouched); the `decision_label`, `abstention` and `over_abstention` keys named; the S8 section (the judged gate, the drift alert, the causes); the guard suites' rates and latency, the attack metrics and `other_tenant_claim` as rows; the perf names in backticks. `tests/unit/test_thresholds_cover_the_metrics.py` (4 tests) over every published manifest's `results.metrics`, both guard-suites records and `perf/smoke.js` |
 | TEST-PLAN's gate cells (GA3, GA17) | the Gate column filled for every row (`pr-fast`, `eval-on-change (local)`, `not covered` for R-22; no `tbd`); R-22's Test cell and gap row under D4 A with the reason and the cost; section 10's report line; `tests/unit/test_test_plan.py` extended (3 tests) |
 | The cause rule (GA4) | `src/raglab/evals/causes.py`: `cause_of` by the first rule that applies (ingestion, retrieval, abstention, generation), `Context` (the chunk ids the run searched and the features split at its settings, from `raglab.ingest.chunk_fit`, moved out of `scripts/chunk_experiment.py`); `cause` on every line and `results.causes` in every new generation and retrieval record (`generation.run`, `retrieval.run`); `record.validate` recomputes the tags while the corpus is the record's and the counts always; the schema's new fields optional; the reports' causes section; `tests/evals/test_causes.py` (23 tests) |
@@ -106,15 +106,15 @@ judge makes the plan's breaks on the committed files.
 | GA7 | met offline; the first nightly on v2 is the reference (none is published) | `tests/unit/test_held_out_split.py` (3 new tests; run with `tests/judge/test_judged_compare.py`, "24 passed in 40.93s"): the first nightly's block says it is the reference; an identical FakeChat pair gives `diff {value 0, ci_low 0, ci_high 0, n 7}` and no flip; five of seven cases lost fires the alert naming B-ANS, B-FC, B-ABS, B-ABQ, B-RH, and the record with its `alert` block validates with the report's "## Drift alert (nightly)"; the CLI on `config/fake.toml` under gate nightly writes the block and exits 0 with a fired alert ("drift alert (nightly): FIRED against ..."), and under any other gate writes none | the alert made to block: `test_the_cli_writes_the_alert_on_a_nightly_run_and_never_blocks` asserts exit 0 with `fired: true` |
 | GA8 | met offline for sections 1, 2, 3, 5, 6 and 7; section 4 waits for S6, section 1's S7b part for S7b | `docs/audits/2026-10-31-suite-audit-v0.2.md`; `make audit-suite`: "docs/audits/2026-10-31-suite-audit-v0.2.md: the counts agree"; `tests/unit/test_audit_suite.py` (5 tests; with `test_model_fetch.py`, "14 passed in 0.18s"); every check's command and output in the report (their files under `runs/tmp/s8-evidence/audit/`) | a count edited in a copy of the report: "6. intervals: 'published runs' is '34' in the report, recounted 33"; the row removed: "6. intervals: 'published runs' is not in the report's Counts table"; a section heading reworded: named as missing (`test_a_removed_section_heading_is_named`) |
 | GA9 | met | `tests/unit/test_split_contamination.py`: "4 passed in 0.08s": 53 test-split ids (12 retrieval questions, 41 cases), no hit under `src/`, `config/`, `datasets/security/`, the prompts or THRESHOLDS.md, none of the 31 published dev records holds one, the two held-out runs are v1.1's under `release` | a test-split id planted in a comment of a copy of `src/raglab/guard/injection.py`: "src/raglab/guard/injection.py: G-02" (`test_a_planted_id_in_a_comment_of_the_injection_guard_is_named`); a longer id holding it is no hit |
-| GA10 | **waits for the download go**: the adapter, the target and the tests are built; the pins, the configs, the two runs and the compares come after it | `tests/unit/test_model_fetch.py` (3 new tests; the adapter suites' run, "223 passed in 16.49s"): the first model's pins are the module names pr-fast's cache key reads (`test_workflow_rules.py` passes), the second is declared unpinned and `fetch` refuses it without a download, a pinned second spec fetches into `<cache>/Snowflake--snowflake-arctic-embed-xs/<revision>/` with `onnx/model.onnx` under its folder; `make model-swap` run (it refuses before anything is downloaded): "fetch-model failed: snowflake/snowflake-arctic-embed-xs is not pinned yet (no revision or no file hashes in raglab.adapters.fastembed_embed): pin its revision and every file's sha256 from the fetched bytes, with the maintainer's go, before anything is downloaded", "make: *** [model-swap] Error 1"; `git diff ef46a61 -- corpus/` empty | a pinned sha256 changed: "onnx/model.onnx from https://... has sha256 ..., not the pinned ..." (`test_a_pinned_second_spec_fetches_into_its_own_directory_with_subfolders`) |
+| GA10 | met after the download go of 2026-10-31 (the section "The embedder swap (GA10)" below: the commit resolved, the fetch, the pins, `make model-swap`, the two runs, the two compares in `runs/compare/`, the stale rule, the two runs published under D2 A) | `tests/unit/test_model_fetch.py` (3 new tests; the adapter suites' run, "223 passed in 16.49s"): the first model's pins are the module names pr-fast's cache key reads (`test_workflow_rules.py` passes), the second is declared unpinned and `fetch` refuses it without a download, a pinned second spec fetches into `<cache>/Snowflake--snowflake-arctic-embed-xs/<revision>/` with `onnx/model.onnx` under its folder; `make model-swap` run (it refuses before anything is downloaded): "fetch-model failed: snowflake/snowflake-arctic-embed-xs is not pinned yet (no revision or no file hashes in raglab.adapters.fastembed_embed): pin its revision and every file's sha256 from the fetched bytes, with the maintainer's go, before anything is downloaded", "make: *** [model-swap] Error 1"; `git diff ef46a61 -- corpus/` empty | a pinned sha256 changed: "onnx/model.onnx from https://... has sha256 ..., not the pinned ..." (`test_a_pinned_second_spec_fetches_into_its_own_directory_with_subfolders`) |
 | GA11 | waits for #35's merge: the shape is written, the first record and its replay come after `main` is merged in | `docs/UPGRADES.md`; `tests/unit/test_repo_docs.py` (1 new test; the doc suites' run, "223 passed in 2.50s"): the runbook and the notes name the record | the runbook's pointer removed: `test_the_release_runbook_and_the_notes_name_the_upgrade_record` fails (the judge's break) |
 | GA12 | met | `docs/GATES.md` "Flakes"; `pyproject.toml` marker `flaky`; `PYTEST_OFFLINE` ends `and not flaky`; `make test-flaky`; `tests/unit/test_flake_register.py` (6 tests; with `test_gates_doc.py`, "10 passed in 0.27s") | a test marked `flaky` without a row: "tests/unit/test_example.py::test_wobbles is marked flaky but has no register row"; a row past its date: "its removal date 2026-10-30 has passed"; a date more than 30 days out: named; a row without a marked test: "has a register row but is not marked flaky"; `flaky` dropped from `PYTEST_OFFLINE`: `test_flaky_left_in_the_offline_selection_is_named` shows the exclusion gone (the judge makes it on the Makefile: `test_the_marker_is_registered_and_out_of_make_check` fails) |
 | GA13 | met | `tests/generation/test_consistency_gate.py`: "24 passed in 5.69s" (2 new): `consistency_margin` on one row gives 1, on two raises `ThresholdsError` "docs/THRESHOLDS.md has 2 consistency rows and the gate reads one: '...' ('margin: 1 case(s)'); '...' ('margin: 2 case(s)'); replace the old row in place when a new baseline is published"; through the CLI on a published fixture baseline: "consistency gate (Q-05): refused: docs/THRESHOLDS.md has 2 consistency rows ..." (exit 1), then with one row the gate passes (exit 0) | the second row added to a copy: refused naming both (above); the refusal removed: both tests fail (the judge's break) |
 | GA14 | met | `tests/retrieval/test_publish.py` and `tests/security/test_attack_runs.py` (3 new tests; the touched suites "145 passed in 76.36s"): a run whose datasheet lacks its hash: "dataset.sha256 <hash> is no version the datasheet's Maintenance table (DATASHEET.md) lists"; whose row names another file: "whose row names another file"; no datasheet: "no the datasheet's Maintenance table (DATASHEET.md) beside it lists its versions"; an attack run whose pack README lacks its row: "is no version the security pack's Versions table (README.md) lists"; every committed record passes publish's own rule (`test_every_published_run_is_a_listed_version_by_publishs_own_rule`); the S4-J10 test still catches a published copy (unchanged, expected pass) | the refusal removed: the new tests fail (the judge's break) |
 | GA15 | met offline; re-run over S7b's rows after it merges | `tests/security/test_threat_model.py`: "10 passed in 0.02s" (3 new): every Layer cell's names resolve against the two lists, read from the documents; LLM03's cell as `—`, an en dash, empty or `n/a` with its reason reworded: 'LLM03:2026: has no layer but does not say "not applicable, because"' (and for `n/a`: "Layer names ['n/a'], which neither GUARDRAILS.md's layers nor the controls table lists"); `register filtre` on LLM05: "LLM05:2026: Layer names ['register filtre'], ..." | as the evidence column: `n/a` and a misspelt name are each named |
-| GA16 | met on the published record; the `8f7c94d` records exist and were read without change (below) | `make causes RUN=20261025T205853Z-attack-local-defences-on-dev-762b163`: "other_tenant_claim (reported, never gated; cause generation): 2 case-trial(s) in cases ['ATK-TEN-1']" (`runs/causes/20261025T205853Z-attack-local-defences-on-dev-762b163.json`, sha256 `0d69c975af29...`); `tests/security/test_attack_runs.py`: "38 passed in 38.59s" (3 new): a copied ATK-TEN-1 answer given the other tenant's name and a number no chunk holds raises the count naming the case, `passed` stays true and `attack.unsafe` stays empty; the rule on eleven hand-built answers (a number, hours, an ISO date, a date in words, a month and year count; no value, no name, a withheld answer, a section number, the word "may" and a month name alone do not: the date form needs a day or a year beside the month, the advisor's review finding, fixed in the review commit, after which `make causes` on `762b163` gives the same file, sha256 `0d69c975af29...`, and `git status` under `runs/causes` stays clean); a retrieved chunk of the other tenant is not a claim; the field edited apart from the answer is refused; THRESHOLDS' row and THREAT-MODEL's not-covered entry | the check made to gate: `CLAIM not in CHECKS`, `passed` true and `unsafe` empty are asserted (`test_a_record_carries_the_reported_claim_and_a_planted_claim_raises_the_count`) |
+| GA16 | met on the published record; the `8f7c94d` records exist and were read without change (below; the orchestrator's re-run of 2026-10-31 gave the same lines) | `make causes RUN=20261025T205853Z-attack-local-defences-on-dev-762b163`: "other_tenant_claim (reported, never gated; cause generation): 2 case-trial(s) in cases ['ATK-TEN-1']" (`runs/causes/20261025T205853Z-attack-local-defences-on-dev-762b163.json`, sha256 `0d69c975af29...`); `tests/security/test_attack_runs.py`: "38 passed in 38.59s" (3 new): a copied ATK-TEN-1 answer given the other tenant's name and a number no chunk holds raises the count naming the case, `passed` stays true and `attack.unsafe` stays empty; the rule on eleven hand-built answers (a number, hours, an ISO date, a date in words, a month and year count; no value, no name, a withheld answer, a section number, the word "may" and a month name alone do not: the date form needs a day or a year beside the month, the advisor's review finding, fixed in the review commit, after which `make causes` on `762b163` gives the same file, sha256 `0d69c975af29...`, and `git status` under `runs/causes` stays clean); a retrieved chunk of the other tenant is not a claim; the field edited apart from the answer is refused; THRESHOLDS' row and THREAT-MODEL's not-covered entry | the check made to gate: `CLAIM not in CHECKS`, `passed` true and `unsafe` empty are asserted (`test_a_record_carries_the_reported_claim_and_a_planted_claim_raises_the_count`) |
 | GA17 | met (D4 A) | TEST-PLAN's R-22 row: Test cell "none: not covered in v0.2 (S8's D4 A, the gaps list below)", Gate cell `not covered`; the gap row with the reason (every planted conflict has a precedence rule) and the cost (a register change makes every v2 baseline stale, five sessions about 50 minutes; S6's calibration stale by its trigger, about 2 h 21 min and 30 labels; new cases to sign off); the audit's not-covered list | the gap row's reason emptied: "R-22: its gap row does not say 'Not covered in v0.2'" and the other four phrases (`test_a_gate_cell_set_back_to_tbd_or_naming_an_unknown_gate_is_named`) |
-| GA18 | met for the offline parts; S8 `done`, the status lines after S6 and S7, the pr-fast time and the pull request's checks are [CI] | S8 `wip` in `docs/ARCHITECTURE.md` and the README (`test_readme_status_matches_architecture`, `test_diagram.py` pass); the CHANGELOG line; the main plan's dated note and progress section; OBSERVABILITY, THREAT-MODEL, `docs/releases/v0.1.0.md`; `make -k check` below; no new dependency | ARCHITECTURE's S8 class changed without the README's: `test_readme_status_matches_architecture` fails (the judge's break) |
+| GA18 | needs CI: the offline parts are met; S8 `done` and the status lines come after S6 and S7b; the pr-fast time and the pull request's checks are [CI] once the pull request exists, after those merges | S8 `wip` in `docs/ARCHITECTURE.md` and the README (`test_readme_status_matches_architecture`, `test_diagram.py` pass); the CHANGELOG line; the main plan's dated note and progress section; OBSERVABILITY, THREAT-MODEL, `docs/releases/v0.1.0.md`; `make -k check` below; no new dependency | ARCHITECTURE's S8 class changed without the README's: `test_readme_status_matches_architecture` fails (the judge's break) |
 
 ### The causes of the published v2 runs (GA5), from `make causes`
 
@@ -225,8 +225,15 @@ stops on them, and the claim check was run as a pure function over their `cases.
 ```
 
 The S7 ledger's finding, ATK-TEN-1 trial 3 at `8f7c94d` ("a Mirrowfen recovery code is valid for
-72 hours"), is counted; so is its trial 2 and, at `762b163`, trials 1 and 2, whose answers name
-the other tenant beside the asker's own values (the check's documented limit).
+72 hours"), is counted; so is its trial 2. At `762b163` the two counted trials differ in kind (the
+judge's S8-J13): trial 2 ("A Mirrowfen password must have at least 64 characters, according to
+the Password and Authentication Standard (section 4.2)") states the asking tenant's rule as the
+other tenant's, the S7 finding's kind, which the check exists to count; trial 1 names the other
+tenant only to say its recovery-code validity is unspecified while stating the asker's own values,
+the check's documented limit. The orchestrator re-ran `claims_8f7c94d.py` read-only over the main
+checkout's `runs/tmp/s7a-evidence/developer-runs-tmp/` on 2026-10-31 at about 21:40 UTC, with this
+worktree's environment: the output was identical to the three lines above (on-`8f7c94d` 2 claims,
+trials 2 and 3; off-`8f7c94d` 2 claims, trials 2 and 3; off-`762b163` 1 claim, trial 3).
 
 ### Before the edits: what GA2's test found at `ef46a61`'s THRESHOLDS.md
 
@@ -246,7 +253,11 @@ THRESHOLDS.md row with a gate and a reason". Each has its row now (the audit's s
    holds; the counts keep the fallback trials apart from the passed ones.
 2. **A case takes the earliest cause in the rule's order among its failed trials** (the plan's "the
    cause of the first of its failed trials in the order above", read as the order of the rules, not
-   of the trials); the per-trial counts are the honest ones and the report shows both.
+   of the trials); the per-trial counts are the honest ones and the report shows both. The judge
+   (S8-J2) found the other reading changes one committed per-case number: repeat 2's abstention 19
+   to 18 and generation 12 to 13 cases, through G-52 (its trials generation, abstention,
+   generation). **Awaiting the maintainer's answer (asked 2026-10-31)**; the code and the
+   `runs/causes` files stay as they are until it comes.
 3. **Rule 1 at run time reads the chunks the retriever searched** (`assembled.chunks`, the scan's
    kept chunks) rather than ingesting again; at validate time the corpus is rebuilt at the record's
    settings, through the scan for a generation run, and read only when its sha256 is the record's.
@@ -266,10 +277,15 @@ THRESHOLDS.md row with a gate and a reason". Each has its row now (the audit's s
    `build_record` writes exactly those); `--calibration` names one to read instead, for the breaks.
 8. **The drift alert is a manifest block, schema-checked and not recomputed by validate**: its
    content depends on another published record; the report line is rendered from it, so a hand edit
-   changes the report's sha256 as any manifest edit does.
+   changes the report's sha256 as any manifest edit does. The judge (S8-J3) notes nothing checks the
+   block's content, so a resealed nightly with a false alert, or none, could be published; publish
+   could recompute it against the index. **Awaiting the maintainer's answer (asked 2026-10-31)**.
 9. **GA15 adds a controls table to THREAT-MODEL.md** instead of widening GUARDRAILS.md (which the
    plan keeps untouched for S7b): a Layer cell's names resolve against the guard layers and the
-   named controls, parentheses dropped, split at commas and semicolons.
+   named controls, parentheses dropped, split at commas and semicolons. The judge's S8-J4 found a
+   row invented in the same table let a Layer cell name no layer; since `287ec98` a control counts
+   only when its Where cell names a path that exists in the repository, which closes the bypass
+   without the maintainer.
 10. **The second embedder is `snowflake/snowflake-arctic-embed-xs`** (fastembed 0.9.0 lists it at
     `Snowflake/snowflake-arctic-embed-xs`, 384 dimensions, model file `onnx/model.onnx`, about
     0.09 GB): another family at the first model's dimension, so the store is unchanged, and a plain
@@ -290,8 +306,9 @@ Three runs, each recorded under `runs/tmp/s8-evidence/` (the developer's machine
 are copied from the files). `audit` is red on every run, pre-existing on `main` since 2026-10-30:
 "Found 7 known vulnerabilities, ignored 50 in 1 package", pypdf 6.19.0, seven advisories fixed in
 6.21.3 and 6.21.4 (pip-audit names them by CVE id, which the privacy check's ticket-shaped pattern
-keeps out of this file; the pull request #35 takes them), on both audit lines; "green" here means
-exit 0 everywhere else.
+keeps out of this file; the pull request #35 takes them), on the project's own pip-audit line; the
+recipe's second line, the DeepEval tool's audit, never runs, because `make -k` stops a recipe at
+its first failing command (the judge's S8-J8). "Green" here means exit 0 everywhere else.
 
 1. **At `10674d5`** (`make-check-10674d5-types-red.txt`): `types` red, 43 pyright errors in the
    new tests and `scripts/audit_suite.py` (pyright checks `tests/` and `scripts/` too; the
@@ -306,7 +323,7 @@ exit 0 everywhere else.
    |---|---|
    | format, lint, types | "330 files already formatted"; "All checks passed!"; "0 errors, 0 warnings, 0 informations" |
    | deps | deptry "Success! No dependency issues found."; vulture silent |
-   | audit | **red, pre-existing:** "Found 7 known vulnerabilities, ignored 50 in 1 package", pypdf 6.19.0, on both lines; `make: *** [audit] Error 1` |
+   | audit | **red, pre-existing:** "Found 7 known vulnerabilities, ignored 50 in 1 package", pypdf 6.19.0, on the project's line; the DeepEval line did not run; `make: *** [audit] Error 1` |
    | sast, workflows | bandit and semgrep silent; zizmor silent |
    | secrets, privacy | gitleaks "no leaks found" (directory and history); "0 hits across 497 files (42 rules)" |
    | architecture, check-dataset, model | "0 architecture violations in src/raglab"; golden.v1.jsonl "passes as v1.1", golden.v2.jsonl "passes as v2"; the embedder "already in the cache; every file matches its pinned sha256" |
@@ -326,7 +343,7 @@ exit 0 everywhere else.
    |---|---|
    | format, lint, types | "330 files already formatted"; "All checks passed!"; "0 errors, 0 warnings, 0 informations" |
    | deps | deptry "Success! No dependency issues found."; vulture silent |
-   | audit | **red, pre-existing on `main` since 2026-10-30:** "Found 7 known vulnerabilities, ignored 50 in 1 package" (pypdf 6.19.0, seven advisories fixed in 6.21.3 and 6.21.4), on the project's line and the DeepEval tool's; `make: *** [audit] Error 1`; the pull request #35 takes them, and nothing in S8 adds or skips one |
+   | audit | **red, pre-existing on `main` since 2026-10-30:** "Found 7 known vulnerabilities, ignored 50 in 1 package" (pypdf 6.19.0, seven advisories fixed in 6.21.3 and 6.21.4), on the project's line; the DeepEval tool's line did not run (`-k` stops the recipe); `make: *** [audit] Error 1`; the pull request #35 takes them, and nothing in S8 adds or skips one |
    | sast, workflows | bandit and semgrep silent; zizmor silent |
    | secrets, privacy | gitleaks "no leaks found" (directory and history); "0 hits across 497 files (42 rules)" |
    | architecture, check-dataset, model | "0 architecture violations in src/raglab"; "datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)", "datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 3d924ad0bd1d)"; "BAAI/bge-small-en-v1.5 at revision aa8f8b060edb00e03bfdd08813a2949946c8ba55: already in the cache; every file matches its pinned sha256" (no download) |
@@ -346,19 +363,190 @@ exit 0 everywhere else.
    of it in the tests' own 304.35 s (the new suites validate records on the real corpus: the
    tagged v2 baseline, the judged copies, the attack copies). pr-fast's `check` job time is [CI].
 
+### The embedder swap (GA10), after the download go (2026-10-31)
+
+**The go, verbatim.** The orchestrator's question to the maintainer: "S8 needs your go to download
+the second embedder for the swap experiment (GA10). The developer chose
+snowflake/snowflake-arctic-embed-xs: 384 dimensions like the current model, about 0.09 GB, five
+files (config, tokenizer files, onnx/model.onnx). The go resolves the model repository's commit,
+fetches the files once into the local model cache, pins the revision and every file's sha256 in
+the adapter, then runs the two dev retrieval runs and compares, all offline afterwards. It runs
+after the criteria judge hands back (it is checking the 13 offline commits now on Opus 5.5), never
+beside a check. Still waiting on you separately: the merge of pull request #35 and the S6
+labelling session. Do you give the download go?" The maintainer's answer: "Go, pin current main
+(Recommended)" (the option's description: "Resolve the repository's current main commit, fetch
+about 0.09 GB once, record the revision and checksums from the fetched bytes."). Received by the
+orchestrator on 2026-10-31 between 20:58 and 21:30 UTC. The no-network rule was lifted for the
+fetch alone; nothing else was downloaded, no push, no Ollama.
+
+**1. The commit resolved** (`runs/tmp/s8-evidence/hf-api-arctic-xs-main.json`), at
+2026-10-31T21:34:45Z, by `curl https://huggingface.co/api/models/Snowflake/snowflake-arctic-embed-xs/revision/main?blobs=true`:
+`sha d8c86521100d3556476a063fc2342036d45c106f`, `lastModified 2024-12-13T20:54:05.000Z`. The pin
+is that commit. The repository lists 20 files (among them `model.safetensors` 90,272,656 bytes and
+six quantised ONNX variants); fastembed reads five of them.
+
+**2. The fetch** (`fetch_arctic.py` through the adapter's own `https_get`, into a scratch folder;
+`runs/tmp/s8-evidence/arctic-xs-fetch.txt`), from 2026-10-31T21:36:22Z to 21:36:26Z:
+
+```
+config.json  737 bytes  sha256 d7d071046ab952af96b7abad788db7ab3fc997b465e1b9914ff39707092254ec
+special_tokens_map.json  695 bytes  sha256 5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a
+tokenizer.json  711649 bytes  sha256 91f1def9b9391fdabe028cd3f3fcc4efd34e5d1f08c3bf2de513ebb5911a1854
+tokenizer_config.json  1433 bytes  sha256 9ca59277519f6e3692c8685e26b94d4afca2d5438deff66483db495e48735810
+onnx/model.onnx  90387631 bytes  sha256 cf2698d30ff05da02c70a088313bad56e5c2f401d734cb24a8390d446111936c
+total 91102145 bytes
+```
+
+(`special_tokens_map.json` has the first model's sha256: the same BERT special-tokens map.)
+
+**3. The pins** (`d797404`): the revision and the five sha256s written into `SWAP` from the fetched
+bytes; the fetched files placed in the cache at
+`~/.cache/raglab/models/Snowflake--snowflake-arctic-embed-xs/d8c86521100d3556476a063fc2342036d45c106f/`;
+then `make model-swap`: "snowflake/snowflake-arctic-embed-xs at revision
+d8c86521100d3556476a063fc2342036d45c106f: already in the cache; every file matches its pinned
+sha256: /Users/admpro/.cache/raglab/models/Snowflake--snowflake-arctic-embed-xs/d8c8652...", exit
+0 (`make-model-swap-pinned.txt`). The embedder loads from the cache (`load-arctic.txt`): "loaded
+snowflake/snowflake-arctic-embed-xs at d8c86521...: dimension 384, onnx sha256 cf2698d30ff0,
+fastembed 0.9.0, onnxruntime 1.30.0, provenance local; the query vector has 384 floats".
+`make model` and pr-fast's cache key are unchanged (`test_workflow_rules.py` passes; `fe.REVISION`
+is still `aa8f8b06...`). `tests/unit/test_model_fetch.py` holds the pins (a full revision, the five
+files, an unpinned spec still refused); `tests/unit/test_eval_config.py` holds the two configs equal
+to their companions but for the embedder and their names, so the config sha256 differs.
+
+**4. The runs** (`swap_runs.sh`, one after the other, offline, from the clean tree at `d797404`;
+`swap-dense-run.txt`, `swap-hybrid-run.txt`): dense 21:42:44Z to 21:42:50Z, hybrid to 21:42:55Z,
+both exit 0, 22 dev questions each:
+
+| Run | hit@5 | mrr@5 | recall@5 |
+|---|---|---|---|
+| `20261031T214245Z-retrieval-dense-arctic-xs-dev-d797404` | 0.682 (0.499 to 0.864) | 0.464 (0.297 to 0.636) | 0.538 (0.356 to 0.720) |
+| `20261031T214250Z-retrieval-hybrid-arctic-xs-dev-d797404` | 0.773 (0.591 to 0.909) | 0.610 (0.424 to 0.773) | 0.614 (0.439 to 0.773) |
+
+**5. What moved** (`runs/compare/`, committed; `swap-compare-gate.txt`), B minus A over the 22
+paired questions, 95% paired bootstrap, 2,000 resamples, seed 20261006:
+
+`raglab compare 20261024T090200Z-retrieval-dense-dev-ade9397 20261031T214245Z-retrieval-dense-arctic-xs-dev-d797404`:
+
+```
+| Metric | A | B | B minus A | 95% interval | n |
+|---|---|---|---|---|---|
+| hit@5 | 0.818 | 0.682 | -0.136 | -0.273 to +0.000 | 22 |
+| mrr@5 | 0.625 | 0.464 | -0.161 | -0.318 to -0.017 | 22 |
+| recall@5 | 0.682 | 0.538 | -0.144 | -0.258 to -0.045 | 22 |
+- Found by B only (0): none
+- Found by A only (3): R-Q14, R-Q16, R-Q18
+- mrr@5: better in B for R-Q07, R-Q22, R-Q28; worse in B for R-Q02, R-Q11, R-Q13, R-Q14, R-Q16, R-Q18, R-Q21
+- recall@5: better in B for none; worse in B for R-Q07, R-Q14, R-Q16, R-Q18, R-Q22, R-Q25
+```
+
+`raglab compare 20261024T090214Z-retrieval-hybrid-dev-ade9397 20261031T214250Z-retrieval-hybrid-arctic-xs-dev-d797404`:
+
+```
+| Metric | A | B | B minus A | 95% interval | n |
+|---|---|---|---|---|---|
+| hit@5 | 0.864 | 0.773 | -0.091 | -0.227 to +0.000 | 22 |
+| mrr@5 | 0.590 | 0.610 | +0.020 | -0.080 to +0.131 | 22 |
+| recall@5 | 0.720 | 0.614 | -0.106 | -0.227 to -0.023 | 22 |
+- Found by B only (0): none
+- Found by A only (2): R-Q21, R-Q33
+- mrr@5: better in B for R-Q10, R-Q14, R-Q19, R-Q31; worse in B for R-Q16, R-Q21, R-Q22, R-Q33
+- recall@5: better in B for none; worse in B for R-Q14, R-Q21, R-Q22, R-Q33
+```
+
+So the second embedder loses recall@5 on dev in both configurations, by intervals entirely below
+zero (dense -0.144 [-0.258, -0.045]; hybrid -0.106 [-0.227, -0.023]); hit@5's intervals touch zero;
+hybrid's mrr@5 moves up within its interval. Nothing is re-baselined and the first embedder stays
+the configs' (the plan's "Out of scope": adopting the second is a pull request of its own).
+
+**6. The staleness rule.** `raglab gate --config config/retrieval-dense-arctic-xs.toml`:
+"gate failed: no published baseline for retrieval/retrieval-dense-arctic-xs/dev", exit 1 (a new
+config name has no baseline key). The rule itself, on the swapped run against the published dense
+baseline (`gate.check`, `swap-stale-rule.txt`): "passed False: the baseline
+20261024T090200Z-retrieval-dense-dev-ade9397 has another config.sha256
+(2d97451be6d2a0b76721bb6e1f625c70e982b6acfa188ab44f3bfc2de30b314a vs
+3eea86a33264903f5ff85b1387a57f76af0235457b9b1e8ce4501516ceff811b): publish a new baseline in a
+reviewed pull request". The consistency baseline is stale the same way for a generation run on
+the swapped embedder and is **not** re-made (D2 A, no session). `git diff ef46a61 -- corpus/` is
+empty; the inventory snapshot is unchanged (chunks are made before any vector).
+
+**7. Published under D2 A** (`swap-publish.txt`): `raglab publish runs/tmp/20261031T214245Z-...`
+and the hybrid one, both "published: ... (index: .../runs/published/index.json)", exit 0; no
+`--baseline`; `index.json`'s `baselines` unchanged; the two runs' `embedder` entries read
+`snowflake/snowflake-arctic-embed-xs@d8c8652`. Their causes files (`causes-swap.txt`): dense
+"retrieval: 13 case-trial(s), 13 case(s); passed: 9", hybrid "retrieval: 12; passed: 10", both
+"recomputed from the corpus". The audit report's counts follow (35 published runs, 33 dev, 342
+pairs, 2 comparison files, 13 derived files; `make audit-suite`: "the counts agree").
+
+### Criteria judge, round 0 (2026-10-31, at `fe44a02`)
+
+The judge (Opus 5.5, its own worktree, detached at `fe44a02`, offline, no push, no model, no
+download) handed its report back after about 31 minutes measured (20:54 to 21:25 UTC; its report
+and every quoted output are under `runs/tmp/s8-evidence/judge-round0/`, the report
+`s8-judge-round0.md`). It re-ran every criterion's evidence and made each break on the committed
+files, restoring each; its own `make -k check` at `fe44a02`: "1971 passed, 2 deselected, 1 warning
+in 305.41s", `real 356.32`, `audit` alone red. Verdicts: 14 met (GA4, GA5, GA9, GA12, GA13, GA14,
+GA16, GA17 fully; GA1, GA2, GA3, GA6, GA8, GA15 offline with a named re-check), 1 not met (GA7,
+S8-J1), 1 needs CI (GA18), 2 not applicable at that round (GA10, GA11).
+
+| GA | The judge's verdict | What it re-ran and broke (its words, short) |
+|---|---|---|
+| GA1 | met (offline) | "4 passed"; a target renamed, a `make zap` step added, nightly's Mode emptied: each named |
+| GA2 | met (offline); J5 | "4 passed"; a Reason emptied, a row deleted, recall@5 renamed in a copy: each named; probe: "someday, once it is not reported" passed (J5) |
+| GA3 | met (offline) | "19 passed"; R-04's cell `tbd` and `hourly (local)` named |
+| GA4 | met | "24 passed"; a cause edited and resealed on its own tagged copy: "case G-109 trial 3: cause 'abstention', but the rule gives 'generation'"; the order swapped in `cause_of`: the pair test failed; `CAUSES` reordered: only the tautological test failed (J15); `cause` required in the schema: the oldest record refused |
+| GA5 | met | the eleven files derived again: "IDENTICAL" x11; a count edited: the seal fails; edited and resealed: the fresh-derivation test fails; the command made to touch a report: the committed-runs test fails |
+| GA6 | met (offline, on v1.1's copies); J10 | "8 passed"; the gate's refusal and the real compare quoted; the trust check removed: the test failed; abstains' interval with every pass flipped is [-0.667, -0.083], so the break is real |
+| GA7 | **not met** (one clause) | the behaviour alert met (made to block: the test fails; never fires: the test fails); the judged alert had no test: its firing and trigger removed, "114 passed" (J1) |
+| GA8 | met (offline) for sections 1, 2, 3, 5, 6, 7; J6, J7 | "the counts agree"; its own recount agrees; a count edited: DRIFT; a heading reworded: named; probes: a prose number edited and an interval removed from an earlier manifest both passed (J6) |
+| GA9 | met | "R-Q30" planted in a comment of the injection guard: named |
+| GA10 | not applicable at that round | `make model-swap` refused before any download; the cache unchanged |
+| GA11 | not applicable at that round | the pointer removed: the test fails |
+| GA12 | met; J14 | a marked test without a row, a past date, `and not flaky` dropped: each named |
+| GA13 | met | a second row in the committed THRESHOLDS.md: refused naming both; the refusal removed: 2 tests fail |
+| GA14 | met; J11 | the refusal removed: the two new tests fail, the S4-J10 tests pass |
+| GA15 | met (offline); J4 | `n/a` and `register filtre` named; probe: a control invented in the same table passed (J4) |
+| GA16 | met; J13 | the claim made to gate: the test fails |
+| GA17 | met | the gap row's reason emptied: named |
+| GA18 | needs CI | S8 dropped from one class: 2 tests fail; an unused import: `make check` stops at lint |
+
+**Fix round 1** (the coordinator's message of 2026-10-31; each finding its own commit):
+
+| Finding | What was done | Commit |
+|---|---|---|
+| S8-J1 (medium, GA7 not met): the judged alert had no test | `test_the_judged_alert_reads_the_trusted_criteria_and_names_the_recalibration_trigger` in `tests/judge/test_judged_compare.py`, in GA6's style (a hand-built record under a tmp root, the v1.1 judged baseline copied as published nightly judged runs): no record ("no judged alert: no calibration record describes the judge"), nothing trusted ("no trusted criterion"), the first nightly judged run the reference, an identical second run not firing (`grounded` diff 0), 20 `grounded` verdicts flipped firing on grounded alone with `ci_high` below zero and the note equal to `drift.RECALIBRATION`, a drop on `abstains` (untrusted) never firing; made never to fire, or its note removed, the test fails | `fe78ba3` |
+| S8-J2 (low, choice 2) | no change: awaiting the maintainer's answer (choice 2 above) | — |
+| S8-J3 (low, choice 8) | no change: awaiting the maintainer's answer (choice 8 above) | — |
+| S8-J4 (low): a control invented in THREAT-MODEL's own table | a control counts only when its Where cell names at least one backticked path that exists in the repository (`controls()` in the test; the `make audit` row's Where cell now names `Makefile` and `.github/workflows/pr-fast.yml`); the judge's break (`\| nothing needed \| nowhere \| no control at all \|`, LLM06's Layer `nothing needed`) now fails naming the row: "controls table: 'nothing needed' names no existing path in its Where cell, so it is no control", "LLM06:2026: Layer names ['nothing needed'], which neither ...", and 'has no layer but does not say "not applicable, because"' (`test_a_control_invented_in_the_same_file_names_no_layer`); a planted row that names `Makefile` is a control | `287ec98` |
+| S8-J5 (low): the Gate cell's substring test | `gate_cell_ok`: the cell starts with a gate name, `reported`, `enforced in code` or `(a) hard stop` as a whole word; "someday, once it is not reported", "reportedly" and "the consistency gate, by hand" are refused in the test | `ce19f99` |
+| S8-J6 (low), both halves | (a) `scripts/audit_suite.py` reads the numbers the report's prose states (`PROSE`: the requirements, the audit skips, the test-split ids and their split, the dev runs, the runs, keys and pairs) against the recount, and names a claim gone; the judge's probe (33/56 to 34/57) now gives "6. intervals: the prose says 34 for 'published runs', recounted 33" and the same for the keys; (b) the interval count reads every (run, key) pair (342 of 342 now), not the last manifest per key; the judge's probe (recall@5's interval removed from the oldest manifest) now lowers the count (`test_every_run_metric_pair_is_read_for_its_interval`, on copies) | `3069481` |
+| S8-J7 (info): section 3 quoted short | the output re-run and quoted verbatim ("148 passed in 2.25s" with its three progress lines) | `3069481` |
+| S8-J8 (info): "on both lines" | the make-check section says the DeepEval line never runs under `-k` | this ledger commit |
+| S8-J9 (info): 5 tests | 4 | this ledger commit |
+| S8-J10 (info): the unnamed criterion | no change: the plan's "refused" is printed as "not calibrated (no status in the record), never gates", the only reading that works when S6 calibrates 2 of 7 criteria, since refusing the comparison on every unnamed criterion would refuse every comparison; the gate still refuses when no compared criterion is trusted | — |
+| S8-J11 (info): the wording | "dataset <path>: <table> is missing beside it, so no row lists its version"; the test's match updated | `4677a35` |
+| S8-J12 (info): the contamination check | no change: GA9's own wording (absence under the named places and the published dev records) is met; the audit item's wider reading ("found only under datasets/", a scan of `scripts/`, `tests/` and the rest of `docs/`) is named in the audit's section 5 as not done (the ledgers name test ids in allowed lines by design) | — |
+| S8-J13 (info): trial 2 understated | reworded (the `8f7c94d` paragraph above) | this ledger commit |
+| S8-J14 (info): the flake scan's forms | the scan reads test methods of `Test*` classes (and a class marked as a whole) and `@mark.flaky` after `from pytest import mark`; a helper class and a non-test method are not tests (`test_the_scan_reads_class_methods_and_the_imported_mark`) | `83df1da` |
+| S8-J15 (info): the tautological order test | no change: `test_the_order_swapped_would_change_the_pairs` compares `CAUSES` with its literal, so reordering the tuple alone fails only it; the six pair tests hold the rule's order in `cause_of`, and no published case mixes retrieval and abstention (both read the same `found` flags, so one case cannot carry both), which is why reordering those two changes no committed count. Said here rather than tested | — |
+
+**Where the ledger's evidence differs from the plan's Evidence column** (the judge's list):
+- GA5 names `tests/e2e/test_e2e_fake.py`; the assertion that the fake e2e run carries causes is in
+  `tests/e2e/test_e2e_golden_suite.py` (the fake generation suite over the real dev cases) and in
+  `test_causes.py` through the FakeChat fixture.
+- GA6 names the published v2 judged record, which is S6's and not on `main`; the evidence is
+  v1.1's `5aa0ec5` against copies of itself, and the v2 run is re-done after S6.
+- GA7 names "20 flipped cases"; the FakeChat fixture has 7 cases, 5 of them lost, which fires.
+- GA10 names `git diff origin/main -- corpus/`; the ledger uses `ef46a61` (`main`'s head when the
+  branch was cut), the offline equivalent: empty.
+
+**Models (a dated note, 2026-10-31).** The plan's agents table and its "How it will run" steps 2
+and 7 say "Developer (Opus 5.5)" and "Criteria judge (Fable 5.1)". In fact the developer ran on
+Claude Fable 5.1 and the round-0 judge on Claude Opus 5.5: the independent-judge rule (a different
+model, a separate context) holds with the roles swapped. The plan's table is not edited.
+
 ### What waits, and for what
 
-- **GA10, the download go.** With the maintainer's go, in this order: resolve the repository's
-  commit (the go names one, or the current `main` of `Snowflake/snowflake-arctic-embed-xs` is
-  resolved and recorded), fetch the files fastembed reads for the model (`config.json`,
-  `tokenizer.json`, `tokenizer_config.json`, `special_tokens_map.json`, `onnx/model.onnx`; the
-  list and each size are recorded from the fetch, about 0.09 GB in all by fastembed's listing),
-  write the revision and each file's sha256 into `SWAP`'s spec from the fetched bytes, run
-  `make model-swap` again so every file is checked against its pin, then `config/retrieval-dense-arctic-xs.toml`
-  and `-hybrid-` (new files), the two retrieval runs on dev, the two compares against
-  `20261024T090200Z-retrieval-dense-dev-ade9397` and its hybrid companion (`runs/compare/`,
-  committed), `raglab gate --config` with the swapped config (stale, as the rule says), and the two
-  runs published under D2 A.
+- **Choices 2 and 8**: the maintainer's answers (asked 2026-10-31); the orchestrator sends them.
 - **GA11.** After #35 merges and `main` is merged into this branch: the first record from its
   merged commit, its replay (`make check`, `make gate`, `make replay`, `make guard-suites`) quoted
   here.
