@@ -172,6 +172,8 @@ def test_the_factory_builds_only_the_pinned_local_embedder():
         factory.embedder("fake", "hashing-256", "fake")
     with pytest.raises(factory.AdapterError, match="the pinned model"):
         factory.embedder("fastembed", fastembed_embed.MODEL, "main")
+    with pytest.raises(factory.AdapterError, match="not pinned yet"):
+        factory.embedder("fastembed", fastembed_embed.SWAP.model, "main")
 
 
 # ---------------------------------------------------------------- S3: generation configs

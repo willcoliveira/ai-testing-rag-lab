@@ -71,6 +71,73 @@ def test_loading_from_an_empty_cache_says_how_to_get_the_model(tmp_path):
         fe.FastEmbedEmbedder(tmp_path)
 
 
+# ---------------------------------------------------------------- S8 (GA10): the second model
+
+
+def test_the_first_models_pins_are_the_module_names_and_pr_fasts_key():
+    """The refactor into specs leaves the first model's pins where every reader finds them."""
+    first = fe.PINNED
+    assert (
+        first.model,
+        first.source,
+        first.revision,
+        first.dimension,
+    ) == (fe.MODEL, fe.SOURCE_REPO, fe.REVISION, fe.DIMENSION)
+    assert dict(first.files) == fe.FILES
+    assert first.pinned
+    assert first.onnx_file == "model_optimized.onnx"
+    assert fe.MODELS[fe.MODEL] is first
+    assert fe.model_dir(fe.cache_root()) == fe.model_dir(fe.cache_root(), first)
+
+
+def test_the_second_model_is_declared_and_refused_until_pinned(tmp_path):
+    """The swap's spec names the model, its source repository and its dimension; its revision and
+    hashes are empty until the maintainer's go, and fetch and the embedder refuse it, so nothing is
+    downloaded or loaded that this file does not pin."""
+    swap = fe.SWAP
+    assert swap.model == "snowflake/snowflake-arctic-embed-xs"
+    assert swap.source == "Snowflake/snowflake-arctic-embed-xs"
+    assert swap.dimension == fe.PINNED.dimension
+    assert swap.onnx_file == "onnx/model.onnx"
+    assert not swap.pinned
+    assert fe.MODELS[swap.model] is swap
+    asked = Server({})
+    with pytest.raises(fe.ModelUnavailable, match="is not pinned yet"):
+        fe.fetch(tmp_path, download=asked, spec=swap)
+    assert asked.asked == []
+    with pytest.raises(fe.ModelUnavailable, match="is not pinned yet"):
+        fe.FastEmbedEmbedder(tmp_path, swap)
+    with pytest.raises(fe.ModelUnavailable, match="is not a pinned embedding model"):
+        fe.spec_for("some/other-model")
+
+
+def test_a_pinned_second_spec_fetches_into_its_own_directory_with_subfolders(tmp_path):
+    """Once pinned, the second model's files (one under onnx/) are fetched and checked as the
+    first's are, into <cache>/<source repo>/<revision>; a changed pin refuses the download."""
+    files = {"onnx/model.onnx": hashlib.sha256(b"M").hexdigest(), "config.json": FILES["a.json"]}
+    pinned = fe.ModelSpec(fe.SWAP.model, fe.SWAP.source, "f" * 40, 384, "onnx/model.onnx", files)
+    assert pinned.pinned
+    server = Server({"model.onnx": b"M", "config.json": b"A"})
+    directory, fetched = fe.fetch(tmp_path, download=server, spec=pinned)
+    assert directory == tmp_path / "Snowflake--snowflake-arctic-embed-xs" / ("f" * 40)
+    assert fetched == ["config.json", "onnx/model.onnx"]
+    assert (directory / "onnx" / "model.onnx").read_bytes() == b"M"
+    assert fe.problems(directory, files) == []
+    assert all(
+        u.startswith(f"https://huggingface.co/{pinned.source}/resolve/") for u in server.asked
+    )
+    changed = fe.ModelSpec(
+        pinned.model, pinned.source, pinned.revision, 384, "onnx/model.onnx",
+        {**files, "onnx/model.onnx": hashlib.sha256(b"other").hexdigest()},
+    )  # fmt: skip
+    with pytest.raises(fe.ModelUnavailable, match=r"onnx/model\.onnx from https://.* has sha256"):
+        fe.fetch(tmp_path, download=server, spec=changed)
+    assert fe.problems(directory, changed.files) == [
+        f"onnx/model.onnx has sha256 {files['onnx/model.onnx']}, not the pinned "
+        f"{changed.files['onnx/model.onnx']}"
+    ]
+
+
 def test_the_cache_directory_comes_from_the_environment(monkeypatch, tmp_path):
     monkeypatch.setenv(fe.CACHE_ENV, str(tmp_path))
     assert fe.model_dir() == tmp_path / "Qdrant--bge-small-en-v1.5-onnx-Q" / fe.REVISION

@@ -94,14 +94,17 @@ def ingest(args: argparse.Namespace) -> int:
 
 
 def fetch_model(args: argparse.Namespace) -> int:
+    """`raglab fetch-model [--model <name>]`: the pinned files of one model (the first by
+    default; S8's second with --model, after its pins are written) into the cache."""
     try:
-        directory, fetched = fastembed_embed.fetch(args.cache)
+        spec = fastembed_embed.spec_for(args.model)
+        directory, fetched = fastembed_embed.fetch(args.cache, spec=spec)
     except (fastembed_embed.ModelUnavailable, OSError) as error:
         print(f"fetch-model failed: {error}", file=sys.stderr)
         return 1
     state = f"downloaded {', '.join(fetched)}" if fetched else "already in the cache"
     print(
-        f"{fastembed_embed.MODEL} at revision {fastembed_embed.REVISION}: {state}; "
+        f"{spec.model} at revision {spec.revision}: {state}; "
         f"every file matches its pinned sha256: {directory}"
     )
     return 0
@@ -735,6 +738,12 @@ def main(argv: list[str] | None = None) -> int:
         "--cache",
         type=Path,
         help=f"cache directory (default ${fastembed_embed.CACHE_ENV} or ~/.cache/raglab/models)",
+    )
+    fetch.add_argument(
+        "--model",
+        default=fastembed_embed.MODEL,
+        help=f"a pinned model's name (default {fastembed_embed.MODEL}; S8's second: "
+        f"{fastembed_embed.SWAP.model})",
     )
     checked = commands.add_parser(
         "check-dataset",

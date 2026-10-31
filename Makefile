@@ -60,7 +60,7 @@ AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8
 	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57 \
 	GHSA-6c7f-9265-g8fw GHSA-gmh7-3g9r-mjh5 GHSA-jr96-gvgh-j3r4
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate eval-retrieval api-smoke perf-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model model-swap test gate eval-retrieval api-smoke perf-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -122,6 +122,14 @@ check-dataset:
 # the cache is filled. The tests never download; they load from this cache.
 model:
 	uv run raglab fetch-model
+
+# S8 (GA10, the embedder swap): the second pinned model (raglab.adapters.fastembed_embed.SWAP,
+# snowflake/snowflake-arctic-embed-xs) into the same cache, by its own target, once, over https,
+# only with the maintainer's go for the download; make model and pr-fast's cache key stay as they
+# are. The command refuses until the model's revision and every file's sha256 are pinned in the
+# adapter, which is done from the fetched bytes after the go.
+model-swap:
+	uv run raglab fetch-model --model snowflake/snowflake-arctic-embed-xs
 
 test:
 	HF_HUB_OFFLINE=1 uv run pytest -m "$(PYTEST_OFFLINE)"
@@ -278,7 +286,7 @@ position-local:
 # the consistency baseline's recorded answers), no model; per layer the miss and false-block rates
 # with their Wilson intervals and the added latency, written to runs/guard-suites/. make test
 # already decides every case binary per build (tests/security/); this is the measured record.
-.PHONY: guard-suites replay attack-local causes test-flaky
+.PHONY: guard-suites replay attack-local causes test-flaky audit-suite
 guard-suites:
 	HF_HUB_OFFLINE=1 uv run raglab guard-suites
 
@@ -297,6 +305,13 @@ replay:
 causes:
 	@test -n "$(RUN)" || (echo "give the run: make causes RUN=<run id>" >&2; exit 2)
 	HF_HUB_OFFLINE=1 uv run raglab causes $(RUN)
+
+# S8 (GA8): the suite audit's recounts (scripts/audit_suite.py): every count of the report's
+# Counts table (docs/audits/<date>-suite-audit-v0.2.md) recounted from the files and compared;
+# exit 1 naming each count that drifted. Reads files only, no model, no network.
+AUDIT_REPORT := docs/audits/2026-10-31-suite-audit-v0.2.md
+audit-suite:
+	uv run python scripts/audit_suite.py --report $(AUDIT_REPORT)
 
 # S7 (AG9): the live attack runs, one generator session (docs/LOCAL-MODEL.md), by hand and only
 # with the maintainer's go: the live contract test, then the attack suite on
