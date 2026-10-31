@@ -143,7 +143,7 @@ tests/unit/test_split_contamination.py::test_a_planted_id_in_a_comment_of_the_in
 ```
 
 **What it found.** 53 test-split ids (12 retrieval questions, 41 behaviour cases); no hit in the
-scanned places; 31 published dev runs hold no test case; no test-split run on v2 has been made
+scanned places; 33 published dev runs hold no test case; no test-split run on v2 has been made
 (v0.2.0's release makes the first). The ledgers may name test ids in their allowed lines (the split
 script's moves, S4b's ledger); the check does not scan `docs/plans/`, by design.
 
@@ -172,7 +172,7 @@ tests/judge/test_judged_compare.py::test_the_cli_refuses_without_a_record_and_ga
 ============================== 14 passed in 7.12s ==============================
 ```
 
-**What it found.** 33 published runs carry 56 distinct metric keys in 336 (run, key) pairs, every one
+**What it found.** 35 published runs carry 56 distinct metric keys in 342 (run, key) pairs, every one
 with `ci_low` and `ci_high` (Wilson at n = cases for the rates, a percentile bootstrap for the
 retrieval metrics; the recount reads every pair, not the last manifest per key: the judge's S8-J6);
 every comparison pairs by case id and refuses another split, dataset, k, trials or judge. The real
@@ -180,8 +180,9 @@ judged comparison answer-v1 against answer-v2 under one judge (`raglab compare 5
 quoted in the S8 ledger) has every interval crossing zero but `abstains` (+0.250, [+0.000, +0.583]
 over 6 cases). **Every number in the docs links its record**: held for THRESHOLDS.md by its rows
 (each names its run id) and for the README's status lines by S6's JC10 test once it merges; this
-part is re-run then. No `runs/compare/` file is committed at STOP 1 (the embedder swap's two
-compares come with the download go).
+part is re-run then. Two `runs/compare/` files are committed, the embedder swap's (GA10, after the
+download go of 2026-10-31): `retrieval-dense` against `retrieval-dense-arctic-xs` and the hybrid
+pair, each paired by question over the 22 dev questions (the S8 ledger quotes both).
 
 ## 7. Thresholds with reasons
 
@@ -235,8 +236,9 @@ What the suite does not cover at v0.2, each with its reason, and what production
   judged cause (a judge call on each failed trial) is not offered, since `context_sufficient` is
   uncalibrated and it would cost a judge session per run. Production would sample failures for a
   human or judged cause.
-- **The upgrade record's first entry and the embedder swap's runs**: written after the dependency
-  pull request #35 merges and after the download go (GA10, GA11); this report is updated then.
+- **The upgrade record's first entry**: written after the dependency pull request #35 merges
+  (GA11); this report is updated then. The embedder swap's runs and compares are in (GA10, after
+  the download go of 2026-10-31), published as measured results and never a baseline.
 
 Lab practice: this audit is one report at the end of v0.2 with every section a command run and a
 recount script, re-run by the criteria judge; production would run the same checks on a schedule
@@ -274,12 +276,12 @@ pairs); a value that drifts fails `tests/unit/test_audit_suite.py` naming its se
 | 4. calibration | calibration records | 0 |
 | 4. calibration | calibration records, ids | none |
 | 5. contamination | test-split ids of golden.v2.jsonl | 53 |
-| 5. contamination | published dev runs | 31 |
-| 6. intervals | published runs | 33 |
+| 5. contamination | published dev runs | 33 |
+| 6. intervals | published runs | 35 |
 | 6. intervals | published metric keys | 56 |
-| 6. intervals | published (run, metric) pairs | 336 |
-| 6. intervals | published (run, metric) pairs with an interval | 336 |
-| 6. intervals | comparison files (runs/compare) | 0 |
-| 6. intervals | derived causes files (runs/causes) | 11 |
+| 6. intervals | published (run, metric) pairs | 342 |
+| 6. intervals | published (run, metric) pairs with an interval | 342 |
+| 6. intervals | comparison files (runs/compare) | 2 |
+| 6. intervals | derived causes files (runs/causes) | 13 |
 | flakes | register rows | 0 |
 | not covered | entries in the not-covered list | 7 |

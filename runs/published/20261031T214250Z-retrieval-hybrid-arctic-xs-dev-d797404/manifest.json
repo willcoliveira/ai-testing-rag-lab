@@ -1,0 +1,117 @@
+{
+  "schema_version": "run-record.v1",
+  "run_id": "20261031T214250Z-retrieval-hybrid-arctic-xs-dev-d797404",
+  "created_at": "2026-10-31T21:42:50Z",
+  "suite": "retrieval",
+  "gate": "manual",
+  "split": "dev",
+  "trials": 1,
+  "seed": 20261006,
+  "provenance": "local",
+  "partial": false,
+  "git_sha": "d79740467c63dd84d3e502c0853ef5811523dae7",
+  "git_dirty": false,
+  "config": {
+    "name": "retrieval-hybrid-arctic-xs",
+    "path": "config/retrieval-hybrid-arctic-xs.toml",
+    "file_sha256": "7af6cd2b6251dbd56b948525067a160bc66d9fd1bb599d54babea97d399270d0",
+    "sha256": "9dd37f543ba9c5d54cfa4cff5e053d20a5950965383d559b6d8ae8e4e4651464"
+  },
+  "chunker": {
+    "chunk_size": 1200,
+    "overlap": 1,
+    "sha256": "efc92723850c2cd1c95073b805b017abe506cc2d2d9cdd395211aea09f7f18a9"
+  },
+  "embedder": {
+    "provider": "fastembed",
+    "model": "snowflake/snowflake-arctic-embed-xs",
+    "source": "Snowflake/snowflake-arctic-embed-xs",
+    "revision": "d8c86521100d3556476a063fc2342036d45c106f",
+    "dimension": 384,
+    "onnx_sha256": "cf2698d30ff05da02c70a088313bad56e5c2f401d734cb24a8390d446111936c",
+    "fastembed": "0.9.0",
+    "onnxruntime": "1.30.0",
+    "sha256": "975675945822dc1965786e9465ebfc5c23384a96473ce9d37da7a6f036fb35cd"
+  },
+  "retriever": {
+    "kind": "hybrid",
+    "k": 5,
+    "candidates": 50,
+    "rrf_k": 60,
+    "sha256": "17c6f0da73e27b72613d7f30da862f8c443905ec3e1a5dd8c1741101d6db42b8"
+  },
+  "dataset": {
+    "path": "datasets/golden.v2.jsonl",
+    "sha256": "3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e",
+    "questions": 22
+  },
+  "corpus": {
+    "documents": 18,
+    "chunks": 228,
+    "sha256": "8918d4f796732b6e11e0dd92b0844bdd2889e18a0660be26f3cc32484961936e"
+  },
+  "tools": {
+    "python": "3.13.12",
+    "raglab": "0.1.0",
+    "numpy": "2.5.4",
+    "rank-bm25": "0.2.2",
+    "pypdf": "6.19.0",
+    "pyyaml": "6.0.3",
+    "pytesseract": "0.3.13",
+    "tesseract": "5.5.3"
+  },
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20261006,
+    "level": 0.95,
+    "method": "percentile"
+  },
+  "results": {
+    "metrics": {
+      "hit@5": {
+        "value": 0.772727,
+        "ci_low": 0.590909,
+        "ci_high": 0.909091,
+        "n": 22
+      },
+      "mrr@5": {
+        "value": 0.609848,
+        "ci_low": 0.424242,
+        "ci_high": 0.772727,
+        "n": 22
+      },
+      "recall@5": {
+        "value": 0.613636,
+        "ci_low": 0.439205,
+        "ci_high": 0.772727,
+        "n": 22
+      }
+    },
+    "causes": {
+      "case_trials": {
+        "ingestion": 0,
+        "retrieval": 12,
+        "abstention": 0,
+        "generation": 0,
+        "passed": 10,
+        "no_cause": 0
+      },
+      "cases": {
+        "ingestion": 0,
+        "retrieval": 12,
+        "abstention": 0,
+        "generation": 0,
+        "passed": 10,
+        "no_cause": 0
+      }
+    }
+  },
+  "totals": {
+    "cases": 22,
+    "duration_s": 4.514
+  },
+  "files": {
+    "cases.jsonl": "86d3c629e4a742a34a1c6accff4fbac134865f7342509cbf7cebc60d5d8c7cf4",
+    "report.md": "ba7fdf84f721aadcdbd7b07556f2e85e4a8380399b96b20374890d5d9cf4463f"
+  }
+}

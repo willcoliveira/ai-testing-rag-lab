@@ -1,0 +1,138 @@
+{
+  "schema_version": "causes.v1",
+  "run_id": "20261031T214250Z-retrieval-hybrid-arctic-xs-dev-d797404",
+  "suite": "retrieval",
+  "manifest_sha256": "c03cd0f89b479b189dd40d9a2bfcfa19b9efc87b121ee62233573c2f020aa1c3",
+  "recomputed": true,
+  "counts": {
+    "case_trials": {
+      "ingestion": 0,
+      "retrieval": 12,
+      "abstention": 0,
+      "generation": 0,
+      "passed": 10,
+      "no_cause": 0
+    },
+    "cases": {
+      "ingestion": 0,
+      "retrieval": 12,
+      "abstention": 0,
+      "generation": 0,
+      "passed": 10,
+      "no_cause": 0
+    }
+  },
+  "cases": [
+    {
+      "case_id": "R-Q01",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q02",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q04",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q05",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q07",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q08",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q10",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q11",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q13",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q14",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q16",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q18",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q19",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q21",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q22",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q24",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q25",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q27",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q28",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q29",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q31",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q33",
+      "trial": 1,
+      "cause": "retrieval"
+    }
+  ],
+  "sha256": "5da7cec12e6741f05fd6842ad4d93442a3cde3371e8af182ab53121eb429557b"
+}

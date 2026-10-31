@@ -68,22 +68,22 @@ def test_an_edited_count_fails_naming_the_section(tmp_path):
 
 
 def test_a_count_edited_in_the_prose_is_named(tmp_path):
-    """The judge's S8-J6 (a): a number in a section's prose is recounted too."""
+    """The judge's S8-J6 (a): a number in a section's prose is recounted too (the claim is read
+    from the recount, never written here)."""
     text = report().read_text(encoding="utf-8")
-    claim = "33 published runs carry 56 distinct metric keys in 336 (run, key) pairs"
+    intervals = audit.counts()["6. intervals"]
+    runs, keys = intervals["published runs"], intervals["published metric keys"]
+    pairs = intervals["published (run, metric) pairs"]
+    claim = f"{runs} published runs carry {keys} distinct metric keys in {pairs} (run, key) pairs"
     assert claim in text
-    copy = tmp_path / "audit.md"
-    copy.write_text(
-        text.replace(
-            claim,
-            claim.replace("33 published", "34 published").replace("56 distinct", "57 distinct"),
-            1,
-        ),
-        encoding="utf-8",
+    edited = claim.replace(f"{runs} published", f"{runs + 1} published", 1).replace(
+        f"{keys} distinct", f"{keys + 1} distinct", 1
     )
+    copy = tmp_path / "audit.md"
+    copy.write_text(text.replace(claim, edited, 1), encoding="utf-8")
     assert audit.compare(copy) == [
-        "6. intervals: the prose says 34 for 'published runs', recounted 33",
-        "6. intervals: the prose says 57 for 'published metric keys', recounted 56",
+        f"6. intervals: the prose says {runs + 1} for 'published runs', recounted {runs}",
+        f"6. intervals: the prose says {keys + 1} for 'published metric keys', recounted {keys}",
     ]
     copy.write_text(text.replace(claim, "the runs carry their keys", 1), encoding="utf-8")
     [problem] = audit.compare(copy)
