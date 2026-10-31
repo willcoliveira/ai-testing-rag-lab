@@ -33,6 +33,9 @@ AFTER_F = ("perf",)
 # main, by the orchestrator)
 ATTACK = ("attack-fake", "attack-local")
 ATTACK_CASES = "datasets/security/attacks.yaml"
+# S8 (GA10, the embedder swap): the two retrieval configs on the second pinned embedder, measured
+# results and never baselines; they name golden set v2 as every config added after F does
+SWAP_CONFIGS = ("retrieval-dense-arctic-xs", "retrieval-hybrid-arctic-xs")
 
 
 def dataset_of(name: str) -> str:
@@ -52,7 +55,7 @@ def test_make_eval_retrieval_runs_the_three_committed_configs_on_their_dev_split
         f"HF_HUB_OFFLINE=1 uv run raglab eval --suite retrieval --config config/{name}.toml"
         for name in order
     ]
-    assert {p.stem for p in COMMITTED} == set(order)
+    assert {p.stem for p in COMMITTED} == {*order, *SWAP_CONFIGS}
     check = re.search(r"^check:(.*)$", makefile, flags=re.M)
     assert check is not None
     assert "eval-retrieval" not in check.group(1).split()
@@ -70,8 +73,8 @@ def test_the_configs_name_one_golden_file_and_the_position_test_keeps_v1_1():
         for p in (ROOT / "config").glob("*.toml")
         if "dataset" in tomllib.loads(p.read_text(encoding="utf-8"))
     }
-    assert with_dataset == {*MOVING, *AFTER_F, *ATTACK, "position-local"}
-    for name in AFTER_F:
+    assert with_dataset == {*MOVING, *AFTER_F, *SWAP_CONFIGS, *ATTACK, "position-local"}
+    for name in (*AFTER_F, *SWAP_CONFIGS):
         assert dataset_of(name) == "datasets/golden.v2.jsonl", name
     for name in ATTACK:
         assert dataset_of(name) == ATTACK_CASES, name
@@ -82,8 +85,14 @@ def test_the_configs_name_one_golden_file_and_the_position_test_keeps_v1_1():
 
 
 def test_the_three_committed_configs():
-    loaded = {c.name: c for c in (config.load(p, ROOT) for p in COMMITTED)}
-    assert set(loaded) == {"retrieval-dense", "retrieval-hybrid", "retrieval-dense-600"}
+    every = {c.name: c for c in (config.load(p, ROOT) for p in COMMITTED)}
+    assert set(every) == {
+        "retrieval-dense",
+        "retrieval-hybrid",
+        "retrieval-dense-600",
+        *SWAP_CONFIGS,
+    }
+    loaded = {name: c for name, c in every.items() if name not in SWAP_CONFIGS}
     dense, hybrid, small = (
         loaded["retrieval-dense"],
         loaded["retrieval-hybrid"],
@@ -106,6 +115,31 @@ def test_the_three_committed_configs():
             "fastembed",
             fastembed_embed.MODEL,
             fastembed_embed.REVISION,
+        )
+
+
+def test_the_two_swap_configs_differ_from_their_companions_in_the_embedder_only():
+    """S8 (GA10): the swap's dense and hybrid configs are the committed dense and hybrid configs
+    with the second pinned embedder (raglab.adapters.fastembed_embed.SWAP) and their own names,
+    so a comparison with the ade9397 runs pairs on everything but the embedder, and the gate's
+    staleness rule (another config sha256) sees the swap."""
+    swap = fastembed_embed.SWAP
+    for name, companion in zip(SWAP_CONFIGS, ("retrieval-dense", "retrieval-hybrid"), strict=True):
+        mine = config.load(ROOT / "config" / f"{name}.toml", ROOT)
+        theirs = config.load(ROOT / "config" / f"{companion}.toml", ROOT)
+        assert (mine.embedder.provider, mine.embedder.model, mine.embedder.revision) == (
+            "fastembed",
+            swap.model,
+            swap.revision,
+        )
+        assert mine.path == f"config/{name}.toml"
+        own, other = mine.resolved(), theirs.resolved()
+        for settings in (own, other):
+            settings.pop("name")
+            settings.pop("embedder")
+        assert own == other, name
+        assert config.canonical_sha256(mine.resolved()) != config.canonical_sha256(
+            theirs.resolved()
         )
 
 
@@ -172,8 +206,14 @@ def test_the_factory_builds_only_the_pinned_local_embedder():
         factory.embedder("fake", "hashing-256", "fake")
     with pytest.raises(factory.AdapterError, match="the pinned model"):
         factory.embedder("fastembed", fastembed_embed.MODEL, "main")
-    with pytest.raises(factory.AdapterError, match="not pinned yet"):
-        factory.embedder("fastembed", fastembed_embed.SWAP.model, "main")
+    with pytest.raises(factory.AdapterError, match="the pinned model is"):
+        factory.embedder("fastembed", fastembed_embed.SWAP.model, "main")  # S8: the second model
+    unpinned = fastembed_embed.ModelSpec("x/unpinned", "x/unpinned", "", 384, "model.onnx")
+    monkeypatch_models = {**fastembed_embed.MODELS, unpinned.model: unpinned}
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(fastembed_embed, "MODELS", monkeypatch_models)
+        with pytest.raises(factory.AdapterError, match="not pinned yet"):
+            factory.embedder("fastembed", unpinned.model, "main")
 
 
 # ---------------------------------------------------------------- S3: generation configs

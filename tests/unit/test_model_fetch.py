@@ -90,23 +90,37 @@ def test_the_first_models_pins_are_the_module_names_and_pr_fasts_key():
     assert fe.model_dir(fe.cache_root()) == fe.model_dir(fe.cache_root(), first)
 
 
-def test_the_second_model_is_declared_and_refused_until_pinned(tmp_path):
-    """The swap's spec names the model, its source repository and its dimension; its revision and
-    hashes are empty until the maintainer's go, and fetch and the embedder refuse it, so nothing is
-    downloaded or loaded that this file does not pin."""
+def test_the_second_model_is_pinned_and_an_unpinned_spec_is_refused(tmp_path):
+    """The swap's spec names the model, its source repository and its dimension, and since the
+    maintainer's go of 2026-10-31 a full revision and the sha256 of each of its five files (the
+    S8 ledger quotes the fetch); an unpinned spec is refused by fetch and the embedder, so nothing
+    is downloaded or loaded that this file does not pin."""
     swap = fe.SWAP
     assert swap.model == "snowflake/snowflake-arctic-embed-xs"
     assert swap.source == "Snowflake/snowflake-arctic-embed-xs"
     assert swap.dimension == fe.PINNED.dimension
     assert swap.onnx_file == "onnx/model.onnx"
-    assert not swap.pinned
+    assert swap.pinned
+    assert len(swap.revision) == 40
+    assert int(swap.revision, 16) >= 0
+    assert set(swap.files) == {
+        "config.json", "onnx/model.onnx", "special_tokens_map.json", "tokenizer.json",
+        "tokenizer_config.json",
+    }  # fmt: skip
+    assert all(len(h) == 64 and int(h, 16) >= 0 for h in swap.files.values())
+    assert swap.url("onnx/model.onnx") == (
+        f"https://huggingface.co/{swap.source}/resolve/{swap.revision}/onnx/model.onnx"
+    )
     assert fe.MODELS[swap.model] is swap
+    assert fe.PINNED.revision != swap.revision
+    unpinned = fe.ModelSpec(swap.model, swap.source, "", 384, "onnx/model.onnx")
+    assert not unpinned.pinned
     asked = Server({})
     with pytest.raises(fe.ModelUnavailable, match="is not pinned yet"):
-        fe.fetch(tmp_path, download=asked, spec=swap)
+        fe.fetch(tmp_path, download=asked, spec=unpinned)
     assert asked.asked == []
     with pytest.raises(fe.ModelUnavailable, match="is not pinned yet"):
-        fe.FastEmbedEmbedder(tmp_path, swap)
+        fe.FastEmbedEmbedder(tmp_path, unpinned)
     with pytest.raises(fe.ModelUnavailable, match="is not a pinned embedding model"):
         fe.spec_for("some/other-model")
 

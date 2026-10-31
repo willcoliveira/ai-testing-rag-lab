@@ -12,11 +12,12 @@ S8 (GA10, the embedder swap): the pins are a `ModelSpec`, and `MODELS` holds one
 by its name. The first, `PINNED`, is the one every config names today and pr-fast caches; its
 module-level names (`MODEL`, `SOURCE_REPO`, `REVISION`, `DIMENSION`, `FILES`) are unchanged. The
 second, `SWAP`, is a small ONNX export of another family at the same dimension
-(snowflake/snowflake-arctic-embed-xs, which fastembed 0.9.0 lists with its source repository):
-declared here with its name, source and dimension, and **not pinned yet**: its revision and every
-file's sha256 are written only after the maintainer's go for the download (`make model-swap`,
-`raglab fetch-model --model snowflake/snowflake-arctic-embed-xs`), from the fetched bytes, never
-from this file. `fetch` refuses an unpinned spec, and the factory refuses a config that names one.
+(snowflake/snowflake-arctic-embed-xs, which fastembed 0.9.0 lists with its source repository),
+pinned with the maintainer's go of 2026-10-31 to the repository's then-current main commit, its
+revision and every file's sha256 written from the fetched bytes; `make model-swap`
+(`raglab fetch-model --model snowflake/snowflake-arctic-embed-xs`) fetches it once into the same
+cache, and `make model` and pr-fast's cache key are unchanged. `fetch` refuses an unpinned spec,
+and the factory refuses a config that names one.
 
 onnxruntime runs on one thread, so the same text gives the same vector run after run.
 """
@@ -83,14 +84,23 @@ PINNED = ModelSpec(
     },
 )
 # S8: the second model, another family at the same dimension (fastembed 0.9.0 lists its ONNX
-# export at the repository below, model file onnx/model.onnx, about 0.09 GB). Not pinned until the
-# maintainer's go for the download: the revision and the hashes come from the fetched bytes.
+# export at the repository below, model file onnx/model.onnx, about 0.09 GB). Pinned on
+# 2026-10-31 with the maintainer's go ("Go, pin current main (Recommended)"): the repository's
+# main commit as resolved at 2026-10-31T21:34:45Z, and every file's sha256 from the bytes fetched
+# at 2026-10-31T21:36Z (91,102,145 bytes in all; the S8 ledger quotes the fetch).
 SWAP = ModelSpec(
     model="snowflake/snowflake-arctic-embed-xs",
     source="Snowflake/snowflake-arctic-embed-xs",
-    revision="",
+    revision="d8c86521100d3556476a063fc2342036d45c106f",
     dimension=384,
     onnx_file="onnx/model.onnx",
+    files={
+        "config.json": "d7d071046ab952af96b7abad788db7ab3fc997b465e1b9914ff39707092254ec",
+        "onnx/model.onnx": "cf2698d30ff05da02c70a088313bad56e5c2f401d734cb24a8390d446111936c",
+        "special_tokens_map.json": "5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a",  # noqa: E501
+        "tokenizer.json": "91f1def9b9391fdabe028cd3f3fcc4efd34e5d1f08c3bf2de513ebb5911a1854",
+        "tokenizer_config.json": "9ca59277519f6e3692c8685e26b94d4afca2d5438deff66483db495e48735810",
+    },
 )
 MODELS: dict[str, ModelSpec] = {PINNED.model: PINNED, SWAP.model: SWAP}
 

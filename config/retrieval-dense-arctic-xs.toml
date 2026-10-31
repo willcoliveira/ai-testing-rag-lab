@@ -1,0 +1,27 @@
+# S8 (GA10, the embedder swap): dense retrieval with the second pinned embedder (snowflake/snowflake-arctic-embed-xs,
+# raglab.adapters.fastembed_embed.SWAP) at the default chunk settings; a measured result, never a baseline.
+# Read by raglab.evals.config (strict: an unknown or missing key stops the run).
+name = "retrieval-dense-arctic-xs"
+suite = "retrieval"
+
+[dataset]
+path = "datasets/golden.v2.jsonl"
+split = "dev"
+
+[chunker]
+chunk_size = 1200
+overlap = 1
+
+[embedder]
+provider = "fastembed"
+model = "snowflake/snowflake-arctic-embed-xs"
+revision = "d8c86521100d3556476a063fc2342036d45c106f"
+
+[retriever]
+kind = "dense"
+k = 5
+
+[bootstrap]
+seed = 20261006
+resamples = 2000
+level = 0.95
