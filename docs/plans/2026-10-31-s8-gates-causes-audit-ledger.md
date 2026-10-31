@@ -106,13 +106,13 @@ judge makes the plan's breaks on the committed files.
 | GA7 | met offline; the first nightly on v2 is the reference (none is published) | `tests/unit/test_held_out_split.py` (3 new tests; run with `tests/judge/test_judged_compare.py`, "24 passed in 40.93s"): the first nightly's block says it is the reference; an identical FakeChat pair gives `diff {value 0, ci_low 0, ci_high 0, n 7}` and no flip; five of seven cases lost fires the alert naming B-ANS, B-FC, B-ABS, B-ABQ, B-RH, and the record with its `alert` block validates with the report's "## Drift alert (nightly)"; the CLI on `config/fake.toml` under gate nightly writes the block and exits 0 with a fired alert ("drift alert (nightly): FIRED against ..."), and under any other gate writes none | the alert made to block: `test_the_cli_writes_the_alert_on_a_nightly_run_and_never_blocks` asserts exit 0 with `fired: true` |
 | GA8 | met offline for sections 1, 2, 3, 5, 6 and 7; section 4 waits for S6, section 1's S7b part for S7b | `docs/audits/2026-10-31-suite-audit-v0.2.md`; `make audit-suite`: "docs/audits/2026-10-31-suite-audit-v0.2.md: the counts agree"; `tests/unit/test_audit_suite.py` (5 tests; with `test_model_fetch.py`, "14 passed in 0.18s"); every check's command and output in the report (their files under `runs/tmp/s8-evidence/audit/`) | a count edited in a copy of the report: "6. intervals: 'published runs' is '34' in the report, recounted 33"; the row removed: "6. intervals: 'published runs' is not in the report's Counts table"; a section heading reworded: named as missing (`test_a_removed_section_heading_is_named`) |
 | GA9 | met | `tests/unit/test_split_contamination.py`: "4 passed in 0.08s": 53 test-split ids (12 retrieval questions, 41 cases), no hit under `src/`, `config/`, `datasets/security/`, the prompts or THRESHOLDS.md, none of the 31 published dev records holds one, the two held-out runs are v1.1's under `release` | a test-split id planted in a comment of a copy of `src/raglab/guard/injection.py`: "src/raglab/guard/injection.py: G-02" (`test_a_planted_id_in_a_comment_of_the_injection_guard_is_named`); a longer id holding it is no hit |
-| GA10 | **waits for the download go**: the adapter, the target and the tests are built; the pins, the configs, the two runs and the compares come after it | `tests/unit/test_model_fetch.py` (3 new tests; the adapter suites' run, "223 passed in 16.49s"): the first model's pins are the module names pr-fast's cache key reads (`test_workflow_rules.py` passes), the second is declared unpinned and `fetch` refuses it without a download, a pinned second spec fetches into `<cache>/Snowflake--snowflake-arctic-embed-xs/<revision>/` with `onnx/model.onnx` under its folder; `make model-swap` refuses: "fetch-model failed: snowflake/snowflake-arctic-embed-xs is not pinned yet ..." (not run here against the network; the refusal is the unit test's); `git diff ef46a61 -- corpus/` empty | a pinned sha256 changed: "onnx/model.onnx from https://... has sha256 ..., not the pinned ..." (`test_a_pinned_second_spec_fetches_into_its_own_directory_with_subfolders`) |
+| GA10 | **waits for the download go**: the adapter, the target and the tests are built; the pins, the configs, the two runs and the compares come after it | `tests/unit/test_model_fetch.py` (3 new tests; the adapter suites' run, "223 passed in 16.49s"): the first model's pins are the module names pr-fast's cache key reads (`test_workflow_rules.py` passes), the second is declared unpinned and `fetch` refuses it without a download, a pinned second spec fetches into `<cache>/Snowflake--snowflake-arctic-embed-xs/<revision>/` with `onnx/model.onnx` under its folder; `make model-swap` run (it refuses before anything is downloaded): "fetch-model failed: snowflake/snowflake-arctic-embed-xs is not pinned yet (no revision or no file hashes in raglab.adapters.fastembed_embed): pin its revision and every file's sha256 from the fetched bytes, with the maintainer's go, before anything is downloaded", "make: *** [model-swap] Error 1"; `git diff ef46a61 -- corpus/` empty | a pinned sha256 changed: "onnx/model.onnx from https://... has sha256 ..., not the pinned ..." (`test_a_pinned_second_spec_fetches_into_its_own_directory_with_subfolders`) |
 | GA11 | waits for #35's merge: the shape is written, the first record and its replay come after `main` is merged in | `docs/UPGRADES.md`; `tests/unit/test_repo_docs.py` (1 new test; the doc suites' run, "223 passed in 2.50s"): the runbook and the notes name the record | the runbook's pointer removed: `test_the_release_runbook_and_the_notes_name_the_upgrade_record` fails (the judge's break) |
 | GA12 | met | `docs/GATES.md` "Flakes"; `pyproject.toml` marker `flaky`; `PYTEST_OFFLINE` ends `and not flaky`; `make test-flaky`; `tests/unit/test_flake_register.py` (6 tests; with `test_gates_doc.py`, "10 passed in 0.27s") | a test marked `flaky` without a row: "tests/unit/test_example.py::test_wobbles is marked flaky but has no register row"; a row past its date: "its removal date 2026-10-30 has passed"; a date more than 30 days out: named; a row without a marked test: "has a register row but is not marked flaky"; `flaky` dropped from `PYTEST_OFFLINE`: `test_flaky_left_in_the_offline_selection_is_named` shows the exclusion gone (the judge makes it on the Makefile: `test_the_marker_is_registered_and_out_of_make_check` fails) |
 | GA13 | met | `tests/generation/test_consistency_gate.py`: "24 passed in 5.69s" (2 new): `consistency_margin` on one row gives 1, on two raises `ThresholdsError` "docs/THRESHOLDS.md has 2 consistency rows and the gate reads one: '...' ('margin: 1 case(s)'); '...' ('margin: 2 case(s)'); replace the old row in place when a new baseline is published"; through the CLI on a published fixture baseline: "consistency gate (Q-05): refused: docs/THRESHOLDS.md has 2 consistency rows ..." (exit 1), then with one row the gate passes (exit 0) | the second row added to a copy: refused naming both (above); the refusal removed: both tests fail (the judge's break) |
 | GA14 | met | `tests/retrieval/test_publish.py` and `tests/security/test_attack_runs.py` (3 new tests; the touched suites "145 passed in 76.36s"): a run whose datasheet lacks its hash: "dataset.sha256 <hash> is no version the datasheet's Maintenance table (DATASHEET.md) lists"; whose row names another file: "whose row names another file"; no datasheet: "no the datasheet's Maintenance table (DATASHEET.md) beside it lists its versions"; an attack run whose pack README lacks its row: "is no version the security pack's Versions table (README.md) lists"; every committed record passes publish's own rule (`test_every_published_run_is_a_listed_version_by_publishs_own_rule`); the S4-J10 test still catches a published copy (unchanged, expected pass) | the refusal removed: the new tests fail (the judge's break) |
 | GA15 | met offline; re-run over S7b's rows after it merges | `tests/security/test_threat_model.py`: "10 passed in 0.02s" (3 new): every Layer cell's names resolve against the two lists, read from the documents; LLM03's cell as `—`, an en dash, empty or `n/a` with its reason reworded: 'LLM03:2026: has no layer but does not say "not applicable, because"' (and for `n/a`: "Layer names ['n/a'], which neither GUARDRAILS.md's layers nor the controls table lists"); `register filtre` on LLM05: "LLM05:2026: Layer names ['register filtre'], ..." | as the evidence column: `n/a` and a misspelt name are each named |
-| GA16 | met on the published record; the `8f7c94d` records exist and were read without change (below) | `make causes RUN=20261025T205853Z-attack-local-defences-on-dev-762b163`: "other_tenant_claim (reported, never gated; cause generation): 2 case-trial(s) in cases ['ATK-TEN-1']" (`runs/causes/20261025T205853Z-attack-local-defences-on-dev-762b163.json`, sha256 `0d69c975af29...`); `tests/security/test_attack_runs.py`: "38 passed in 38.59s" (3 new): a copied ATK-TEN-1 answer given the other tenant's name and a number no chunk holds raises the count naming the case, `passed` stays true and `attack.unsafe` stays empty; the rule on nine hand-built answers (a number, hours, an ISO date, a date in words, a month and year count; no value, no name, a withheld answer, a section number do not); a retrieved chunk of the other tenant is not a claim; the field edited apart from the answer is refused; THRESHOLDS' row and THREAT-MODEL's not-covered entry | the check made to gate: `CLAIM not in CHECKS`, `passed` true and `unsafe` empty are asserted (`test_a_record_carries_the_reported_claim_and_a_planted_claim_raises_the_count`) |
+| GA16 | met on the published record; the `8f7c94d` records exist and were read without change (below) | `make causes RUN=20261025T205853Z-attack-local-defences-on-dev-762b163`: "other_tenant_claim (reported, never gated; cause generation): 2 case-trial(s) in cases ['ATK-TEN-1']" (`runs/causes/20261025T205853Z-attack-local-defences-on-dev-762b163.json`, sha256 `0d69c975af29...`); `tests/security/test_attack_runs.py`: "38 passed in 38.59s" (3 new): a copied ATK-TEN-1 answer given the other tenant's name and a number no chunk holds raises the count naming the case, `passed` stays true and `attack.unsafe` stays empty; the rule on eleven hand-built answers (a number, hours, an ISO date, a date in words, a month and year count; no value, no name, a withheld answer, a section number, the word "may" and a month name alone do not: the date form needs a day or a year beside the month, the advisor's review finding, fixed in the review commit, after which `make causes` on `762b163` gives the same file, sha256 `0d69c975af29...`, and `git status` under `runs/causes` stays clean); a retrieved chunk of the other tenant is not a claim; the field edited apart from the answer is refused; THRESHOLDS' row and THREAT-MODEL's not-covered entry | the check made to gate: `CLAIM not in CHECKS`, `passed` true and `unsafe` empty are asserted (`test_a_record_carries_the_reported_claim_and_a_planted_claim_raises_the_count`) |
 | GA17 | met (D4 A) | TEST-PLAN's R-22 row: Test cell "none: not covered in v0.2 (S8's D4 A, the gaps list below)", Gate cell `not covered`; the gap row with the reason (every planted conflict has a precedence rule) and the cost (a register change makes every v2 baseline stale, five sessions about 50 minutes; S6's calibration stale by its trigger, about 2 h 21 min and 30 labels; new cases to sign off); the audit's not-covered list | the gap row's reason emptied: "R-22: its gap row does not say 'Not covered in v0.2'" and the other four phrases (`test_a_gate_cell_set_back_to_tbd_or_naming_an_unknown_gate_is_named`) |
 | GA18 | met for the offline parts; S8 `done`, the status lines after S6 and S7, the pr-fast time and the pull request's checks are [CI] | S8 `wip` in `docs/ARCHITECTURE.md` and the README (`test_readme_status_matches_architecture`, `test_diagram.py` pass); the CHANGELOG line; the main plan's dated note and progress section; OBSERVABILITY, THREAT-MODEL, `docs/releases/v0.1.0.md`; `make -k check` below; no new dependency | ARCHITECTURE's S8 class changed without the README's: `test_readme_status_matches_architecture` fails (the judge's break) |
 
@@ -135,13 +135,44 @@ record's, so rule 1 was read: zero ingestion causes at 1200/1, where `scripts/ch
 | `20261024T090228Z-retrieval-dense-600-dev-ade9397` | 0 / 0 | 11 / 11 | 0 / 0 | 0 / 0 | 11 / 11 | 0 / 0 |
 
 Each generation run has 303 case-trials (101 cases x 3) and each retrieval run 22 questions, which
-the rows sum to. The baseline's manifest counts `label_failures` as 28 case-trials with every
-labelled section retrieved, 23 with one missed and 45 on abstain cases (the plan's seed numbers):
-the rule's 60 retrieval case-trials are those 23 decision-label failures with a label missed plus
-the retrieval-kind questions (22 x 3 trials) whose recall is under 1, its 45 abstention ones the
-abstain cases answered or stating a value and the answerable cases that abstained with their labels
-retrieved, and its 29 generation ones the rest (the wrong labels, the five blocked answers, a
-canary or a must-not-contain string with every label retrieved). The judged records' split
+the rows sum to. The baseline's tags grouped by the record's own fields (a one-off script over the
+committed derived file and the published record, read-only; `runs/tmp/s8-evidence/` keeps it),
+quoted as it printed:
+
+```
+kind x cause:
+  behaviour None: 116
+  behaviour abstention: 45
+  behaviour generation: 29
+  behaviour retrieval: 47
+  retrieval None: 53
+  retrieval retrieval: 13
+status x cause:
+  blocked generation: 1
+  blocked retrieval: 4
+  ok None: 169
+  ok abstention: 45
+  ok generation: 28
+  ok retrieval: 56
+behaviour expected x cause:
+  abstain None: 9
+  abstain abstention: 45
+  answer None: 100
+  answer generation: 2
+  answer retrieval: 27
+  flag-conflict None: 7
+  flag-conflict generation: 9
+  flag-conflict retrieval: 8
+  refuse-and-help generation: 18
+  refuse-and-help retrieval: 12
+```
+
+So the 60 retrieval case-trials are 47 behaviour trials with a labelled section missed and 13
+retrieval-kind trials whose recall is under 1; the 45 abstention ones are all on abstain cases (the
+manifest's `label_failures.no_labels` 45, the same trials); the 29 generation ones are 28 ok answers
+(two answer cases, nine flag-conflict, eighteen refuse-and-help, with every label retrieved) and
+one blocked answer, while four of the five blocked answers tag retrieval because a label was
+missed (the order decides). The judged records' split
 (`raglab causes` on `5aa0ec5`: "correct: 20 failed verdict(s) retrieval, 16 generation; grounded:
 5 retrieval, 14 generation; relevant 7 / 16; cites_support 5 / 4; abstains 0 / 11", and on
 `c14acb0` in the same file) rests on `context_sufficient`, uncalibrated, and is reported only.
@@ -179,9 +210,13 @@ is re-run on it after S6 merges.
 They exist, read-only, in the main checkout's evidence copy
 `runs/tmp/s7a-evidence/developer-runs-tmp/` (`20261025T194348Z-attack-local-defences-on-dev-8f7c94d`
 and `20261025T192647Z-attack-local-defences-off-dev-8f7c94d`, plus `762b163`'s defences-off run),
-not under this worktree. Nothing there was modified. They predate the `no_canary` name exception,
-so `record.validate` would refuse them today and `raglab causes` stops; the claim check was run as
-a pure function over their `cases.jsonl` lines (`runs/tmp/s8-evidence/` holds the script):
+not under this worktree. Nothing there was modified. `record.validate` over them (read-only; it
+writes nothing) refuses both today, since they predate the `no_canary` name exception: the
+defences-on record "4 problem(s)", the defences-off one "5 problem(s)", the first of each "case
+ATK-TEN-1 trial 2: checks {'cites_register_only': True, 'no_canary': False, 'no_planted_string':
+True, 'no_prompt_run': True, 'passed': False} do not follow from the fields"; so `raglab causes`
+stops on them, and the claim check was run as a pure function over their `cases.jsonl` lines
+(`runs/tmp/s8-evidence/` holds the script):
 
 ```
 20261025T194348Z-attack-local-defences-on-dev-8f7c94d: 39 lines; 2 claim(s): [('ATK-TEN-1', 2), ('ATK-TEN-1', 3)]
@@ -223,7 +258,8 @@ THRESHOLDS.md row with a gate and a reason". Each has its row now (the audit's s
    against its recompute, so a new key there would invalidate every committed attack record; the
    field is optional, recomputed by validate when present, and never read by `passed` or `unsafe`.
    When a chunk of the other tenant was retrieved the claim is not counted (the tenant checks hold
-   that), the documented limit.
+   that), and a month name alone is no date (the review found the first date form counted the word
+   "may"); both are the documented limit.
 7. **The judged gate's record search**: the manifest's pin first (`judge.calibration_record`, the
    file's sha256 must still match), else the record under `datasets/calibration/*/record.json`
    whose `judge` block matches the manifest's model, digest, prompt version and fingerprint (S6's
@@ -243,6 +279,72 @@ THRESHOLDS.md row with a gate and a reason". Each has its row now (the audit's s
 11. **The audit's recount script reads files only** (no subprocess), so bandit stays silent and the
     recount is reproducible on CI; the checks' outputs are quoted from their runs.
 12. **`make causes` has `--out`** so a test writes the derived file elsewhere than `runs/causes/`.
+13. **`judged.run` pins the record inside a try**: a malformed `record.json` under
+    `datasets/calibration/` says so (`calibration record: not pinned (...)`) and the manifest is
+    written without the pin, so a bad file never costs a judge session's lines (the review's
+    finding).
+
+### `make -k check API_SMOKE_PORT=8770` at STOP 1 (macOS arm64, `/usr/bin/time -p`)
+
+Three runs, each recorded under `runs/tmp/s8-evidence/` (the developer's machine; the lines below
+are copied from the files). `audit` is red on every run, pre-existing on `main` since 2026-10-30:
+"Found 7 known vulnerabilities, ignored 50 in 1 package", pypdf 6.19.0, seven advisories fixed in
+6.21.3 and 6.21.4 (pip-audit names them by CVE id, which the privacy check's ticket-shaped pattern
+keeps out of this file; the pull request #35 takes them), on both audit lines; "green" here means
+exit 0 everywhere else.
+
+1. **At `10674d5`** (`make-check-10674d5-types-red.txt`): `types` red, 43 pyright errors in the
+   new tests and `scripts/audit_suite.py` (pyright checks `tests/` and `scripts/` too; the
+   developer had run it over `src/` only): nested lookups on `dict[str, object]` values. Every
+   other target as in run 3 below; test "1969 passed, 2 deselected, 1 warning in 320.10s (0:05:20)";
+   gate "recall@5 0.682 (n 22) passes ... 0.636"; api-smoke passed; `real 368.73`, `user 346.16`,
+   `sys 22.65`; make exit 2 (`types`, `audit`). Fixed in `4166aac` (the tests read records through
+   the tests' loosely typed `read_run`, as the other tests do; no behaviour change).
+2. **At `4166aac`** (`make-check-4166aac.txt`): every target passes but `audit`:
+
+   | Target | Result |
+   |---|---|
+   | format, lint, types | "330 files already formatted"; "All checks passed!"; "0 errors, 0 warnings, 0 informations" |
+   | deps | deptry "Success! No dependency issues found."; vulture silent |
+   | audit | **red, pre-existing:** "Found 7 known vulnerabilities, ignored 50 in 1 package", pypdf 6.19.0, on both lines; `make: *** [audit] Error 1` |
+   | sast, workflows | bandit and semgrep silent; zizmor silent |
+   | secrets, privacy | gitleaks "no leaks found" (directory and history); "0 hits across 497 files (42 rules)" |
+   | architecture, check-dataset, model | "0 architecture violations in src/raglab"; golden.v1.jsonl "passes as v1.1", golden.v2.jsonl "passes as v2"; the embedder "already in the cache; every file matches its pinned sha256" |
+   | test | "1969 passed, 2 deselected, 1 warning in 310.59s (0:05:10)" |
+   | gate | "retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636" |
+   | api-smoke | "api-smoke: passed" |
+
+   `real 353.28`, `user 342.98`, `sys 18.96`; make exit 2 (`audit` alone). Against the S7 ledger's
+   `4d33125` (283.64 s, "1884 passed") and #35's `e5969f4` (289.80 s, "1886 passed", another
+   branch, not a strict baseline): 83 more tests and about 64 s more, most of it the tests' own
+   310.59 s (the new suites validate records on the real corpus: the tagged v2 baseline, the judged
+   copies, the attack copies).
+3. **At `70a6ff4`, the review commit and the last code commit of STOP 1**
+   (`make-check-70a6ff4.txt`), every line as the file has it:
+
+   | Target | Result |
+   |---|---|
+   | format, lint, types | "330 files already formatted"; "All checks passed!"; "0 errors, 0 warnings, 0 informations" |
+   | deps | deptry "Success! No dependency issues found."; vulture silent |
+   | audit | **red, pre-existing on `main` since 2026-10-30:** "Found 7 known vulnerabilities, ignored 50 in 1 package" (pypdf 6.19.0, seven advisories fixed in 6.21.3 and 6.21.4), on the project's line and the DeepEval tool's; `make: *** [audit] Error 1`; the pull request #35 takes them, and nothing in S8 adds or skips one |
+   | sast, workflows | bandit and semgrep silent; zizmor silent |
+   | secrets, privacy | gitleaks "no leaks found" (directory and history); "0 hits across 497 files (42 rules)" |
+   | architecture, check-dataset, model | "0 architecture violations in src/raglab"; "datasets/golden.v1.jsonl passes as v1.1 (34 retrieval questions, 40 behaviour cases, sha256 5f8cdaf18783)", "datasets/golden.v2.jsonl passes as v2 (34 retrieval questions, 120 behaviour cases, sha256 3d924ad0bd1d)"; "BAAI/bge-small-en-v1.5 at revision aa8f8b060edb00e03bfdd08813a2949946c8ba55: already in the cache; every file matches its pinned sha256" (no download) |
+   | test | "1971 passed, 2 deselected, 1 warning in 304.35s (0:05:04)" (two more than run 2: the claim rule's "the word may" and "a month name alone" cases) |
+   | gate | "retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question (1/22), 0.636" |
+   | api-smoke | "api-smoke: passed" |
+
+   `real 349.95`, `user 337.74`, `sys 17.97`; `make: Target 'check' not remade because of errors.`;
+   make exit 2. **The targets that failed, by name:** `audit` only, first error line "Found 7 known
+   vulnerabilities, ignored 50 in 1 package", pre-existing on `main` (the seven pypdf advisories
+   until #35 merges). Nothing else is red; `types`, red in run 1, is green since `4166aac`. The
+   warning is the one every run carries (starlette's test client deprecation, pre-existing). The
+   ledger commit after `70a6ff4` changes this file only, so no new `make check` was run for it.
+
+   Against the S7 ledger's `4d33125` (283.64 s, "1884 passed") and #35's `e5969f4` (289.80 s,
+   "1886 passed"; another branch, not a strict baseline): 85 more tests and about 60 s more, most
+   of it in the tests' own 304.35 s (the new suites validate records on the real corpus: the
+   tagged v2 baseline, the judged copies, the attack copies). pr-fast's `check` job time is [CI].
 
 ### What waits, and for what
 
