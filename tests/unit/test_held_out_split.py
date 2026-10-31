@@ -7,6 +7,7 @@ import re
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -14,6 +15,7 @@ from raglab.__main__ import main
 from raglab.evals import config as eval_config
 from raglab.evals import drift, publish, record
 from tests.conftest import ROOT
+from tests.retrieval_support import read_run
 
 pytestmark = pytest.mark.unit
 NIGHTLY = ROOT / "config" / "local-ollama-nightly.toml"
@@ -107,7 +109,7 @@ def test_a_fakechat_nightly_run_of_every_split_validates(tmp_path):
     ]
     root, run_dir = behaviour_run(tmp_path, cases=cases, split="all", gate="nightly")
     assert record.validate(run_dir, root) == []
-    manifest, rows = record.read(run_dir)
+    manifest, rows = read_run(run_dir)
     assert (manifest["split"], manifest["gate"], manifest["provenance"]) == (
         "all",
         "nightly",
@@ -195,7 +197,7 @@ def test_the_first_nightly_is_the_reference_and_a_drop_fires_the_alert_naming_th
     from tests.generation_support import Q_ABQ, Q_ABS, Q_ANS, Q_FC, Q_RH, behaviour_run, reply
 
     root, first = behaviour_run(tmp_path, gate="nightly")
-    manifest, cases = record.read(first)
+    manifest, cases = read_run(first)
     assert drift.previous_nightly(root, manifest) is None
     assert drift.alert_for(root, manifest, cases) == {
         "gate": "nightly",
@@ -206,9 +208,9 @@ def test_the_first_nightly_is_the_reference_and_a_drop_fires_the_alert_naming_th
     publish_as_is(root, first)
     later = datetime(2026, 10, 19, 13, 0, 0, tzinfo=UTC)
     _, same = behaviour_run(tmp_path, root=root, gate="nightly", when=later)
-    manifest, cases = record.read(same)
+    manifest, cases = read_run(same)
     assert drift.previous_nightly(root, manifest) == root / publish.PUBLISHED / first.name
-    alert = drift.alert_for(root, manifest, cases)
+    alert: Any = drift.alert_for(root, manifest, cases)
     assert (alert["against"], alert["fired"], alert["metric"]) == (
         first.name,
         False,
@@ -225,8 +227,8 @@ def test_the_first_nightly_is_the_reference_and_a_drop_fires_the_alert_naming_th
     }
     even_later = datetime(2026, 10, 19, 14, 0, 0, tzinfo=UTC)
     _, dropped = behaviour_run(tmp_path, worse, root=root, gate="nightly", when=even_later)
-    manifest, cases = record.read(dropped)
-    alert = drift.alert_for(root, manifest, cases)
+    manifest, cases = read_run(dropped)
+    alert: Any = drift.alert_for(root, manifest, cases)
     assert alert["fired"] is True
     assert alert["against"] == first.name
     assert alert["diff"]["ci_high"] < 0
@@ -239,7 +241,7 @@ def test_the_first_nightly_is_the_reference_and_a_drop_fires_the_alert_naming_th
     assert record.validate(dropped, root) == []
     assert "## Drift alert (nightly)" in (dropped / record.REPORT).read_text(encoding="utf-8")
     # a dev run under another gate: no alert block, and a retrieval record refuses one
-    assert "alert" not in record.read(first)[0]
+    assert "alert" not in read_run(first)[0]
 
 
 def reseal_with_alert(run_dir: Path, manifest: dict, cases: list) -> None:
@@ -264,8 +266,8 @@ def test_an_unpaired_previous_nightly_is_noted_and_never_fires(tmp_path):
     publish_as_is(root, first)
     later = datetime(2026, 10, 19, 13, 0, 0, tzinfo=UTC)
     _, three = behaviour_run(tmp_path, root=root, gate="nightly", trials=3, when=later)
-    manifest, cases = record.read(three)
-    alert = drift.alert_for(root, manifest, cases)
+    manifest, cases = read_run(three)
+    alert: Any = drift.alert_for(root, manifest, cases)
     assert alert["fired"] is False
     assert alert["against"] == first.name
     assert alert["note"].startswith("not compared: not the same trials")
@@ -300,7 +302,7 @@ def test_the_cli_writes_the_alert_on_a_nightly_run_and_never_blocks(tmp_path, ca
     assert code == 0, captured.err
     assert len(calls) == 1
     [run_dir] = list(out.iterdir())
-    manifest, _ = record.read(run_dir)
+    manifest, _ = read_run(run_dir)
     assert manifest["alert"] == fired
     assert record.validate(run_dir, ROOT) == []
     assert "drift alert (nightly): FIRED against" in captured.out
@@ -312,4 +314,4 @@ def test_the_cli_writes_the_alert_on_a_nightly_run_and_never_blocks(tmp_path, ca
     assert code == 0
     assert len(calls) == 1
     [run_dir] = list(out.iterdir())
-    assert "alert" not in record.read(run_dir)[0]
+    assert "alert" not in read_run(run_dir)[0]

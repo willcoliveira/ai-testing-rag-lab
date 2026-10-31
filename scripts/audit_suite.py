@@ -21,6 +21,7 @@ import re
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 TEST_PLAN = ROOT / "docs" / "TEST-PLAN.md"
@@ -129,8 +130,8 @@ def golden_counts() -> dict[str, int]:
     return out
 
 
-def published() -> list[dict[str, object]]:
-    found: list[dict[str, object]] = []
+def published() -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = []
     for path in sorted(PUBLISHED.glob("*/manifest.json")):
         found.append(json.loads(path.read_text(encoding="utf-8")))
     return found

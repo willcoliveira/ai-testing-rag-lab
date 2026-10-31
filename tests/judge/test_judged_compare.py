@@ -22,6 +22,7 @@ from raglab.evals import compare, judged_gate, publish, record
 from raglab.judge.prompts import judge_v2
 from tests.conftest import ROOT
 from tests.judge_support import reseal
+from tests.retrieval_support import read_run
 
 pytestmark = pytest.mark.unit
 A = "20261021T081852Z-judge-local-dev-5aa0ec5"  # answer-v1's judged consistency baseline (S5)
@@ -40,7 +41,7 @@ def copy_of(tmp_path: Path, run_id: str = A) -> Path:
 def flip(run_dir: Path, criterion: str, count: int | None, to: str = "fail") -> int:
     """Flip up to `count` (all when None) first-pass verdicts of a criterion from pass to `to`,
     reply text included so the parser agrees, and reseal; the number flipped."""
-    manifest, lines = record.read(run_dir)
+    manifest, lines = read_run(run_dir)
     flipped = 0
     for line in lines:
         verdicts = line.get("verdicts") or {}
@@ -90,7 +91,7 @@ def write_record(root: Path, data: dict[str, Any], name: str = "test-c1") -> Pat
 
 def test_a_judged_record_against_a_copy_of_itself_is_zero_everywhere(tmp_path):
     copy = copy_of(tmp_path)
-    result = compare.compare(A_DIR, copy, ROOT)
+    result: Any = compare.compare(A_DIR, copy, ROOT)
     assert (result["suite"], result["a"], result["b"]) == ("judged", A, A)
     assert set(result["judge"]) == {f"{p}.{k}" for p, k in compare.JUDGE_IDENTITY}
     assert result["metrics"], "the criteria judged"
@@ -106,7 +107,7 @@ def test_a_judged_record_against_a_copy_of_itself_is_zero_everywhere(tmp_path):
 def test_the_two_published_judged_records_compare_under_one_judge():
     """answer-v1's and answer-v2's judged records (the one-judge test holds them to one judge)
     are a real paired comparison: the same 49 cases, every criterion with its interval."""
-    result = compare.compare(A_DIR, ROOT / publish.PUBLISHED / B, ROOT)
+    result: Any = compare.compare(A_DIR, ROOT / publish.PUBLISHED / B, ROOT)
     assert result["n"] == 49
     assert result["sources"]["a"] != result["sources"]["b"]
     assert "grounded" in result["metrics"]
@@ -115,7 +116,7 @@ def test_the_two_published_judged_records_compare_under_one_judge():
 
 def test_a_judged_run_under_another_judge_or_dataset_is_not_paired(tmp_path):
     copy = copy_of(tmp_path)
-    manifest, lines = record.read(copy)
+    manifest, lines = read_run(copy)
     manifest["judge"]["digest"] = "0" * 12
     reseal(copy, manifest, lines)
     with pytest.raises(compare.CompareError, match="compare only under one judge"):
@@ -132,10 +133,10 @@ def test_a_judged_run_under_another_judge_or_dataset_is_not_paired(tmp_path):
 def test_twenty_trusted_verdicts_flipped_fail_the_gate_and_a_reported_only_criterion_does_not(
     tmp_path,
 ):
-    manifest, _ = record.read(A_DIR)
+    manifest, _ = read_run(A_DIR)
     data = calibration_record(manifest, grounded="trusted", abstains="reported only")
     identical = copy_of(tmp_path / "same")
-    result = compare.compare(A_DIR, identical, ROOT)
+    result: Any = compare.compare(A_DIR, identical, ROOT)
     outcome = judged_gate.verdict(result, data)
     assert outcome.passed, outcome.lines
     assert outcome.lines[-1] == "passes: no trusted criterion (grounded) dropped"
@@ -146,7 +147,7 @@ def test_twenty_trusted_verdicts_flipped_fail_the_gate_and_a_reported_only_crite
     dropped = copy_of(tmp_path / "dropped")
     assert flip(dropped, "grounded", 20) == 20
     assert record.validate(dropped, ROOT) == []
-    result = compare.compare(A_DIR, dropped, ROOT)
+    result: Any = compare.compare(A_DIR, dropped, ROOT)
     grounded = result["metrics"]["grounded"]
     assert grounded["ci_high"] < 0, grounded
     outcome = judged_gate.verdict(result, data)
@@ -158,14 +159,14 @@ def test_twenty_trusted_verdicts_flipped_fail_the_gate_and_a_reported_only_crite
     # the same on a reported-only criterion: printed, never gating (expected pass)
     reported = copy_of(tmp_path / "reported")
     assert flip(reported, "abstains", None) > 0
-    result = compare.compare(A_DIR, reported, ROOT)
+    result: Any = compare.compare(A_DIR, reported, ROOT)
     assert result["metrics"]["abstains"]["diff"] < 0
     outcome = judged_gate.verdict(result, data)
     assert outcome.passed, outcome.lines
     assert any(line.startswith("  abstains: reported only, never gates:") for line in outcome.lines)
     # the trust check: a record that marks grounded reported only stops gating it
     demoted = calibration_record(manifest, grounded="reported only", abstains="reported only")
-    result = compare.compare(A_DIR, dropped, ROOT)
+    result: Any = compare.compare(A_DIR, dropped, ROOT)
     outcome = judged_gate.verdict(result, demoted)
     assert not outcome.passed
     assert outcome.lines[-1].startswith("refused: the record marks no compared criterion trusted")
@@ -173,9 +174,9 @@ def test_twenty_trusted_verdicts_flipped_fail_the_gate_and_a_reported_only_crite
 
 
 def test_an_unnamed_criterion_is_refused_from_gating_and_a_bad_record_is_refused(tmp_path):
-    manifest, _ = record.read(A_DIR)
+    manifest, _ = read_run(A_DIR)
     data = calibration_record(manifest, abstains="trusted")
-    result = compare.compare(A_DIR, copy_of(tmp_path), ROOT)
+    result: Any = compare.compare(A_DIR, copy_of(tmp_path), ROOT)
     outcome = judged_gate.verdict(result, data)
     assert outcome.passed
     assert any(
@@ -194,11 +195,11 @@ def test_an_unnamed_criterion_is_refused_from_gating_and_a_bad_record_is_refused
 
 
 def test_the_record_is_found_by_the_pin_or_by_identity_and_a_changed_pin_is_refused(tmp_path):
-    manifest, _ = record.read(A_DIR)
+    manifest, _ = read_run(A_DIR)
     assert judged_gate.find_record(tmp_path, manifest) is None  # none under datasets/calibration
     data = calibration_record(manifest, grounded="trusted")
     path = write_record(tmp_path, data)
-    found = judged_gate.find_record(tmp_path, manifest)
+    found: Any = judged_gate.find_record(tmp_path, manifest)
     assert found is not None
     assert found[0] == path
     assert found[1]["status"] == {"grounded": "trusted"}
@@ -228,14 +229,14 @@ def test_a_new_judged_run_names_the_record_that_describes_its_judge(tmp_path):
 
     root, source = judged_root(tmp_path)
     plain = run_judged(root, source)
-    manifest, _ = record.read(plain)
+    manifest, _ = read_run(plain)
     assert "calibration_record" not in manifest["judge"]
     assert record.validate(plain, root) == []
     data = calibration_record(manifest, grounded="trusted")
     path = write_record(root, data)
     shutil.rmtree(plain)
     pinned = run_judged(root, source)
-    manifest, _ = record.read(pinned)
+    manifest, _ = read_run(pinned)
     assert manifest["judge"]["calibration_record"] == {
         "path": "datasets/calibration/test-c1/record.json",
         "sha256": record.sha256_bytes(path.read_bytes()),
@@ -258,7 +259,7 @@ def test_the_cli_refuses_without_a_record_and_gates_with_a_given_one(tmp_path, c
         f"describes the judge of {A} (model ministral-3:14b-instruct-2512-q4_K_M, prompt "
         "judge-v2): nothing judged gates until S6's record trusts a criterion"
     ]
-    manifest, _ = record.read(A_DIR)
+    manifest, _ = read_run(A_DIR)
     path = write_record(tmp_path, calibration_record(manifest, grounded="trusted"))
     command = ["gate", "--judged", str(identical), "--against", A, "--root", str(ROOT)]
     code = main([*command, "--calibration", str(path)])

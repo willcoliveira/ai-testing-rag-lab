@@ -15,6 +15,7 @@ import pytest
 from raglab.__main__ import main
 from raglab.evals import causes, publish, record
 from tests.conftest import ROOT
+from tests.retrieval_support import read_run
 
 pytestmark = pytest.mark.unit
 BASELINE = "20261024T090351Z-generation-local-ollama-dev-ade9397"
@@ -196,7 +197,7 @@ def tagged_copy(tmp_path: Path, run_id: str = BASELINE) -> tuple[Path, dict, lis
     record's) and results.causes added, resealed."""
     run_dir = tmp_path / run_id
     shutil.copytree(ROOT / publish.PUBLISHED / run_id, run_dir)
-    manifest, cases = record.read(run_dir)
+    manifest, cases = read_run(run_dir)
     context = causes.Context.for_record(manifest, ROOT)
     assert context is not None, "the corpus is the record's"
     for case, cause in zip(cases, causes.tag(cases, context), strict=True):
@@ -240,7 +241,7 @@ def test_the_v2_baseline_tagged_by_the_rule_validates_and_an_edited_cause_is_nam
     ]
     passed["cause"] = None
     reseal(run_dir, manifest, cases)
-    manifest, cases = record.read(run_dir)
+    manifest, cases = read_run(run_dir)
     manifest["results"]["causes"]["cases"]["retrieval"] += 1
     reseal_keeping_results(run_dir, manifest, cases)
     problems = record.validate(run_dir, ROOT)
@@ -278,10 +279,10 @@ def test_a_record_without_causes_validates_as_it_did_and_cause_is_optional(tmp_p
 
 
 def test_the_context_is_none_when_the_corpus_is_not_the_records(tmp_path):
-    manifest, _ = record.read(ROOT / publish.PUBLISHED / BASELINE)
+    manifest, _ = read_run(ROOT / publish.PUBLISHED / BASELINE)
     other = {**manifest, "corpus": {**manifest["corpus"], "sha256": "0" * 64}}
     assert causes.Context.for_record(other, ROOT) is None
-    attack, _ = record.read(ROOT / publish.PUBLISHED / ATTACK)
+    attack, _ = read_run(ROOT / publish.PUBLISHED / ATTACK)
     assert causes.Context.for_record(attack, ROOT) is None  # attack records keep their checks
     assert causes.Context.for_record(manifest, ROOT) is not None
 
@@ -292,8 +293,8 @@ def test_the_context_is_none_when_the_corpus_is_not_the_records(tmp_path):
 def test_derive_reads_a_published_run_without_change_and_seals_the_file(tmp_path):
     run_dir = ROOT / publish.PUBLISHED / BASELINE
     before = {name: (run_dir / name).read_bytes() for name in publish.FILES}
-    manifest, cases = record.read(run_dir)
-    data = causes.derive(manifest, cases, (run_dir / record.MANIFEST).read_bytes(), ROOT)
+    manifest, cases = read_run(run_dir)
+    data: Any = causes.derive(manifest, cases, (run_dir / record.MANIFEST).read_bytes(), ROOT)
     assert {name: (run_dir / name).read_bytes() for name in publish.FILES} == before
     assert data["recomputed"] is True
     assert data["run_id"] == BASELINE
@@ -319,11 +320,11 @@ def test_the_committed_causes_files_are_what_a_fresh_derivation_gives():
     assert files, "no derived file"
     for path in files:
         assert causes.check_file(path) == [], path.name
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data: Any = json.loads(path.read_text(encoding="utf-8"))
         run_dir = ROOT / publish.PUBLISHED / str(data["run_id"])
         assert path.name == f"{data['run_id']}.json"
         assert run_dir.is_dir(), f"{path.name} names an unpublished run"
-        manifest, cases = record.read(run_dir)
+        manifest, cases = read_run(run_dir)
         fresh = causes.derive(manifest, cases, (run_dir / record.MANIFEST).read_bytes(), ROOT)
         assert fresh["sha256"] == data["sha256"], path.name
         assert fresh["manifest_sha256"] == record.sha256_bytes(
@@ -332,14 +333,14 @@ def test_the_committed_causes_files_are_what_a_fresh_derivation_gives():
 
 
 def test_the_attack_and_judged_records_get_their_own_counts():
-    manifest, cases = record.read(ROOT / publish.PUBLISHED / ATTACK)
-    data = causes.derive(manifest, cases, b"", ROOT)
+    manifest, cases = read_run(ROOT / publish.PUBLISHED / ATTACK)
+    data: Any = causes.derive(manifest, cases, b"", ROOT)
     claim = data["counts"]["other_tenant_claim"]
     assert set(claim) == {"case_trials", "cases"}
     assert data["cause"] == "generation"
     assert len(data["cases"]) == len(cases)
-    manifest, cases = record.read(ROOT / publish.PUBLISHED / JUDGED)
-    data = causes.derive(manifest, cases, b"", ROOT)
+    manifest, cases = read_run(ROOT / publish.PUBLISHED / JUDGED)
+    data: Any = causes.derive(manifest, cases, b"", ROOT)
     split = data["counts"]["failed_verdicts"]
     assert set(split) <= {
         "grounded", "cites_support", "correct", "relevant", "abstains", "refuses_and_helps",
@@ -374,24 +375,24 @@ def test_a_fake_generation_run_carries_a_cause_on_every_line_and_the_counts(tmp_
 
     root, run_dir = behaviour_run(tmp_path)
     assert record.validate(run_dir, root) == []
-    manifest, cases = record.read(run_dir)
+    manifest, cases = read_run(run_dir)
     assert all("cause" in c for c in cases)
     assert manifest["results"]["causes"] == causes.counts(cases)
     assert "## Causes (no judge)" in (run_dir / record.REPORT).read_text(encoding="utf-8")
     # the fixture's chunks are not the lab root's corpus, so the tags stand as recorded
     assert causes.Context.for_record(manifest, root) is None
-    data = causes.derive(manifest, cases, (run_dir / record.MANIFEST).read_bytes(), root)
+    data: Any = causes.derive(manifest, cases, (run_dir / record.MANIFEST).read_bytes(), root)
     assert data["recomputed"] is False
     assert data["counts"] == manifest["results"]["causes"]
 
 
 def test_a_fake_retrieval_run_carries_causes_too(tmp_path):
-    from tests.retrieval_support import fake_run, lab_root
+    from tests.retrieval_support import fake_run, lab_root, read_run
 
     root = lab_root(tmp_path)
     run_dir = fake_run(root)
     assert record.validate(run_dir, root) == []
-    manifest, cases = record.read(run_dir)
+    manifest, cases = read_run(run_dir)
     assert all("cause" in c for c in cases)
     assert all(c["cause"] in (None, "retrieval", "ingestion") for c in cases)
     assert manifest["results"]["causes"] == causes.counts(cases)
