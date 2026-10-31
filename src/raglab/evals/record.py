@@ -490,7 +490,7 @@ def retrieval_problems(manifest: Json, cases: Sequence[Json], k: int) -> list[st
         problems.append("a retrieval run has bootstrap intervals: missing 'bootstrap'")
     extra = [
         f
-        for f in (*GENERATION_MANIFEST, "guard_set", "probes", "ollama", "position")
+        for f in (*GENERATION_MANIFEST, "guard_set", "probes", "ollama", "position", "alert")
         if f in manifest
     ]
     if extra or "generation" in as_json(manifest["results"]):

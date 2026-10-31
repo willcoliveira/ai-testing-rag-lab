@@ -4,6 +4,7 @@ under any other gate; the nightly config and `make nightly-local` exist; a FakeC
 validates."""
 
 import re
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -11,7 +12,7 @@ import pytest
 
 from raglab.__main__ import main
 from raglab.evals import config as eval_config
-from raglab.evals import publish, record
+from raglab.evals import drift, publish, record
 from tests.conftest import ROOT
 
 pytestmark = pytest.mark.unit
@@ -173,3 +174,142 @@ def test_the_release_config_is_the_local_config_on_the_test_split():
         settings.pop("dataset")
     assert one == two
     assert release.dataset == local.dataset
+
+
+# ---------------------------------------------------------------- S8 (GA7): the drift alert
+
+
+def publish_as_is(root: Path, run_dir: Path) -> None:
+    """A fake record placed under runs/published with the index rebuilt (publish itself refuses
+    a fake run; the alert reads the index, never the provenance)."""
+    published = root / publish.PUBLISHED
+    shutil.copytree(run_dir, published / run_dir.name)
+    publish.write_index(published, publish.build_index(published, {}))
+
+
+def test_the_first_nightly_is_the_reference_and_a_drop_fires_the_alert_naming_the_cases(tmp_path):
+    """GA7: with no published nightly of the config, the alert block says the run is the
+    reference; against a published nightly (a FakeChat pair, paired by case) an identical run
+    does not fire, and one with five of seven cases lost fires, naming them; the interval is the
+    paired bootstrap's and the alert block validates in the record."""
+    from tests.generation_support import Q_ABQ, Q_ABS, Q_ANS, Q_FC, Q_RH, behaviour_run, reply
+
+    root, first = behaviour_run(tmp_path, gate="nightly")
+    manifest, cases = record.read(first)
+    assert drift.previous_nightly(root, manifest) is None
+    assert drift.alert_for(root, manifest, cases) == {
+        "gate": "nightly",
+        "against": None,
+        "fired": False,
+        "note": "the first nightly of this config is the reference",
+    }
+    publish_as_is(root, first)
+    later = datetime(2026, 10, 19, 13, 0, 0, tzinfo=UTC)
+    _, same = behaviour_run(tmp_path, root=root, gate="nightly", when=later)
+    manifest, cases = record.read(same)
+    assert drift.previous_nightly(root, manifest) == root / publish.PUBLISHED / first.name
+    alert = drift.alert_for(root, manifest, cases)
+    assert (alert["against"], alert["fired"], alert["metric"]) == (
+        first.name,
+        False,
+        "behaviour_pass^2",
+    )
+    assert alert["diff"] == {"value": 0, "ci_low": 0, "ci_high": 0, "n": 7}
+    assert alert["flipped"] == {"gained": [], "lost": []}
+    worse = {
+        Q_ANS: reply("abstain", "The documents do not say."),
+        Q_FC: reply("answer", "They expire every 60 days."),
+        Q_ABS: reply("answer", "Three attempts a day.", []),
+        Q_ABQ: reply("answer", "At most 64 characters."),
+        Q_RH: reply("answer", "Yes, share it."),
+    }
+    even_later = datetime(2026, 10, 19, 14, 0, 0, tzinfo=UTC)
+    _, dropped = behaviour_run(tmp_path, worse, root=root, gate="nightly", when=even_later)
+    manifest, cases = record.read(dropped)
+    alert = drift.alert_for(root, manifest, cases)
+    assert alert["fired"] is True
+    assert alert["against"] == first.name
+    assert alert["diff"]["ci_high"] < 0
+    assert set(alert["flipped"]["lost"]) == {"B-ANS", "B-FC", "B-ABS", "B-ABQ", "B-RH"}
+    assert alert["flipped"]["gained"] == []
+    assert "FIRED against" in drift.line(alert)
+    assert "cases lost: " in drift.line(alert)
+    manifest["alert"] = alert
+    reseal_with_alert(dropped, manifest, cases)
+    assert record.validate(dropped, root) == []
+    assert "## Drift alert (nightly)" in (dropped / record.REPORT).read_text(encoding="utf-8")
+    # a dev run under another gate: no alert block, and a retrieval record refuses one
+    assert "alert" not in record.read(first)[0]
+
+
+def reseal_with_alert(run_dir: Path, manifest: dict, cases: list) -> None:
+    import json
+
+    body = {k: v for k, v in manifest.items() if k != "files"}
+    cases_bytes = record.cases_text(cases).encode()
+    report_bytes = record.render(body, cases).encode()
+    (run_dir / record.CASES).write_bytes(cases_bytes)
+    (run_dir / record.REPORT).write_bytes(report_bytes)
+    body["files"] = {
+        record.CASES: record.sha256_bytes(cases_bytes),
+        record.REPORT: record.sha256_bytes(report_bytes),
+    }
+    (run_dir / record.MANIFEST).write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
+
+
+def test_an_unpaired_previous_nightly_is_noted_and_never_fires(tmp_path):
+    from tests.generation_support import behaviour_run
+
+    root, first = behaviour_run(tmp_path, gate="nightly", trials=2)
+    publish_as_is(root, first)
+    later = datetime(2026, 10, 19, 13, 0, 0, tzinfo=UTC)
+    _, three = behaviour_run(tmp_path, root=root, gate="nightly", trials=3, when=later)
+    manifest, cases = record.read(three)
+    alert = drift.alert_for(root, manifest, cases)
+    assert alert["fired"] is False
+    assert alert["against"] == first.name
+    assert alert["note"].startswith("not compared: not the same trials")
+
+
+def test_the_cli_writes_the_alert_on_a_nightly_run_and_never_blocks(tmp_path, capsys, monkeypatch):
+    """GA7: `raglab eval --gate nightly` writes the alert block (here, through the fake
+    generation config on the dev split: the first nightly of that config, the reference) and a
+    fired alert leaves the exit code at 0: it never blocks."""
+    source = (ROOT / "config" / "fake.toml").read_text(encoding="utf-8")
+    config = tmp_path / "fake.toml"
+    config.write_text(source.replace("trials = 3", "trials = 1"), encoding="utf-8")
+    out = tmp_path / "runs"
+    command = ["eval", "--suite", "generation", "--config", str(config), "--out", str(out)]
+    fired = {
+        "gate": "nightly",
+        "against": "20261019T000000Z-generation-fake-dev-0000000",
+        "fired": True,
+        "metric": "behaviour_pass^1",
+        "diff": {"value": -0.5, "ci_low": -0.7, "ci_high": -0.3, "n": 2},
+        "flipped": {"gained": [], "lost": ["G-01", "G-02"]},
+    }
+    calls: list[str] = []
+
+    def alert_for(root: Path, manifest: dict, cases: list) -> dict:
+        calls.append(manifest["run_id"])
+        return fired
+
+    monkeypatch.setattr(drift, "alert_for", alert_for)
+    code = main([*command, "--gate", "nightly", "--root", str(ROOT)])
+    captured = capsys.readouterr()
+    assert code == 0, captured.err
+    assert len(calls) == 1
+    [run_dir] = list(out.iterdir())
+    manifest, _ = record.read(run_dir)
+    assert manifest["alert"] == fired
+    assert record.validate(run_dir, ROOT) == []
+    assert "drift alert (nightly): FIRED against" in captured.out
+    assert "cases lost: G-01, G-02" in captured.out
+    assert "## Drift alert (nightly)" in (run_dir / record.REPORT).read_text(encoding="utf-8")
+    # under any other gate no alert is read or written
+    shutil.rmtree(out)
+    code = main([*command, "--root", str(ROOT)])
+    assert code == 0
+    assert len(calls) == 1
+    [run_dir] = list(out.iterdir())
+    assert "alert" not in record.read(run_dir)[0]

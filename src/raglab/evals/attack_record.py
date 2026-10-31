@@ -372,7 +372,7 @@ def problems(manifest: Json, cases: Sequence[Json], root: Path) -> list[str]:
     out: list[str] = []
     if missing := [f for f in MANIFEST_FIELDS if f not in manifest]:
         return [f"an attack run needs {missing}"]
-    if extra := [f for f in ("bootstrap", "probes", "position") if f in manifest]:
+    if extra := [f for f in ("bootstrap", "probes", "position", "alert") if f in manifest]:
         out.append(f"an attack run has no {extra}")
     block = _obj(manifest["attack"])
     configuration = str(block.get("configuration"))

@@ -368,6 +368,10 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
         from raglab.evals import causes
 
         lines += causes.report_lines(_obj(results_["causes"]))
+    if "alert" in manifest:  # S8: the nightly drift alert
+        from raglab.evals import drift
+
+        lines += drift.report_lines(_obj(manifest["alert"]))
     lines += [
         "",
         "## Case-trials",

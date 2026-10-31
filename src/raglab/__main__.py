@@ -18,10 +18,12 @@ from raglab.evals import (
     attack,
     causes,
     dataset_check,
+    drift,
     generation,
     golden,
     guard_suites,
     judged,
+    judged_gate,
     publish,
     record,
     replay,
@@ -194,12 +196,16 @@ def evaluate(args: argparse.Namespace) -> int:
         return 1
     root: Path = args.root
     out: Path = args.out if args.out.is_absolute() else root / args.out
+    if manifest["suite"] == "generation" and args.gate == "nightly":  # S8 (GA7): never blocks
+        manifest["alert"] = drift.alert_for(root, manifest, cases)
     run_dir = record.write(out, manifest, cases)
     if problems := record.validate(run_dir, root):
         print("eval wrote an invalid run record:\n" + "\n".join(problems), file=sys.stderr)
         return 1
     print((run_dir / record.REPORT).read_text(encoding="utf-8"))
     print(f"run record: {run_dir}")
+    if "alert" in manifest:
+        print(drift.line(record.as_json(manifest["alert"])), flush=True)
     if manifest["git_dirty"]:
         print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
     if manifest["suite"] == "attack" and (reasons := attack.unsafe(manifest)):
@@ -296,8 +302,31 @@ def _consistency(root: Path, run_dir: Path) -> int:
     return say(verdict.message, verdict.passed)
 
 
+def _judged_gate(args: argparse.Namespace) -> int:
+    """`raglab gate --judged B --against A` (S8, GA6, D1 A): the paired comparison of two judged
+    records read with the calibration record B names (or the one that describes its judge, by
+    identity; `--calibration` names one to read instead): a criterion the record marks trusted
+    fails when its interval lies entirely below zero; reported-only, not-trusted and unnamed
+    criteria are printed and never gate; with no record or no trusted criterion the gate refuses.
+    One line per criterion and a verdict line; exit 0 only when it passes."""
+    root: Path = args.root
+    try:
+        b_dir, a_dir = _run_dir(root, args.judged), _run_dir(root, args.against)
+        outcome = judged_gate.check(root, b_dir, a_dir, args.calibration)
+    except (FileNotFoundError, compare_runs.CompareError, judged_gate.GateError) as error:
+        print(f"{judged_gate.NAME}: refused: {error}", flush=True)
+        return 1
+    print("\n".join(outcome.lines), flush=True)
+    return 0 if outcome.passed else 1
+
+
 def gate(args: argparse.Namespace) -> int:
     root: Path = args.root
+    if args.judged is not None or args.against is not None:  # S8: the judged gate
+        if args.judged is None or args.against is None or args.config or args.run:
+            print("gate: --judged B goes with --against A and nothing else", file=sys.stderr)
+            return 2
+        return _judged_gate(args)
     if (args.config is None) == (args.run is None):
         print(
             "gate: give --config (run, then gate) or --run (gate a finished run)", file=sys.stderr
@@ -392,12 +421,16 @@ def judge_run(args: argparse.Namespace) -> int:
         print(f"judge failed: {error}", file=sys.stderr, flush=True)
         return 1
     out: Path = args.out if args.out.is_absolute() else root / args.out
+    if args.gate == "nightly":  # S8 (GA7): the judged alert on the trusted criteria, never blocks
+        manifest["alert"] = drift.judged_alert_for(root, manifest, lines)
     run_dir = record.write(out, manifest, lines)
     if problems := record.validate(run_dir, root):
         print("judge wrote an invalid run record:\n" + "\n".join(problems), file=sys.stderr)
         return 1
     print((run_dir / record.REPORT).read_text(encoding="utf-8"))
     print(f"run record: {run_dir}")
+    if "alert" in manifest:
+        print(drift.line(record.as_json(manifest["alert"])), flush=True)
     if manifest["git_dirty"]:
         print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
     return 0
@@ -720,7 +753,8 @@ def main(argv: list[str] | None = None) -> int:
         (
             "gate",
             "the retrieval no-regression gate (a retrieval config) or the consistency gate (a "
-            "generation config, or --run for a finished run) against the published baseline",
+            "generation config, or --run for a finished run) against the published baseline; "
+            "--judged B --against A for the judged gate (S8)",
         ),
     ):
         sub = commands.add_parser(name, help=text)
@@ -744,6 +778,15 @@ def main(argv: list[str] | None = None) -> int:
             sub.add_argument("--config", type=Path, help="a config/*.toml file: run, then gate")
             sub.add_argument(
                 "--run", type=Path, help="a finished generation run (a directory or a run id)"
+            )
+            sub.add_argument(
+                "--judged", type=Path, help="the judged gate (S8): judged run B, with --against"
+            )
+            sub.add_argument("--against", type=Path, help="judged run A, the one B is compared to")
+            sub.add_argument(
+                "--calibration",
+                type=Path,
+                help="a calibration record.json to read instead of the one B names (S8)",
             )
             sub.add_argument(
                 "--gate",
