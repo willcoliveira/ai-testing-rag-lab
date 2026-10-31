@@ -331,6 +331,43 @@ def test_the_judged_alert_reads_the_trusted_criteria_and_names_the_recalibration
     assert "abstains" not in alert["diff"]
 
 
+def test_publish_refuses_a_judged_nightly_without_its_alert_or_with_it_edited(tmp_path):
+    """Choice 8 for judged records (the judge's S8-J17): with a published judged nightly of the
+    config and a record trusting grounded, a later judged nightly copy with 20 grounded verdicts
+    flipped is refused without its alert block, refused with the block's `fired` edited, and
+    accepted with the honest block; the first nightly, with no previous, needs no block."""
+    from raglab.evals import drift
+
+    root = tmp_path / "root"
+    first = nightly_copy(root, "20261022T000000Z-judge-local-dev-5aa0ec5", "2026-10-22T00:00:00Z")
+    published = root / publish.PUBLISHED
+    publish.write_index(published, publish.build_index(published, {}))
+    manifest, _ = read_run(first)
+    write_record(root, calibration_record(manifest, grounded="trusted"))
+    later = tmp_path / "later" / "20261023T000000Z-judge-local-dev-5aa0ec5"
+    shutil.copytree(first, later)
+    later_manifest = json.loads((later / record.MANIFEST).read_text(encoding="utf-8"))
+    later_manifest["run_id"] = later.name
+    later_manifest["created_at"] = "2026-10-23T00:00:00Z"
+    (later / record.MANIFEST).write_text(json.dumps(later_manifest, indent=2) + "\n", "utf-8")
+    assert flip(later, "grounded", 20) == 20
+    manifest, lines = read_run(later)
+    honest: Any = drift.judged_alert_for(root, manifest, lines)
+    assert (honest["fired"], honest["against"]) == (True, first.name)
+    assert publish.alert_problems(manifest, lines, root) == [
+        f"a nightly record without its alert block while the previous nightly {first.name} is "
+        "published: the block is recomputed at publish"
+    ]
+    edited = {**honest, "fired": False}
+    [problem] = publish.alert_problems({**manifest, "alert": edited}, lines, root)
+    assert problem.startswith(
+        f"its alert block is not the one recomputed against {first.name}: fired differ"
+    )
+    assert publish.alert_problems({**manifest, "alert": honest}, lines, root) == []
+    first_manifest, first_lines = read_run(first)
+    assert publish.alert_problems(first_manifest, first_lines, root) == []
+
+
 # ---------------------------------------------------------------- the CLI
 
 

@@ -233,10 +233,11 @@ def alert_problems(manifest: Json, cases: list[Json], root: Path) -> list[str]:
     """S8 (the maintainer's answer of 2026-10-31 on choice 8, verbatim: "Publish recomputes it
     (Recommended)"): a nightly record's `alert` block is recomputed here against the previous
     published nightly of its config, found through the index (raglab.evals.drift), and a mismatch
-    is refused naming what differs; a nightly generation record without the block is refused
-    while a previous nightly is published (the first nightly of a config, with no previous, is
-    the reference and publishes as it is); a judged nightly record is held the same way when it
-    carries the block. `record.validate` stays single-record: it checks the block's shape only."""
+    is refused naming what differs; a nightly record without the block is refused while a
+    previous nightly it would be compared with is published (the first nightly of a config, with
+    no previous, is the reference and publishes as it is); a judged nightly record is held the
+    same way, block present or missing (the judge's S8-J17). `record.validate` stays
+    single-record: it checks the block's shape only."""
     from raglab.evals import drift  # drift reads this module's index
 
     if "alert" in manifest and manifest["gate"] != drift.GATE:
@@ -245,7 +246,7 @@ def alert_problems(manifest: Json, cases: list[Json], root: Path) -> list[str]:
         return []
     if manifest["suite"] == "generation":
         expected = drift.alert_for(root, manifest, cases)
-    elif manifest["suite"] == judged_record.JUDGED and "alert" in manifest:
+    elif manifest["suite"] == judged_record.JUDGED:  # the one condition (the judge's S8-J17)
         expected = drift.judged_alert_for(root, manifest, cases)
     else:
         return (
