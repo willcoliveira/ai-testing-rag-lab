@@ -103,7 +103,7 @@ judge makes the plan's breaks on the committed files.
 | GA4 | met | `tests/evals/test_causes.py`: "23 passed in 6.35s": one case per rule (five tests), one per pair of rules (six, the order decided), the counts, the v2 baseline tagged by the rule on the real corpus and resealed (validates, with the report's causes section); `tests/retrieval/test_publish.py::test_the_committed_runs_are_valid_local_dev_runs_with_a_current_baseline` passes (no committed record changed); the corpus sha256 the rule needs is the records': a fresh ingest at 1200/1 gives `8918d4f796732b6e...`, the five v2 generation runs' and the three retrieval runs' `corpus.sha256` (quoted below) | a cause edited on the tagged copy and resealed: "case R-Q04 trial 1: cause 'generation', but the rule gives 'retrieval'" (the first retrieval-caused line); a cause put on a passed trial: "a passed trial, or one with no cause, has cause 'abstention'"; a count edited in `results.causes`: "results.causes {...} are not the counts of the lines"; a schema copy requiring `cause`: the published baseline fails with "missing 'cause'" on every line (`test_a_record_without_causes_validates_as_it_did_and_cause_is_optional`); the order is held by the six pair tests |
 | GA5 | met | `make causes RUN=...` over the v2 consistency baseline, its four repeats and the three retrieval runs (the counts table below, from `runs/tmp/s8-evidence/causes-published.txt`); `git status --short runs/published` empty after every command ("published entries changed: 0"); the eleven `runs/causes/` files committed with their seals (below); a fake run carries causes on every line and in its manifest (`test_a_fake_generation_run_carries_a_cause_on_every_line_and_the_counts`, through `tests/generation_support.behaviour_run`, the FakeChat path the e2e fake tests use) | a count edited in a derived file: "...json: its sha256 is not its content's: the file was edited" (`test_derive_reads_a_published_run_without_change_and_seals_the_file`); the command reads the published files and leaves their bytes as they were (asserted in the same test) |
 | GA6 | met offline on hand-built and copied records, refusing honestly; **the trust check is re-checked after S6 merges** against its real record (`datasets/calibration/judge-v2-c1/record.json`, its `status` and `judge` blocks, which the code reads) | `raglab compare 5aa0ec5 c14acb0` (answer-v1's and answer-v2's judged records under one judge; quoted below); `raglab gate --judged c14acb0 --against 5aa0ec5` at `ef46a61`: "refused: no calibration record under datasets/calibration/ describes the judge ... nothing judged gates until S6's record trusts a criterion" (exit 1); `tests/judge/test_judged_compare.py` (8 tests, "8 passed in 3.88s" on its first green run; "14 passed in 7.12s" with `test_compare.py` in the audit's run): the v1.1 judged baseline against a copy of itself (every interval [0, 0]), 20 `grounded` verdicts flipped to fail with their replies and resealed (the interval below zero: "fails: grounded dropped by an interval entirely below zero"), every `abstains` pass flipped (reported only: passes, expected pass), an unnamed criterion printed as not calibrated and never gating, the record found by the pin or by identity, a changed pin refused, a new judged run naming the record that describes its judge, the CLI with `--calibration` | the trust check: a record marking `grounded` reported only on the dropped copy: "refused: the record marks no compared criterion trusted" and "grounded: reported only, never gates"; the pinned record edited after the pin: "changed since ... pinned it" (the judge's break on S6's `calibrate` pin comes after S6) |
-| GA7 | met offline; the first nightly on v2 is the reference (none is published) | `tests/unit/test_held_out_split.py` (3 new tests; run with `tests/judge/test_judged_compare.py`, "24 passed in 40.93s"): the first nightly's block says it is the reference; an identical FakeChat pair gives `diff {value 0, ci_low 0, ci_high 0, n 7}` and no flip; five of seven cases lost fires the alert naming B-ANS, B-FC, B-ABS, B-ABQ, B-RH, and the record with its `alert` block validates with the report's "## Drift alert (nightly)"; the CLI on `config/fake.toml` under gate nightly writes the block and exits 0 with a fired alert ("drift alert (nightly): FIRED against ..."), and under any other gate writes none | the alert made to block: `test_the_cli_writes_the_alert_on_a_nightly_run_and_never_blocks` asserts exit 0 with `fired: true` |
+| GA7 | met offline (the judged alert's test is S8-J1's, `fe78ba3`; publish recomputes a nightly's alert, choice 8, `4091bde`); the first nightly on v2 is the reference (none is published) | `tests/unit/test_held_out_split.py` (3 new tests; run with `tests/judge/test_judged_compare.py`, "24 passed in 40.93s"): the first nightly's block says it is the reference; an identical FakeChat pair gives `diff {value 0, ci_low 0, ci_high 0, n 7}` and no flip; five of seven cases lost fires the alert naming B-ANS, B-FC, B-ABS, B-ABQ, B-RH, and the record with its `alert` block validates with the report's "## Drift alert (nightly)"; the CLI on `config/fake.toml` under gate nightly writes the block and exits 0 with a fired alert ("drift alert (nightly): FIRED against ..."), and under any other gate writes none | the alert made to block: `test_the_cli_writes_the_alert_on_a_nightly_run_and_never_blocks` asserts exit 0 with `fired: true` |
 | GA8 | met offline for sections 1, 2, 3, 5, 6 and 7; section 4 waits for S6, section 1's S7b part for S7b | `docs/audits/2026-10-31-suite-audit-v0.2.md`; `make audit-suite`: "docs/audits/2026-10-31-suite-audit-v0.2.md: the counts agree"; `tests/unit/test_audit_suite.py` (5 tests; with `test_model_fetch.py`, "14 passed in 0.18s"); every check's command and output in the report (their files under `runs/tmp/s8-evidence/audit/`) | a count edited in a copy of the report: "6. intervals: 'published runs' is '34' in the report, recounted 33"; the row removed: "6. intervals: 'published runs' is not in the report's Counts table"; a section heading reworded: named as missing (`test_a_removed_section_heading_is_named`) |
 | GA9 | met | `tests/unit/test_split_contamination.py`: "4 passed in 0.08s": 53 test-split ids (12 retrieval questions, 41 cases), no hit under `src/`, `config/`, `datasets/security/`, the prompts or THRESHOLDS.md, none of the 31 published dev records holds one, the two held-out runs are v1.1's under `release` | a test-split id planted in a comment of a copy of `src/raglab/guard/injection.py`: "src/raglab/guard/injection.py: G-02" (`test_a_planted_id_in_a_comment_of_the_injection_guard_is_named`); a longer id holding it is no hit |
 | GA10 | met after the download go of 2026-10-31 (the section "The embedder swap (GA10)" below: the commit resolved, the fetch, the pins, `make model-swap`, the two runs, the two compares in `runs/compare/`, the stale rule, the two runs published under D2 A) | `tests/unit/test_model_fetch.py` (3 new tests; the adapter suites' run, "223 passed in 16.49s"): the first model's pins are the module names pr-fast's cache key reads (`test_workflow_rules.py` passes), the second is declared unpinned and `fetch` refuses it without a download, a pinned second spec fetches into `<cache>/Snowflake--snowflake-arctic-embed-xs/<revision>/` with `onnx/model.onnx` under its folder; `make model-swap` run (it refuses before anything is downloaded): "fetch-model failed: snowflake/snowflake-arctic-embed-xs is not pinned yet (no revision or no file hashes in raglab.adapters.fastembed_embed): pin its revision and every file's sha256 from the fetched bytes, with the maintainer's go, before anything is downloaded", "make: *** [model-swap] Error 1"; `git diff ef46a61 -- corpus/` empty | a pinned sha256 changed: "onnx/model.onnx from https://... has sha256 ..., not the pinned ..." (`test_a_pinned_second_spec_fetches_into_its_own_directory_with_subfolders`) |
@@ -256,8 +256,27 @@ THRESHOLDS.md row with a gate and a reason". Each has its row now (the audit's s
    of the trials); the per-trial counts are the honest ones and the report shows both. The judge
    (S8-J2) found the other reading changes one committed per-case number: repeat 2's abstention 19
    to 18 and generation 12 to 13 cases, through G-52 (its trials generation, abstention,
-   generation). **Awaiting the maintainer's answer (asked 2026-10-31)**; the code and the
-   `runs/causes` files stay as they are until it comes.
+   generation). **The maintainer's answer (received by the orchestrator on 2026-10-31 at about
+   21:50 UTC).** The question, verbatim: "The S8 criteria judge (round 0, on Opus 5.5) found 14 of
+   18 criteria met and sends one product choice to you. When a case fails in several of its three
+   trials with different causes, which cause does the case get in the per-case counts? The
+   developer tags the case with the earliest cause in the rule order (ingestion, retrieval,
+   abstention, generation), so the tag does not depend on which trial happened to come first. The
+   other reading takes the first failed trial's cause by trial number. The two readings differ on
+   exactly one committed number: repeat 2 of the v2 consistency baseline, case G-52 (its trials:
+   generation, abstention, generation), abstention 19 or 18 cases, generation 12 or 13. The
+   per-trial counts are unchanged either way." The answer, verbatim: "Keep the rule order
+   (Recommended)" (the option's description: "A case takes the earliest cause in the rule order
+   among its failed trials. The committed numbers stand; the plan's sentence gets a dated
+   clarifying note in the ledger."). **Dated note (2026-10-31):** the plan's sentence "a case takes
+   the cause of the first of its failed trials in the order above" is read as the rule order
+   (ingestion, retrieval, abstention, generation), never the trial order; G-52 in repeat 2
+   (`20261024T092237Z-generation-local-ollama-dev-ade9397`, trials generation, abstention,
+   generation) is the one published case where the two readings differ, and its committed count
+   (abstention 19 cases, generation 12) stands. The code and the `runs/causes` files are unchanged;
+   the wording "earliest cause in the rule order" is in `raglab.evals.causes`'s docstring, the
+   report's causes note ("the earliest cause in that order among its failed trials") and
+   THRESHOLDS.md's causes row. S8-J2 is closed.
 3. **Rule 1 at run time reads the chunks the retriever searched** (`assembled.chunks`, the scan's
    kept chunks) rather than ingesting again; at validate time the corpus is rebuilt at the record's
    settings, through the scan for a generation run, and read only when its sha256 is the record's.
@@ -279,7 +298,33 @@ THRESHOLDS.md row with a gate and a reason". Each has its row now (the audit's s
    content depends on another published record; the report line is rendered from it, so a hand edit
    changes the report's sha256 as any manifest edit does. The judge (S8-J3) notes nothing checks the
    block's content, so a resealed nightly with a false alert, or none, could be published; publish
-   could recompute it against the index. **Awaiting the maintainer's answer (asked 2026-10-31)**.
+   could recompute it against the index. **The maintainer's answer (received by the orchestrator on
+   2026-10-31 at about 21:50 UTC).** The question, verbatim: "Second product choice from the judge.
+   The nightly drift alert is written into the run record as an alert block that is schema-checked
+   only: nothing recomputes it, so a hand-edited and resealed nightly record could carry a false
+   alert, or none. No nightly on v2 is published yet, so no record changes either way. Should
+   publish recompute the alert?" The answer, verbatim: "Publish recomputes it (Recommended)" (the
+   option's description: "raglab publish recomputes a nightly's alert against the previous
+   published nightly of the same config from the index and refuses a mismatch. validate stays
+   single-record."). Applied in `4091bde` (S8-J3): `publish.alert_problems` recomputes a
+   nightly generation record's block with `drift.alert_for` (the previous published nightly of its
+   config from the index) and refuses a mismatch naming the run and the keys that differ, with the
+   recomputed values (`fired`, `diff`, `flipped`, `against`, ...); it refuses a nightly generation
+   record without the block while a previous nightly is published; the first nightly of a config
+   (no previous) publishes with its reference block as before; a judged nightly record is held the
+   same way when it carries the block; a record under another gate carrying a block is refused.
+   `record.validate` stays single-record. Tests
+   (`test_publish_recomputes_a_nightlys_alert_and_refuses_an_edited_or_missing_one`): an honest
+   local nightly pair publishes; the second with its alert edited (fired flipped, a case planted in
+   the lost list) and resealed is refused ("its alert block is not the one recomputed against
+   <first>: fired, flipped differ (recomputed {...})"); with the block removed and resealed,
+   refused ("without its alert block while the previous nightly ... is published"). The judge's
+   J3 break, the GA7 CLI test's made-up alert against a run that does not exist, is now named by
+   the rule inside that test ("its alert block is not the one recomputed against no previous
+   nightly (the reference): against, diff, fired, flipped, metric, note differ"), while the test
+   keeps its purpose (exit 0, the alert never blocks). GATES.md's nightly row, OBSERVABILITY's
+   alert section, THRESHOLDS' drift row and `runbooks/nightly.md` say "published alerts are
+   recomputed at publish time".
 9. **GA15 adds a controls table to THREAT-MODEL.md** instead of widening GUARDRAILS.md (which the
    plan keeps untouched for S7b): a Layer cell's names resolve against the guard layers and the
    named controls, parentheses dropped, split at commas and semicolons. The judge's S8-J4 found a
@@ -362,6 +407,31 @@ its first failing command (the judge's S8-J8). "Green" here means exit 0 everywh
    "1886 passed"; another branch, not a strict baseline): 85 more tests and about 60 s more, most
    of it in the tests' own 304.35 s (the new suites validate records on the real corpus: the
    tagged v2 baseline, the judged copies, the attack copies). pr-fast's `check` job time is [CI].
+
+4. **At `b1c7fec`** (fix round 1 and the embedder swap; `make-check-b1c7fec.txt`): the same lines
+   as run 3 but for the test count, "1977 passed, 2 deselected, 1 warning in 305.19s (0:05:05)"
+   (six more: S8-J1's, S8-J4's, S8-J6's two, S8-J14's and the swap configs' tests), `audit` alone
+   red ("Found 7 known vulnerabilities, ignored 50 in 1 package", `make: *** [audit] Error 1`,
+   the DeepEval line not run); gate "recall@5 0.682 (n 22) passes ... 0.636"; "api-smoke:
+   passed"; `real 361.30`, `user 348.26`, `sys 17.94`; make exit 2. The judge's own run at
+   `fe44a02` gave "1971 passed ... in 305.41s", `real 356.32`, `audit` alone red.
+5. **At `4091bde`, the last code commit of this round (choice 8's publish rule)**
+   (`make-check-4091bde.txt`), every line as the file has it: format "334 files already
+   formatted"; lint "All checks passed!"; types "0 errors, 0 warnings, 0 informations"; deps
+   "Success! No dependency issues found." (vulture silent); audit **red** "Found 7 known
+   vulnerabilities, ignored 50 in 1 package", `make: *** [audit] Error 1` (the DeepEval line not
+   run); sast and workflows silent; secrets "no leaks found" twice; privacy "0 hits across 511 files
+   (42 rules)"; architecture "0 architecture violations in src/raglab"; check-dataset both files
+   pass; model "already in the cache; every file matches its pinned sha256"; test "1978 passed, 2
+   deselected, 1 warning in 307.92s (0:05:07)" (one more than run 4: choice 8's publish test);
+   gate "retrieval no-regression gate (22 questions): recall@5 0.682 (n 22) passes: the threshold
+   is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397) minus one question
+   (1/22), 0.636"; "api-smoke: passed"; `make: Target 'check' not remade because of errors.`;
+   `real 360.61`, `user 351.62`, `sys 17.59`; make exit 2. **The targets that failed, by name:**
+   `audit` only, first error line "Found 7 known vulnerabilities, ignored 50 in 1 package",
+   pre-existing on `main` (the seven pypdf advisories until #35 merges; its second line, the
+   DeepEval tool's audit, does not run under `-k`). Nothing else is red. The ledger commit after
+   `4091bde` changes this file only, so no new `make check` was run for it.
 
 ### The embedder swap (GA10), after the download go (2026-10-31)
 
@@ -514,8 +584,8 @@ S8-J1), 1 needs CI (GA18), 2 not applicable at that round (GA10, GA11).
 | Finding | What was done | Commit |
 |---|---|---|
 | S8-J1 (medium, GA7 not met): the judged alert had no test | `test_the_judged_alert_reads_the_trusted_criteria_and_names_the_recalibration_trigger` in `tests/judge/test_judged_compare.py`, in GA6's style (a hand-built record under a tmp root, the v1.1 judged baseline copied as published nightly judged runs): no record ("no judged alert: no calibration record describes the judge"), nothing trusted ("no trusted criterion"), the first nightly judged run the reference, an identical second run not firing (`grounded` diff 0), 20 `grounded` verdicts flipped firing on grounded alone with `ci_high` below zero and the note equal to `drift.RECALIBRATION`, a drop on `abstains` (untrusted) never firing; made never to fire, or its note removed, the test fails | `fe78ba3` |
-| S8-J2 (low, choice 2) | no change: awaiting the maintainer's answer (choice 2 above) | — |
-| S8-J3 (low, choice 8) | no change: awaiting the maintainer's answer (choice 8 above) | — |
+| S8-J2 (low, choice 2) | the maintainer's answer "Keep the rule order (Recommended)" (quoted under choice 2 above): no code or file change; the dated note and the docs' wording | this ledger commit |
+| S8-J3 (low, choice 8) | the maintainer's answer "Publish recomputes it (Recommended)" (quoted under choice 8 above): `publish.alert_problems`, the tests, the docs | `4091bde` |
 | S8-J4 (low): a control invented in THREAT-MODEL's own table | a control counts only when its Where cell names at least one backticked path that exists in the repository (`controls()` in the test; the `make audit` row's Where cell now names `Makefile` and `.github/workflows/pr-fast.yml`); the judge's break (`\| nothing needed \| nowhere \| no control at all \|`, LLM06's Layer `nothing needed`) now fails naming the row: "controls table: 'nothing needed' names no existing path in its Where cell, so it is no control", "LLM06:2026: Layer names ['nothing needed'], which neither ...", and 'has no layer but does not say "not applicable, because"' (`test_a_control_invented_in_the_same_file_names_no_layer`); a planted row that names `Makefile` is a control | `287ec98` |
 | S8-J5 (low): the Gate cell's substring test | `gate_cell_ok`: the cell starts with a gate name, `reported`, `enforced in code` or `(a) hard stop` as a whole word; "someday, once it is not reported", "reportedly" and "the consistency gate, by hand" are refused in the test | `ce19f99` |
 | S8-J6 (low), both halves | (a) `scripts/audit_suite.py` reads the numbers the report's prose states (`PROSE`: the requirements, the audit skips, the test-split ids and their split, the dev runs, the runs, keys and pairs) against the recount, and names a claim gone; the judge's probe (33/56 to 34/57) now gives "6. intervals: the prose says 34 for 'published runs', recounted 33" and the same for the keys; (b) the interval count reads every (run, key) pair (342 of 342 now), not the last manifest per key; the judge's probe (recall@5's interval removed from the oldest manifest) now lowers the count (`test_every_run_metric_pair_is_read_for_its_interval`, on copies) | `3069481` |
@@ -546,7 +616,6 @@ model, a separate context) holds with the roles swapped. The plan's table is not
 
 ### What waits, and for what
 
-- **Choices 2 and 8**: the maintainer's answers (asked 2026-10-31); the orchestrator sends them.
 - **GA11.** After #35 merges and `main` is merged into this branch: the first record from its
   merged commit, its replay (`make check`, `make gate`, `make replay`, `make guard-suites`) quoted
   here.
