@@ -44,18 +44,42 @@ def first_column(text: str, heading: str) -> list[str]:
     return [cell for cell in cells[1:] if cell.strip("-")]
 
 
+PATH = re.compile(r"`([\w./-]+)`")
+
+
+def controls(text: str) -> tuple[frozenset[str], list[str]]:
+    """(the controls THREAT-MODEL.md's own table names, each held to a Where cell naming at least
+    one path that exists in the repository; the rows that name none, which are no controls).
+    The judge's S8-J4: a row invented in the same file must not let a Layer cell name no layer."""
+    body = text.split(CONTROLS + "\n", 1)[1].split("\n## ", 1)[0]
+    rows = [line for line in body.splitlines() if line.startswith("| ")][1:]
+    names: set[str] = set()
+    unplaced: list[str] = []
+    for row in rows:
+        cells = [c.strip() for c in row.strip().strip("|").split("|")]
+        if len(cells) < 2 or set(cells[0]) <= {"-"}:
+            continue
+        paths = [p for p in PATH.findall(cells[1]) if (ROOT / p).exists()]
+        if paths:
+            names.add(_name(cells[0]))
+        else:
+            unplaced.append(_name(cells[0]))
+    return frozenset(n for n in names if n), unplaced
+
+
 @cache
-def known_layers() -> frozenset[str]:
+def known_layers(threat_model: str | None = None) -> frozenset[str]:
     """Every name a Layer cell may hold: the Layer column of GUARDRAILS.md's layer tables (S3,
-    S7a and the later layers) and the Control column of THREAT-MODEL.md's controls table, read
-    from the documents."""
+    S7a and the later layers) and the controls of THREAT-MODEL.md's table whose Where cell names an
+    existing path, read from the documents."""
     guards = GUARDRAILS.read_text(encoding="utf-8")
     names = {
         _name(cell)
         for heading in LAYER_TABLES.findall(guards)
         for cell in first_column(guards, heading)
     }
-    names |= {_name(cell) for cell in first_column(DOC.read_text(encoding="utf-8"), CONTROLS)}
+    text = threat_model if threat_model is not None else DOC.read_text(encoding="utf-8")
+    names |= controls(text)[0]
     return frozenset(n for n in names if n)
 
 
@@ -89,9 +113,13 @@ def rows(text: str) -> dict[str, list[str]]:
 
 
 def problems(text: str, known: frozenset[str] | None = None) -> list[str]:
-    known = known or known_layers()
+    known = known or known_layers(text)
     found = rows(text)
     out = [f"{entry}: no row" for entry in IDS if entry not in found]
+    out += [
+        f"controls table: {name!r} names no existing path in its Where cell, so it is no control"
+        for name in controls(text)[1]
+    ]
     if [e for e in found if e in IDS] != [e for e in IDS if e in found]:
         out.append("the rows are not in id order")
     for entry, cells in found.items():
@@ -180,6 +208,32 @@ def test_every_layer_cell_resolves_against_the_two_name_lists():
         names = layer_names(cells[5])
         assert all(name in known for name in names), (entry, names)
         assert bool(names) == (entry != "LLM03:2026"), entry
+
+
+def test_a_control_invented_in_the_same_file_names_no_layer():
+    """The judge's S8-J4: a row added to THREAT-MODEL's own controls table whose Where cell names
+    no existing path is no control, and a Layer cell naming it has no layer; every committed
+    control names a path that exists."""
+    text = DOC.read_text(encoding="utf-8")
+    assert controls(text)[1] == []
+    assert {"tenant filter", "make audit", "judged criteria"} <= controls(text)[0]
+    header = "| Control | Where | What it is |\n|---|---|---|\n"
+    planted = text.replace(header, header + "| nothing needed | nowhere | no control at all |\n", 1)
+    [row] = [line for line in text.splitlines() if line.startswith("| LLM06:2026 |")]
+    cells = row.strip().strip("|").split("|")
+    cells[-1] = " nothing needed "
+    broken = planted.replace(row, "|" + "|".join(cells) + "|", 1)
+    assert problems(broken) == [
+        "controls table: 'nothing needed' names no existing path in its Where cell, so it is no "
+        "control",
+        f"LLM06:2026: Layer names ['nothing needed'], {UNKNOWN}",
+        'LLM06:2026: has no layer but does not say "not applicable, because"',
+    ]
+    # a planted row that names a real path is a control, as the committed rows are
+    placed = text.replace(
+        header, header + "| a real control | `Makefile` | it exists |\n", 1
+    ).replace(row, "|" + "|".join([*cells[:-1], " a real control "]) + "|", 1)
+    assert problems(placed) == []
 
 
 def test_a_misspelt_layer_name_fails_naming_the_row_and_the_name():

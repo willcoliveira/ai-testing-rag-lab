@@ -69,14 +69,16 @@ A Layer cell names guard layers from `docs/GUARDRAILS.md`'s tables (by their nam
 controls below, which are not layers behind the `Guardrail` port.
 `tests/security/test_threat_model.py` resolves every name a Layer cell holds against both lists
 (S8, the criteria judge's S7a-J11): a cell naming nothing on either list (`—`, "n/a", an empty
-cell, a misspelt name) has no layer, and its row must say "not applicable, because".
+cell, a misspelt name) has no layer, and its row must say "not applicable, because". A control
+counts only when its Where cell names at least one path that exists in the repository (in
+backticks), so a row invented here names nothing (the judge's S8-J4).
 
 | Control | Where | What it is |
 |---|---|---|
 | tenant filter | `src/raglab/index/memory.py`, the retrievers | the store's filter before ranking, which fails closed on an unknown tenant (R-13, R-21) |
 | text-only rendering | `src/raglab/web/app.js`, the playground | the page and the playground write answer text with `textContent`, never HTML |
 | egress guard | `src/raglab/runtime/egress.py` | the loopback-only guard the attack suite and the live attack runs run inside |
-| `make audit` | the Makefile, pr-fast | pip-audit over the lock and the DeepEval tool's requirements, with the skips reviewed by date |
+| `make audit` | `Makefile`, `.github/workflows/pr-fast.yml` | pip-audit over the lock and the DeepEval tool's requirements, with the skips reviewed by date |
 | Dependabot's cooldown | `.github/dependabot.yml` | the seven-day cooldown on every ecosystem before a bump is proposed |
 | the session preflight | `src/raglab/runtime/ollama.py` | the pinned model's size and digest checked before the server starts |
 | the judged criteria | `docs/CRITERIA.md`, `src/raglab/judge/` | the judge's verdicts (S5), calibrated in S6; reported, never gated until a calibration record trusts a criterion |
