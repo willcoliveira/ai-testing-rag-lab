@@ -446,7 +446,7 @@ def test_publish_refuses_a_run_whose_dataset_is_no_listed_version(tmp_path):
     with pytest.raises(publish.PublishError, match="whose row names another file"):
         publish.publish(run_dir, root, privacy=lambda d, r: [])
     datasheet.unlink()
-    with pytest.raises(publish.PublishError, match="no the datasheet's Maintenance table"):
+    with pytest.raises(publish.PublishError, match=r"Maintenance table .* is missing beside it"):
         publish.publish(run_dir, root, privacy=lambda d, r: [])
     datasheet.write_text(listed, encoding="utf-8")
     assert publish.dataset_version_problem(manifest, root) is None

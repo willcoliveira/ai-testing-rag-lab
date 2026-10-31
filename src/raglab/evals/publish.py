@@ -210,7 +210,9 @@ def dataset_version_problem(manifest: Json, root: Path) -> str | None:
     try:
         rows = dataset_check.maintenance_rows(table_path.read_text(encoding="utf-8"), heading)
     except OSError:
-        return f"dataset {dataset['path']}: no {table} beside it lists its versions"
+        return (
+            f"dataset {dataset['path']}: {table} is missing beside it, so no row lists its version"
+        )
     found = [row for row in rows if row.sha256 == sha]
     if not found:
         return f"dataset.sha256 {sha} is no version {table} lists"
