@@ -755,6 +755,16 @@ The branch exists only locally so far: nothing is pushed. This ledger commit is 
 new `make check` was run for it (the last code commit is `c4a7d39`, run 6 above; the judge's own
 run at `9ff8381`, above).
 
+**Pushed and opened as a draft before S6 and S7b (2026-11-01).** The plan's step 9 placed the
+pull request after S6 and S7b merge. On 2026-11-01 the maintainer, asked whether any pull request
+was open for review, answered, verbatim: "let's create pull requeest for everything." So the
+branch is pushed and its pull request opened as a draft against `main` that day, at the
+maintainer's request, with the two waiting criteria (GA10's re-checks after S6 and S7b in the
+table above, GA11 on #35) and the pr-fast `audit` failure (pre-existing until #35 merges and
+`main` is merged in) named in its body. This note is ledger only; the check-before-push rule is
+met by the last code commit's run (`c4a7d39`, run 6 above). The paragraph above was true when it
+was written at `e3526b1`.
+
 - **#35** (the dependency pull request) → GA11: `main` merged into this branch with a merge commit,
   then the first upgrade record in `docs/UPGRADES.md` from the merged commit and its replay
   (`make check`, `make gate`, `make replay`, `make guard-suites`), quoted here.
