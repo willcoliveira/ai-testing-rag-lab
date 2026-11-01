@@ -192,12 +192,14 @@ def _cells(line: str) -> list[str]:
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
 
-def maintenance_rows(text: str) -> list[VersionRow]:
+def maintenance_rows(text: str, heading: str = MAINTENANCE) -> list[VersionRow]:
     """The version rows of the datasheet's Maintenance table: the first table of the section
     headed "## Maintenance", up to the next "## " heading. A row is a version row when its first
     cell is a version (`v1.1`, bold or not); its File cell names its golden file (empty when the
-    header has no File column), and its last cell holds the file's sha256 (backticked)."""
-    marker = f"\n{MAINTENANCE}\n"
+    header has no File column), and its last cell holds the file's sha256 (backticked). S8: the
+    same reader over a table of the same shape under another heading (the security pack's
+    "## Versions", which `raglab publish` holds an attack run to)."""
+    marker = f"\n{heading}\n"
     if marker not in f"\n{text}":
         return []
     section = f"\n{text}".split(marker, 1)[1].split("\n## ", 1)[0]

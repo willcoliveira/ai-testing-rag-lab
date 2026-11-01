@@ -1,5 +1,6 @@
 """Small chunks, retrievers and runs for the retrieval tests, built with the fake embedder."""
 
+import hashlib
 import json
 import shutil
 from datetime import UTC, datetime
@@ -12,8 +13,8 @@ from raglab.adapters.fake import HashingEmbedder
 from raglab.chunk.sections import ChunkSettings
 from raglab.core.ports import Embedder, Retriever
 from raglab.core.types import Chunk, ChunkId
+from raglab.evals import causes, record, retrieval
 from raglab.evals import config as eval_config
-from raglab.evals import record, retrieval
 from raglab.index.memory import InMemoryStore
 from raglab.ingest import inventory as snapshots
 from raglab.ingest.pipeline import Inventory
@@ -196,8 +197,22 @@ def lab_root(tmp_path: Path, questions: list[dict] | None = None) -> Path:
     # S7: the secrets and personal-details guard reads the team contacts of SPEC section 6
     shutil.copyfile(ROOT / "corpus" / "SPEC.md", root / "corpus" / "SPEC.md")
     lines = [json.dumps(q) for q in (QUESTIONS if questions is None else questions)]
-    (root / "golden.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    golden = root / "golden.jsonl"
+    golden.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # S8 (GA14): publish holds a run to a version of the datasheet beside its golden file
+    write_datasheet(golden)
     return root
+
+
+def write_datasheet(golden: Path, version: str = "v1") -> None:
+    """DATASHEET.md beside a golden file, whose Maintenance table lists the file at its current
+    sha256 as the given version (the fixture's one version)."""
+    from tests.dataset_support import maintenance
+
+    sha = hashlib.sha256(golden.read_bytes()).hexdigest()
+    (golden.parent / "DATASHEET.md").write_text(
+        maintenance((version, golden.name, sha)), encoding="utf-8"
+    )
 
 
 def fake_run(
@@ -278,7 +293,9 @@ def reseal(run_dir: Path, cases: list[Any]) -> None:
         for label, s in zip(case["labels"], sets, strict=True):
             label["found"] = bool(set(ids) & s)
         case.update(record.case_scores(ids, sets, k))
-    manifest["results"] = record.results_from_cases(cases, k, manifest["bootstrap"])
+        if "cause" in case:  # S8: the careful hand edit keeps the cause in step with the fields
+            case["cause"] = causes.cause_of(case, None)
+    manifest["results"] = record.expected_results(manifest, cases)
     body = {key: v for key, v in manifest.items() if key != "files"}
     cases_bytes = record.cases_text(cases).encode()
     report_bytes = record.render_report(body, cases).encode()

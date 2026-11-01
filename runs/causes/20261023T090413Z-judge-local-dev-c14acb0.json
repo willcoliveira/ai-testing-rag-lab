@@ -1,0 +1,32 @@
+{
+  "schema_version": "causes.v1",
+  "run_id": "20261023T090413Z-judge-local-dev-c14acb0",
+  "suite": "judged",
+  "manifest_sha256": "84119234d1b7a5d738c46f6e68a236e00f9e3f7407d53d7aaff4ec4a04d4c361",
+  "counts": {
+    "failed_verdicts": {
+      "relevant": {
+        "retrieval": 4,
+        "generation": 13
+      },
+      "grounded": {
+        "retrieval": 5,
+        "generation": 17
+      },
+      "abstains": {
+        "retrieval": 0,
+        "generation": 7
+      },
+      "correct": {
+        "retrieval": 20,
+        "generation": 18
+      },
+      "cites_support": {
+        "retrieval": 6,
+        "generation": 3
+      }
+    },
+    "rests_on": "context_sufficient, uncalibrated (docs/THRESHOLDS.md)"
+  },
+  "sha256": "57b7d43523e8591569c0dfc5aa67d1dc373a59213c39174b34fe26586aca605b"
+}

@@ -53,5 +53,6 @@ tuned on it; at a release it is run once and reported.
 - The tag is cut by CI with keys, inside an Environment with required reviewers.
 - The security suite (S7) and the red team on the real model block the release.
 - trivy and an SBOM come from S11; artefacts are signed.
-- An upgrade replay (S8) and a deploy approval (S10).
+- An upgrade replay: its lab form is the upgrade record, `docs/UPGRADES.md` (S8, how-to 10),
+  one record per upgrade with the gates re-run at it; and a deploy approval (S10).
 - Thresholds on the test slice are agreed before the release, not read from it.

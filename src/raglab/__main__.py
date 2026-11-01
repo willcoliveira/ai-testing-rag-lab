@@ -1,6 +1,6 @@
 """Command line entry point: ingest, fetch-model, check-dataset, eval, compare, judge, canaries,
 publish, gate, ask, serve and ollama (the local model server's session: up, down, status,
-session); replay and guard-suites (S7)."""
+session); replay and guard-suites (S7); causes (S8)."""
 
 import argparse
 import json
@@ -16,11 +16,14 @@ from raglab.chunk.sections import DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, ChunkSett
 from raglab.core.types import TenantError
 from raglab.evals import (
     attack,
+    causes,
     dataset_check,
+    drift,
     generation,
     golden,
     guard_suites,
     judged,
+    judged_gate,
     publish,
     record,
     replay,
@@ -91,14 +94,17 @@ def ingest(args: argparse.Namespace) -> int:
 
 
 def fetch_model(args: argparse.Namespace) -> int:
+    """`raglab fetch-model [--model <name>]`: the pinned files of one model (the first by
+    default; S8's second with --model, after its pins are written) into the cache."""
     try:
-        directory, fetched = fastembed_embed.fetch(args.cache)
+        spec = fastembed_embed.spec_for(args.model)
+        directory, fetched = fastembed_embed.fetch(args.cache, spec=spec)
     except (fastembed_embed.ModelUnavailable, OSError) as error:
         print(f"fetch-model failed: {error}", file=sys.stderr)
         return 1
     state = f"downloaded {', '.join(fetched)}" if fetched else "already in the cache"
     print(
-        f"{fastembed_embed.MODEL} at revision {fastembed_embed.REVISION}: {state}; "
+        f"{spec.model} at revision {spec.revision}: {state}; "
         f"every file matches its pinned sha256: {directory}"
     )
     return 0
@@ -193,12 +199,16 @@ def evaluate(args: argparse.Namespace) -> int:
         return 1
     root: Path = args.root
     out: Path = args.out if args.out.is_absolute() else root / args.out
+    if manifest["suite"] == "generation" and args.gate == "nightly":  # S8 (GA7): never blocks
+        manifest["alert"] = drift.alert_for(root, manifest, cases)
     run_dir = record.write(out, manifest, cases)
     if problems := record.validate(run_dir, root):
         print("eval wrote an invalid run record:\n" + "\n".join(problems), file=sys.stderr)
         return 1
     print((run_dir / record.REPORT).read_text(encoding="utf-8"))
     print(f"run record: {run_dir}")
+    if "alert" in manifest:
+        print(drift.line(record.as_json(manifest["alert"])), flush=True)
     if manifest["git_dirty"]:
         print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
     if manifest["suite"] == "attack" and (reasons := attack.unsafe(manifest)):
@@ -227,6 +237,29 @@ def compare(args: argparse.Namespace) -> int:
     compare_runs.write(result, out)
     print(compare_runs.render(result))
     print(f"written: {out}")
+    return 0
+
+
+def causes_run(args: argparse.Namespace) -> int:
+    """`raglab causes <run>` (S8, GA5): the causes of a published or finished run, read without
+    change, written to runs/causes/<run_id>.json beside the published runs (the runs/replays
+    pattern) and summarised; exit 1 when the run is not a valid record or cannot be tagged."""
+    root: Path = args.root
+    try:
+        run_dir = _run_dir(root, args.run)
+        if problems := record.validate(run_dir, root):
+            print(f"causes refused: {run_dir.name} is not a valid run record:", file=sys.stderr)
+            print("\n".join(problems), file=sys.stderr)
+            return 1
+        manifest, cases = record.read(run_dir)
+        data = causes.derive(manifest, cases, (run_dir / record.MANIFEST).read_bytes(), root)
+    except (FileNotFoundError, ValueError, OSError) as error:
+        print(f"causes failed: {error}", file=sys.stderr)
+        return 1
+    print("\n".join(causes.summary(data)))
+    out: Path | None = args.out if args.out is None or args.out.is_absolute() else root / args.out
+    path = causes.write(root, data, out)
+    print(f"written: {path} (sha256 {data['sha256']})")
     return 0
 
 
@@ -264,14 +297,39 @@ def _consistency(root: Path, run_dir: Path) -> int:
     baseline, _ = record.read(baseline_dir)
     thresholds = root / retrieval_gate.THRESHOLDS
     text = thresholds.read_text(encoding="utf-8") if thresholds.is_file() else ""
-    verdict = retrieval_gate.consistency(
-        baseline, manifest, retrieval_gate.consistency_margin(text)
-    )
+    try:
+        margin = retrieval_gate.consistency_margin(text)
+    except retrieval_gate.ThresholdsError as error:  # S8 (S4b-J4): two rows, no pick
+        return say(f"refused: {error}")
+    verdict = retrieval_gate.consistency(baseline, manifest, margin)
     return say(verdict.message, verdict.passed)
+
+
+def _judged_gate(args: argparse.Namespace) -> int:
+    """`raglab gate --judged B --against A` (S8, GA6, D1 A): the paired comparison of two judged
+    records read with the calibration record B names (or the one that describes its judge, by
+    identity; `--calibration` names one to read instead): a criterion the record marks trusted
+    fails when its interval lies entirely below zero; reported-only, not-trusted and unnamed
+    criteria are printed and never gate; with no record or no trusted criterion the gate refuses.
+    One line per criterion and a verdict line; exit 0 only when it passes."""
+    root: Path = args.root
+    try:
+        b_dir, a_dir = _run_dir(root, args.judged), _run_dir(root, args.against)
+        outcome = judged_gate.check(root, b_dir, a_dir, args.calibration)
+    except (FileNotFoundError, compare_runs.CompareError, judged_gate.GateError) as error:
+        print(f"{judged_gate.NAME}: refused: {error}", flush=True)
+        return 1
+    print("\n".join(outcome.lines), flush=True)
+    return 0 if outcome.passed else 1
 
 
 def gate(args: argparse.Namespace) -> int:
     root: Path = args.root
+    if args.judged is not None or args.against is not None:  # S8: the judged gate
+        if args.judged is None or args.against is None or args.config or args.run:
+            print("gate: --judged B goes with --against A and nothing else", file=sys.stderr)
+            return 2
+        return _judged_gate(args)
     if (args.config is None) == (args.run is None):
         print(
             "gate: give --config (run, then gate) or --run (gate a finished run)", file=sys.stderr
@@ -366,12 +424,16 @@ def judge_run(args: argparse.Namespace) -> int:
         print(f"judge failed: {error}", file=sys.stderr, flush=True)
         return 1
     out: Path = args.out if args.out.is_absolute() else root / args.out
+    if args.gate == "nightly":  # S8 (GA7): the judged alert on the trusted criteria, never blocks
+        manifest["alert"] = drift.judged_alert_for(root, manifest, lines)
     run_dir = record.write(out, manifest, lines)
     if problems := record.validate(run_dir, root):
         print("judge wrote an invalid run record:\n" + "\n".join(problems), file=sys.stderr)
         return 1
     print((run_dir / record.REPORT).read_text(encoding="utf-8"))
     print(f"run record: {run_dir}")
+    if "alert" in manifest:
+        print(drift.line(record.as_json(manifest["alert"])), flush=True)
     if manifest["git_dirty"]:
         print("note: the work tree is dirty, so this run cannot be published", file=sys.stderr)
     return 0
@@ -677,6 +739,12 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help=f"cache directory (default ${fastembed_embed.CACHE_ENV} or ~/.cache/raglab/models)",
     )
+    fetch.add_argument(
+        "--model",
+        default=fastembed_embed.MODEL,
+        help=f"a pinned model's name (default {fastembed_embed.MODEL}; S8's second: "
+        f"{fastembed_embed.SWAP.model})",
+    )
     checked = commands.add_parser(
         "check-dataset",
         help="each golden file against its ten rules, by its version, before any run (no model, "
@@ -694,7 +762,8 @@ def main(argv: list[str] | None = None) -> int:
         (
             "gate",
             "the retrieval no-regression gate (a retrieval config) or the consistency gate (a "
-            "generation config, or --run for a finished run) against the published baseline",
+            "generation config, or --run for a finished run) against the published baseline; "
+            "--judged B --against A for the judged gate (S8)",
         ),
     ):
         sub = commands.add_parser(name, help=text)
@@ -718,6 +787,15 @@ def main(argv: list[str] | None = None) -> int:
             sub.add_argument("--config", type=Path, help="a config/*.toml file: run, then gate")
             sub.add_argument(
                 "--run", type=Path, help="a finished generation run (a directory or a run id)"
+            )
+            sub.add_argument(
+                "--judged", type=Path, help="the judged gate (S8): judged run B, with --against"
+            )
+            sub.add_argument("--against", type=Path, help="judged run A, the one B is compared to")
+            sub.add_argument(
+                "--calibration",
+                type=Path,
+                help="a calibration record.json to read instead of the one B names (S8)",
             )
             sub.add_argument(
                 "--gate",
@@ -757,6 +835,12 @@ def main(argv: list[str] | None = None) -> int:
     canary = commands.add_parser("canaries", help="the judge's canary set, a hard stop (S5)")
     canary.add_argument("--config", type=Path, required=True, help="a judge config/*.toml")
     canary.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
+    caused = commands.add_parser(
+        "causes", help="the failure causes of a run, read without change, to runs/causes/ (S8)"
+    )
+    caused.add_argument("run", type=Path, help="a run directory or run id (published or tmp)")
+    caused.add_argument("--out", type=Path, help=f"where the file goes (default {causes.OUT})")
+    caused.add_argument("--root", type=Path, default=Path.cwd(), help="repo root (default: here)")
     pub = commands.add_parser("publish", help="validate a run, check privacy, add it to the index")
     pub.add_argument("run", type=Path, help="a run directory or run id")
     pub.add_argument(
@@ -804,6 +888,7 @@ def main(argv: list[str] | None = None) -> int:
         "position": position_run,
         "cost": cost_estimate,
         "publish": publish_run,
+        "causes": causes_run,
         "gate": gate,
         "ask": ask,
         "serve": serve,

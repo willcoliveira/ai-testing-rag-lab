@@ -9,7 +9,8 @@ from typing import Any
 import pytest
 
 from raglab.__main__ import main
-from raglab.evals import compare, metrics, record
+from raglab.evals import causes, compare, metrics, publish, record
+from tests.conftest import ROOT
 from tests.retrieval_support import PACK, fake_run, lab_root, make_chunk, read_run
 
 pytestmark = [pytest.mark.unit, pytest.mark.retrieval]
@@ -28,9 +29,9 @@ def edit_cases(run_dir, change) -> None:
         for label, s in zip(case["labels"], sets, strict=True):
             label["found"] = bool(set(ids) & s)
         case.update(record.case_scores(ids, sets, manifest["retriever"]["k"]))
-    manifest["results"] = record.results_from_cases(
-        cases, manifest["retriever"]["k"], manifest["bootstrap"]
-    )
+        if "cause" in case:  # S8: the cause follows the edited fields
+            case["cause"] = causes.cause_of(case, None)
+    manifest["results"] = record.expected_results(manifest, cases)
     body = {k: v for k, v in manifest.items() if k != "files"}
     cases_bytes = record.cases_text(cases).encode()
     report_bytes = record.render_report(body, cases).encode()
@@ -42,6 +43,37 @@ def edit_cases(run_dir, change) -> None:
     }
     (run_dir / record.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
     assert record.validate(run_dir, run_dir.parent.parent.parent) == []
+
+
+# ---------------------------------------------------------------- S8 (GA10): the committed files
+
+COMPARE_DIR = ROOT / "runs" / "compare"
+
+
+def test_the_committed_compare_files_are_what_a_fresh_comparison_gives():
+    """S8 (GA10; the judge's S8-J16): every committed `runs/compare/<a>--<b>/` pair is derived
+    again from its two published runs (the bootstrap is seeded, so the files are reproducible)
+    and held byte for byte, `compare.json` to the fresh result and `compare.md` to the rendering
+    of the committed `compare.json`; a folder named for runs that are not published, or a file
+    edited by hand (a number changed in the json or the md), fails naming the pair."""
+    pairs = sorted(p for p in COMPARE_DIR.iterdir() if p.is_dir())
+    assert pairs, "no committed comparison"
+    for folder in pairs:
+        a_id, b_id = folder.name.split("--", 1)
+        a_dir, b_dir = ROOT / publish.PUBLISHED / a_id, ROOT / publish.PUBLISHED / b_id
+        assert a_dir.is_dir(), f"{folder.name} names an unpublished run A"
+        assert b_dir.is_dir(), f"{folder.name} names an unpublished run B"
+        fresh = compare.compare(a_dir, b_dir, ROOT)
+        assert (fresh["a"], fresh["b"]) == (a_id, b_id), folder.name
+        committed_json = (folder / "compare.json").read_bytes()
+        expected_json = (json.dumps(fresh, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+        assert committed_json == expected_json, (
+            f"{folder.name}: compare.json is not a fresh comparison"
+        )
+        committed = json.loads(committed_json)
+        assert (folder / "compare.md").read_text(encoding="utf-8") == compare.render(committed), (
+            f"{folder.name}: compare.md is not the rendering of compare.json"
+        )
 
 
 def retrieve(ids_by_case):

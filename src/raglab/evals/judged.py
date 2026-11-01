@@ -296,6 +296,22 @@ def run(
         manifest["ollama"] = {
             k: v for k, v in asdict(config.ollama).items() if k != "memory_margin_gb"
         }
+    # S8 (GA6): the calibration record that describes this judge, when one exists, so the judged
+    # gate reads the record the run names; S6's baseline predates the record and is matched by
+    # identity, never edited
+    from raglab.evals import judged_gate
+
+    try:
+        found = judged_gate.find_record(root, manifest)
+    except judged_gate.GateError as error:  # a bad record never costs the session's lines
+        say(f"calibration record: not pinned ({error})")
+        found = None
+    if found is not None:
+        path, _ = found
+        cast(Json, manifest["judge"])["calibration_record"] = {
+            "path": path.relative_to(root).as_posix(),
+            "sha256": record.sha256_bytes(path.read_bytes()),
+        }
     return manifest, lines
 
 

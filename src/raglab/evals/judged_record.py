@@ -49,6 +49,7 @@ type Json = dict[str, object]
 
 JUDGED = "judged"
 CONTEXT = "context_sufficient"
+CRITERIA_ORDER = CRITERIA  # the order a report lists the criteria (S8's comparison too)
 GROUNDED = "grounded"
 BY_LABEL: dict[str, tuple[str, ...]] = {
     "answer": ("grounded", "cites_support", "correct", "relevant"),
@@ -458,6 +459,10 @@ def render_report(manifest: Json, cases: Sequence[Json]) -> str:
             f"| {row['id']} | {row['criterion']} | {row['side']} | {row['verdict']} | "
             f"{row['status']} | {'yes' if row['on_side'] else 'no'} |"
         )
+    if "alert" in manifest:  # S8: the nightly drift alert on the trusted criteria
+        from raglab.evals import drift
+
+        lines += drift.report_lines(_obj(manifest["alert"]))
     tokens, latency = _obj(block["tokens"]), _obj(block["latency_ms"])
     lines += [
         "",

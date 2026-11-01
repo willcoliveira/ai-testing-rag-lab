@@ -3,7 +3,9 @@
 # CI (.github/workflows/pr-fast.yml) runs the same targets.
 SEMGREP_VERSION := 1.179.0
 ZIZMOR_VERSION := 1.30.1
-PYTEST_OFFLINE := not live and not judged and not guardrails and not perf
+# S8 (GA12): a quarantined test (marker flaky, docs/GATES.md "Flakes") never runs here or in
+# pr-fast; make test-flaky runs it on its own, and the register names it
+PYTEST_OFFLINE := not live and not judged and not guardrails and not perf and not flaky
 
 # the commits `make privacy-history` checks, as git log revisions (see the target)
 RANGE ?= --all
@@ -58,7 +60,7 @@ AUDIT_SKIP := GHSA-462x-pgg6-55fp GHSA-58r4-6rv3-gfh8 GHSA-65qm-jvmh-6pqg GHSA-8
 	GHSA-6vvc-x485-93v7 GHSA-cgf9-327m-v77c GHSA-f54x-cmq8-qg57 \
 	GHSA-6c7f-9265-g8fw GHSA-gmh7-3g9r-mjh5 GHSA-jr96-gvgh-j3r4
 
-.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model test gate eval-retrieval api-smoke perf-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
+.PHONY: check format lint types deps audit sast workflows secrets privacy privacy-history architecture check-dataset model model-swap test gate eval-retrieval api-smoke perf-smoke hooks corpus inventory-snapshot playground ollama-up ollama-down ollama-status eval-local gate-local nightly-local release-local judge-contract judge-canaries judge-local position-local cost deepeval-test deepeval-check container container-run zap
 
 check: format lint types deps audit sast workflows secrets privacy architecture check-dataset model test gate api-smoke
 
@@ -121,8 +123,21 @@ check-dataset:
 model:
 	uv run raglab fetch-model
 
+# S8 (GA10, the embedder swap): the second pinned model (raglab.adapters.fastembed_embed.SWAP,
+# snowflake/snowflake-arctic-embed-xs at the commit pinned with the maintainer's go of 2026-10-31,
+# its five files' sha256s from the fetched bytes) into the same cache, by its own target: a
+# download only for a file missing or wrong, over https, every file checked against its pin;
+# make model and pr-fast's cache key stay as they are. Not part of make check.
+model-swap:
+	uv run raglab fetch-model --model snowflake/snowflake-arctic-embed-xs
+
 test:
 	HF_HUB_OFFLINE=1 uv run pytest -m "$(PYTEST_OFFLINE)"
+
+# S8 (GA12): the quarantined tests alone (marker flaky; the register in docs/GATES.md names each
+# with its removal date). Not part of make check or pr-fast. No test is quarantined at S8.
+test-flaky:
+	HF_HUB_OFFLINE=1 uv run pytest -m flaky
 
 # the retrieval no-regression gate (docs/THRESHOLDS.md): a fresh run of the default configuration
 # on the dev split, offline with the cached model, must keep recall@5 within one question of the
@@ -271,7 +286,7 @@ position-local:
 # the consistency baseline's recorded answers), no model; per layer the miss and false-block rates
 # with their Wilson intervals and the added latency, written to runs/guard-suites/. make test
 # already decides every case binary per build (tests/security/); this is the measured record.
-.PHONY: guard-suites replay attack-local
+.PHONY: guard-suites replay attack-local causes test-flaky audit-suite
 guard-suites:
 	HF_HUB_OFFLINE=1 uv run raglab guard-suites
 
@@ -280,6 +295,23 @@ guard-suites:
 # baseline current for the new guard set; any event is printed and nothing is written.
 replay:
 	HF_HUB_OFFLINE=1 uv run raglab replay
+
+# S8 (GA5): the failure causes of a published or finished run, RUN=<its id or directory>, read
+# without change (no model): one cause per failed case-trial by the rule of
+# raglab.evals.causes (ingestion, retrieval, abstention, generation), the counts per case-trial
+# and per case, written to runs/causes/<run_id>.json beside the published runs, sealed with its
+# own sha256; an attack run gets its reported other_tenant_claim count, a judged run its failed
+# verdicts split by context_sufficient.
+causes:
+	@test -n "$(RUN)" || (echo "give the run: make causes RUN=<run id>" >&2; exit 2)
+	HF_HUB_OFFLINE=1 uv run raglab causes $(RUN)
+
+# S8 (GA8): the suite audit's recounts (scripts/audit_suite.py): every count of the report's
+# Counts table (docs/audits/<date>-suite-audit-v0.2.md) recounted from the files and compared;
+# exit 1 naming each count that drifted. Reads files only, no model, no network.
+AUDIT_REPORT := docs/audits/2026-10-31-suite-audit-v0.2.md
+audit-suite:
+	uv run python scripts/audit_suite.py --report $(AUDIT_REPORT)
 
 # S7 (AG9): the live attack runs, one generator session (docs/LOCAL-MODEL.md), by hand and only
 # with the maintainer's go: the live contract test, then the attack suite on

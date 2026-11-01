@@ -13,6 +13,15 @@ A's seed and interval level, 2,000 resamples, as the retrieval comparison); the 
 those that passed every trial in one run and not in the other. A retrieval run against a
 generation run is refused.
 
+Two judged runs (S8, GA6) must be valid run records of the same split, dataset (sha256) and trials
+under one judge (the one-judge test's fields: the judge model and digest, the judge prompt's
+version and fingerprint, CRITERIA.md's sha256, the canary set's), over the same cases. Per
+criterion, each case's pass share over its judged verdicts (the first-pass `verdicts`, never the
+repeat or order checks; a case with no verdict on a criterion in either run is left out of that
+criterion), B minus A with the same paired bootstrap, and the cases whose share moved. Nothing
+here gates: `raglab gate --judged` reads this comparison with the calibration record
+(raglab.evals.judged_gate).
+
 `write` puts compare.json and compare.md (generated, never edited) in a directory of their own.
 """
 
@@ -20,10 +29,19 @@ import json
 from pathlib import Path
 from typing import cast
 
-from raglab.evals import behaviour, metrics, record
+from raglab.evals import behaviour, judged_record, metrics, record
 from raglab.evals.record import Json, as_json
 
 SCHEMA_VERSION = "compare.v1"
+# the fields two judged records must share to compare under one judge (S8, GA6)
+JUDGE_IDENTITY = (
+    ("judge", "model"),
+    ("judge", "digest"),
+    ("judge_prompt", "version"),
+    ("judge_prompt", "sha256"),
+    ("criteria", "sha256"),
+    ("canaries", "sha256"),
+)
 
 
 class CompareError(ValueError):
@@ -48,6 +66,8 @@ def compare(a_dir: Path, b_dir: Path, root: Path) -> Json:
         raise CompareError(f"a {a['suite']} run and a {b['suite']} run are not paired")
     if a["suite"] == "generation":
         return compare_generation(a, a_cases, b, b_cases)
+    if a["suite"] == judged_record.JUDGED:  # S8
+        return compare_judged(a, a_cases, b, b_cases)
     for path in (("suite",), ("split",), ("dataset", "sha256"), ("retriever", "k")):
         if not _same(a, b, *path):
             raise CompareError(f"not the same {'.'.join(path)}: the runs are not paired")
@@ -172,6 +192,106 @@ def compare_generation(a: Json, a_cases: list[Json], b: Json, b_cases: list[Json
     }
 
 
+def judge_identity(manifest: Json) -> Json:
+    """What names the judge of a judged record (JUDGE_IDENTITY), as the comparison records it."""
+    return {f"{part}.{key}": as_json(manifest[part])[key] for part, key in JUDGE_IDENTITY}
+
+
+def _pass_share(trials: list[Json], criterion: str) -> float | None:
+    """A case's pass share on one criterion over its judged verdicts; None when none."""
+    verdicts = [
+        as_json(as_json(t.get("verdicts") or {})[criterion])
+        for t in trials
+        if criterion in as_json(t.get("verdicts") or {})
+    ]
+    if not verdicts:
+        return None
+    return sum(v["verdict"] == "pass" for v in verdicts) / len(verdicts)
+
+
+def compare_judged(a: Json, a_cases: list[Json], b: Json, b_cases: list[Json]) -> Json:
+    """Two judged runs under one judge, paired by case id: per criterion, B minus A of the
+    case's pass share with a bootstrap over cases, and the cases whose share moved."""
+    for path in (("split",), ("dataset", "sha256"), ("trials",)):
+        if not _same(a, b, *path):
+            raise CompareError(f"not the same {'.'.join(path)}: the runs are not paired")
+    for part, key in JUDGE_IDENTITY:
+        if not _same(a, b, part, key):
+            raise CompareError(
+                f"not the same {part}.{key}: two judged runs compare only under one judge"
+            )
+    for run in (a, b):
+        if run["partial"]:
+            raise CompareError(f"{run['run_id']} is partial: a comparison reads complete runs")
+    a_by, b_by = record_by_case(a_cases), record_by_case(b_cases)
+    if set(a_by) != set(b_by):
+        raise CompareError("the runs do not have the same cases")
+    ids = list(a_by)
+    seed = cast(int, a["seed"])
+    level = cast(float, as_json(a["intervals"])["level"])
+    resamples = metrics.DEFAULT_RESAMPLES
+    criteria = [
+        name
+        for name in judged_record.CRITERIA_ORDER
+        if any(name in as_json(t.get("verdicts") or {}) for i in ids for t in a_by[i])
+    ]
+    if not criteria:
+        raise CompareError("the runs have no judged verdicts to compare")
+    out_metrics: Json = {}
+    changed: Json = {}
+    for criterion in criteria:
+        pairs = [
+            (i, x, y)
+            for i in ids
+            for x in [_pass_share(a_by[i], criterion)]
+            for y in [_pass_share(b_by[i], criterion)]
+            if x is not None and y is not None
+        ]
+        if not pairs:
+            continue
+        va, vb = [x for _, x, _ in pairs], [y for _, _, y in pairs]
+        diff = metrics.paired_difference(va, vb, seed, resamples, level)
+        out_metrics[criterion] = {
+            "a": round(metrics.mean(va), 6),
+            "b": round(metrics.mean(vb), 6),
+            "diff": round(diff.value, 6),
+            "ci_low": round(diff.low, 6),
+            "ci_high": round(diff.high, 6),
+            "n": diff.n,
+        }
+        changed[criterion] = {
+            "better": [i for i, x, y in pairs if y > x],
+            "worse": [i for i, x, y in pairs if y < x],
+        }
+    first = as_json(changed[next(iter(out_metrics))])
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "a": a["run_id"],
+        "b": b["run_id"],
+        "a_config": as_json(a["config"])["name"],
+        "b_config": as_json(b["config"])["name"],
+        "suite": judged_record.JUDGED,
+        "split": a["split"],
+        "dataset_sha256": as_json(a["dataset"])["sha256"],
+        "trials": a["trials"],
+        "n": len(ids),
+        "judge": judge_identity(a),
+        "sources": {"a": as_json(a["source"])["run_id"], "b": as_json(b["source"])["run_id"]},
+        "bootstrap": {"resamples": resamples, "seed": seed, "level": level, "method": "percentile"},
+        "metrics": out_metrics,
+        "flipped": {"gained": first["better"], "lost": first["worse"]},
+        "changed": changed,
+    }
+
+
+def record_by_case(cases: list[Json]) -> dict[str, list[Json]]:
+    """Each case's lines, by case id, in the record's order."""
+    grouped: dict[str, list[Json]] = {}
+    for case in cases:
+        grouped.setdefault(str(case["case_id"]), []).append(case)
+    return grouped
+
+
 def _fmt(value: object) -> str:
     return f"{cast(float, value):+.3f}"
 
@@ -179,7 +299,14 @@ def _fmt(value: object) -> str:
 def render(result: Json) -> str:
     level = round(cast(float, as_json(result["bootstrap"])["level"]) * 100)
     generation = result["suite"] == "generation"
-    paired = "behaviour cases (by case id)" if generation else "questions"
+    judged = result["suite"] == judged_record.JUDGED
+    paired = (
+        "behaviour cases (by case id)"
+        if generation
+        else "cases (by case id; per criterion, the case's pass share over its judged verdicts)"
+        if judged
+        else "questions"
+    )
     lines = [
         f"# Compare {result['a_config']} (A) with {result['b_config']} (B)",
         "",
@@ -201,6 +328,18 @@ def render(result: Json) -> str:
             f"| {name} | {cast(float, m['a']):.3f} | {cast(float, m['b']):.3f} | "
             f"{_fmt(m['diff'])} | {_fmt(m['ci_low'])} to {_fmt(m['ci_high'])} | {m['n']} |"
         )
+    if judged:
+        identity = as_json(result["judge"])
+        sources = as_json(result["sources"])
+        lines[7:7] = [
+            f"- One judge: {identity['judge.model']} (digest "
+            f"{str(identity['judge.digest'])[:12]}), {identity['judge_prompt.version']} "
+            f"(sha256 {str(identity['judge_prompt.sha256'])[:12]}), CRITERIA.md "
+            f"{str(identity['criteria.sha256'])[:12]}, canaries "
+            f"{str(identity['canaries.sha256'])[:12]}; the sources are `{sources['a']}` (A) and "
+            f"`{sources['b']}` (B). Nothing here gates: `raglab gate --judged` reads the "
+            "calibration record.",
+        ]
     flipped = as_json(result["flipped"])
     gained = cast(list[str], flipped["gained"])
     lost = cast(list[str], flipped["lost"])
@@ -208,6 +347,10 @@ def render(result: Json) -> str:
         heading = f"## Flipped cases (behaviour pass^{result['trials']})"
         b_only, a_only = "Passed every trial in B only", "Passed every trial in A only"
         flip_metric = f"behaviour_pass^{result['trials']}"
+    elif judged:
+        flip_metric = next(iter(as_json(result["metrics"])))
+        heading = f"## Cases whose pass share moved ({flip_metric})"
+        b_only, a_only = "Higher in B", "Higher in A"
     else:
         heading = "## Flipped questions (hit)"
         b_only, a_only = "Found by B only", "Found by A only"

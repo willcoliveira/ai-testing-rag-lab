@@ -421,6 +421,47 @@ def test_a_hash_outside_the_maintenance_table_is_no_version(tmp_path):
     assert listed == listed_dataset_versions(DATASHEET)
 
 
+# ---------------------------------------------------------------- S8 (GA14): S7a-J1 closed
+
+
+def test_publish_refuses_a_run_whose_dataset_is_no_listed_version(tmp_path):
+    """S8 (GA14, the criteria judge's S7a-J1): `raglab publish` itself refuses a record whose
+    dataset.sha256 is in no row of the datasheet's Maintenance table beside its golden file, naming
+    the hash, and one whose matching row names another file; with the row back it publishes. The
+    S4-J10 test keeps catching a copy published before the rule (expected pass, above)."""
+    from tests.dataset_support import maintenance as datasheet_of
+    from tests.retrieval_support import write_datasheet
+
+    root = lab_root(tmp_path)
+    run_dir = local_run(root)
+    manifest, _ = read_run(run_dir)
+    sha = manifest["dataset"]["sha256"]
+    datasheet = root / "DATASHEET.md"
+    listed = datasheet.read_text(encoding="utf-8")
+    datasheet.write_text(datasheet_of(("v1", "golden.jsonl", "0" * 64)), encoding="utf-8")
+    with pytest.raises(publish.PublishError, match=f"dataset.sha256 {sha} is no version the"):
+        publish.publish(run_dir, root, privacy=lambda d, r: [])
+    assert not (root / publish.PUBLISHED).exists()
+    datasheet.write_text(datasheet_of(("v1", "other.jsonl", sha)), encoding="utf-8")
+    with pytest.raises(publish.PublishError, match="whose row names another file"):
+        publish.publish(run_dir, root, privacy=lambda d, r: [])
+    datasheet.unlink()
+    with pytest.raises(publish.PublishError, match=r"Maintenance table .* is missing beside it"):
+        publish.publish(run_dir, root, privacy=lambda d, r: [])
+    datasheet.write_text(listed, encoding="utf-8")
+    assert publish.dataset_version_problem(manifest, root) is None
+    assert publish.publish(run_dir, root, privacy=lambda d, r: []).is_dir()
+    write_datasheet(root / "golden.jsonl")  # the fixture's writer gives the same table
+    assert datasheet.read_text(encoding="utf-8") == listed
+
+
+def test_every_published_run_is_a_listed_version_by_publishs_own_rule():
+    """The rule publish applies (GA14) agrees with the S4-J10 test on every committed record."""
+    for path in sorted((ROOT / publish.PUBLISHED).glob(f"*/{record.MANIFEST}")):
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        assert publish.dataset_version_problem(manifest, ROOT) is None, path.parent.name
+
+
 def test_a_published_run_edited_to_show_another_tenants_chunk_is_refused(tmp_path):
     """S2 judge D3, as reproduced: the dense baseline copied, R-Q01 (tenant A) given tenant B's
     B-PWD 1.0 3.1 at rank 1 with every flag, score, hash and the report made to agree. The

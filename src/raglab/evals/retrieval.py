@@ -115,6 +115,9 @@ def run(
     resolved = golden.resolve(questions, chunks)
     retriever = build_retriever(config.retriever, embedder, chunks)
     k = config.retriever.k
+    from raglab.evals import causes  # S8: the cause rule (imported here: causes reads this module)
+
+    context = causes.Context.of(chunks, root)
     cases: list[Json] = []
     for item in resolved:
         question = item.question
@@ -145,6 +148,7 @@ def run(
         }
         if question.question_kind:
             case["question_kind"] = question.question_kind
+        case["cause"] = causes.cause_of(case, context)  # S8 (GA4)
         cases.append(case)
     bootstrap: Json = {
         "resamples": config.bootstrap.resamples,
@@ -196,7 +200,10 @@ def run(
         },
         "tools": tools(inventory.tools),
         "bootstrap": bootstrap,
-        "results": record.results_from_cases(cases, k, bootstrap),
+        "results": {
+            **record.results_from_cases(cases, k, bootstrap),
+            "causes": causes.counts(cases),  # S8 (GA5)
+        },
         "totals": {"cases": len(cases), "duration_s": round(time.perf_counter() - started, 3)},
     }
     return manifest, cases

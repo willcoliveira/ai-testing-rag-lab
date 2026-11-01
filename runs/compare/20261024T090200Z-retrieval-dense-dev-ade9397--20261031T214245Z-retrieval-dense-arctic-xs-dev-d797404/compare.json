@@ -1,0 +1,88 @@
+{
+  "schema_version": "compare.v1",
+  "a": "20261024T090200Z-retrieval-dense-dev-ade9397",
+  "b": "20261031T214245Z-retrieval-dense-arctic-xs-dev-d797404",
+  "a_config": "retrieval-dense",
+  "b_config": "retrieval-dense-arctic-xs",
+  "suite": "retrieval",
+  "split": "dev",
+  "dataset_sha256": "3d924ad0bd1dfcfe0f68cec70f595a570b7b412e875a3b5eae9ff901a3994a9e",
+  "n": 22,
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20261006,
+    "level": 0.95,
+    "method": "percentile"
+  },
+  "metrics": {
+    "hit@5": {
+      "a": 0.818182,
+      "b": 0.681818,
+      "diff": -0.136364,
+      "ci_low": -0.272727,
+      "ci_high": 0.0,
+      "n": 22
+    },
+    "mrr@5": {
+      "a": 0.625,
+      "b": 0.463636,
+      "diff": -0.161364,
+      "ci_low": -0.31822,
+      "ci_high": -0.017367,
+      "n": 22
+    },
+    "recall@5": {
+      "a": 0.681818,
+      "b": 0.537879,
+      "diff": -0.143939,
+      "ci_low": -0.257765,
+      "ci_high": -0.045455,
+      "n": 22
+    }
+  },
+  "flipped": {
+    "gained": [],
+    "lost": [
+      "R-Q14",
+      "R-Q16",
+      "R-Q18"
+    ]
+  },
+  "changed": {
+    "hit@5": {
+      "better": [],
+      "worse": [
+        "R-Q14",
+        "R-Q16",
+        "R-Q18"
+      ]
+    },
+    "mrr@5": {
+      "better": [
+        "R-Q07",
+        "R-Q22",
+        "R-Q28"
+      ],
+      "worse": [
+        "R-Q02",
+        "R-Q11",
+        "R-Q13",
+        "R-Q14",
+        "R-Q16",
+        "R-Q18",
+        "R-Q21"
+      ]
+    },
+    "recall@5": {
+      "better": [],
+      "worse": [
+        "R-Q07",
+        "R-Q14",
+        "R-Q16",
+        "R-Q18",
+        "R-Q22",
+        "R-Q25"
+      ]
+    }
+  }
+}

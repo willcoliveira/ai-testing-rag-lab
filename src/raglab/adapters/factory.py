@@ -28,12 +28,21 @@ def embedder(
     model and revision exactly: a run never uses files other than the ones it records."""
     if provider != "fastembed":
         raise AdapterError(f"embedder provider {provider!r}: only fastembed exists (S2)")
-    if (model, revision) != (fastembed_embed.MODEL, fastembed_embed.REVISION):
+    # S8: one spec per pinned model, by name; a config names the model and its pinned revision
+    spec = fastembed_embed.MODELS.get(model)
+    if spec is None or not spec.pinned:
         raise AdapterError(
-            f"fastembed {model} at {revision}: the pinned model is {fastembed_embed.MODEL} at "
-            f"{fastembed_embed.REVISION}"
+            f"fastembed {model} at {revision}: the pinned models are "
+            + ", ".join(
+                f"{s.model} at {s.revision or '(not pinned yet)'}"
+                for s in fastembed_embed.MODELS.values()
+            )
         )
-    local = fastembed_embed.FastEmbedEmbedder(root)
+    if revision != spec.revision:
+        raise AdapterError(
+            f"fastembed {model} at {revision}: the pinned model is {spec.model} at {spec.revision}"
+        )
+    local = fastembed_embed.FastEmbedEmbedder(root, spec)
     return local, local.describe(), "local"
 
 

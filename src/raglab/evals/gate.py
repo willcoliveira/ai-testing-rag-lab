@@ -38,6 +38,11 @@ class Verdict:
     message: str
 
 
+class ThresholdsError(ValueError):
+    """docs/THRESHOLDS.md cannot give the gate its margin (S8, the criteria judge's S4b-J4: two
+    consistency rows, where an old row left above the new one would give the gate its margin)."""
+
+
 def check(baseline: Json, current: Json) -> Verdict:
     k = cast(int, as_json(baseline["retriever"])["k"])
     name = f"recall@{k}"
@@ -81,14 +86,31 @@ STALE = (
 )
 
 
+def consistency_rows(thresholds: str) -> list[str]:
+    """The lines of THRESHOLDS.md that start as the consistency row does."""
+    return [line for line in thresholds.splitlines() if line.startswith(CONSISTENCY_ROW)]
+
+
 def consistency_margin(thresholds: str) -> int | None:
-    """The margin in cases on THRESHOLDS.md's consistency row, or None while the row sets none."""
-    for line in thresholds.splitlines():
-        if line.startswith(CONSISTENCY_ROW):
-            cells = [c.strip() for c in line.strip().strip("|").split("|")]
-            found = MARGIN.search(cells[2]) if len(cells) > 2 else None
-            return int(found.group(1)) if found else None
+    """The margin in cases on THRESHOLDS.md's consistency row, or None while the row sets none.
+    ThresholdsError when the file holds two or more such rows (S8, S4b-J4): the gate reads one
+    row, and refuses to pick, naming each."""
+    rows = consistency_rows(thresholds)
+    if len(rows) > 1:
+        named = "; ".join(f"{cells[0]!r} ({cells[2]!r})" for cells in map(_cells, rows))
+        raise ThresholdsError(
+            f"{THRESHOLDS} has {len(rows)} consistency rows and the gate reads one: {named}; "
+            "replace the old row in place when a new baseline is published"
+        )
+    for line in rows:
+        cells = _cells(line)
+        found = MARGIN.search(cells[2]) if len(cells) > 2 else None
+        return int(found.group(1)) if found else None
     return None
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
 
 
 def _field(manifest: Json, section: str, key: str) -> object:

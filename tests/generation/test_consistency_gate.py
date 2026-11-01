@@ -164,6 +164,29 @@ def test_the_one_consistency_row_names_the_published_baseline():
     assert ids[0] == baseline.name, f"the row's first run is {ids[0]}, not {baseline.name}"
 
 
+# ---------------------------------------------------------------- S8 (GA13): two rows refused
+
+
+def test_two_consistency_rows_are_refused_naming_both():
+    """S8 (the criteria judge's S4b-J4): the gate reads one consistency row; a THRESHOLDS.md with
+    two (an old row left above the new one) is refused, naming both, instead of giving the gate
+    the first row's margin."""
+    row = "| behaviour pass^3, dev (Q-05) | local | margin: {} | {} |\n"
+    one = row.format("1 case(s)", "the rule")
+    assert gate.consistency_margin(one) == 1
+    two = one + row.format("2 case(s)", "an old row")
+    with pytest.raises(gate.ThresholdsError) as refused:
+        gate.consistency_margin(two)
+    message = str(refused.value)
+    assert message.startswith(f"{gate.THRESHOLDS} has 2 consistency rows and the gate reads one: ")
+    assert "'margin: 1 case(s)'" in message
+    assert "'margin: 2 case(s)'" in message
+    assert message.endswith("replace the old row in place when a new baseline is published")
+    assert gate.consistency_rows(two) == [line for line in two.splitlines()]
+    # a row that only looks like one (another metric) is not counted
+    assert gate.consistency_margin(one + "| recall@5 | pr-fast | margin: 9 cases | r |\n") == 1
+
+
 # ---------------------------------------------------------------- the CLI, on real records
 
 THRESHOLDS_ROW = "| behaviour pass^2, dev (Q-05) | local | margin: {} | the rule |\n"
@@ -230,6 +253,31 @@ def test_the_cli_refuses_without_a_baseline_a_margin_or_a_real_model(tmp_path, c
     code, out = gate_cli(root, fake, capsys)
     assert code == 1
     assert "is a fake run" in out[0]
+
+
+def test_the_cli_refuses_two_consistency_rows_naming_both(tmp_path, capsys):
+    """S8 (GA13): through the CLI, a THRESHOLDS.md with two consistency rows is refused in one
+    line, naming both rows, before any verdict."""
+    from tests.generation_support import behaviour_run
+
+    root, _ = published_baseline(tmp_path)
+    (root / "docs").mkdir()
+    (root / gate.THRESHOLDS).write_text(
+        THRESHOLDS_ROW.format("1 case") + THRESHOLDS_ROW.format("2 cases"), encoding="utf-8"
+    )
+    later = datetime(2026, 10, 19, 13, 0, 0, tzinfo=UTC)
+    _, current = behaviour_run(tmp_path, local=True, root=root, when=later)
+    code, out = gate_cli(root, current, capsys)
+    assert (code, len(out)) == (1, 1)
+    assert out[0].startswith(
+        f"consistency gate (Q-05): refused: {gate.THRESHOLDS} has 2 consistency rows and the "
+        "gate reads one: "
+    )
+    assert "'margin: 1 case'" in out[0]
+    assert "'margin: 2 cases'" in out[0]
+    (root / gate.THRESHOLDS).write_text(THRESHOLDS_ROW.format("1 case"), encoding="utf-8")
+    code, out = gate_cli(root, current, capsys)
+    assert code == 0, out
 
 
 def test_the_cli_refuses_a_partial_run_and_an_edited_record(tmp_path, capsys):

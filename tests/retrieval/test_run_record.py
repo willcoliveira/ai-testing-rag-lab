@@ -336,7 +336,7 @@ def test_the_s3_run_still_validates_unchanged():
 def _reseal_generation(run_dir, cases, recheck: bool = True) -> None:
     """Rewrite a generation run's cases with results, report and hashes that agree, as a careful
     hand edit would; with recheck, the checks too (from the live answer key)."""
-    from raglab.evals import generation_record
+    from raglab.evals import causes, generation_record
     from raglab.ingest.answer_key import canaries, must_not_contain
 
     manifest, _ = read_run(run_dir)
@@ -346,6 +346,8 @@ def _reseal_generation(run_dir, cases, recheck: bool = True) -> None:
                 case["checks"] = generation_record.case_checks(
                     case, canaries(ROOT), must_not_contain(ROOT)
                 )
+                if "cause" in case:  # S8: the careful hand edit keeps the cause in step
+                    case["cause"] = causes.cause_of(case, None)
     with contextlib.suppress(KeyError, ValueError, TypeError):
         manifest["results"] = record.expected_results(manifest, cases)
     body = {k: v for k, v in manifest.items() if k != "files"}

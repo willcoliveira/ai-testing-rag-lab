@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import cast
 
 from raglab.core.types import ChunkId, ScoredChunk, Status
-from raglab.evals import behaviour, generation_record, golden, record, retrieval
+from raglab.evals import behaviour, causes, generation_record, golden, record, retrieval
 from raglab.evals.config import GenerationConfig, canonical_sha256
 from raglab.evals.oracle import abstention_oracle, policy_values
 from raglab.generate.assemble import Assembled
@@ -171,6 +171,7 @@ def run(
     canaries = answer_key.canaries(root)
     banned = answer_key.must_not_contain(root)
     features = answer_key.features(root)
+    context = causes.Context.of(chunks, root)  # S8: what the cause rule's first clause reads
     settings = config.generation
     cap = settings.run_timeout_s
     items: list[tuple[golden.Question, golden.Resolved | None]] = [
@@ -221,6 +222,7 @@ def run(
                     **record.case_scores(ids, sets, config.retriever.k),
                 }
             case["checks"] = generation_record.case_checks(case, canaries, banned)
+            case["cause"] = causes.cause_of(case, context)  # S8 (GA4)
             cases.append(case)
         if stopped:
             break
@@ -298,7 +300,10 @@ def run(
             **retrieval.tools(assembled.inventory.tools),
             "httpx": version("httpx"),
         },
-        "results": generation_record.results(cases, settings.trials, settings.level),
+        "results": {
+            **generation_record.results(cases, settings.trials, settings.level),
+            "causes": causes.counts(cases),  # S8 (GA5)
+        },
         "totals": totals,
     }
     if config.ollama is not None:

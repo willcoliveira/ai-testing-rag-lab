@@ -452,3 +452,87 @@ def test_a_cell_set_back_to_tbd_s7_is_named():
         "R-20: its Test cell names no S7 security test",
         "R-20: its Gate cell is 'tbd', not pr-fast",
     ]
+
+
+# ---------------------------------------------------------------- S8: the Gate column (GA3, GA17)
+
+GATES_DOC = ROOT / "docs" / "GATES.md"
+NOT_COVERED = "not covered"
+R22_GAP_PHRASES = (
+    "Not covered in v0.2",
+    "register change",
+    "stale",
+    "S6's calibration",
+    "sign off",
+)
+
+
+def gate_names() -> set[str]:
+    """The gates docs/GATES.md maps, read from its table's Gate column."""
+    body = GATES_DOC.read_text(encoding="utf-8").split("\n## The gates\n", 1)[1]
+    rows = [line for line in body.split("\n## ", 1)[0].splitlines() if line.startswith("| ")]
+    return {line.strip().strip("|").split("|")[0].strip() for line in rows[1:]}
+
+
+def gate_cell_problems(text: str | None = None, gates: set[str] | None = None) -> list[str]:
+    """Each traceability row whose Gate cell is not a gate of GATES.md (with an optional
+    "(local)"), `reported` or `not covered`; R-22's cell says not covered and its gap row gives
+    the reason and the cost (D4 A)."""
+    gates = gates if gates is not None else gate_names()
+    cells = row_cells(text)
+    out: list[str] = []
+    for rid, row in cells.items():
+        gate = row[4]
+        name = re.sub(r"\s*\(local\)$", "", gate)
+        if gate == "tbd" or not gate:
+            out.append(f"{rid}: its Gate cell is {gate!r}, not a gate")
+        elif name not in gates and gate not in ("reported", NOT_COVERED):
+            out.append(f"{rid}: its Gate cell {gate!r} names a gate GATES.md lacks")
+    if cells["R-22"][4] != NOT_COVERED:
+        out.append(f"R-22: its Gate cell is {cells['R-22'][4]!r}, not {NOT_COVERED!r} (D4 A)")
+    gaps = (text or (ROOT / "docs" / "TEST-PLAN.md").read_text(encoding="utf-8")).split(
+        "### Gaps", 1
+    )[1]
+    [gap] = [line for line in gaps.splitlines() if line.startswith("| R-22 |")]
+    reason = gap.strip().strip("|").split("|")[2]
+    out += [f"R-22: its gap row does not say {p!r}" for p in R22_GAP_PHRASES if p not in reason]
+    return out
+
+
+def test_every_gate_cell_names_a_gate_of_the_gate_map_and_r22_is_not_covered():
+    assert {"pr-fast", "eval-on-change", "nightly", "release"} <= gate_names()
+    assert gate_cell_problems() == []
+    cells = row_cells()
+    assert all("tbd" not in row[4] for row in cells.values())
+    assert cells["R-22"][4] == NOT_COVERED
+    for rid in S7_CELLS:
+        assert cells[rid][4] == "pr-fast", rid
+
+
+def test_a_gate_cell_set_back_to_tbd_or_naming_an_unknown_gate_is_named():
+    text = (ROOT / "docs" / "TEST-PLAN.md").read_text(encoding="utf-8")
+    [row] = [line for line in text.splitlines() if line.startswith("| R-04 | Newer version ")]
+    back = text.replace(row, row.rsplit("|", 2)[0] + "| tbd |", 1)
+    assert gate_cell_problems(back) == ["R-04: its Gate cell is 'tbd', not a gate"]
+    unknown = text.replace(row, row.rsplit("|", 2)[0] + "| hourly (local) |", 1)
+    assert gate_cell_problems(unknown) == [
+        "R-04: its Gate cell 'hourly (local)' names a gate GATES.md lacks"
+    ]
+    [gap] = [
+        line for line in text.split("### Gaps", 1)[1].splitlines() if line.startswith("| R-22 |")
+    ]
+    cells = gap.strip().strip("|").split("|")
+    cells[2] = " planted later "
+    emptied = text.replace(gap, "|" + "|".join(cells) + "|", 1)
+    assert gate_cell_problems(emptied) == [
+        f"R-22: its gap row does not say {p!r}" for p in R22_GAP_PHRASES
+    ]
+
+
+def test_section_10s_report_line_is_filled_with_s8s_words():
+    template = part2().split("## 10. The plan, filled in", 1)[1]
+    report = template.split("\nreport", 1)[1].split("\n```", 1)[0]
+    assert "<from S8" not in report
+    assert not re.search(r"<[^=\s]", report), "the report line has a <placeholder> left"
+    for phrase in ("ingestion, retrieval, abstention, generation", "raglab compare", "judged gate"):
+        assert phrase in report, phrase

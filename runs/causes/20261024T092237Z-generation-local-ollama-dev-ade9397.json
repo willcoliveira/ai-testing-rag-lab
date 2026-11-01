@@ -1,0 +1,1543 @@
+{
+  "schema_version": "causes.v1",
+  "run_id": "20261024T092237Z-generation-local-ollama-dev-ade9397",
+  "suite": "generation",
+  "manifest_sha256": "a81aba53598ce6d12fe4a6c54e49d65560471445eed4008b86c79bf53d9aa26b",
+  "recomputed": true,
+  "counts": {
+    "case_trials": {
+      "ingestion": 0,
+      "retrieval": 58,
+      "abstention": 49,
+      "generation": 30,
+      "passed": 166,
+      "no_cause": 0
+    },
+    "cases": {
+      "ingestion": 0,
+      "retrieval": 21,
+      "abstention": 19,
+      "generation": 12,
+      "passed": 49,
+      "no_cause": 0
+    }
+  },
+  "cases": [
+    {
+      "case_id": "R-Q01",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q01",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q01",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q02",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q02",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q02",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q04",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q04",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q04",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q05",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q05",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q05",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q07",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q07",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q07",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q08",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q08",
+      "trial": 2,
+      "cause": "generation"
+    },
+    {
+      "case_id": "R-Q08",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q10",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q10",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q10",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q11",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q11",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q11",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q13",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q13",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q13",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q14",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q14",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q14",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q16",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q16",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q16",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q18",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q18",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q18",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q19",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q19",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q19",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q21",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q21",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q21",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q22",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q22",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q22",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q24",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q24",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q24",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q25",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q25",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q25",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q27",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q27",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q27",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q28",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q28",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q28",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q29",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q29",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q29",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q31",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q31",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q31",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "R-Q33",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q33",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "R-Q33",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "P-01",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "P-01",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "P-01",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "P-02",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "P-02",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "P-02",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "P-03",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "P-03",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "P-03",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-01",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-01",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-01",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-03",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-03",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-03",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-05",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-05",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-05",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-06",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-06",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-06",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-08",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-08",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-08",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-09",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-09",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-09",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-10",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-10",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-10",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-11",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-11",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-11",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-12",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-12",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-12",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-14",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-14",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-14",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-16",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-16",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-16",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-17",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-17",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-17",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-19",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-19",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-19",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-21",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-21",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-21",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-22",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-22",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-22",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-23",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-23",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-23",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-25",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-25",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-25",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-26",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-26",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-26",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-28",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-28",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-28",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-29",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-29",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-29",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-31",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-31",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-31",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-33",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-33",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-33",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-34",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-34",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-34",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-36",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-36",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-36",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-40",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-40",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-40",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-41",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-41",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-41",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-42",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-42",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-42",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-43",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-43",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-43",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-47",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-47",
+      "trial": 2,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-47",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-48",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-48",
+      "trial": 2,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-48",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-50",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-50",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-50",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-51",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-51",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-51",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-52",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-52",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-52",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-53",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-53",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-53",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-54",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-54",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-54",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-55",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-55",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-55",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-56",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-56",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-56",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-58",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-58",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-58",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-61",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-61",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-61",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-62",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-62",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-62",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-63",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-63",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-63",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-64",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-64",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-64",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-65",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-65",
+      "trial": 2,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-65",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-67",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-67",
+      "trial": 2,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-67",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-68",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-68",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-68",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-71",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-71",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-71",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-73",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-73",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-73",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-74",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-74",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-74",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-75",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-75",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-75",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-76",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-76",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-76",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-78",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-78",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-78",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-79",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-79",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-79",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-80",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-80",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-80",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-81",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-81",
+      "trial": 2,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-81",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-82",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-82",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-82",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-84",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-84",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-84",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-86",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-86",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-86",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-88",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-88",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-88",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-89",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-89",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-89",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-90",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-90",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-90",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-92",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-92",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-92",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-94",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-94",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-94",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-95",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-95",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-95",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-97",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-97",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-97",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-98",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-98",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-98",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-99",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-99",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-99",
+      "trial": 3,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-100",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-100",
+      "trial": 2,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-100",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-101",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-101",
+      "trial": 2,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-101",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-103",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-103",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-103",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-105",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-105",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-105",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-106",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-106",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-106",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-108",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-108",
+      "trial": 2,
+      "cause": null
+    },
+    {
+      "case_id": "G-108",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-109",
+      "trial": 1,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-109",
+      "trial": 2,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-109",
+      "trial": 3,
+      "cause": "generation"
+    },
+    {
+      "case_id": "G-110",
+      "trial": 1,
+      "cause": null
+    },
+    {
+      "case_id": "G-110",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-110",
+      "trial": 3,
+      "cause": null
+    },
+    {
+      "case_id": "G-113",
+      "trial": 1,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-113",
+      "trial": 2,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-113",
+      "trial": 3,
+      "cause": "retrieval"
+    },
+    {
+      "case_id": "G-114",
+      "trial": 1,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-114",
+      "trial": 2,
+      "cause": "abstention"
+    },
+    {
+      "case_id": "G-114",
+      "trial": 3,
+      "cause": "abstention"
+    }
+  ],
+  "sha256": "db4c17ab5ea81e5c5e8017dc6c276333e6cc273fa6ab5dcc738e57d126ce7e17"
+}

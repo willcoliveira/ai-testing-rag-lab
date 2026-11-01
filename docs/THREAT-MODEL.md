@@ -58,10 +58,30 @@ Embedding Weaknesses), renamed and renumbered in 2026.
 | LLM04:2026 | Supply Chain | pinned dependencies, model digests, the embedder's revision and file hashes | `tests/unit/test_audit_exceptions.py::test_every_skip_reaches_pip_audit`, `tests/unit/test_workflow_rules.py::test_dependabot_covers_every_ecosystem_monthly`, `tests/unit/test_model_fetch.py::test_the_pins_name_a_full_revision_and_a_hash_per_file`, `tests/unit/test_ollama_session.py::test_a_replaced_digest_refuses_the_session_before_the_server_starts` | — | `make audit`, Dependabot's cooldown, the session preflight |
 | LLM05:2026 | Data and Model Poisoning | the poisoned near-duplicate (T-POISON) and the fake update page (T-FAKE); no training or fine-tuning, so model poisoning does not apply | `tests/security/test_attack_suite.py::test_a_page_outside_the_register_never_reaches_the_prompt_and_the_answer_goes_on`, `tests/security/test_attack_suite.py::test_a_page_whose_front_matter_claims_a_register_id_and_current_is_still_dropped`, `tests/security/test_attack_suite.py::test_the_default_guard_set_stops_the_attack` | R-15, R-18 | register filter, citation validator |
 | LLM06:2026 | Unbounded Consumption | question and body limits, max_tokens, timeouts, a run's wall-clock cap; rate limit, budget and kill switch come with the demo (S10) | `tests/api/test_api.py::test_a_question_over_the_input_limits_is_400_and_never_retrieved`, `tests/api/test_api.py::test_a_body_that_is_not_json_or_too_large_is_refused` | — | input limits (partly; the rest in S10) |
-| LLM07:2026 | Misinformation | an invented value, a superseded or external value given as the rule | `tests/unit/test_criteria.py::test_the_pass_and_fail_rules_are_judge_v2s_words`, `tests/security/test_attack_suite.py::test_with_s3s_guards_only_the_payload_reaches_the_answer` | R-18 | the judged criteria (S5, calibrated in S6; reported, not gated); the register filter keeps planted values out |
+| LLM07:2026 | Misinformation | an invented value, a superseded or external value given as the rule | `tests/unit/test_criteria.py::test_the_pass_and_fail_rules_are_judge_v2s_words`, `tests/security/test_attack_suite.py::test_with_s3s_guards_only_the_payload_reaches_the_answer` | R-18 | the judged criteria (S5, calibrated in S6; reported, not gated); register filter (keeps planted values out) |
 | LLM08:2026 | Hidden Context Exposure | the system prompt and the configuration | `tests/security/test_guard_cases.py::test_each_handwritten_case_gets_its_decision`, `tests/security/test_attack_suite.py::test_each_defence_alone_stops_the_attack`, `tests/security/test_guard_reasons.py::test_an_injection_is_400_with_its_reason_and_the_log_holds_no_question` | R-20 | input injection detector, prompt-leak guard |
 | LLM09:2026 | Vector and Embedding Weaknesses | cross-tenant retrieval and poisoned near-duplicates in the index; embedding inversion does not apply, because no vector leaves the process | `tests/retrieval/test_tenant_filter.py::test_no_cross_tenant_chunk_on_the_whole_pack`, `tests/security/test_attack_suite.py::test_two_tenants_a_broken_store_filter_without_the_tenant_guard_leaks`, `tests/security/test_guard_cases.py::test_every_attack_page_is_left_out_and_the_planted_instruction_flagged` | R-13, R-16, R-21 | tenant filter (fails closed), tenant guard, register filter |
 | LLM10:2026 | Improper Output Handling | answer text in the web page, the playground and the API's JSON | `tests/security/test_egress_guard.py::test_the_page_and_the_playground_write_text_only`, `tests/security/test_attack_suite.py::test_with_the_link_guard_alone_the_planted_link_is_never_answered`, `tests/security/test_egress_guard.py::test_a_connection_off_loopback_is_refused_and_recorded` | R-17 | text-only rendering, link guard, egress guard |
+
+### Controls outside the guard layers
+
+A Layer cell names guard layers from `docs/GUARDRAILS.md`'s tables (by their names) and the
+controls below, which are not layers behind the `Guardrail` port.
+`tests/security/test_threat_model.py` resolves every name a Layer cell holds against both lists
+(S8, the criteria judge's S7a-J11): a cell naming nothing on either list (`—`, "n/a", an empty
+cell, a misspelt name) has no layer, and its row must say "not applicable, because". A control
+counts only when its Where cell names at least one path that exists in the repository (in
+backticks), so a row invented here names nothing (the judge's S8-J4).
+
+| Control | Where | What it is |
+|---|---|---|
+| tenant filter | `src/raglab/index/memory.py`, the retrievers | the store's filter before ranking, which fails closed on an unknown tenant (R-13, R-21) |
+| text-only rendering | `src/raglab/web/app.js`, the playground | the page and the playground write answer text with `textContent`, never HTML |
+| egress guard | `src/raglab/runtime/egress.py` | the loopback-only guard the attack suite and the live attack runs run inside |
+| `make audit` | `Makefile`, `.github/workflows/pr-fast.yml` | pip-audit over the lock and the DeepEval tool's requirements, with the skips reviewed by date |
+| Dependabot's cooldown | `.github/dependabot.yml` | the seven-day cooldown on every ecosystem before a bump is proposed |
+| the session preflight | `src/raglab/runtime/ollama.py` | the pinned model's size and digest checked before the server starts |
+| the judged criteria | `docs/CRITERIA.md`, `src/raglab/judge/` | the judge's verdicts (S5), calibrated in S6; reported, never gated until a calibration record trusts a criterion |
 
 ## The lethal trifecta
 
@@ -124,6 +144,13 @@ model can tell a planted page from a real one by a label only humans should see
   `must_not_block` and `injection` only.
 - **A socket opened outside Python's socket module, or by a child process.** The egress guard sees
   neither; the attack runs start no child process.
+- **A fabrication about another tenant stated in words** (S8, the S7 ledger's ATK-TEN-1 trial 3).
+  The reported check `other_tenant_claim` (raglab.evals.attack_record, never gated) counts an ok
+  answer that names the other tenant and states a number or a date while no retrieved chunk is
+  that tenant's; it reads numbers and dates against chunks, as the abstention oracle does, so a
+  claim in words ("Mirrowfen rotates its keys yearly") passes it, a month name alone is no date
+  to it, and a value the answer attributes to the asker's own documents beside the other tenant's
+  name counts against it. The judged criteria read the words; the check is a count beside them.
 
 ## Lab practice
 

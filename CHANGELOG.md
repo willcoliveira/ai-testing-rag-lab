@@ -5,6 +5,18 @@ One line per change, newest first, grouped by release. Each pull request adds it
 
 ## Unreleased
 
+- S8, gates, failure causes and the suite audit (plan `docs/plans/2026-10-31-s8-gates-causes-audit.md`,
+  ledger beside it; in progress, the offline parts first): `docs/GATES.md`, the gate map in
+  how-to 08's columns with a mode per row and the flake policy (no automatic retry, a `flaky`
+  marker and an empty register), and the lab runbooks `runbooks/pr-fast.md`, `eval.md` and
+  `nightly.md`; a reason for every metric in THRESHOLDS.md, held by a test; every failed
+  case-trial of a generation or retrieval run tagged with one cause (ingestion, retrieval,
+  abstention, generation) by a rule the validator recomputes, `raglab causes` for the published
+  runs (`runs/causes/`); `raglab compare` on judged records and `raglab gate --judged`, which
+  gates only on a criterion the calibration record trusts and refuses otherwise; the nightly
+  drift alert; the test-split contamination check; the suite audit in `docs/audits/`; the
+  follow-ups S4b-J4, S7a-J1, S7a-J11 and ATK-TEN-1 trial 3 closed, R-22 recorded as not covered;
+  `docs/UPGRADES.md` opened for the upgrade record.
 - The main plan records the progress to 2026-10-26 and the next steps: the stages merged with
   their pull requests, S6 in progress, the order S6, S7b, S8 and v0.2.0, the follow-ups waiting
   for S8, and the maintenance dates. It also adds the decisions of 2026-10-21 (S5's hosted half
