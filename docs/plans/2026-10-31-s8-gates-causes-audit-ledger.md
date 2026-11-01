@@ -106,7 +106,7 @@ judge makes the plan's breaks on the committed files.
 | GA7 | met offline (the judged alert's test is S8-J1's, `fe78ba3`; publish recomputes a nightly's alert, choice 8, `4091bde`); the first nightly on v2 is the reference (none is published) | `tests/unit/test_held_out_split.py` (3 new tests; run with `tests/judge/test_judged_compare.py`, "24 passed in 40.93s"): the first nightly's block says it is the reference; an identical FakeChat pair gives `diff {value 0, ci_low 0, ci_high 0, n 7}` and no flip; five of seven cases lost fires the alert naming B-ANS, B-FC, B-ABS, B-ABQ, B-RH, and the record with its `alert` block validates with the report's "## Drift alert (nightly)"; the CLI on `config/fake.toml` under gate nightly writes the block and exits 0 with a fired alert ("drift alert (nightly): FIRED against ..."), and under any other gate writes none | the alert made to block: `test_the_cli_writes_the_alert_on_a_nightly_run_and_never_blocks` asserts exit 0 with `fired: true` |
 | GA8 | met offline for sections 1, 2, 3, 5, 6 and 7; section 4 waits for S6, section 1's S7b part for S7b | `docs/audits/2026-10-31-suite-audit-v0.2.md`; `make audit-suite`: "docs/audits/2026-10-31-suite-audit-v0.2.md: the counts agree"; `tests/unit/test_audit_suite.py` (5 tests; with `test_model_fetch.py`, "14 passed in 0.18s"); every check's command and output in the report (their files under `runs/tmp/s8-evidence/audit/`) | a count edited in a copy of the report: "6. intervals: 'published runs' is '34' in the report, recounted 33"; the row removed: "6. intervals: 'published runs' is not in the report's Counts table"; a section heading reworded: named as missing (`test_a_removed_section_heading_is_named`) |
 | GA9 | met | `tests/unit/test_split_contamination.py`: "4 passed in 0.08s": 53 test-split ids (12 retrieval questions, 41 cases), no hit under `src/`, `config/`, `datasets/security/`, the prompts or THRESHOLDS.md, none of the 31 published dev records holds one, the two held-out runs are v1.1's under `release` | a test-split id planted in a comment of a copy of `src/raglab/guard/injection.py`: "src/raglab/guard/injection.py: G-02" (`test_a_planted_id_in_a_comment_of_the_injection_guard_is_named`); a longer id holding it is no hit |
-| GA10 | met after the download go of 2026-10-31 (the section "The embedder swap (GA10)" below: the commit resolved, the fetch, the pins, `make model-swap`, the two runs, the two compares in `runs/compare/`, the stale rule, the two runs published under D2 A) | `tests/unit/test_model_fetch.py` (3 new tests; the adapter suites' run, "223 passed in 16.49s"): the first model's pins are the module names pr-fast's cache key reads (`test_workflow_rules.py` passes), the second is declared unpinned and `fetch` refuses it without a download, a pinned second spec fetches into `<cache>/Snowflake--snowflake-arctic-embed-xs/<revision>/` with `onnx/model.onnx` under its folder; `make model-swap` run (it refuses before anything is downloaded): "fetch-model failed: snowflake/snowflake-arctic-embed-xs is not pinned yet (no revision or no file hashes in raglab.adapters.fastembed_embed): pin its revision and every file's sha256 from the fetched bytes, with the maintainer's go, before anything is downloaded", "make: *** [model-swap] Error 1"; `git diff ef46a61 -- corpus/` empty | a pinned sha256 changed: "onnx/model.onnx from https://... has sha256 ..., not the pinned ..." (`test_a_pinned_second_spec_fetches_into_its_own_directory_with_subfolders`) |
+| GA10 | met after the download go of 2026-10-31 (the section "The embedder swap (GA10)" below: the commit resolved, the fetch, the pins, `make model-swap`, the two runs, the two compares in `runs/compare/`, the stale rule, the two runs published under D2 A; the compare files held to a fresh comparison since `07767dd`, the judge's S8-J16) | `SWAP` pinned to `d8c86521100d3556476a063fc2342036d45c106f` with its five files' sha256s; `make model-swap`: "already in the cache; every file matches its pinned sha256", exit 0; the embedder loads (384 floats); `tests/unit/test_model_fetch.py` (the pins are a full revision and five hashes, an unpinned spec is refused by `fetch` and the embedder, a pinned second spec fetches under `onnx/`), `tests/unit/test_eval_config.py` (the two swap configs equal their companions but for the embedder and name), `tests/unit/test_workflow_rules.py` (`make model` and pr-fast's cache key unchanged); the two published runs validate; `tests/retrieval/test_compare.py::test_the_committed_compare_files_are_what_a_fresh_comparison_gives`; `git diff ef46a61 -- corpus/` empty | a pinned sha256 changed: "onnx/model.onnx from https://... has sha256 ..., not the pinned ..." (the fetch test; the judge's offline break on the cached files: the embedder and `fetch` refuse, the cache unchanged); a compare file edited (the dense hit@5 diff -0.136364 to -0.036364 in both files): "20261024T090200Z-retrieval-dense-dev-ade9397--20261031T214245Z-retrieval-dense-arctic-xs-dev-d797404: compare.json is not a fresh comparison" (`j16-break.txt`; restored, "1 passed") |
 | GA11 | waits for #35's merge: the shape is written, the first record and its replay come after `main` is merged in | `docs/UPGRADES.md`; `tests/unit/test_repo_docs.py` (1 new test; the doc suites' run, "223 passed in 2.50s"): the runbook and the notes name the record | the runbook's pointer removed: `test_the_release_runbook_and_the_notes_name_the_upgrade_record` fails (the judge's break) |
 | GA12 | met | `docs/GATES.md` "Flakes"; `pyproject.toml` marker `flaky`; `PYTEST_OFFLINE` ends `and not flaky`; `make test-flaky`; `tests/unit/test_flake_register.py` (6 tests; with `test_gates_doc.py`, "10 passed in 0.27s") | a test marked `flaky` without a row: "tests/unit/test_example.py::test_wobbles is marked flaky but has no register row"; a row past its date: "its removal date 2026-10-30 has passed"; a date more than 30 days out: named; a row without a marked test: "has a register row but is not marked flaky"; `flaky` dropped from `PYTEST_OFFLINE`: `test_flaky_left_in_the_offline_selection_is_named` shows the exclusion gone (the judge makes it on the Makefile: `test_the_marker_is_registered_and_out_of_make_check` fails) |
 | GA13 | met | `tests/generation/test_consistency_gate.py`: "24 passed in 5.69s" (2 new): `consistency_margin` on one row gives 1, on two raises `ThresholdsError` "docs/THRESHOLDS.md has 2 consistency rows and the gate reads one: '...' ('margin: 1 case(s)'); '...' ('margin: 2 case(s)'); replace the old row in place when a new baseline is published"; through the CLI on a published fixture baseline: "consistency gate (Q-05): refused: docs/THRESHOLDS.md has 2 consistency rows ..." (exit 1), then with one row the gate passes (exit 0) | the second row added to a copy: refused naming both (above); the refusal removed: both tests fail (the judge's break) |
@@ -329,8 +329,13 @@ THRESHOLDS.md row with a gate and a reason". Each has its row now (the audit's s
    plan keeps untouched for S7b): a Layer cell's names resolve against the guard layers and the
    named controls, parentheses dropped, split at commas and semicolons. The judge's S8-J4 found a
    row invented in the same table let a Layer cell name no layer; since `287ec98` a control counts
-   only when its Where cell names a path that exists in the repository, which closes the bypass
-   without the maintainer.
+   only when its Where cell names a path that exists in the repository, which **narrows** the
+   bypass (the judge's S8-J18): an invented control whose Where cell names any existing file
+   (`Makefile`, the judge's probe: LLM06's Layer `out of scope here`, "11 passed") still passes.
+   That residual is the documented limit of the controls table: a reviewer reading the row is the
+   check on a control's Where cell, as on every row of the threat model. **Choice 9 stays open for
+   the maintainer**: keep the controls table here with that limit, or move the list to
+   GUARDRAILS.md after S7b.
 10. **The second embedder is `snowflake/snowflake-arctic-embed-xs`** (fastembed 0.9.0 lists it at
     `Snowflake/snowflake-arctic-embed-xs`, 384 dimensions, model file `onnx/model.onnx`, about
     0.09 GB): another family at the first model's dimension, so the store is unchanged, and a plain
@@ -432,6 +437,29 @@ its first failing command (the judge's S8-J8). "Green" here means exit 0 everywh
    pre-existing on `main` (the seven pypdf advisories until #35 merges; its second line, the
    DeepEval tool's audit, does not run under `-k`). Nothing else is red. The ledger commit after
    `4091bde` changes this file only, so no new `make check` was run for it.
+6. **At `c4a7d39`, the last code commit of fix round 2 (S8-J16, J17 and the Makefile comment)**
+   (`make-check-c4a7d39.txt`), every line as the file has it: format "334 files already
+   formatted"; lint "All checks passed!"; types "0 errors, 0 warnings, 0 informations"; deps
+   "Success! No dependency issues found." (vulture silent); audit **red** "Found 7 known
+   vulnerabilities, ignored 50 in 1 package", `make: *** [audit] Error 1` (the DeepEval line does
+   not run under `-k`); sast and workflows silent; secrets "no leaks found" twice; privacy "0 hits
+   across 511 files (42 rules)"; architecture "0 architecture violations in src/raglab";
+   check-dataset both files pass; model "already in the cache; every file matches its pinned
+   sha256"; test "1980 passed, 2 deselected, 1 warning in 308.20s (0:05:08)" (two more than run 5:
+   S8-J16's and S8-J17's tests); gate "retrieval no-regression gate (22 questions): recall@5 0.682
+   (n 22) passes: the threshold is the baseline 0.682 (20261024T090200Z-retrieval-dense-dev-ade9397)
+   minus one question (1/22), 0.636"; "api-smoke: passed"; `make: Target 'check' not remade
+   because of errors.`; `real 365.28`, `user 352.20`, `sys 18.07`; make exit 2. **The targets that
+   failed, by name:** `audit` only, first error line "Found 7 known vulnerabilities, ignored 50 in
+   1 package", pre-existing on `main` (the seven pypdf advisories until #35 merges; its second
+   line, the DeepEval tool's audit, does not run under `-k`). Nothing else is red. The ledger
+   commit after `c4a7d39` changes this file only, so no new `make check` was run for it.
+
+**The tally after fix round 2** (the developer's, for the judge's round 2 if the plan allows one;
+the plan allows two fix rounds, so a third needs the maintainer's go): 16 met (GA4, GA5, GA7, GA9,
+GA10, GA12, GA13, GA14, GA16, GA17 fully; GA1, GA2, GA3, GA6, GA8, GA15 offline with their
+re-checks after S6 or S7b), 1 needs CI (GA18, once the pull request exists after S6 and S7b), 1
+waits (GA11, on #35).
 
 ### The embedder swap (GA10), after the download go (2026-10-31)
 
@@ -549,8 +577,10 @@ pairs, 2 comparison files, 13 derived files; `make audit-suite`: "the counts agr
 
 ### Criteria judge, round 0 (2026-10-31, at `fe44a02`)
 
-The judge (Opus 5.5, its own worktree, detached at `fe44a02`, offline, no push, no model, no
-download) handed its report back after about 31 minutes measured (20:54 to 21:25 UTC; its report
+The judge (Opus 5.5, its own worktree, detached at `fe44a02`; no push, no model, no download; its
+report discloses one read-only `git ls-remote`, which the orchestrator asked for, and `make
+check`'s `audit` and `sast` network calls, as in every run) handed its report back after about 31
+minutes measured (20:54 to 21:25 UTC; its report
 and every quoted output are under `runs/tmp/s8-evidence/judge-round0/`, the report
 `s8-judge-round0.md`). It re-ran every criterion's evidence and made each break on the committed
 files, restoring each; its own `make -k check` at `fe44a02`: "1971 passed, 2 deselected, 1 warning
@@ -586,7 +616,7 @@ S8-J1), 1 needs CI (GA18), 2 not applicable at that round (GA10, GA11).
 | S8-J1 (medium, GA7 not met): the judged alert had no test | `test_the_judged_alert_reads_the_trusted_criteria_and_names_the_recalibration_trigger` in `tests/judge/test_judged_compare.py`, in GA6's style (a hand-built record under a tmp root, the v1.1 judged baseline copied as published nightly judged runs): no record ("no judged alert: no calibration record describes the judge"), nothing trusted ("no trusted criterion"), the first nightly judged run the reference, an identical second run not firing (`grounded` diff 0), 20 `grounded` verdicts flipped firing on grounded alone with `ci_high` below zero and the note equal to `drift.RECALIBRATION`, a drop on `abstains` (untrusted) never firing; made never to fire, or its note removed, the test fails | `fe78ba3` |
 | S8-J2 (low, choice 2) | the maintainer's answer "Keep the rule order (Recommended)" (quoted under choice 2 above): no code or file change; the dated note and the docs' wording | this ledger commit |
 | S8-J3 (low, choice 8) | the maintainer's answer "Publish recomputes it (Recommended)" (quoted under choice 8 above): `publish.alert_problems`, the tests, the docs | `4091bde` |
-| S8-J4 (low): a control invented in THREAT-MODEL's own table | a control counts only when its Where cell names at least one backticked path that exists in the repository (`controls()` in the test; the `make audit` row's Where cell now names `Makefile` and `.github/workflows/pr-fast.yml`); the judge's break (`\| nothing needed \| nowhere \| no control at all \|`, LLM06's Layer `nothing needed`) now fails naming the row: "controls table: 'nothing needed' names no existing path in its Where cell, so it is no control", "LLM06:2026: Layer names ['nothing needed'], which neither ...", and 'has no layer but does not say "not applicable, because"' (`test_a_control_invented_in_the_same_file_names_no_layer`); a planted row that names `Makefile` is a control | `287ec98` |
+| S8-J4 (low): a control invented in THREAT-MODEL's own table | a control counts only when its Where cell names at least one backticked path that exists in the repository (`controls()` in the test; the `make audit` row's Where cell now names `Makefile` and `.github/workflows/pr-fast.yml`); the judge's break (`\| nothing needed \| nowhere \| no control at all \|`, LLM06's Layer `nothing needed`) now fails naming the row: "controls table: 'nothing needed' names no existing path in its Where cell, so it is no control", "LLM06:2026: Layer names ['nothing needed'], which neither ...", and 'has no layer but does not say "not applicable, because"' (`test_a_control_invented_in_the_same_file_names_no_layer`); a planted row that names `Makefile` is a control, which narrows the bypass and does not close it (S8-J18, the documented limit; choice 9 open) | `287ec98` |
 | S8-J5 (low): the Gate cell's substring test | `gate_cell_ok`: the cell starts with a gate name, `reported`, `enforced in code` or `(a) hard stop` as a whole word; "someday, once it is not reported", "reportedly" and "the consistency gate, by hand" are refused in the test | `ce19f99` |
 | S8-J6 (low), both halves | (a) `scripts/audit_suite.py` reads the numbers the report's prose states (`PROSE`: the requirements, the audit skips, the test-split ids and their split, the dev runs, the runs, keys and pairs) against the recount, and names a claim gone; the judge's probe (33/56 to 34/57) now gives "6. intervals: the prose says 34 for 'published runs', recounted 33" and the same for the keys; (b) the interval count reads every (run, key) pair (342 of 342 now), not the last manifest per key; the judge's probe (recall@5's interval removed from the oldest manifest) now lowers the count (`test_every_run_metric_pair_is_read_for_its_interval`, on copies) | `3069481` |
 | S8-J7 (info): section 3 quoted short | the output re-run and quoted verbatim ("148 passed in 2.25s" with its three progress lines) | `3069481` |
@@ -597,7 +627,7 @@ S8-J1), 1 needs CI (GA18), 2 not applicable at that round (GA10, GA11).
 | S8-J12 (info): the contamination check | no change: GA9's own wording (absence under the named places and the published dev records) is met; the audit item's wider reading ("found only under datasets/", a scan of `scripts/`, `tests/` and the rest of `docs/`) is named in the audit's section 5 as not done (the ledgers name test ids in allowed lines by design) | — |
 | S8-J13 (info): trial 2 understated | reworded (the `8f7c94d` paragraph above) | this ledger commit |
 | S8-J14 (info): the flake scan's forms | the scan reads test methods of `Test*` classes (and a class marked as a whole) and `@mark.flaky` after `from pytest import mark`; a helper class and a non-test method are not tests (`test_the_scan_reads_class_methods_and_the_imported_mark`) | `83df1da` |
-| S8-J15 (info): the tautological order test | no change: `test_the_order_swapped_would_change_the_pairs` compares `CAUSES` with its literal, so reordering the tuple alone fails only it; the six pair tests hold the rule's order in `cause_of`, and no published case mixes retrieval and abstention (both read the same `found` flags, so one case cannot carry both), which is why reordering those two changes no committed count. Said here rather than tested | — |
+| S8-J15 (info): the tautological order test | no change: `test_the_order_swapped_would_change_the_pairs` compares `CAUSES` with its literal, so reordering the tuple alone fails only it; the six pair tests hold the rule's order in `cause_of`. The reason as first worded here was wrong (the judge's S8-J19): `found` is per trial, so one case can be retrieval in one trial and over-abstention in another (the baseline's G-19 has the trial causes `[None, 'retrieval', None]`, R-Q25 `[None, None, 'retrieval']`); what is true is that **no published case does** carry both, which is why reordering those two in `CAUSES` changes no committed per-case count. Said here rather than tested | — |
 
 **Where the ledger's evidence differs from the plan's Evidence column** (the judge's list):
 - GA5 names `tests/e2e/test_e2e_fake.py`; the assertion that the fake e2e run carries causes is in
@@ -613,6 +643,53 @@ S8-J1), 1 needs CI (GA18), 2 not applicable at that round (GA10, GA11).
 and 7 say "Developer (Opus 5.5)" and "Criteria judge (Fable 5.1)". In fact the developer ran on
 Claude Fable 5.1 and the round-0 judge on Claude Opus 5.5: the independent-judge rule (a different
 model, a separate context) holds with the roles swapped. The plan's table is not edited.
+
+### Criteria judge, round 1 (2026-10-31, at `43b235f`)
+
+The judge (Opus 5.5, its own worktree, detached at `43b235f`; no commit, push, Ollama, download or
+fetch; `make model-swap` run against the real pins with nothing downloaded and the cache's file
+list unchanged; one read-only `git ls-remote` and `make check`'s `audit` and `sast` network calls)
+handed its report back after about 19 minutes measured (22:07 to about 22:26 UTC; the report
+`s8-judge-round1.md` and every output under `runs/tmp/s8-evidence/judge-round0/round1/`). It
+re-made each round-0 break on the fixes (all red: S8-J1's two, J3's recompute removed, J4's
+invented control, J5's "someday", J6's prose and interval, J14's class and imported mark), checked
+GA10 offline (the cache's five files against the pins and the ledger's table, `make model-swap`
+exit 0, the pinned-hash break refused by the embedder and `fetch` without a download, both
+published records validate, a fresh `raglab compare` byte-identical for both pairs, the index's
+baselines equal to `ef46a61`'s) and ran `make -k check` at `43b235f`: "1978 passed, 2 deselected,
+1 warning in 313.59s", `real 360.88`, `audit` alone red. Verdicts: 15 met (GA4, GA5, GA7, GA9, GA12,
+GA13, GA14, GA16, GA17 fully; GA1, GA2, GA3, GA6, GA8, GA15 offline with a pending re-check), 1
+not met (GA10, one clause: S8-J16), 1 needs CI (GA18), 1 not applicable (GA11, until #35).
+
+| GA | The judge's verdict | What it re-ran (its words, short) |
+|---|---|---|
+| GA1, GA3, GA9, GA13, GA17 | met | no change since round 0; inside make check |
+| GA2 | met (offline) | J5's break red |
+| GA4 | met | the docstring only changed; in make check |
+| GA5 | met | the two swap runs' causes files derived again: "IDENTICAL" both |
+| GA6 | met (offline, v1.1's copies) | no change; after S6 the real record |
+| GA7 | **met (offline)** | J1's two breaks red; J3's recompute holds for generation nightlies; the judged gap is S8-J17 |
+| GA8 | met (offline) for 1, 2, 3, 5, 6, 7 | "the counts agree" (35 runs, 33 dev, 342 pairs, 2 compares, 13 causes files); J6's breaks red |
+| GA10 | **not met**, one clause | everything above holds; a compare file edited in both files: `make audit-suite` "the counts agree" and the full suite "1978 passed" (S8-J16) |
+| GA11 | not applicable | #35 |
+| GA12 | met | J14's break red |
+| GA14 | met | J11's wording |
+| GA15 | met (offline) | J4's break red; the residual is S8-J18 |
+| GA16 | met | the orchestrator's re-run reported |
+| GA18 | **needs CI** | make check at `43b235f` |
+
+**Fix round 2** (the coordinator's message of 2026-10-31; three commits, then the ledger):
+
+| Finding | What was done | Commit |
+|---|---|---|
+| S8-J16 (low, GA10 not met): nothing held the committed `runs/compare/` files | `tests/retrieval/test_compare.py::test_the_committed_compare_files_are_what_a_fresh_comparison_gives`: every committed pair derived again from its two published runs (the bootstrap is seeded) and held byte for byte, `compare.md` to the rendering of `compare.json`; it passes on the committed files. The judge's break re-made after the fix (`j16-break.txt`): the dense hit@5 diff -0.136364 to -0.036364 in `compare.json` and -0.136 to -0.036 in `compare.md`, `git diff --stat` "2 files changed"; the test: "AssertionError: 20261024T090200Z-retrieval-dense-dev-ade9397--20261031T214245Z-retrieval-dense-arctic-xs-dev-d797404: compare.json is not a fresh comparison", "1 failed in 0.65s"; `git checkout -- runs/compare`, "restored: 0 entries", "1 passed in 1.05s" | `07767dd` |
+| S8-J17 (low): a judged nightly without its block was accepted | `publish.alert_problems` recomputes a judged nightly record like a generation one, block present or missing (one condition); `test_publish_refuses_a_judged_nightly_without_its_alert_or_with_it_edited` (the judge's probe: a published judged nightly copy of `5aa0ec5`, a record trusting grounded, a later copy with 20 grounded verdicts flipped): without the block "a nightly record without its alert block while the previous nightly 20261022T000000Z-judge-local-dev-5aa0ec5 is published: the block is recomputed at publish"; `fired` edited "fired differ (recomputed {"fired": true})"; the honest block accepted; the first nightly needs no block | `824c4fd` |
+| S8-J18 (info): "closes the bypass" | "narrows", the residual as the documented limit, choice 9 open (above) | this ledger commit |
+| S8-J19 (info): J15's reason | corrected: `found` is per trial; no published case carries both (above) | this ledger commit |
+| S8-J20 (info): the GA10 row and the Makefile comment described the state before the go | the row rewritten to the pinned state (above); the `model-swap` comment describes the pinned model and the cached fetch | `c4a7d39` (the Makefile), this ledger commit (the row) |
+| S8-J21 (info): the prose recount holds five named claims only | no change: `PROSE` names the numeric claims it reads (the requirements, the audit skips, the test-split ids and split, the dev runs, the runs, keys and pairs); "Five Test cells" and the pack's "127 cases (57 ... 13)" are not read, a residual the audit's Counts section says in its own words ("the script's `PROSE` patterns") | — |
+| S8-J22 (info): the round-0 judge "offline, no download" | the round-0 section names its `git ls-remote` and make check's network calls (above) | this ledger commit |
+| S8-J23 (info): the plan's "refuses as stale" | no change: the CLI stops at the missing baseline key for a new config name and never reaches the sha256 rule; the ledger shows the rule through `gate.check` and says so (GA10's section 6) | — |
 
 ### What waits, and for what
 
