@@ -663,7 +663,9 @@ not met (GA10, one clause: S8-J16), 1 needs CI (GA18), 1 not applicable (GA11, u
 
 | GA | The judge's verdict | What it re-ran (its words, short) |
 |---|---|---|
-| GA1, GA3, GA9, GA13, GA17 | met | no change since round 0; inside make check |
+| GA1 | met (offline); the `manual` row after S7b | no change since round 0; inside make check |
+| GA3 | met (offline); R5's cell after S6 | no change since round 0; inside make check |
+| GA9, GA13, GA17 | met | no change since round 0; inside make check |
 | GA2 | met (offline) | J5's break red |
 | GA4 | met | the docstring only changed; in make check |
 | GA5 | met | the two swap runs' causes files derived again: "IDENTICAL" both |
@@ -690,6 +692,84 @@ not met (GA10, one clause: S8-J16), 1 needs CI (GA18), 1 not applicable (GA11, u
 | S8-J21 (info): the prose recount holds five named claims only | no change: `PROSE` names the numeric claims it reads (the requirements, the audit skips, the test-split ids and split, the dev runs, the runs, keys and pairs); "Five Test cells" and the pack's "127 cases (57 ... 13)" are not read, a residual the audit's Counts section says in its own words ("the script's `PROSE` patterns") | — |
 | S8-J22 (info): the round-0 judge "offline, no download" | the round-0 section names its `git ls-remote` and make check's network calls (above) | this ledger commit |
 | S8-J23 (info): the plan's "refuses as stale" | no change: the CLI stops at the missing baseline key for a new config name and never reaches the sha256 rule; the ledger shows the rule through `gate.check` and says so (GA10's section 6) | — |
+
+### Criteria judge, the re-check of fix round 2 (2026-11-01, at `9ff8381`)
+
+The judge (Opus 5.5, its own worktree, detached at `9ff8381`; no commit, push, Ollama, download or
+fetch, the model cache untouched; its network use the same as before: one read-only
+`git ls-remote` and `make check`'s `audit` and `sast` calls) handed its report back after about 8
+minutes measured (08:49 to 08:57 UTC on 2026-11-01, most of it `make check`; the report
+`s8-judge-round2.md` and every output under `runs/tmp/s8-evidence/judge-round0/round2/`).
+
+- **S8-J16 closed** (`07767dd`; the test is in `make test`'s selection, "1980 passed" in its make
+  check) by four breaks on the committed dense pair, each restored and the tree clean after: (a)
+  the round-1 edit, hit@5's diff in both files: "compare.json is not a fresh comparison", "1 failed
+  in 0.66s"; (b) `compare.md` alone edited: "compare.md is not the rendering of compare.json", "1
+  failed in 0.65s"; (c) `compare.json` alone edited: "compare.json is not a fresh comparison", "1
+  failed in 0.65s"; (d) a copy of the pair under a folder naming an unpublished run A: "names an
+  unpublished run A", "1 failed in 1.08s", then "1 passed in 1.05s" with the folder removed.
+- **S8-J17 closed** (`824c4fd`) on the judged branch through `publish.alert_problems` (its probe:
+  a published judged nightly copy of `5aa0ec5`, a record trusting grounded, a later copy with 20
+  grounded verdicts flipped): the block removed, "a nightly record without its alert block while
+  the previous nightly 20261022T000000Z-judge-local-dev-5aa0ec5 is published: the block is
+  recomputed at publish"; `fired` edited, "fired differ (recomputed {"fired": true})";
+  `grounded.ci_high` edited, "diff differ (recomputed {"diff": {"grounded": -0.136054,
+  "grounded.ci_high": -0.054422, "grounded.ci_low": -0.238095}})"; the honest block `[]`; the
+  first nightly with no block `[]`. The one condition reverted in the committed `publish.py` turns
+  `test_publish_refuses_a_judged_nightly_without_its_alert_or_with_it_edited` red ("Right contains
+  one more item: 'a nightly record without its alert block ...'"). The generation branch once more
+  through `publish.publish`: a diff-only edit refused, the block removed refused, the honest block
+  "published 20261019T130000Z-generation-fake-dev-0123456".
+- **The wordings** J18, J19, J20 (the row and the Makefile comment) and J22 confirmed as stating
+  what round 1 found; the round-1 section and the `c4a7d39` make-check record match its files
+  line for line.
+- **Whole branch at `9ff8381`:** `make -k check`, "1980 passed, 2 deselected, 1 warning in 300.19s
+  (0:05:00)", `real 348.05`, `user 333.89`, `sys 16.92`, `audit` alone red (pre-existing);
+  `pyright tests scripts` 0 errors; nothing pushed (`git ls-remote --heads origin
+  feat/s8-gates-causes-audit` empty); protected paths empty (`corpus`, `uv.lock`, `tools`,
+  `.github`; `pyproject.toml` the `flaky` line only); `runs/published` and `runs/compare` unchanged
+  since `43b235f`; no AI attribution; "conventional: 30, not: 0".
+
+| GA | The judge's final verdict | Pending |
+|---|---|---|
+| GA1 | met (offline) | after S7b: the `manual` row, the status words |
+| GA2 | met (offline) | after S6: the bar and calibration rows; after S7b: the comparison rows |
+| GA3 | met (offline) | after S6: R5's Gate cell |
+| GA4, GA5, GA7, GA9, GA12, GA13, GA14, GA16, GA17 | met | GA7: the first nightly on v2 is the reference |
+| GA6 | met (offline, on v1.1's copies) | after S6: the trust check on the real record, the v2 judged record against copies, calibrate's pin break |
+| GA8 | met (offline) for sections 1, 2, 3, 5, 6, 7 | after S6: section 4; after S7b: section 1's findings as cases |
+| GA10 | **met** (S8-J16 closed, four breaks red) | — |
+| GA11 | not applicable at this round | after #35: the first record and its replay |
+| GA15 | met (offline) | after S7b: its rows; choice 9's residual is the maintainer's |
+| GA18 | **needs CI** | the pr-fast `check` time and the pull request's checks once it exists; S8 `done` after S6 and S7b |
+
+**Tally:** 16 met (10 fully: GA4, GA5, GA7, GA9, GA10, GA12, GA13, GA14, GA16, GA17; 6 offline with a
+named re-check: GA1, GA2, GA3, GA6, GA8, GA15), 1 needs CI (GA18), 1 not applicable at this round
+(GA11), 0 not met. **Its call: no third fix round is needed.** One new item, S8-J24 (info): the
+round-1 table's row "GA1, GA3, GA9, GA13, GA17 | met" dropped the "(offline)" qualifier and the
+pending re-checks for GA1 and GA3; split in this commit.
+
+### Where the branch waits (2026-11-01)
+
+The branch exists only locally so far: nothing is pushed. This ledger commit is ledger only, so no
+new `make check` was run for it (the last code commit is `c4a7d39`, run 6 above; the judge's own
+run at `9ff8381`, above).
+
+- **#35** (the dependency pull request) → GA11: `main` merged into this branch with a merge commit,
+  then the first upgrade record in `docs/UPGRADES.md` from the merged commit and its replay
+  (`make check`, `make gate`, `make replay`, `make guard-suites`), quoted here.
+- **S6** → GA6 (the trust check on the real calibration record, the v2 judged record against
+  copies of itself, calibrate's pin break), GA8's section 4, THRESHOLDS' and TEST-PLAN's judged
+  cells (GA2, GA3).
+- **S7b** → GA1's `manual` row (the red team), GA15 over its threat-model rows, the audit's
+  coverage of its findings as cases (GA8 section 1), the status lines (S8 `done`, GA18).
+- **CI** → GA18: the pr-fast `check` job's time before and after against its 20 minutes, and the
+  pull request's checks.
+- **Choice 9** (the controls table in THREAT-MODEL.md with its documented limit, or the list in
+  GUARDRAILS.md after S7b) is open for the maintainer, not for a fix round.
+- **The pull request**, after S6 and S7b merge and the re-checks above: its body is the stage
+  report (n of m met, what needs CI, what was cut, the Mac time used, the CHANGELOG line); the
+  maintainer merges it by hand with a merge commit, then the v0.2.0 release plan.
 
 ### What waits, and for what
 
